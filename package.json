@@ -1,10 +1,11 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "0.12.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "note-publisher",
+	"version": "1.0.0",
+	"description": "A plugin used for publishing notes to personal site",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
+		"dev1": "parcel main.ts",
 		"build": "node esbuild.config.mjs production"
 	},
 	"keywords": [],
@@ -20,4 +21,5 @@
 		"tslib": "2.3.1",
 		"typescript": "4.4.4"
 	}
+	
 }
