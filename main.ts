@@ -70,7 +70,9 @@ export default class NotePublisher extends Plugin {
 	}
 
 	async triggerBuild() {
-		await fetch(this.settings.buildWebHook);
+		await fetch(this.settings.buildWebHook, {
+			method: 'POST'
+		});
 	}
 }
 
