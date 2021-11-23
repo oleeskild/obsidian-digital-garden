@@ -25,6 +25,8 @@ export default class NotePublisher extends Plugin {
 			id: 'publish-note',
 			name: 'Publish Note',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				try{
+
 				let text = editor.getValue();
 				await this.uploadText(view.file.name, text);
 				let fileTitle = view.file.name.replace(".md", "");
@@ -34,6 +36,10 @@ export default class NotePublisher extends Plugin {
 				` Link was added to clipboard.`);
 
 				await this.triggerBuild();
+				}catch(e){
+					console.error(e)
+					new Notice("Unable to publish note, something went wrong.")
+				}
 			},
 			
 		});
@@ -128,7 +134,7 @@ class NotePubliserSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Build Web Hook')
-			.setDesc('The URL to GET to trigger a build')
+			.setDesc('The URL to trigger a build (Using a POST request)')
 			.addText(text => text
 				.setPlaceholder('https://netlify.com/webhook/123')
 				.setValue(this.plugin.settings.buildWebHook)
