@@ -1,17 +1,20 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { clipboard } from 'electron';
+import * as fs from "fs";
+import * as path from 'path';
 
 // Remember to rename these classes and interfaces!
 
 interface NotePublisherSettings {
 	uploadFunctionUrl: string;
 	buildWebHook: string;
+	attachmentFolder: string;
 }
 
 const DEFAULT_SETTINGS: NotePublisherSettings = {
 	uploadFunctionUrl: 'default',
-	buildWebHook: 'default'
-
+	buildWebHook: 'default',
+	attachmentFolder: 'attachments'
 }
 
 export default class NotePublisher extends Plugin {
@@ -25,23 +28,27 @@ export default class NotePublisher extends Plugin {
 			id: 'publish-note',
 			name: 'Publish Note',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				try{
+				try {
 
-				let text = editor.getValue();
-				await this.uploadText(view.file.name, text);
-				let fileTitle = view.file.name.replace(".md", "");
-				// new PublishedModal(this.app, `https://ole.dev/notes/${fileTitle}`).open();
-				clipboard.writeText(`https://ole.dev/notes/${fileTitle}`);
-				new Notice(`Successfully published to https://ole.dev/notes/${fileTitle}.` + 
-				` Link was added to clipboard.`);
 
-				await this.triggerBuild();
-				}catch(e){
+					let text = editor.getValue();
+					text = await this.createBase64Images(text);
+
+					await this.uploadText(view.file.name, text);
+					let fileTitle = view.file.name.replace(".md", "");
+					let urlFileTitle = encodeURI(fileTitle);
+					// new PublishedModal(this.app, `https://ole.dev/notes/${fileTitle}`).open();
+					clipboard.writeText(`https://ole.dev/notes/${urlFileTitle}`);
+					new Notice(`Successfully published to https://ole.dev/notes/${urlFileTitle}.` +
+						` Link was added to clipboard.`);
+
+					await this.triggerBuild();
+				} catch (e) {
 					console.error(e)
 					new Notice("Unable to publish note, something went wrong.")
 				}
 			},
-			
+
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -67,7 +74,7 @@ export default class NotePublisher extends Plugin {
 			method: 'POST',
 			body: JSON.stringify({
 				title,
-				content	
+				content
 			}),
 			headers: {
 				'Content-Type': 'application/json'
@@ -79,6 +86,38 @@ export default class NotePublisher extends Plugin {
 		await fetch(this.settings.buildWebHook, {
 			method: 'POST'
 		});
+	}
+
+	async getImage(filePath: string) {
+		return new Promise((resolve, reject) => {
+			fs.readFile(filePath, (err, data) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve(data);
+				}
+			});
+		});
+	}
+
+	async createBase64Images(text: string):string {
+		let imageText = text;
+		let imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+		let imageMatches = text.match(imageRegex);
+		if (imageMatches) {
+			for (let i = 0; i < imageMatches.length; i++) {
+				let imageMatch = imageMatches[i];
+				let imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+				let imagePath = path.join(this.settings.attachmentFolder, imageName);
+				let absolutePath = path.join(this.app.vault.adapter.basePath, imagePath);
+				let image = await this.getImage(absolutePath);
+				let imageBase64 = image.toString('base64');
+				let imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
+				imageText = imageText.replace(imageMatch, imageMarkdown);
+			}
+		}
+
+		return imageText;
 	}
 }
 
@@ -142,6 +181,17 @@ class NotePubliserSettingTab extends PluginSettingTab {
 					this.plugin.settings.buildWebHook = value;
 					await this.plugin.saveSettings();
 				}));
+		new Setting(containerEl)
+			.setName('Attachments folder')
+			.setDesc('The folder where attachments are stored')
+			.addText(text => text
+				.setPlaceholder('attachments')
+				.setValue(this.plugin.settings.attachmentFolder)
+				.onChange(async (value) => {
+					this.plugin.settings.attachmentFolder= value;
+					await this.plugin.saveSettings();
+				}));
+
 
 	}
 }
