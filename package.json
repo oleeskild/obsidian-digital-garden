@@ -1,5 +1,5 @@
 {
-	"name": "note-publisher",
+	"name": "obsidian-garden",
 	"version": "1.0.0",
 	"description": "A plugin used for publishing notes to personal site",
 	"main": "main.js",
@@ -20,6 +20,8 @@
 		"obsidian": "^0.12.17",
 		"tslib": "2.3.1",
 		"typescript": "4.4.4"
+	},
+	"dependencies": {
+		"@octokit/core": "^3.5.1"
 	}
-	
 }
