@@ -39,7 +39,7 @@ export default class NotePublisher extends Plugin {
 					let fileTitle = view.file.name.replace(".md", "");
 					let urlFileTitle = encodeURI(fileTitle);
 					// clipboard.writeText(`https://ole.dev/notes/${urlFileTitle}`);
-					new Notice(`Successfully published note to your rock garden.`);
+					new Notice(`Successfully published note to your garden.`);
 
 				} catch (e) {
 					console.error(e)
