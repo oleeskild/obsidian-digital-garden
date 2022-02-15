@@ -11,7 +11,7 @@ Lets get started:
 3. Open [this repo](https://github.com/oleeskild/digitalgarden), and click the green "Deploy to netlify" button. This will open netlify which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-digital-garden'. Follow the steps to publish your site to the internet.
 4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Go to [this page](https://github.com/settings/tokens/new?scopes=repo) while logged in to GitHub. The correct settings should already be applied. If you don't want to generate this every few months, choose the "No expiration" option. Click the "Generate token" button, and copy the token you are presented with on the next page. 
 5. Open Obsidian and the settings for "Digital Garden" and fill in your github username, the name of the repo with your notes which you created in step 3, and lastly paste in your token. 
-7. Now, let's publish your first note! Create a new note in Obsidian. And add this to the top of your file
+6. Now, let's publish your first note! Create a new note in Obsidian. And add this to the top of your file
 
 ```
 ---
@@ -21,9 +21,9 @@ tags: gardenEntry
 
 This tells the plugin that this should be your home page or entry into your digital garden.
 
-8. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Note" command. Press enter.
+7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Note" command. Press enter.
 
-9. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
+8. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge.
 
