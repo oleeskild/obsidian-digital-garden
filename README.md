@@ -20,7 +20,9 @@ tags: gardenEntry
 ```
 
 This tells the plugin that this should be your home page or entry into your digital garden.
+
 8. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Note" command. Press enter.
+
 9. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge.
