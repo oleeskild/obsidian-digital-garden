@@ -1,56 +1,30 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, getLinkpath } from 'obsidian';
-import { clipboard } from 'electron';
+import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath } from 'obsidian';
 import * as fs from "fs";
-import * as path from 'path';
 import { Octokit } from "@octokit/core";
 
 // Remember to rename these classes and interfaces!
 
-interface NotePublisherSettings {
+interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
 }
 
-const DEFAULT_SETTINGS: NotePublisherSettings = {
+const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
 	githubToken: '',
 	githubUserName: ''
 }
 
-export default class NotePublisher extends Plugin {
-	settings: NotePublisherSettings;
+export default class DigitalGarden extends Plugin {
+	settings: DigitalGardenSettings;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'publish-note',
-			name: 'Publish Note',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				try {
+		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
-
-					let text = editor.getValue();
-					text = await this.createBase64Images(text);
-
-					await this.uploadText(view.file.name, text);
-					let fileTitle = view.file.name.replace(".md", "");
-					let urlFileTitle = encodeURI(fileTitle);
-					// clipboard.writeText(`https://ole.dev/notes/${urlFileTitle}`);
-					new Notice(`Successfully published note to your garden.`);
-
-				} catch (e) {
-					console.error(e)
-					new Notice("Unable to publish note, something went wrong.")
-				}
-			},
-
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new NotePubliserSettingTab(this.app, this));
+		await this.addCommands();
 
 	}
 
@@ -66,11 +40,47 @@ export default class NotePublisher extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	async addCommands() {
+		this.addCommand({
+			id: 'publish-note',
+			name: 'Publish Note',
+			callback: async () => {
+				try {
+					const { vault } = this.app;
+					const currentFile = this.app.workspace.getActiveFile();
+					let text = await vault.cachedRead(currentFile);
+					text = await this.createBase64Images(text);
+					await this.uploadText(currentFile.name, text);
+					new Notice(`Successfully published note to your garden.`);
+				} catch (e) {
+					console.error(e)
+					new Notice("Unable to publish note, something went wrong.")
+				}
+			},
+
+		});
+
+	}
+
 
 	async uploadText(title: string, content: string) {
+		if(!this.settings.githubRepo){
+			new Notice("Config error: You need to define a GitHub repo in the plugin settings");
+			throw {};
+		}
+		if(!this.settings.githubUserName){
+			new Notice("Config error: You need to define a GitHub Username in the plugin settings");
+			throw {};
+		}
+		if(!this.settings.githubToken){
+			new Notice("Config error: You need to define a GitHub Token in the plugin settings");
+			throw {};
+		}
+
+
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		let base64Content = Buffer.from(content).toString('base64');
+		const base64Content = Buffer.from(content).toString('base64');
 		const path = `src/site/notes/${title}`
 
 		const payload = {
@@ -82,23 +92,20 @@ export default class NotePublisher extends Plugin {
 			sha: ''
 		};
 
-		let fileExists = true;
 		try {
-			var response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+			const response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
 				path
 			});
+			if(response.status === 200 && response.data.type === "file"){
+				payload.sha = response.data.sha;
+			}
 		} catch (e) {
-			fileExists = false;
-			console.log("ERROR INCOMING");
 			console.log(e)
 		}
 
 
-
-		if (fileExists && response.status === 200 && response.data.type === "file")
-			payload.sha = response.data.sha;
 		payload.message = `Update note ${title}`;
 
 		await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
@@ -119,17 +126,17 @@ export default class NotePublisher extends Plugin {
 
 	async createBase64Images(text: string): string {
 		let imageText = text;
-		let imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
-		let imageMatches = text.match(imageRegex);
+		const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+		const imageMatches = text.match(imageRegex);
 		if (imageMatches) {
 			for (let i = 0; i < imageMatches.length; i++) {
-				let imageMatch = imageMatches[i];
-				let imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
-				let imagePath = getLinkpath(imageName);
-				let linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
-				let image = await this.app.vault.readBinary(linkedFile);
-				let imageBase64 = arrayBufferToBase64(image)
-				let imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
+				const imageMatch = imageMatches[i];
+				const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+				const imagePath = getLinkpath(imageName);
+				const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
+				const image = await this.app.vault.readBinary(linkedFile);
+				const imageBase64 = arrayBufferToBase64(image)
+				const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
 				imageText = imageText.replace(imageMatch, imageMarkdown);
 			}
 		}
@@ -138,35 +145,24 @@ export default class NotePublisher extends Plugin {
 	}
 }
 
-class NotePubliserSettingTab extends PluginSettingTab {
-	plugin: NotePublisher;
+class DigitalGardenSettingTab extends PluginSettingTab {
+	plugin: DigitalGarden;
 
-	constructor(app: App, plugin: NotePublisher) {
+	constructor(app: App, plugin: DigitalGarden) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
 	display(): void {
 		const { containerEl } = this;
-
 		containerEl.empty();
-
 		containerEl.createEl('h2', { text: 'Settings ' });
-
-		const desc = document.createDocumentFragment();
-		desc.createEl("span", null, (span) => {
-			span.innerText =
-				"A GitHub token with repo permissions. You can generate it ";
-
-			span.createEl("a", null, (link) => {
-				link.href = "https://github.com/settings/tokens/new?scopes=repo";
-				link.innerText = "here!";
-			});
-		});
+		containerEl.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found '});
+		containerEl.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
 
 		new Setting(containerEl)
-			.setName('Github repo')
-			.setDesc('The name of the github repo')
+			.setName('GitHub repo name')
+			.setDesc('The name of the GitHub repository')
 			.addText(text => text
 				.setPlaceholder('mydigitalgarden')
 				.setValue(this.plugin.settings.githubRepo)
@@ -175,8 +171,8 @@ class NotePubliserSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		new Setting(containerEl)
-			.setName('Github username')
-			.setDesc('Your GitHub username')
+			.setName('GitHub Username')
+			.setDesc('Your GitHub Username')
 			.addText(text => text
 				.setPlaceholder('myusername')
 				.setValue(this.plugin.settings.githubUserName)
@@ -185,8 +181,18 @@ class NotePubliserSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		const desc = document.createDocumentFragment();
+		desc.createEl("span", null, (span) => {
+			span.innerText =
+				"A GitHub token with repo permissions. You can generate it ";
+			span.createEl("a", null, (link) => {
+				link.href = "https://github.com/settings/tokens/new?scopes=repo";
+				link.innerText = "here!";
+			});
+		});
+
 		new Setting(containerEl)
-			.setName('Github token')
+			.setName('GitHub token')
 			.setDesc(desc)
 			.addText(text => text
 				.setPlaceholder('https://github.com/user/repo')
@@ -195,17 +201,14 @@ class NotePubliserSettingTab extends PluginSettingTab {
 					this.plugin.settings.githubToken = value;
 					await this.plugin.saveSettings();
 				}));
-
-
-
 	}
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
-	var binary = "";
-	var bytes = new Uint8Array(buffer);
-	var len = bytes.byteLength;
-	for (var i = 0; i < len; i++) {
+	let binary = "";
+	const bytes = new Uint8Array(buffer);
+	const len = bytes.byteLength;
+	for (let i = 0; i < len; i++) {
 		binary += String.fromCharCode(bytes[i]);
 	}
 	return window.btoa(binary);
