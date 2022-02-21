@@ -92,7 +92,6 @@ export default class DigitalGarden extends Plugin {
 		};
 
 		try {
-			console.log("Before publishing")
 			const response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
