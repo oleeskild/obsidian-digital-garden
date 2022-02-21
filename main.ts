@@ -15,7 +15,7 @@ interface NotePublisherSettings {
 const DEFAULT_SETTINGS: NotePublisherSettings = {
 	githubRepo: '',
 	githubToken: '',
-	githubUserName:''
+	githubUserName: ''
 }
 
 export default class NotePublisher extends Plugin {
@@ -80,9 +80,9 @@ export default class NotePublisher extends Plugin {
 			message: `Add note ${title}`,
 			content: base64Content,
 			sha: ''
-		}; 
-		
-		let fileExists = true; 
+		};
+
+		let fileExists = true;
 		try {
 			var response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 				owner: this.settings.githubUserName,
@@ -99,7 +99,7 @@ export default class NotePublisher extends Plugin {
 
 		if (fileExists && response.status === 200 && response.data.type === "file")
 			payload.sha = response.data.sha;
-			payload.message = `Update note ${title}`;
+		payload.message = `Update note ${title}`;
 
 		await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
 
@@ -153,6 +153,17 @@ class NotePubliserSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Settings ' });
 
+		const desc = document.createDocumentFragment();
+		desc.createEl("span", null, (span) => {
+			span.innerText =
+				"A GitHub token with repo permissions. You can generate it ";
+
+			span.createEl("a", null, (link) => {
+				link.href = "https://github.com/settings/tokens/new?scopes=repo";
+				link.innerText = "here!";
+			});
+		});
+
 		new Setting(containerEl)
 			.setName('Github repo')
 			.setDesc('The name of the github repo')
@@ -170,13 +181,13 @@ class NotePubliserSettingTab extends PluginSettingTab {
 				.setPlaceholder('myusername')
 				.setValue(this.plugin.settings.githubUserName)
 				.onChange(async (value) => {
-					this.plugin.settings.githubUserName= value;
+					this.plugin.settings.githubUserName = value;
 					await this.plugin.saveSettings();
 				}));
 
 		new Setting(containerEl)
 			.setName('Github token')
-			.setDesc('A github token')
+			.setDesc(desc)
 			.addText(text => text
 				.setPlaceholder('https://github.com/user/repo')
 				.setValue(this.plugin.settings.githubToken)
