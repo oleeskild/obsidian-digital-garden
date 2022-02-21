@@ -1,5 +1,4 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath } from 'obsidian';
-import * as fs from "fs";
 import { Octokit } from "@octokit/core";
 
 // Remember to rename these classes and interfaces!
@@ -80,7 +79,7 @@ export default class DigitalGarden extends Plugin {
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		const base64Content = Buffer.from(content).toString('base64');
+		const base64Content = window.btoa(content);
 		const path = `src/site/notes/${title}`
 
 		const payload = {
@@ -93,6 +92,7 @@ export default class DigitalGarden extends Plugin {
 		};
 
 		try {
+			console.log("Before publishing")
 			const response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
@@ -110,18 +110,6 @@ export default class DigitalGarden extends Plugin {
 
 		await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
 
-	}
-
-	async getImage(filePath: string) {
-		return new Promise((resolve, reject) => {
-			fs.readFile(filePath, (err, data) => {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(data);
-				}
-			});
-		});
 	}
 
 	async createBase64Images(text: string): string {
