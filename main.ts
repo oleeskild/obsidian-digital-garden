@@ -112,7 +112,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async createTranscludedText(text: string): string {
+	async createTranscludedText(text: string): Promise<string> {
 		let transcludedText = text;
 		const transcludedRegex = /!\[\[(.*?)\]\]/g;
 		const transclusionMatches = text.match(transcludedRegex);
@@ -124,7 +124,7 @@ export default class DigitalGarden extends Plugin {
 					const filePath = getLinkpath(fileName);
 					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(filePath, this.app.workspace.getActiveFile().path);
 					let fileText = await this.app.vault.read(linkedFile);
-					fileText = "\n```transclusion\n#" + fileName + "\n" + fileText + '\n```\n'
+					fileText = "\n```transclusion\n# " + fileName + "\n\n" + fileText + '\n```\n'
 					//This should be recursive up to a certain depth
 					transcludedText = transcludedText.replace(transclusionMatch, fileText);
 				} catch {
@@ -137,7 +137,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async createBase64Images(text: string): string {
+	async createBase64Images(text: string): Promise<string> {
 		let imageText = text;
 		const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
 		const imageMatches = text.match(imageRegex);
