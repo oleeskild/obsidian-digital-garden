@@ -117,14 +117,20 @@ export default class DigitalGarden extends Plugin {
 		const imageMatches = text.match(imageRegex);
 		if (imageMatches) {
 			for (let i = 0; i < imageMatches.length; i++) {
-				const imageMatch = imageMatches[i];
-				const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
-				const imagePath = getLinkpath(imageName);
-				const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
-				const image = await this.app.vault.readBinary(linkedFile);
-				const imageBase64 = arrayBufferToBase64(image)
-				const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
-				imageText = imageText.replace(imageMatch, imageMarkdown);
+
+                try {
+                    const imageMatch = imageMatches[i];
+                    const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+                    const imagePath = getLinkpath(imageName);
+                    const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
+                    const image = await this.app.vault.readBinary(linkedFile);
+                    const imageBase64 = arrayBufferToBase64(image)
+                    const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
+				    imageText = imageText.replace(imageMatch, imageMarkdown);
+                } catch {
+                    continue;
+                } 
+
 			}
 		}
 
