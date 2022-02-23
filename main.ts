@@ -1,7 +1,6 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath } from 'obsidian';
 import { Octokit } from "@octokit/core";
 
-// Remember to rename these classes and interfaces!
 
 interface DigitalGardenSettings {
 	githubToken: string;
@@ -49,6 +48,8 @@ export default class DigitalGarden extends Plugin {
 					const currentFile = this.app.workspace.getActiveFile();
 					let text = await vault.cachedRead(currentFile);
 					text = await this.createBase64Images(text);
+					text = await this.createTranscludedText(text);
+
 					await this.uploadText(currentFile.name, text);
 					new Notice(`Successfully published note to your garden.`);
 				} catch (e) {
@@ -63,15 +64,15 @@ export default class DigitalGarden extends Plugin {
 
 
 	async uploadText(title: string, content: string) {
-		if(!this.settings.githubRepo){
+		if (!this.settings.githubRepo) {
 			new Notice("Config error: You need to define a GitHub repo in the plugin settings");
 			throw {};
 		}
-		if(!this.settings.githubUserName){
+		if (!this.settings.githubUserName) {
 			new Notice("Config error: You need to define a GitHub Username in the plugin settings");
 			throw {};
 		}
-		if(!this.settings.githubToken){
+		if (!this.settings.githubToken) {
 			new Notice("Config error: You need to define a GitHub Token in the plugin settings");
 			throw {};
 		}
@@ -97,7 +98,7 @@ export default class DigitalGarden extends Plugin {
 				repo: this.settings.githubRepo,
 				path
 			});
-			if(response.status === 200 && response.data.type === "file"){
+			if (response.status === 200 && response.data.type === "file") {
 				payload.sha = response.data.sha;
 			}
 		} catch (e) {
@@ -111,6 +112,31 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
+	async createTranscludedText(text: string): string {
+		let transcludedText = text;
+		const transcludedRegex = /!\[\[(.*?)\]\]/g;
+		const transclusionMatches = text.match(transcludedRegex);
+		if (transclusionMatches) {
+			for (let i = 0; i < transclusionMatches.length; i++) {
+				try {
+					const transclusionMatch = transclusionMatches[i];
+					const fileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
+					const filePath = getLinkpath(fileName);
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(filePath, this.app.workspace.getActiveFile().path);
+					let fileText = await this.app.vault.read(linkedFile);
+					fileText = "\n```transclusion\n#" + fileName + "\n" + fileText + '\n```\n'
+					//This should be recursive up to a certain depth
+					transcludedText = transcludedText.replace(transclusionMatch, fileText);
+				} catch {
+					continue;
+				}
+			}
+		}
+
+		return transcludedText;
+
+	}
+
 	async createBase64Images(text: string): string {
 		let imageText = text;
 		const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
@@ -118,18 +144,18 @@ export default class DigitalGarden extends Plugin {
 		if (imageMatches) {
 			for (let i = 0; i < imageMatches.length; i++) {
 
-                try {
-                    const imageMatch = imageMatches[i];
-                    const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
-                    const imagePath = getLinkpath(imageName);
-                    const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
-                    const image = await this.app.vault.readBinary(linkedFile);
-                    const imageBase64 = arrayBufferToBase64(image)
-                    const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
-				    imageText = imageText.replace(imageMatch, imageMarkdown);
-                } catch {
-                    continue;
-                } 
+				try {
+					const imageMatch = imageMatches[i];
+					const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+					const imagePath = getLinkpath(imageName);
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
+					const image = await this.app.vault.readBinary(linkedFile);
+					const imageBase64 = arrayBufferToBase64(image)
+					const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
+					imageText = imageText.replace(imageMatch, imageMarkdown);
+				} catch {
+					continue;
+				}
 
 			}
 		}
@@ -150,7 +176,7 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.createEl('h2', { text: 'Settings ' });
-		containerEl.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found '});
+		containerEl.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
 		containerEl.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
 
 		new Setting(containerEl)
