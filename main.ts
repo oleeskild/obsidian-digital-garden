@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView } from 'obsidian';
 import { Octokit } from "@octokit/core";
 
 
@@ -46,6 +46,10 @@ export default class DigitalGarden extends Plugin {
 				try {
 					const { vault } = this.app;
 					const currentFile = this.app.workspace.getActiveFile();
+					if(!currentFile){
+						new Notice("No file is open/active. Please open a file and try again.")
+						return;
+					}
 					let text = await vault.cachedRead(currentFile);
 					text = await this.createTranscludedText(text, currentFile.path);
 					text = await this.createBase64Images(text, currentFile.path);
