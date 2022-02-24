@@ -47,8 +47,8 @@ export default class DigitalGarden extends Plugin {
 					const { vault } = this.app;
 					const currentFile = this.app.workspace.getActiveFile();
 					let text = await vault.cachedRead(currentFile);
-					text = await this.createBase64Images(text);
-					text = await this.createTranscludedText(text);
+					text = await this.createTranscludedText(text, currentFile.path);
+					text = await this.createBase64Images(text, currentFile.path);
 
 					await this.uploadText(currentFile.name, text);
 					new Notice(`Successfully published note to your garden.`);
@@ -112,7 +112,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async createTranscludedText(text: string): Promise<string> {
+	async createTranscludedText(text: string, filePath: string): Promise<string> {
 		let transcludedText = text;
 		const transcludedRegex = /!\[\[(.*?)\]\]/g;
 		const transclusionMatches = text.match(transcludedRegex);
@@ -120,11 +120,11 @@ export default class DigitalGarden extends Plugin {
 			for (let i = 0; i < transclusionMatches.length; i++) {
 				try {
 					const transclusionMatch = transclusionMatches[i];
-					const fileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
-					const filePath = getLinkpath(fileName);
-					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(filePath, this.app.workspace.getActiveFile().path);
-					let fileText = await this.app.vault.read(linkedFile);
-					fileText = "\n```transclusion\n# " + fileName + "\n\n" + fileText + '\n```\n'
+					const tranclusionFileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
+					const tranclusionFilePath = getLinkpath(tranclusionFileName);
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
+					let fileText = await this.app.vault.cachedRead(linkedFile);
+					fileText = "\n```transclusion\n# " + tranclusionFileName + "\n\n" + fileText + '\n```\n'
 					//This should be recursive up to a certain depth
 					transcludedText = transcludedText.replace(transclusionMatch, fileText);
 				} catch {
@@ -137,7 +137,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async createBase64Images(text: string): Promise<string> {
+	async createBase64Images(text: string, filePath: string): Promise<string> {
 		let imageText = text;
 		const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
 		const imageMatches = text.match(imageRegex);
@@ -148,10 +148,10 @@ export default class DigitalGarden extends Plugin {
 					const imageMatch = imageMatches[i];
 					const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
 					const imagePath = getLinkpath(imageName);
-					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, this.app.workspace.getActiveFile().path);
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, filePath);
 					const image = await this.app.vault.readBinary(linkedFile);
 					const imageBase64 = arrayBufferToBase64(image)
-					const imageMarkdown = `![${imageName}](data:image/png;base64,${imageBase64})`;
+					const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
 					imageText = imageText.replace(imageMatch, imageMarkdown);
 				} catch {
 					continue;
