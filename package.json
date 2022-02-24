@@ -22,6 +22,7 @@
 		"typescript": "4.4.4"
 	},
 	"dependencies": {
-		"@octokit/core": "^3.5.1"
+		"@octokit/core": "^3.5.1",
+		"js-base64": "^3.7.2"
 	}
 }

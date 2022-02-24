@@ -1,7 +1,6 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView } from 'obsidian';
 import { Octokit } from "@octokit/core";
-
-
+import { Base64 } from "js-base64";
 interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
@@ -84,7 +83,8 @@ export default class DigitalGarden extends Plugin {
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		const base64Content = window.btoa(content);
+		
+		const base64Content = Base64.encode(content);
 		const path = `src/site/notes/${title}`
 
 		const payload = {
@@ -127,6 +127,9 @@ export default class DigitalGarden extends Plugin {
 					const tranclusionFileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
 					const tranclusionFilePath = getLinkpath(tranclusionFileName);
 					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
+					if(["md", "txt"].indexOf(linkedFile.extension) == -1){
+						continue;
+					}
 					let fileText = await this.app.vault.cachedRead(linkedFile);
 					fileText = "\n```transclusion\n# " + tranclusionFileName + "\n\n" + fileText + '\n```\n'
 					//This should be recursive up to a certain depth
@@ -234,5 +237,5 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	for (let i = 0; i < len; i++) {
 		binary += String.fromCharCode(bytes[i]);
 	}
-	return window.btoa(binary);
+	return Base64.btoa(binary);
 }
