@@ -25,14 +25,17 @@ This tells the plugin that this should be your home page or entry into your digi
 
 8. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
-Congratulations, you now have your own digital garden, hosted free of charge.
+Congratulations, you now have your own digital garden, hosted free of charge! 
+You can now start adding links as you usually would in Obisidan (double square brackets like this: [[Some Other Note]]) to the note that you just published. Remember to also publish the notes your are linking to as this will not happen automatically (this is by design). If you did not publish a linked note, the link will simply lead to a site telling the user that this note doesn not exist. 
 
 The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css you can change the styling on your page by modifying the styles.css file. Netlify will automatically update your site when you make changes to the code.
 
 ## Content support
 The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
+* Links to other notes
 * Code Blocks
 * Admonitions
 * MathJax
 * Embedded/Transcluded Images
+* Transcluded notes
