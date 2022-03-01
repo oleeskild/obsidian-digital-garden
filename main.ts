@@ -1,16 +1,21 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView } from 'obsidian';
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
+import fm from 'front-matter';
+import slugify from '@sindresorhus/slugify';
+
 interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
+	gardenBaseUrl: string;
 }
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
 	githubToken: '',
-	githubUserName: ''
+	githubUserName: '',
+	gardenBaseUrl: ''
 }
 
 export default class DigitalGarden extends Plugin {
@@ -43,9 +48,9 @@ export default class DigitalGarden extends Plugin {
 			name: 'Publish Note',
 			callback: async () => {
 				try {
-					const { vault } = this.app;
-					const currentFile = this.app.workspace.getActiveFile();
-					if(!currentFile){
+					const { vault, workspace } = this.app;
+					const currentFile = workspace.getActiveFile();
+					if (!currentFile) {
 						new Notice("No file is open/active. Please open a file and try again.")
 						return;
 					}
@@ -60,9 +65,44 @@ export default class DigitalGarden extends Plugin {
 					new Notice("Unable to publish note, something went wrong.")
 				}
 			},
-
 		});
 
+		this.addCommand({
+			id: 'copy-note-url',
+			name: 'Copy Note URL',
+			callback: async () => {
+				try {
+					const { vault, workspace } = this.app;
+					const currentFile = workspace.getActiveFile();
+					if (!currentFile) {
+						new Notice("No file is open/active. Please open a file and try again.")
+						return;
+					}
+
+					const baseUrl = this.settings.gardenBaseUrl ?
+						`https://${this.extractBaseUrl(this.settings.gardenBaseUrl)}`
+						: `https://${this.settings.githubRepo}.netlify.app`;
+
+					let urlPath = `/notes/${slugify(currentFile.basename)}`;
+					const content = await vault.cachedRead(currentFile);
+					const fmData = fm(content);
+					if (fmData.attributes.permalink) {
+						urlPath = `/${fmData.attributes.permalink}`;
+					}
+
+					const fullUrl = `${baseUrl}${urlPath}`;
+					await navigator.clipboard.writeText(fullUrl);
+					new Notice(`Copied note URL to clipboard: ${fullUrl}`);
+				} catch (e) {
+					new Notice("Unable to copy note URL to clipboard, something went wrong.")
+				}
+			}
+		});
+
+	}
+
+	extractBaseUrl(url: string) {
+		return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
 	}
 
 
@@ -83,7 +123,7 @@ export default class DigitalGarden extends Plugin {
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		
+
 		const base64Content = Base64.encode(content);
 		const path = `src/site/notes/${title}`
 
@@ -127,7 +167,7 @@ export default class DigitalGarden extends Plugin {
 					const tranclusionFileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
 					const tranclusionFilePath = getLinkpath(tranclusionFileName);
 					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
-					if(["md", "txt"].indexOf(linkedFile.extension) == -1){
+					if (["md", "txt"].indexOf(linkedFile.extension) == -1) {
 						continue;
 					}
 					let fileText = await this.app.vault.cachedRead(linkedFile);
@@ -225,6 +265,20 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.githubToken)
 				.onChange(async (value) => {
 					this.plugin.settings.githubToken = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Base URL')
+			.setDesc(`
+				This is used for the "Copy Note URL" command and is optional. 
+				If you leave it blank, the plugin will try to guess it from the repo name.
+			`)
+			.addText(text => text
+				.setPlaceholder('my-digital-garden.netlify.app')
+				.setValue(this.plugin.settings.gardenBaseUrl)
+				.onChange(async (value) => {
+					this.plugin.settings.gardenBaseUrl = value;
 					await this.plugin.saveSettings();
 				}));
 	}
