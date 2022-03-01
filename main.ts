@@ -3,25 +3,33 @@ import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import fm from 'front-matter';
 import slugify from '@sindresorhus/slugify';
+import { link } from 'fs';
 
 interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
 	gardenBaseUrl: string;
+	prHistory: string[];
 }
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
 	githubToken: '',
 	githubUserName: '',
-	gardenBaseUrl: ''
+	gardenBaseUrl: '',
+	prHistory: []
 }
 
 export default class DigitalGarden extends Plugin {
 	settings: DigitalGardenSettings;
+	version: string;
+	branchName: string;
 
 	async onload() {
+		this.version = "1.3.0";
+
+		this.branchName = "update-template-to-v" + this.version;
 		await this.loadSettings();
 
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
@@ -80,7 +88,7 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					const baseUrl = this.settings.gardenBaseUrl ?
-						`https://${this.extractBaseUrl(this.settings.gardenBaseUrl)}`
+						`https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
 						: `https://${this.settings.githubRepo}.netlify.app`;
 
 					let urlPath = `/notes/${slugify(currentFile.basename)}`;
@@ -100,11 +108,6 @@ export default class DigitalGarden extends Plugin {
 		});
 
 	}
-
-	extractBaseUrl(url: string) {
-		return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
-	}
-
 
 	async uploadText(title: string, content: string) {
 		if (!this.settings.githubRepo) {
@@ -209,6 +212,87 @@ export default class DigitalGarden extends Plugin {
 
 		return imageText;
 	}
+
+	async updateTemplateFiles() {
+
+		//This can also be used to update settings via an .ENV file for things like "Include versionednotes"
+
+		let files = [
+			".eleventy.js", "README.md", "netlify.toml", "package-lock.json", "package.json",
+			"src/site/404.njk",
+			"src/site/index.njk",
+			"src/site/versionednote.njk",
+			"src/site/versionednote.njk",
+			"src/site/styles/style.css",
+			"src/site/notes/notes.json",
+			"src/site/_includes/layouts/note.njk",
+			"src/site/_includes/layouts/versionednote.njk",
+			"src/site/_includes/components/notegrowthhistory.njk",
+			"src/site/_includes/components/pageheader.njk",
+			"src/site/_data/versionednotes.js",
+		];
+
+		const octokit = new Octokit({ auth: this.settings.githubToken });
+		const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
+			owner: this.settings.githubUserName,
+			repo: this.settings.githubRepo,
+		});
+
+		//create new branch
+		try {
+
+
+			const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				ref: `refs/heads/${this.branchName}`,
+				sha: latestCommit.data.sha
+			});
+		} catch (e) {
+			//Ignore if the branch already exists
+		}
+
+		for (let file of files) {
+			//get from my repo
+			const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+				owner: "oleeskild",
+				repo: "digitalgarden",
+				path: file
+			});
+
+			const currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				path: file,
+				ref: this.branchName
+			});
+
+			if (latestFile.data.sha !== currentFile.data.sha) {
+				//commit
+				await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+					owner: this.settings.githubUserName,
+					repo: this.settings.githubRepo,
+					path: file,
+					branch: this.branchName,
+					message: "Update template file",
+					content: latestFile.data.content,
+					sha: currentFile.data.sha
+				});
+			}
+		}
+
+		//create pull request
+		const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
+			owner: this.settings.githubUserName,
+			repo: this.settings.githubRepo,
+			title: `Update template to version ${this.version}`,
+			head: this.branchName,
+			base: "main",
+			body: "Update to latest template version"
+		});
+
+		return pr.data.html_url;
+	}
 }
 
 class DigitalGardenSettingTab extends PluginSettingTab {
@@ -281,6 +365,86 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 					this.plugin.settings.gardenBaseUrl = value;
 					await this.plugin.saveSettings();
 				}));
+
+		let previousPrs: any = null;
+
+
+		new Setting(containerEl)
+			.setName('Update to latest template')
+			.setDesc(`
+				This will create a pull request with the latest template changes. 
+				It will not publish any changes before you approve them.
+				You can even test the changes first Netlify will automatically provide you with a test URL.
+			`)
+			.addButton(button => button
+				.setButtonText('Create PR')
+				.onClick(async () => {
+					let msg: HTMLParagraphElement = null;
+					let loading: HTMLParagraphElement = null;
+					if (previousPrs) {
+						msg = document.createDocumentFragment().createEl('p', { text: 'Creating PR. This should take less than 1 minute...' });
+						loading = document.createDocumentFragment().createEl('p', { text: 'Loading' });
+						previousPrs.prepend(loading);
+						previousPrs.prepend(msg);
+					} else {
+						msg = this.containerEl.createEl('p', { text: 'Creating PR. This should take less than 1 minute' });
+						loading = this.containerEl.createEl('p', { text: 'Loading' });
+					}
+					setInterval(() => {
+						if (loading.innerText === 'Loading') {
+							loading.innerText = 'Loading.';
+						} else if (loading.innerText === 'Loading.') {
+							loading.innerText = 'Loading..';
+						} else if (loading.innerText === 'Loading..') {
+							loading.innerText = 'Loading...';
+						} else {
+							loading.innerText = 'Loading';
+						}
+					}, 400)
+					button.setDisabled(true);
+					try {
+						const prUrl = await this.plugin.updateTemplateFiles()
+						this.plugin.settings.prHistory.push(prUrl);
+						await this.plugin.saveSettings();
+						loading.remove();
+						msg.remove();
+						const successmessage = { text: `Done! Approve your PR to make the changes go live.` };
+						const linkText = { text: `${prUrl}`, href: prUrl };
+						if (previousPrs) {
+							previousPrs.prepend(document.createDocumentFragment().createEl('br'));
+							previousPrs.prepend(document.createDocumentFragment().createEl('a',linkText));
+							previousPrs.prepend(document.createDocumentFragment().createEl('h2', successmessage));
+						}else{
+							this.containerEl.createEl('h2', successmessage);
+							this.containerEl.createEl('a', linkText);
+							this.containerEl.createEl('br');
+						}
+					} catch {
+						loading.remove();
+						msg.remove();
+						
+						const errorMsg = { text: 'Something went wrong. Try deleting the branch in GitHub.', attr: { style: 'color: red' } };
+						if (previousPrs) {
+							previousPrs.prepend(document.createDocumentFragment().createEl('p', errorMsg));
+						}else{
+							this.containerEl.createEl('p', errorMsg);
+						}
+					}
+
+
+				})
+			);
+
+		if (this.plugin.settings.prHistory.length > 0) {
+			previousPrs = containerEl.createEl('h2', { text: 'Previous PRs' });
+			for (let prUrl of this.plugin.settings.prHistory.reverse()) {
+				containerEl.createEl('a', { text: prUrl, href: prUrl });
+				containerEl.createEl('br');
+			}
+		}
+
+
+
 	}
 }
 
@@ -293,3 +457,8 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	}
 	return Base64.btoa(binary);
 }
+
+function extractBaseUrl(url: string) {
+	return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
+}
+
