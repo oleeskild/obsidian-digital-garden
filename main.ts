@@ -3,25 +3,33 @@ import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import fm from 'front-matter';
 import slugify from '@sindresorhus/slugify';
+import { link } from 'fs';
 
 interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
 	gardenBaseUrl: string;
+	prHistory: string[];
 }
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
 	githubToken: '',
 	githubUserName: '',
-	gardenBaseUrl: ''
+	gardenBaseUrl: '',
+	prHistory: []
 }
 
 export default class DigitalGarden extends Plugin {
 	settings: DigitalGardenSettings;
+	version: string;
+	branchName: string;
 
 	async onload() {
+		this.version = "1.3.0";
+
+		this.branchName = "update-template-to-v" + this.version;
 		await this.loadSettings();
 
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
@@ -95,21 +103,6 @@ export default class DigitalGarden extends Plugin {
 					new Notice(`Copied note URL to clipboard: ${fullUrl}`);
 				} catch (e) {
 					new Notice("Unable to copy note URL to clipboard, something went wrong.")
-				}
-			}
-		});
-
-		//TODO: This should be a button in settings
-		//This should pop up as an option if we detect that the plugin has been updated
-		this.addCommand({
-			id: 'update-template-version',
-			name: 'Update to latest version',
-			callback: async () => {
-				try {
-					await this.updateTemplateFiles();
-					new Notice("Successfully updated template files.");
-				} catch (e) {
-					new Notice("Unable to update template files, something went wrong.")
 				}
 			}
 		});
@@ -240,21 +233,26 @@ export default class DigitalGarden extends Plugin {
 		];
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
-
 		const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
 			owner: this.settings.githubUserName,
 			repo: this.settings.githubRepo,
 		});
 
 		//create new branch
-		const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-			ref: "refs/heads/update-template-files",
-			sha: latestCommit.data.sha
-		});
+		try {
 
-		for(let file of files) {
+
+			const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				ref: `refs/heads/${this.branchName}`,
+				sha: latestCommit.data.sha
+			});
+		} catch (e) {
+			//Ignore if the branch already exists
+		}
+
+		for (let file of files) {
 			//get from my repo
 			const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 				owner: "oleeskild",
@@ -266,7 +264,7 @@ export default class DigitalGarden extends Plugin {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
 				path: file,
-				ref: "update-template-files"
+				ref: this.branchName
 			});
 
 			if (latestFile.data.sha !== currentFile.data.sha) {
@@ -275,7 +273,7 @@ export default class DigitalGarden extends Plugin {
 					owner: this.settings.githubUserName,
 					repo: this.settings.githubRepo,
 					path: file,
-					branch: "update-template-files",
+					branch: this.branchName,
 					message: "Update template file",
 					content: latestFile.data.content,
 					sha: currentFile.data.sha
@@ -287,13 +285,13 @@ export default class DigitalGarden extends Plugin {
 		const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
 			owner: this.settings.githubUserName,
 			repo: this.settings.githubRepo,
-			title: "Update template to version 1.2.0",
-			head: "update-template-files",
+			title: `Update template to version ${this.version}`,
+			head: this.branchName,
 			base: "main",
-			body: "Update to latest template files"
+			body: "Update to latest template version"
 		});
 
-		console.log(`Created pull request: ${pr.data.html_url}`);
+		return pr.data.html_url;
 	}
 }
 
@@ -367,6 +365,86 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 					this.plugin.settings.gardenBaseUrl = value;
 					await this.plugin.saveSettings();
 				}));
+
+		let previousPrs: any = null;
+
+
+		new Setting(containerEl)
+			.setName('Update to latest template')
+			.setDesc(`
+				This will create a pull request with the latest template changes. 
+				It will not publish any changes before you approve them.
+				You can even test the changes first Netlify will automatically provide you with a test URL.
+			`)
+			.addButton(button => button
+				.setButtonText('Create PR')
+				.onClick(async () => {
+					let msg: HTMLParagraphElement = null;
+					let loading: HTMLParagraphElement = null;
+					if (previousPrs) {
+						msg = document.createDocumentFragment().createEl('p', { text: 'Creating PR. This should take less than 1 minute...' });
+						loading = document.createDocumentFragment().createEl('p', { text: 'Loading' });
+						previousPrs.prepend(loading);
+						previousPrs.prepend(msg);
+					} else {
+						msg = this.containerEl.createEl('p', { text: 'Creating PR. This should take less than 1 minute' });
+						loading = this.containerEl.createEl('p', { text: 'Loading' });
+					}
+					setInterval(() => {
+						if (loading.innerText === 'Loading') {
+							loading.innerText = 'Loading.';
+						} else if (loading.innerText === 'Loading.') {
+							loading.innerText = 'Loading..';
+						} else if (loading.innerText === 'Loading..') {
+							loading.innerText = 'Loading...';
+						} else {
+							loading.innerText = 'Loading';
+						}
+					}, 400)
+					button.setDisabled(true);
+					try {
+						const prUrl = await this.plugin.updateTemplateFiles()
+						this.plugin.settings.prHistory.push(prUrl);
+						await this.plugin.saveSettings();
+						loading.remove();
+						msg.remove();
+						const successmessage = { text: `Done! Approve your PR to make the changes go live.` };
+						const linkText = { text: `${prUrl}`, href: prUrl };
+						if (previousPrs) {
+							previousPrs.prepend(document.createDocumentFragment().createEl('br'));
+							previousPrs.prepend(document.createDocumentFragment().createEl('a',linkText));
+							previousPrs.prepend(document.createDocumentFragment().createEl('h2', successmessage));
+						}else{
+							this.containerEl.createEl('h2', successmessage);
+							this.containerEl.createEl('a', linkText);
+							this.containerEl.createEl('br');
+						}
+					} catch {
+						loading.remove();
+						msg.remove();
+						
+						const errorMsg = { text: 'Something went wrong. Try deleting the branch in GitHub.', attr: { style: 'color: red' } };
+						if (previousPrs) {
+							previousPrs.prepend(document.createDocumentFragment().createEl('p', errorMsg));
+						}else{
+							this.containerEl.createEl('p', errorMsg);
+						}
+					}
+
+
+				})
+			);
+
+		if (this.plugin.settings.prHistory.length > 0) {
+			previousPrs = containerEl.createEl('h2', { text: 'Previous PRs' });
+			for (let prUrl of this.plugin.settings.prHistory.reverse()) {
+				containerEl.createEl('a', { text: prUrl, href: prUrl });
+				containerEl.createEl('br');
+			}
+		}
+
+
+
 	}
 }
 
