@@ -80,7 +80,7 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					const baseUrl = this.settings.gardenBaseUrl ?
-						`https://${this.extractBaseUrl(this.settings.gardenBaseUrl)}`
+						`https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
 						: `https://${this.settings.githubRepo}.netlify.app`;
 
 					let urlPath = `/notes/${slugify(currentFile.basename)}`;
@@ -99,12 +99,22 @@ export default class DigitalGarden extends Plugin {
 			}
 		});
 
-	}
+		//TODO: This should be a button in settings
+		//This should pop up as an option if we detect that the plugin has been updated
+		this.addCommand({
+			id: 'update-template-version',
+			name: 'Update to latest version',
+			callback: async () => {
+				try {
+					await this.updateTemplateFiles();
+					new Notice("Successfully updated template files.");
+				} catch (e) {
+					new Notice("Unable to update template files, something went wrong.")
+				}
+			}
+		});
 
-	extractBaseUrl(url: string) {
-		return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
 	}
-
 
 	async uploadText(title: string, content: string) {
 		if (!this.settings.githubRepo) {
@@ -209,6 +219,82 @@ export default class DigitalGarden extends Plugin {
 
 		return imageText;
 	}
+
+	async updateTemplateFiles() {
+
+		//This can also be used to update settings via an .ENV file for things like "Include versionednotes"
+
+		let files = [
+			".eleventy.js", "README.md", "netlify.toml", "package-lock.json", "package.json",
+			"src/site/404.njk",
+			"src/site/index.njk",
+			"src/site/versionednote.njk",
+			"src/site/versionednote.njk",
+			"src/site/styles/style.css",
+			"src/site/notes/notes.json",
+			"src/site/_includes/layouts/note.njk",
+			"src/site/_includes/layouts/versionednote.njk",
+			"src/site/_includes/components/notegrowthhistory.njk",
+			"src/site/_includes/components/pageheader.njk",
+			"src/site/_data/versionednotes.js",
+		];
+
+		const octokit = new Octokit({ auth: this.settings.githubToken });
+
+		const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
+			owner: this.settings.githubUserName,
+			repo: this.settings.githubRepo,
+		});
+
+		//create new branch
+		const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
+			owner: this.settings.githubUserName,
+			repo: this.settings.githubRepo,
+			ref: "refs/heads/update-template-files",
+			sha: latestCommit.data.sha
+		});
+
+		for(let file of files) {
+			//get from my repo
+			const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+				owner: "oleeskild",
+				repo: "digitalgarden",
+				path: file
+			});
+
+			const currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				path: file,
+				ref: "update-template-files"
+			});
+
+			if (latestFile.data.sha !== currentFile.data.sha) {
+				//commit
+				await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+					owner: this.settings.githubUserName,
+					repo: this.settings.githubRepo,
+					path: file,
+					branch: "update-template-files",
+					message: "Update template file",
+					content: latestFile.data.content,
+					sha: currentFile.data.sha
+				});
+			}
+		}
+
+		//create pull request
+		const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
+			owner: this.settings.githubUserName,
+			repo: this.settings.githubRepo,
+			title: "Update template to version 1.2.0",
+			head: "update-template-files",
+			base: "main",
+			body: "Update to latest template files"
+		});
+
+		console.log(`Created pull request: ${pr.data.html_url}`);
+	}
 }
 
 class DigitalGardenSettingTab extends PluginSettingTab {
@@ -293,3 +379,8 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	}
 	return Base64.btoa(binary);
 }
+
+function extractBaseUrl(url: string) {
+	return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
+}
+
