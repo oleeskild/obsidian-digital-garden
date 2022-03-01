@@ -19,7 +19,7 @@ tags: gardenEntry
 ---
 ```
 
-This tells the plugin that this should be your home page or entry into your digital garden.
+This tells the plugin that this should be your home page or entry into your digital garden. (It only needs to be added to 1 note, not every note you'll publish).
 
 7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Note" command. Press enter.
 
