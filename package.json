@@ -23,8 +23,8 @@
     },
     "dependencies": {
         "@octokit/core": "^3.5.1",
-        "front-matter": "^4.0.2",
-        "js-base64": "^3.7.2",
-        "@sindresorhus/slugify": "^1.1.0"
+        "@sindresorhus/slugify": "^1.1.0",
+        "gray-matter": "^4.0.3",
+        "js-base64": "^3.7.2"
     }
 }

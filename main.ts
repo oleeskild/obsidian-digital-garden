@@ -1,7 +1,7 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView } from 'obsidian';
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import fm from 'front-matter';
+import matter = require('gray-matter');
 import slugify from '@sindresorhus/slugify';
 import { link } from 'fs';
 
@@ -27,9 +27,9 @@ export default class DigitalGarden extends Plugin {
 	branchName: string;
 
 	async onload() {
-		this.version = "1.3.0";
-
+		this.version = "1.4.0";
 		this.branchName = "update-template-to-v" + this.version;
+		console.log("Initializing DigitalGarden plugin v" + this.version);
 		await this.loadSettings();
 
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
@@ -63,6 +63,7 @@ export default class DigitalGarden extends Plugin {
 						return;
 					}
 					let text = await vault.cachedRead(currentFile);
+					text = await this.convertFrontMatter(text);
 					text = await this.createTranscludedText(text, currentFile.path);
 					text = await this.createBase64Images(text, currentFile.path);
 
@@ -76,8 +77,8 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'copy-note-url',
-			name: 'Copy Note URL',
+			id: 'copy-garden-url',
+			name: 'Copy Garden URL',
 			callback: async () => {
 				try {
 					const { vault, workspace } = this.app;
@@ -93,9 +94,11 @@ export default class DigitalGarden extends Plugin {
 
 					let urlPath = `/notes/${slugify(currentFile.basename)}`;
 					const content = await vault.cachedRead(currentFile);
-					const fmData = fm(content);
-					if (fmData.attributes.permalink) {
-						urlPath = `/${fmData.attributes.permalink}`;
+					const frontMatter = matter(content);
+					if (frontMatter.data.permalink) {
+						urlPath = `/${frontMatter.data.permalink}`;
+					} else if (frontMatter.data["dg-permalink"]) {
+						urlPath = `/${frontMatter.data["dg-permalink"]}`;
 					}
 
 					const fullUrl = `${baseUrl}${urlPath}`;
@@ -107,6 +110,28 @@ export default class DigitalGarden extends Plugin {
 			}
 		});
 
+	}
+	async convertFrontMatter(text: string): Promise<string> {
+		const frontMatter = matter(text);
+		frontMatter.data["permalink"] = frontMatter.data["dg-permalink"];
+		if (!frontMatter.data["permalink"].endsWith("/")) {
+			frontMatter.data["permalink"] += "/";
+		}
+
+		if (frontMatter.data["dg-home"]) {
+			const tags = frontMatter.data["tags"];
+			if (tags) {
+				if (typeof (tags) === "string") {
+					frontMatter.data["tags"] = [tags, "gardenEntry"];
+				} else {
+					frontMatter.data["tags"] = [...tags, "gardenEntry"];
+				}
+			} else {
+				frontMatter.data["tags"] = "gardenEntry";
+			}
+
+		}
+		return matter.stringify(frontMatter.content, frontMatter.data);
 	}
 
 	async uploadText(title: string, content: string) {
@@ -282,16 +307,22 @@ export default class DigitalGarden extends Plugin {
 		}
 
 		//create pull request
-		const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-			title: `Update template to version ${this.version}`,
-			head: this.branchName,
-			base: "main",
-			body: "Update to latest template version"
-		});
+		try {
+			const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				title: `Update template to version ${this.version}`,
+				head: this.branchName,
+				base: "main",
+				body: "Update to latest template version"
+			});
 
-		return pr.data.html_url;
+			return pr.data.html_url;
+		} catch {
+			//The PR failed, most likely the repo is the latest version
+			return null;
+		}
+
 	}
 }
 
@@ -404,29 +435,37 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 					button.setDisabled(true);
 					try {
 						const prUrl = await this.plugin.updateTemplateFiles()
-						this.plugin.settings.prHistory.push(prUrl);
-						await this.plugin.saveSettings();
+						if (prUrl) {
+							this.plugin.settings.prHistory.push(prUrl);
+							await this.plugin.saveSettings();
+						}
 						loading.remove();
 						msg.remove();
-						const successmessage = { text: `Done! Approve your PR to make the changes go live.` };
+						const successmessage = prUrl ? 
+							{ text: `Done! Approve your PR to make the changes go live.` }:
+							{text: "You already have the latest template. No need to create a PR.", attr: {style: "color: green"}};
 						const linkText = { text: `${prUrl}`, href: prUrl };
 						if (previousPrs) {
 							previousPrs.prepend(document.createDocumentFragment().createEl('br'));
-							previousPrs.prepend(document.createDocumentFragment().createEl('a',linkText));
+							if(prUrl) {
+								previousPrs.prepend(document.createDocumentFragment().createEl('a', linkText));
+							}
 							previousPrs.prepend(document.createDocumentFragment().createEl('h2', successmessage));
-						}else{
+						} else {
 							this.containerEl.createEl('h2', successmessage);
-							this.containerEl.createEl('a', linkText);
+							if(prUrl){
+								this.containerEl.createEl('a', linkText);
+							}
 							this.containerEl.createEl('br');
 						}
 					} catch {
 						loading.remove();
 						msg.remove();
-						
+
 						const errorMsg = { text: 'Something went wrong. Try deleting the branch in GitHub.', attr: { style: 'color: red' } };
 						if (previousPrs) {
 							previousPrs.prepend(document.createDocumentFragment().createEl('p', errorMsg));
-						}else{
+						} else {
 							this.containerEl.createEl('p', errorMsg);
 						}
 					}
