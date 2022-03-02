@@ -1,9 +1,7 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView, FrontMatterCache, parseFrontMatterEntry, parseFrontMatterTags, parseFrontMatterAliases } from 'obsidian';
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import matter = require('gray-matter');
 import slugify from '@sindresorhus/slugify';
-import { link } from 'fs';
 
 interface DigitalGardenSettings {
 	githubToken: string;
@@ -27,7 +25,7 @@ export default class DigitalGarden extends Plugin {
 	branchName: string;
 
 	async onload() {
-		this.version = "1.4.0";
+		this.version = "1.4.1";
 		this.branchName = "update-template-to-v" + this.version;
 		console.log("Initializing DigitalGarden plugin v" + this.version);
 		await this.loadSettings();
@@ -63,7 +61,7 @@ export default class DigitalGarden extends Plugin {
 						return;
 					}
 					let text = await vault.cachedRead(currentFile);
-					text = await this.convertFrontMatter(text);
+					text = await this.convertFrontMatter(text, currentFile.path);
 					text = await this.createTranscludedText(text, currentFile.path);
 					text = await this.createBase64Images(text, currentFile.path);
 
@@ -94,47 +92,56 @@ export default class DigitalGarden extends Plugin {
 
 					let urlPath = `/notes/${slugify(currentFile.basename)}`;
 					const content = await vault.cachedRead(currentFile);
-					const frontMatter = matter(content);
-					if (frontMatter.data.permalink) {
-						urlPath = `/${frontMatter.data.permalink}`;
-					} else if (frontMatter.data["dg-permalink"]) {
-						urlPath = `/${frontMatter.data["dg-permalink"]}`;
+					const frontMatter = this.app.metadataCache.getCache(currentFile.path).frontmatter;
+					if (frontMatter && frontMatter.permalink) {
+						urlPath = `/${frontMatter.permalink}`;
+					} else if (frontMatter && frontMatter["dg-permalink"]) {
+						urlPath = `/${frontMatter["dg-permalink"]}`;
 					}
 
 					const fullUrl = `${baseUrl}${urlPath}`;
 					await navigator.clipboard.writeText(fullUrl);
 					new Notice(`Copied note URL to clipboard: ${fullUrl}`);
 				} catch (e) {
+					console.log(e)
 					new Notice("Unable to copy note URL to clipboard, something went wrong.")
 				}
 			}
 		});
 
 	}
-	async convertFrontMatter(text: string): Promise<string> {
-		const frontMatter = matter(text);
-		if (frontMatter.data["dg-permalink"]) {
-			frontMatter.data["permalink"] = frontMatter.data["dg-permalink"];
-			if (!frontMatter.data["permalink"].endsWith("/")) {
-				frontMatter.data["permalink"] += "/";
+	async convertFrontMatter(text: string, path: string): Promise<string> {
+		const frontMatter = this.app.metadataCache.getCache(path).frontmatter;
+		if (frontMatter && frontMatter["dg-permalink"]) {
+			frontMatter["permalink"] = frontMatter["dg-permalink"];
+			if (!frontMatter["permalink"].endsWith("/")) {
+				frontMatter["permalink"] += "/";
 			}
 		}
 
 
-		if (frontMatter.data["dg-home"]) {
-			const tags = frontMatter.data["tags"];
+		if (frontMatter && frontMatter["dg-home"]) {
+			const tags = frontMatter["tags"];
 			if (tags) {
 				if (typeof (tags) === "string") {
-					frontMatter.data["tags"] = [tags, "gardenEntry"];
+					frontMatter["tags"] = [tags, "gardenEntry"];
 				} else {
-					frontMatter.data["tags"] = [...tags, "gardenEntry"];
+					frontMatter["tags"] = [...tags, "gardenEntry"];
 				}
 			} else {
-				frontMatter.data["tags"] = "gardenEntry";
+				frontMatter["tags"] = "gardenEntry";
 			}
 
 		}
-		return matter.stringify(frontMatter.content, frontMatter.data);
+		//replace frontmatter
+		const replaced = text.replace(/---\n([\s\S]*?)\n---/g, (match, p1) => {
+			const copy = {...frontMatter};
+			delete copy["position"];
+			delete copy["end"];
+			const frontMatterString = JSON.stringify(copy);
+			return `---\n${frontMatterString}\n---`;
+		});
+		return replaced;
 	}
 
 	async uploadText(title: string, content: string) {

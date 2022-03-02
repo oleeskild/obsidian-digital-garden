@@ -24,7 +24,6 @@
     "dependencies": {
         "@octokit/core": "^3.5.1",
         "@sindresorhus/slugify": "^1.1.0",
-        "gray-matter": "^4.0.3",
         "js-base64": "^3.7.2"
     }
 }
