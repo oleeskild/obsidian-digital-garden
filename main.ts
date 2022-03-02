@@ -133,8 +133,9 @@ export default class DigitalGarden extends Plugin {
 			}
 
 		}
-		//replace frontmatter
-		const replaced = text.replace(/---\n([\s\S]*?)\n---/g, (match, p1) => {
+		//replace frontmatter at start of file
+
+		const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
 			const copy = {...frontMatter};
 			delete copy["position"];
 			delete copy["end"];
