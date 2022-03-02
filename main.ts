@@ -113,10 +113,13 @@ export default class DigitalGarden extends Plugin {
 	}
 	async convertFrontMatter(text: string): Promise<string> {
 		const frontMatter = matter(text);
-		frontMatter.data["permalink"] = frontMatter.data["dg-permalink"];
-		if (!frontMatter.data["permalink"].endsWith("/")) {
-			frontMatter.data["permalink"] += "/";
+		if (frontMatter.data["dg-permalink"]) {
+			frontMatter.data["permalink"] = frontMatter.data["dg-permalink"];
+			if (!frontMatter.data["permalink"].endsWith("/")) {
+				frontMatter.data["permalink"] += "/";
+			}
 		}
+
 
 		if (frontMatter.data["dg-home"]) {
 			const tags = frontMatter.data["tags"];
@@ -441,19 +444,19 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 						}
 						loading.remove();
 						msg.remove();
-						const successmessage = prUrl ? 
-							{ text: `Done! Approve your PR to make the changes go live.` }:
-							{text: "You already have the latest template. No need to create a PR.", attr: {style: "color: green"}};
+						const successmessage = prUrl ?
+							{ text: `Done! Approve your PR to make the changes go live.` } :
+							{ text: "You already have the latest template. No need to create a PR.", attr: { style: "color: green" } };
 						const linkText = { text: `${prUrl}`, href: prUrl };
 						if (previousPrs) {
 							previousPrs.prepend(document.createDocumentFragment().createEl('br'));
-							if(prUrl) {
+							if (prUrl) {
 								previousPrs.prepend(document.createDocumentFragment().createEl('a', linkText));
 							}
 							previousPrs.prepend(document.createDocumentFragment().createEl('h2', successmessage));
 						} else {
 							this.containerEl.createEl('h2', successmessage);
-							if(prUrl){
+							if (prUrl) {
 								this.containerEl.createEl('a', linkText);
 							}
 							this.containerEl.createEl('br');

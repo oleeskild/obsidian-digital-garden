@@ -15,7 +15,7 @@ Lets get started:
 
 ```
 ---
-tags: gardenEntry
+dg-home: true
 ---
 ```
 
@@ -47,7 +47,7 @@ As an example, the top of your file could look like this:
 
 ```
 ---
-permalink: "mynote/"
+dg-permalink: "mynote"
 ---
 ```
 
@@ -62,6 +62,3 @@ The permalinks can be an arbitrary level of folders deep, such as:
 permalink: "category/2022/mynote/"
 ---
 ```
-
-
-Warning: It is very important that you always add a trailing slash (/) at the end of the permalink. Without it, the browser will try to download the file instead of letting you view it as a normal webpage.
