@@ -59,6 +59,6 @@ The permalinks can be an arbitrary level of folders deep, such as:
 
 ```
 ---
-permalink: "category/2022/mynote/"
+dg-permalink: "category/2022/mynote/"
 ---
 ```
