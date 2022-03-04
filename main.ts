@@ -21,19 +21,19 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 export default class DigitalGarden extends Plugin {
 	settings: DigitalGardenSettings;
-	version: string;
-	branchName: string;
+	appVersion: string;
 
 	async onload() {
-		this.version = "1.4.1";
-		this.branchName = "update-template-to-v" + this.version;
-		console.log("Initializing DigitalGarden plugin v" + this.version);
+		this.appVersion = "2.0.0";
+
+		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
 
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
 		await this.addCommands();
-
+		 
+		
 	}
 
 	onunload() {
@@ -54,12 +54,21 @@ export default class DigitalGarden extends Plugin {
 			name: 'Publish Note',
 			callback: async () => {
 				try {
-					const { vault, workspace } = this.app;
+					const { vault, workspace, metadataCache } = this.app;
+
+
 					const currentFile = workspace.getActiveFile();
 					if (!currentFile) {
 						new Notice("No file is open/active. Please open a file and try again.")
 						return;
 					}
+
+					const frontMatter = metadataCache.getCache(currentFile.path).frontmatter;
+					if(!frontMatter || !frontMatter["dg-publish"]){
+						new Notice("Note does not have the dg-publish: true set. Please add this and try again.")
+						return;
+					}
+
 					let text = await vault.cachedRead(currentFile);
 					text = await this.convertFrontMatter(text, currentFile.path);
 					text = await this.createTranscludedText(text, currentFile.path);
@@ -67,6 +76,48 @@ export default class DigitalGarden extends Plugin {
 
 					await this.uploadText(currentFile.name, text);
 					new Notice(`Successfully published note to your garden.`);
+
+				} catch (e) {
+					console.error(e)
+					new Notice("Unable to publish note, something went wrong.")
+				}
+			},
+		});
+
+		this.addCommand({
+			id: 'publish-all-tagged-notes',
+			name: 'Publish All Notes',
+			callback: async () => {
+				try {
+					const { vault, metadataCache } = this.app;
+					const files = vault.getMarkdownFiles();
+					const filesToPublish = [];
+					for (const file of files) {
+						let publish = false;
+						try {
+							const frontMatter = metadataCache.getCache(file.path).frontmatter
+							if(frontMatter){
+								publish = frontMatter["dg-publish"] === true;
+							}
+						} catch {
+							//ignore
+						}
+						if (publish) {
+							filesToPublish.push(file);
+						}
+					}
+
+					for (const file of filesToPublish) {
+						let text = await vault.cachedRead(file);
+						text = await this.convertFrontMatter(text, file.path);
+						text = await this.createTranscludedText(text, file.path);
+						text = await this.createBase64Images(text, file.path);
+
+						await this.uploadText(file.name, text);
+					}
+
+					new Notice(`Successfully published all tagged notes to your garden.`);
+
 				} catch (e) {
 					console.error(e)
 					new Notice("Unable to publish note, something went wrong.")
@@ -91,7 +142,6 @@ export default class DigitalGarden extends Plugin {
 						: `https://${this.settings.githubRepo}.netlify.app`;
 
 					let urlPath = `/notes/${slugify(currentFile.basename)}`;
-					const content = await vault.cachedRead(currentFile);
 					const frontMatter = this.app.metadataCache.getCache(currentFile.path).frontmatter;
 					if (frontMatter && frontMatter.permalink) {
 						urlPath = `/${frontMatter.permalink}`;
@@ -136,7 +186,7 @@ export default class DigitalGarden extends Plugin {
 		//replace frontmatter at start of file
 
 		const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
-			const copy = {...frontMatter};
+			const copy = { ...frontMatter };
 			delete copy["position"];
 			delete copy["end"];
 			const frontMatterString = JSON.stringify(copy);
@@ -269,6 +319,14 @@ export default class DigitalGarden extends Plugin {
 		];
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
+		const latestRelease = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
+			owner: "oleeskild",
+			repo: "digitalgarden",
+		});
+
+		const templateVersion = latestRelease.data.tag_name;
+		const branchName = "update-template-to-v" + templateVersion;
+
 		const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
 			owner: this.settings.githubUserName,
 			repo: this.settings.githubRepo,
@@ -276,17 +334,17 @@ export default class DigitalGarden extends Plugin {
 
 		//create new branch
 		try {
-
-
 			const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
-				ref: `refs/heads/${this.branchName}`,
+				ref: `refs/heads/${branchName}`,
 				sha: latestCommit.data.sha
 			});
 		} catch (e) {
 			//Ignore if the branch already exists
 		}
+
+		
 
 		for (let file of files) {
 			//get from my repo
@@ -300,7 +358,7 @@ export default class DigitalGarden extends Plugin {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
 				path: file,
-				ref: this.branchName
+				ref: branchName
 			});
 
 			if (latestFile.data.sha !== currentFile.data.sha) {
@@ -309,7 +367,7 @@ export default class DigitalGarden extends Plugin {
 					owner: this.settings.githubUserName,
 					repo: this.settings.githubRepo,
 					path: file,
-					branch: this.branchName,
+					branch: branchName,
 					message: "Update template file",
 					content: latestFile.data.content,
 					sha: currentFile.data.sha
@@ -322,8 +380,8 @@ export default class DigitalGarden extends Plugin {
 			const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
-				title: `Update template to version ${this.version}`,
-				head: this.branchName,
+				title: `Update template to version ${templateVersion}`,
+				head: branchName,
 				base: "main",
 				body: "Update to latest template version"
 			});
