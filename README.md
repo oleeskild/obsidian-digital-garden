@@ -16,19 +16,42 @@ Lets get started:
 ```
 ---
 dg-home: true
+dg-publish: true
 ---
 ```
 
-This tells the plugin that this should be your home page or entry into your digital garden. (It only needs to be added to 1 note, not every note you'll publish).
+**This does two things:**
 
-7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Note" command. Press enter.
+* The dg-home setting tells the plugin that this should be your home page or entry into your digital garden. (It only needs to be added to _one_ note, not every note you'll publish).
+
+* The dg-publish setting tells the plugin that this note should be published to your digital garden. Notes without this setting will not be published. (In other terms: Every note you publish will need this setting.)
+
+
+7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
 
 8. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge! 
 You can now start adding links as you usually would in Obisidan, with double square brackets like this: [[Some Other Note]]) to the note that you just published. Remember to also publish the notes your are linking to as this will not happen automatically. This is by design. You are always in control of what notes you actually want to publish. If you did not publish a linked note, the link will simply lead to a site telling the user that this note does not exist. 
 
-The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css you can change the styling on your page by modifying the styles.css file. Netlify should automatically update your site when you make changes to the code.
+## Commands
+There are two commands available for publishing notes.
+
+1. The "Digital Garden: Publish Single Note" command will publish the currently active note, and only this.
+2. The "Digital Garden: Publish Multiple Notes" command will publish all notes in your vault that have the dg-publish setting set to true. This way you can easily keep track of which notes you have published.
+(Protip: You can use the "DataView" plugin to list all published notes with this query: "list where dg-publish=true")
+
+## Modifying the template/site
+The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
+future conflict when updating the template. Netlify should automatically update your site when you make changes to the code.
+
+## Updating the template
+In the setting menu for the plugin there is, in addition to the previously mentioned settings, a setting with the name "Update site to latest template" with a button saying "Create PR". Whenever this template receives any updates, this button can be used to update your site. It will create a new branch in your repo with the changes and create a Pull Request to your main branch. The plugin will present you with this URL in the setting view. 
+
+If you used the "Deploy to Netlify" button, a Netlify bot will build a preview version of your site which you can visit to see that the changes does not contain any breaking changes. The URL should be visible in the PR. 
+When you are ready you can use the "Merge pull request" button on the pull request page to merge the changes into your main branch and make the changes go live.
+
+In the future you will be notified with a visual cue whenever there is an update ready. For now you will need to manually check. If you have the latest version, you will be told so.
 
 ## Content support
 The plugin currently supports rendering of these types of note contents:
@@ -41,19 +64,20 @@ The plugin currently supports rendering of these types of note contents:
 * Transcluded notes
 
 ## Advanced usage
-This plugin also supports setting your own links to a note, if you prefer something else than the note name.
-This is done by adding a permalink attribute to the frontmatter of your file. 
+This plugin also supports setting your own links to a note, if you prefer something else than the default behaviour.
+This is done by adding a dg-permalink attribute to the frontmatter of your file. 
 As an example, the top of your file could look like this:
 
 ```
 ---
+dg-publish: true
 dg-permalink: "mynote"
 ---
 ```
 
 
-This will make the URL to you note be "{Your-Garden-Name}.netlify.app/mynote/". You can still use normal obsidian style links as before to link to it. These will be automatically corrected once you publish a note with the permalink attribute. 
-Same goes for deleting the attribute. Doing so will result in the note using the default URL. All links in other notes should automotacally be corrected and still work.  
+This will make the URL to you note be "{Your-Garden-Name}.netlify.app/mynote/". You can still use normal obsidian links as before to link to it. These will be automatically corrected once you publish a note with the permalink attribute. 
+Same goes for deleting the attribute. Doing so will result in the note using the default URL. All links in other notes should automatically be corrected and still work.  
 
 The permalinks can be an arbitrary level of folders deep, such as:
 
