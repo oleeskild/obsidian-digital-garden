@@ -1,15 +1,8 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, getLinkpath, Editor, MarkdownView, FrontMatterCache, parseFrontMatterEntry, parseFrontMatterTags, parseFrontMatterAliases } from 'obsidian';
-import { Octokit } from "@octokit/core";
-import { Base64 } from "js-base64";
-import slugify from '@sindresorhus/slugify';
-
-interface DigitalGardenSettings {
-	githubToken: string;
-	githubRepo: string;
-	githubUserName: string;
-	gardenBaseUrl: string;
-	prHistory: string[];
-}
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent } from 'obsidian';
+import Publisher from './Publisher';
+import DigitalGardenSettings from 'DigitalGardenSettings';
+import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
+import SettingView from 'SettingView';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -32,8 +25,6 @@ export default class DigitalGarden extends Plugin {
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
 		await this.addCommands();
-		 
-		
 	}
 
 	onunload() {
@@ -44,18 +35,17 @@ export default class DigitalGarden extends Plugin {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
 	}
 
 	async addCommands() {
 		this.addCommand({
 			id: 'publish-note',
-			name: 'Publish Note',
+			name: 'Publish Single Note',
 			callback: async () => {
 				try {
 					const { vault, workspace, metadataCache } = this.app;
-
 
 					const currentFile = workspace.getActiveFile();
 					if (!currentFile) {
@@ -63,18 +53,9 @@ export default class DigitalGarden extends Plugin {
 						return;
 					}
 
-					const frontMatter = metadataCache.getCache(currentFile.path).frontmatter;
-					if(!frontMatter || !frontMatter["dg-publish"]){
-						new Notice("Note does not have the dg-publish: true set. Please add this and try again.")
-						return;
-					}
+					const publisher = new Publisher(vault, metadataCache, this.settings);
+					await publisher.publish(currentFile);
 
-					let text = await vault.cachedRead(currentFile);
-					text = await this.convertFrontMatter(text, currentFile.path);
-					text = await this.createTranscludedText(text, currentFile.path);
-					text = await this.createBase64Images(text, currentFile.path);
-
-					await this.uploadText(currentFile.name, text);
 					new Notice(`Successfully published note to your garden.`);
 
 				} catch (e) {
@@ -85,42 +66,30 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'publish-all-tagged-notes',
-			name: 'Publish All Notes',
+			id: 'publish-multiple-notes',
+			name: 'Publish Multiple Notes',
 			callback: async () => {
 				try {
 					const { vault, metadataCache } = this.app;
-					const files = vault.getMarkdownFiles();
-					const filesToPublish = [];
-					for (const file of files) {
-						let publish = false;
-						try {
-							const frontMatter = metadataCache.getCache(file.path).frontmatter
-							if(frontMatter){
-								publish = frontMatter["dg-publish"] === true;
-							}
-						} catch {
-							//ignore
-						}
-						if (publish) {
-							filesToPublish.push(file);
-						}
-					}
+					const publisher = new Publisher(vault, metadataCache, this.settings);
 
+					const filesToPublish = await publisher.getFilesMarkedForPublishing();
+
+					let errorFiles = 0;
 					for (const file of filesToPublish) {
-						let text = await vault.cachedRead(file);
-						text = await this.convertFrontMatter(text, file.path);
-						text = await this.createTranscludedText(text, file.path);
-						text = await this.createBase64Images(text, file.path);
-
-						await this.uploadText(file.name, text);
+						try {
+							await publisher.publish(file);
+						} catch {
+							errorFiles++;
+							new Notice(`Unable to publish note ${file.name}, skipping it.`)
+						}
 					}
 
-					new Notice(`Successfully published all tagged notes to your garden.`);
+					new Notice(`Successfully published ${filesToPublish.length - errorFiles} notes to your garden.`);
 
 				} catch (e) {
 					console.error(e)
-					new Notice("Unable to publish note, something went wrong.")
+					new Notice("Unable to publish multiple notes, something went wrong.")
 				}
 			},
 		});
@@ -130,26 +99,16 @@ export default class DigitalGarden extends Plugin {
 			name: 'Copy Garden URL',
 			callback: async () => {
 				try {
-					const { vault, workspace } = this.app;
+					const { metadataCache, workspace } = this.app;
 					const currentFile = workspace.getActiveFile();
 					if (!currentFile) {
 						new Notice("No file is open/active. Please open a file and try again.")
 						return;
 					}
 
-					const baseUrl = this.settings.gardenBaseUrl ?
-						`https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
-						: `https://${this.settings.githubRepo}.netlify.app`;
+					const siteManager = new DigitalGardenSiteManager(metadataCache, this.settings);
+					const fullUrl = siteManager.getNoteUrl(currentFile);
 
-					let urlPath = `/notes/${slugify(currentFile.basename)}`;
-					const frontMatter = this.app.metadataCache.getCache(currentFile.path).frontmatter;
-					if (frontMatter && frontMatter.permalink) {
-						urlPath = `/${frontMatter.permalink}`;
-					} else if (frontMatter && frontMatter["dg-permalink"]) {
-						urlPath = `/${frontMatter["dg-permalink"]}`;
-					}
-
-					const fullUrl = `${baseUrl}${urlPath}`;
 					await navigator.clipboard.writeText(fullUrl);
 					new Notice(`Copied note URL to clipboard: ${fullUrl}`);
 				} catch (e) {
@@ -160,413 +119,51 @@ export default class DigitalGarden extends Plugin {
 		});
 
 	}
-	async convertFrontMatter(text: string, path: string): Promise<string> {
-		const frontMatter = this.app.metadataCache.getCache(path).frontmatter;
-		if (frontMatter && frontMatter["dg-permalink"]) {
-			frontMatter["permalink"] = frontMatter["dg-permalink"];
-			if (!frontMatter["permalink"].endsWith("/")) {
-				frontMatter["permalink"] += "/";
-			}
-		}
 
 
-		if (frontMatter && frontMatter["dg-home"]) {
-			const tags = frontMatter["tags"];
-			if (tags) {
-				if (typeof (tags) === "string") {
-					frontMatter["tags"] = [tags, "gardenEntry"];
-				} else {
-					frontMatter["tags"] = [...tags, "gardenEntry"];
-				}
-			} else {
-				frontMatter["tags"] = "gardenEntry";
-			}
-
-		}
-		//replace frontmatter at start of file
-
-		const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
-			const copy = { ...frontMatter };
-			delete copy["position"];
-			delete copy["end"];
-			const frontMatterString = JSON.stringify(copy);
-			return `---\n${frontMatterString}\n---`;
-		});
-		return replaced;
-	}
-
-	async uploadText(title: string, content: string) {
-		if (!this.settings.githubRepo) {
-			new Notice("Config error: You need to define a GitHub repo in the plugin settings");
-			throw {};
-		}
-		if (!this.settings.githubUserName) {
-			new Notice("Config error: You need to define a GitHub Username in the plugin settings");
-			throw {};
-		}
-		if (!this.settings.githubToken) {
-			new Notice("Config error: You need to define a GitHub Token in the plugin settings");
-			throw {};
-		}
-
-
-		const octokit = new Octokit({ auth: this.settings.githubToken });
-
-
-		const base64Content = Base64.encode(content);
-		const path = `src/site/notes/${title}`
-
-		const payload = {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-			path,
-			message: `Add note ${title}`,
-			content: base64Content,
-			sha: ''
-		};
-
-		try {
-			const response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				path
-			});
-			if (response.status === 200 && response.data.type === "file") {
-				payload.sha = response.data.sha;
-			}
-		} catch (e) {
-			console.log(e)
-		}
-
-
-		payload.message = `Update note ${title}`;
-
-		await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
-
-	}
-
-	async createTranscludedText(text: string, filePath: string): Promise<string> {
-		let transcludedText = text;
-		const transcludedRegex = /!\[\[(.*?)\]\]/g;
-		const transclusionMatches = text.match(transcludedRegex);
-		if (transclusionMatches) {
-			for (let i = 0; i < transclusionMatches.length; i++) {
-				try {
-					const transclusionMatch = transclusionMatches[i];
-					const tranclusionFileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
-					const tranclusionFilePath = getLinkpath(tranclusionFileName);
-					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
-					if (["md", "txt"].indexOf(linkedFile.extension) == -1) {
-						continue;
-					}
-					let fileText = await this.app.vault.cachedRead(linkedFile);
-					fileText = "\n```transclusion\n# " + tranclusionFileName + "\n\n" + fileText + '\n```\n'
-					//This should be recursive up to a certain depth
-					transcludedText = transcludedText.replace(transclusionMatch, fileText);
-				} catch {
-					continue;
-				}
-			}
-		}
-
-		return transcludedText;
-
-	}
-
-	async createBase64Images(text: string, filePath: string): Promise<string> {
-		let imageText = text;
-		const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
-		const imageMatches = text.match(imageRegex);
-		if (imageMatches) {
-			for (let i = 0; i < imageMatches.length; i++) {
-
-				try {
-					const imageMatch = imageMatches[i];
-					const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
-					const imagePath = getLinkpath(imageName);
-					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(imagePath, filePath);
-					const image = await this.app.vault.readBinary(linkedFile);
-					const imageBase64 = arrayBufferToBase64(image)
-					const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
-					imageText = imageText.replace(imageMatch, imageMarkdown);
-				} catch {
-					continue;
-				}
-
-			}
-		}
-
-		return imageText;
-	}
-
-	async updateTemplateFiles() {
-
-		//This can also be used to update settings via an .ENV file for things like "Include versionednotes"
-
-		let files = [
-			".eleventy.js", "README.md", "netlify.toml", "package-lock.json", "package.json",
-			"src/site/404.njk",
-			"src/site/index.njk",
-			"src/site/versionednote.njk",
-			"src/site/versionednote.njk",
-			"src/site/styles/style.css",
-			"src/site/notes/notes.json",
-			"src/site/_includes/layouts/note.njk",
-			"src/site/_includes/layouts/versionednote.njk",
-			"src/site/_includes/components/notegrowthhistory.njk",
-			"src/site/_includes/components/pageheader.njk",
-			"src/site/_data/versionednotes.js",
-		];
-
-		const octokit = new Octokit({ auth: this.settings.githubToken });
-		const latestRelease = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
-			owner: "oleeskild",
-			repo: "digitalgarden",
-		});
-
-		const templateVersion = latestRelease.data.tag_name;
-		const branchName = "update-template-to-v" + templateVersion;
-
-		const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-		});
-
-		//create new branch
-		try {
-			const branch = await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				ref: `refs/heads/${branchName}`,
-				sha: latestCommit.data.sha
-			});
-		} catch (e) {
-			//Ignore if the branch already exists
-		}
-
-		
-
-		for (let file of files) {
-			//get from my repo
-			const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-				owner: "oleeskild",
-				repo: "digitalgarden",
-				path: file
-			});
-
-			const currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				path: file,
-				ref: branchName
-			});
-
-			if (latestFile.data.sha !== currentFile.data.sha) {
-				//commit
-				await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-					path: file,
-					branch: branchName,
-					message: "Update template file",
-					content: latestFile.data.content,
-					sha: currentFile.data.sha
-				});
-			}
-		}
-
-		//create pull request
-		try {
-			const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				title: `Update template to version ${templateVersion}`,
-				head: branchName,
-				base: "main",
-				body: "Update to latest template version"
-			});
-
-			return pr.data.html_url;
-		} catch {
-			//The PR failed, most likely the repo is the latest version
-			return null;
-		}
-
-	}
 }
 
 class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
+
 
 	constructor(app: App, plugin: DigitalGarden) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
+	
 	display(): void {
 		const { containerEl } = this;
-		containerEl.empty();
-		containerEl.createEl('h2', { text: 'Settings ' });
-		containerEl.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
-		containerEl.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
+		const settingView = new SettingView(containerEl, this.plugin.settings, this.plugin.saveSettings);
 
-		new Setting(containerEl)
-			.setName('GitHub repo name')
-			.setDesc('The name of the GitHub repository')
-			.addText(text => text
-				.setPlaceholder('mydigitalgarden')
-				.setValue(this.plugin.settings.githubRepo)
-				.onChange(async (value) => {
-					this.plugin.settings.githubRepo = value;
+
+		const handlePR = async (button: ButtonComponent) => {
+			settingView.renderLoading();
+			button.setDisabled(true);
+
+			try {
+				const siteManager = new DigitalGardenSiteManager(this.plugin.app.metadataCache, this.plugin.settings);
+
+				const prUrl = await siteManager.createPullRequestWithSiteChanges()
+
+				if (prUrl) {
+					this.plugin.settings.prHistory.push(prUrl);
 					await this.plugin.saveSettings();
-				}));
-		new Setting(containerEl)
-			.setName('GitHub Username')
-			.setDesc('Your GitHub Username')
-			.addText(text => text
-				.setPlaceholder('myusername')
-				.setValue(this.plugin.settings.githubUserName)
-				.onChange(async (value) => {
-					this.plugin.settings.githubUserName = value;
-					await this.plugin.saveSettings();
-				}));
+				}
+				settingView.renderSuccess(prUrl);
+				button.setDisabled(false);
 
-		const desc = document.createDocumentFragment();
-		desc.createEl("span", null, (span) => {
-			span.innerText =
-				"A GitHub token with repo permissions. You can generate it ";
-			span.createEl("a", null, (link) => {
-				link.href = "https://github.com/settings/tokens/new?scopes=repo";
-				link.innerText = "here!";
-			});
-		});
-
-		new Setting(containerEl)
-			.setName('GitHub token')
-			.setDesc(desc)
-			.addText(text => text
-				.setPlaceholder('https://github.com/user/repo')
-				.setValue(this.plugin.settings.githubToken)
-				.onChange(async (value) => {
-					this.plugin.settings.githubToken = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Base URL')
-			.setDesc(`
-				This is used for the "Copy Note URL" command and is optional. 
-				If you leave it blank, the plugin will try to guess it from the repo name.
-			`)
-			.addText(text => text
-				.setPlaceholder('my-digital-garden.netlify.app')
-				.setValue(this.plugin.settings.gardenBaseUrl)
-				.onChange(async (value) => {
-					this.plugin.settings.gardenBaseUrl = value;
-					await this.plugin.saveSettings();
-				}));
-
-		let previousPrs: any = null;
-
-
-		new Setting(containerEl)
-			.setName('Update to latest template')
-			.setDesc(`
-				This will create a pull request with the latest template changes. 
-				It will not publish any changes before you approve them.
-				You can even test the changes first Netlify will automatically provide you with a test URL.
-			`)
-			.addButton(button => button
-				.setButtonText('Create PR')
-				.onClick(async () => {
-					let msg: HTMLParagraphElement = null;
-					let loading: HTMLParagraphElement = null;
-					if (previousPrs) {
-						msg = document.createDocumentFragment().createEl('p', { text: 'Creating PR. This should take less than 1 minute...' });
-						loading = document.createDocumentFragment().createEl('p', { text: 'Loading' });
-						previousPrs.prepend(loading);
-						previousPrs.prepend(msg);
-					} else {
-						msg = this.containerEl.createEl('p', { text: 'Creating PR. This should take less than 1 minute' });
-						loading = this.containerEl.createEl('p', { text: 'Loading' });
-					}
-					setInterval(() => {
-						if (loading.innerText === 'Loading') {
-							loading.innerText = 'Loading.';
-						} else if (loading.innerText === 'Loading.') {
-							loading.innerText = 'Loading..';
-						} else if (loading.innerText === 'Loading..') {
-							loading.innerText = 'Loading...';
-						} else {
-							loading.innerText = 'Loading';
-						}
-					}, 400)
-					button.setDisabled(true);
-					try {
-						const prUrl = await this.plugin.updateTemplateFiles()
-						if (prUrl) {
-							this.plugin.settings.prHistory.push(prUrl);
-							await this.plugin.saveSettings();
-						}
-						loading.remove();
-						msg.remove();
-						const successmessage = prUrl ?
-							{ text: `Done! Approve your PR to make the changes go live.` } :
-							{ text: "You already have the latest template. No need to create a PR.", attr: { style: "color: green" } };
-						const linkText = { text: `${prUrl}`, href: prUrl };
-						if (previousPrs) {
-							previousPrs.prepend(document.createDocumentFragment().createEl('br'));
-							if (prUrl) {
-								previousPrs.prepend(document.createDocumentFragment().createEl('a', linkText));
-							}
-							previousPrs.prepend(document.createDocumentFragment().createEl('h2', successmessage));
-						} else {
-							this.containerEl.createEl('h2', successmessage);
-							if (prUrl) {
-								this.containerEl.createEl('a', linkText);
-							}
-							this.containerEl.createEl('br');
-						}
-					} catch {
-						loading.remove();
-						msg.remove();
-
-						const errorMsg = { text: 'Something went wrong. Try deleting the branch in GitHub.', attr: { style: 'color: red' } };
-						if (previousPrs) {
-							previousPrs.prepend(document.createDocumentFragment().createEl('p', errorMsg));
-						} else {
-							this.containerEl.createEl('p', errorMsg);
-						}
-					}
-
-
-				})
-			);
-
-		if (this.plugin.settings.prHistory.length > 0) {
-			previousPrs = containerEl.createEl('h2', { text: 'Previous PRs' });
-			for (let prUrl of this.plugin.settings.prHistory.reverse()) {
-				containerEl.createEl('a', { text: prUrl, href: prUrl });
-				containerEl.createEl('br');
+			} catch {
+				settingView.renderError();
 			}
-		}
 
 
-
+		};
+		settingView.renderCreatePr(handlePR);
+		settingView.renderPullRequestHistory(this.plugin.settings.prHistory.slice(0,10));
 	}
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-	let binary = "";
-	const bytes = new Uint8Array(buffer);
-	const len = bytes.byteLength;
-	for (let i = 0; i < len; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return Base64.btoa(binary);
-}
 
-function extractBaseUrl(url: string) {
-	return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
-}
 
