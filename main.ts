@@ -141,7 +141,7 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 	
 	display(): void {
 		const { containerEl } = this;
-		const settingView = new SettingView(containerEl, this.plugin.settings, this.plugin.saveSettings);
+		const settingView = new SettingView(containerEl, this.plugin.settings, async ()=> await this.plugin.saveData(this.plugin.settings));
 
 
 		const handlePR = async (button: ButtonComponent) => {
