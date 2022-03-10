@@ -1,4 +1,5 @@
 import { Base64 } from "js-base64";
+import slugify from "@sindresorhus/slugify";
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -14,4 +15,13 @@ function extractBaseUrl(url: string) {
 	return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
 }
 
-export { arrayBufferToBase64, extractBaseUrl };
+function generateUrlPath(filePath: string): string {
+	if(!filePath){
+		return filePath;
+	}
+	const extensionLess = filePath.substring(0, filePath.lastIndexOf("."));
+	const noteUrlPath = extensionLess.split("/").map(x => slugify(x)).join("/") + "/";
+	return noteUrlPath;
+}
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath};

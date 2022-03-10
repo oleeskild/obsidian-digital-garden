@@ -2,8 +2,9 @@ import { MetadataCache, TFile, Vault, Notice, getLinkpath} from "obsidian";
 import DigitalGardenSettings from "DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64 } from "utils";
+import { arrayBufferToBase64, generateUrlPath } from "utils";
 import { vallidatePublishFrontmatter } from "Validator";
+import slugify from "@sindresorhus/slugify";
 
 class Publisher {
     vault: Vault;
@@ -33,17 +34,23 @@ class Publisher {
         return filesToPublish;
     }
 
-    async publish(file: TFile) {
+    async publish(file: TFile): Promise<boolean>{
         if(!vallidatePublishFrontmatter(this.metadataCache.getCache(file.path).frontmatter)){
-            return;
+            return false;
         }
-        const text = await this.generateMarkdown(file);
-        await this.uploadText(file.name, text);
+        try{
+            const text = await this.generateMarkdown(file);
+            await this.uploadText(file.path, text);
+            return true;
+        }catch{
+            return false;
+        }
     }
 
     async generateMarkdown(file: TFile): Promise<string> {
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
+        text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createTranscludedText(text, file.path);
         text = await this.createBase64Images(text, file.path);
         return text;
@@ -51,7 +58,7 @@ class Publisher {
     }
 
 
-    async uploadText(title: string, content: string) {
+    async uploadText(filePath: string, content: string) {
         if (!this.settings.githubRepo) {
             new Notice("Config error: You need to define a GitHub repo in the plugin settings");
             throw {};
@@ -70,13 +77,13 @@ class Publisher {
 
 
         const base64Content = Base64.encode(content);
-        const path = `src/site/notes/${title}`
+        const path = `src/site/notes/${filePath}`
 
         const payload = {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
             path,
-            message: `Add note ${title}`,
+            message: `Add note ${filePath}`,
             content: base64Content,
             sha: ''
         };
@@ -94,21 +101,25 @@ class Publisher {
             console.log(e)
         }
 
-        payload.message = `Update note ${title}`;
+        payload.message = `Update note ${filePath}`;
 
         await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
 
     }
 
     async convertFrontMatter(text: string, path: string): Promise<string> {
-        const frontMatter = this.metadataCache.getCache(path).frontmatter;
+        const cachedFrontMatter = this.metadataCache.getCache(path).frontmatter;
+        const frontMatter = { ...cachedFrontMatter};
+
         if (frontMatter && frontMatter["dg-permalink"]) {
             frontMatter["permalink"] = frontMatter["dg-permalink"];
             if (!frontMatter["permalink"].endsWith("/")) {
                 frontMatter["permalink"] += "/";
             }
+        }else{
+            const noteUrlPath = generateUrlPath(path);
+            frontMatter["permalink"] = noteUrlPath; 
         }
-
 
         if (frontMatter && frontMatter["dg-home"]) {
             const tags = frontMatter["tags"];
@@ -133,6 +144,36 @@ class Publisher {
             return `---\n${frontMatterString}\n---`;
         });
         return replaced;
+    }
+
+    async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
+        let convertedText = text;
+        const linkedFileRegex= /\[\[(.*?)\]\]/g;
+        const linkedFileMatches = text.match(linkedFileRegex);
+        if (linkedFileMatches) {
+            for (let i = 0; i < linkedFileMatches.length; i++) {
+                try {
+                    const linkedFileMatch = linkedFileMatches[i];
+                    const textInsideBrackets = linkedFileMatch.substring(linkedFileMatch.indexOf('[') + 2, linkedFileMatch.indexOf(']'));
+                    let [linkedFileName, prettyName] = textInsideBrackets.split("|");
+
+                    prettyName = prettyName || linkedFileName;
+                    if(linkedFileName.includes("#")){
+                        linkedFileName = linkedFileName.split("#")[0];
+                    }
+                    const fullLinkedFilePath = getLinkpath(linkedFileName);
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
+                    
+                    const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
+                    convertedText = convertedText.replace(linkedFileMatch,`[[${extensionlessPath}|${prettyName}]]`);
+                } catch {
+                    continue;
+                }
+            }
+        }
+
+        return convertedText;
+
     }
 
     async createTranscludedText(text: string, filePath: string): Promise<string> {

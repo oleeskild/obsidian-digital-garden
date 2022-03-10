@@ -52,11 +52,17 @@ export default class DigitalGarden extends Plugin {
 						new Notice("No file is open/active. Please open a file and try again.")
 						return;
 					}
+					if(currentFile.extension !== 'md'){
+						new Notice("The current file is not a markdown file. Please open a markdown file and try again.")
+						return;
+					}
 
 					const publisher = new Publisher(vault, metadataCache, this.settings);
-					await publisher.publish(currentFile);
+					const publishSuccessful = await publisher.publish(currentFile);
 
-					new Notice(`Successfully published note to your garden.`);
+					if(publishSuccessful){
+						new Notice(`Successfully published note to your garden.`);
+					}
 
 				} catch (e) {
 					console.error(e)
@@ -110,7 +116,7 @@ export default class DigitalGarden extends Plugin {
 					const fullUrl = siteManager.getNoteUrl(currentFile);
 
 					await navigator.clipboard.writeText(fullUrl);
-					new Notice(`Copied note URL to clipboard: ${fullUrl}`);
+					new Notice(`Note URL copied to clipboard`);
 				} catch (e) {
 					console.log(e)
 					new Notice("Unable to copy note URL to clipboard, something went wrong.")

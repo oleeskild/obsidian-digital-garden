@@ -1,7 +1,7 @@
 import DigitalGardenSettings from "DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
 import slugify from '@sindresorhus/slugify';
-import { extractBaseUrl } from "./utils";
+import { extractBaseUrl, generateUrlPath } from "./utils";
 import { Octokit } from "@octokit/core";
 
 export default class DigitalGardenSiteManager {
@@ -17,8 +17,13 @@ export default class DigitalGardenSiteManager {
             `https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
             : `https://${this.settings.githubRepo}.netlify.app`;
 
-        let urlPath = `/notes/${slugify(file.basename)}`;
+
+        const noteUrlPath = generateUrlPath(file.path);
+
+        let urlPath = `/${noteUrlPath}`;
+
         const frontMatter = this.metadataCache.getCache(file.path).frontmatter;
+
         if (frontMatter && frontMatter.permalink) {
             urlPath = `/${frontMatter.permalink}`;
         } else if (frontMatter && frontMatter["dg-permalink"]) {
@@ -52,7 +57,7 @@ export default class DigitalGardenSiteManager {
         await this.deleteFiles(octokit, branchName);
         await this.addCustomStyleFile(octokit, branchName);
         await this.modifyFiles(octokit, branchName);
-        
+
         const prUrl = await this.createPullRequest(octokit, branchName, templateVersion);
         return prUrl;
     }
