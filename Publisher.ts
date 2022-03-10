@@ -116,9 +116,12 @@ class Publisher {
             if (!frontMatter["permalink"].endsWith("/")) {
                 frontMatter["permalink"] += "/";
             }
+            if (!frontMatter["permalink"].startsWith("/")) {
+                 frontMatter["permalink"] = "/" + frontMatter["permalink"];
+            }
         }else{
             const noteUrlPath = generateUrlPath(path);
-            frontMatter["permalink"] = noteUrlPath; 
+            frontMatter["permalink"] = "/" + noteUrlPath; 
         }
 
         if (frontMatter && frontMatter["dg-home"]) {

@@ -78,7 +78,7 @@ export default class SettingView {
             .setName('GitHub token')
             .setDesc(desc)
             .addText(text => text
-                .setPlaceholder('https://github.com/user/repo')
+                .setPlaceholder('Secret Token')
                 .setValue(this.settings.githubToken)
                 .onChange(async (value) => {
                     this.settings.githubToken = value;

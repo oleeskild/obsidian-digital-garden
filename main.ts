@@ -17,7 +17,7 @@ export default class DigitalGarden extends Plugin {
 	appVersion: string;
 
 	async onload() {
-		this.appVersion = "2.1.0";
+		this.appVersion = "2.1.1";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
