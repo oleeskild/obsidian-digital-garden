@@ -50,8 +50,8 @@ class Publisher {
     async generateMarkdown(file: TFile): Promise<string> {
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
-        text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createTranscludedText(text, file.path);
+        text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
         return text;
 
@@ -167,8 +167,10 @@ class Publisher {
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
                     
-                    const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                    convertedText = convertedText.replace(linkedFileMatch,`[[${extensionlessPath}|${prettyName}]]`);
+                    if(linkedFile.extension === "md"){
+                        const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
+                        convertedText = convertedText.replace(linkedFileMatch,`[[${extensionlessPath}|${prettyName}]]`);
+                    }
                 } catch {
                     continue;
                 }
