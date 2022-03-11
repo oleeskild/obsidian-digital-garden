@@ -207,7 +207,7 @@ class Publisher {
 
                     const headerSection = header ? `${header}\n` : '';
 
-                    fileText = "\n```transclusion\n" + headerSection + fileText + '\n```\n'
+                    fileText = `\n<div class="transclusion">\n\n` + headerSection + fileText + '\n</div>\n'
                     //This should be recursive up to a certain depth
                     transcludedText = transcludedText.replace(transclusionMatch, fileText);
                 } catch {
