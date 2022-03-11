@@ -62,6 +62,8 @@ The plugin currently supports rendering of these types of note contents:
 * MathJax
 * Embedded/Transcluded Images
 * Transcluded notes
+* Highlighted text
+* Footnotes
 
 ## Advanced usage
 ### Permalinks
