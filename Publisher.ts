@@ -1,10 +1,11 @@
-import { MetadataCache, TFile, Vault, Notice, getLinkpath} from "obsidian";
+import { MetadataCache, TFile, Vault, Notice, getLinkpath } from "obsidian";
 import DigitalGardenSettings from "DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { arrayBufferToBase64, generateUrlPath } from "utils";
 import { vallidatePublishFrontmatter } from "Validator";
 import slugify from "@sindresorhus/slugify";
+import { title } from "process";
 
 class Publisher {
     vault: Vault;
@@ -34,15 +35,15 @@ class Publisher {
         return filesToPublish;
     }
 
-    async publish(file: TFile): Promise<boolean>{
-        if(!vallidatePublishFrontmatter(this.metadataCache.getCache(file.path).frontmatter)){
+    async publish(file: TFile): Promise<boolean> {
+        if (!vallidatePublishFrontmatter(this.metadataCache.getCache(file.path).frontmatter)) {
             return false;
         }
-        try{
+        try {
             const text = await this.generateMarkdown(file);
             await this.uploadText(file.path, text);
             return true;
-        }catch{
+        } catch {
             return false;
         }
     }
@@ -109,7 +110,7 @@ class Publisher {
 
     async convertFrontMatter(text: string, path: string): Promise<string> {
         const cachedFrontMatter = this.metadataCache.getCache(path).frontmatter;
-        const frontMatter = { ...cachedFrontMatter};
+        const frontMatter = { ...cachedFrontMatter };
 
         if (frontMatter && frontMatter["dg-permalink"]) {
             frontMatter["permalink"] = frontMatter["dg-permalink"];
@@ -117,11 +118,11 @@ class Publisher {
                 frontMatter["permalink"] += "/";
             }
             if (!frontMatter["permalink"].startsWith("/")) {
-                 frontMatter["permalink"] = "/" + frontMatter["permalink"];
+                frontMatter["permalink"] = "/" + frontMatter["permalink"];
             }
-        }else{
+        } else {
             const noteUrlPath = generateUrlPath(path);
-            frontMatter["permalink"] = "/" + noteUrlPath; 
+            frontMatter["permalink"] = "/" + noteUrlPath;
         }
 
         if (frontMatter && frontMatter["dg-home"]) {
@@ -151,7 +152,7 @@ class Publisher {
 
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
-        const linkedFileRegex= /\[\[(.*?)\]\]/g;
+        const linkedFileRegex = /\[\[(.*?)\]\]/g;
         const linkedFileMatches = text.match(linkedFileRegex);
         if (linkedFileMatches) {
             for (let i = 0; i < linkedFileMatches.length; i++) {
@@ -161,15 +162,15 @@ class Publisher {
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
-                    if(linkedFileName.includes("#")){
+                    if (linkedFileName.includes("#")) {
                         linkedFileName = linkedFileName.split("#")[0];
                     }
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
-                    
-                    if(linkedFile.extension === "md"){
+
+                    if (linkedFile.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkedFileMatch,`[[${extensionlessPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}|${prettyName}]]`);
                     }
                 } catch {
                     continue;
@@ -202,10 +203,25 @@ class Publisher {
                     //Remove frontmatter from transclusion
                     fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
 
-                    if(headerName === "{{title}}"){
-                        headerName = linkedFile.basename;
-                    }                   
-                    const headerSection = headerName ? `# ${headerName}\n`: '';
+                    // Calculate what header to apply to the transclusion
+                    const titleVariable = "{{title}}";
+                    if (headerName && headerName.indexOf(titleVariable) > -1) {
+                        headerName = headerName.replace(titleVariable, linkedFile.basename);
+                    }
+
+                    //Defaults to h1
+                    if (headerName && !headerName.startsWith("#")) {
+                        headerName = "# " + headerName;
+                    } else if (headerName) {
+                        //Add a space to the start of the header if not already there
+                        const headerParts = headerName.split("#");
+                        if (!headerParts.last().startsWith(" ")) {
+                            headerName = headerName.replace(headerParts.last(), " " + headerParts.last());
+                        }
+
+                    }
+
+                    const headerSection = headerName ? `${headerName}\n` : '';
 
                     fileText = "\n```transclusion\n" + headerSection + fileText + '\n```\n'
                     //This should be recursive up to a certain depth
