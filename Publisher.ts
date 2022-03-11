@@ -189,7 +189,7 @@ class Publisher {
             for (let i = 0; i < transclusionMatches.length; i++) {
                 try {
                     const transclusionMatch = transclusionMatches[i];
-                    const [tranclusionFileName, headerName] = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']')).split("|");
+                    let [tranclusionFileName, headerName] = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']')).split("|");
                     const tranclusionFilePath = getLinkpath(tranclusionFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
 
@@ -202,6 +202,9 @@ class Publisher {
                     //Remove frontmatter from transclusion
                     fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
 
+                    if(headerName === "{{title}}"){
+                        headerName = linkedFile.basename;
+                    }                   
                     const headerSection = headerName ? `# ${headerName}\n`: '';
 
                     fileText = "\n```transclusion\n" + headerSection + fileText + '\n```\n'

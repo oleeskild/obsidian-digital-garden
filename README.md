@@ -96,6 +96,12 @@ By default, transclusion of other documents just renders the content as is. If y
 
 This will add a header with the value "Heading" at the start of your transclusion.
 
+If you want the header to be equal to the title of the transcluded document, you can use this special syntax:
+```
+![[Some Other Note|{{title}}]]
+```
+This will replace the heading with the title of the transcluded document when the note is published.
+
 By just using regular translucion, no header will be added:
 ```
 ![[Some Other Note]]
