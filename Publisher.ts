@@ -203,25 +203,9 @@ class Publisher {
                     //Remove frontmatter from transclusion
                     fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
 
-                    // Calculate what header to apply to the transclusion
-                    const titleVariable = "{{title}}";
-                    if (headerName && headerName.indexOf(titleVariable) > -1) {
-                        headerName = headerName.replace(titleVariable, linkedFile.basename);
-                    }
+                    const header = this.generateTransclusionHeader(headerName, linkedFile);
 
-                    //Defaults to h1
-                    if (headerName && !headerName.startsWith("#")) {
-                        headerName = "# " + headerName;
-                    } else if (headerName) {
-                        //Add a space to the start of the header if not already there
-                        const headerParts = headerName.split("#");
-                        if (!headerParts.last().startsWith(" ")) {
-                            headerName = headerName.replace(headerParts.last(), " " + headerParts.last());
-                        }
-
-                    }
-
-                    const headerSection = headerName ? `${headerName}\n` : '';
+                    const headerSection = header ? `${header}\n` : '';
 
                     fileText = "\n```transclusion\n" + headerSection + fileText + '\n```\n'
                     //This should be recursive up to a certain depth
@@ -259,6 +243,32 @@ class Publisher {
 
         return imageText;
     }
+
+    generateTransclusionHeader(headerName: string, transcludedFile: TFile) {
+        if(!headerName) {
+            return headerName;
+        }
+    
+        const titleVariable = "{{title}}";
+        if (headerName && headerName.indexOf(titleVariable) > -1) {
+            headerName = headerName.replace(titleVariable, transcludedFile.basename);
+        }
+    
+        //Defaults to h1
+        if (headerName && !headerName.startsWith("#")) {
+            headerName = "# " + headerName;
+        } else if (headerName) {
+            //Add a space to the start of the header if not already there
+            const headerParts = headerName.split("#");
+            if (!headerParts.last().startsWith(" ")) {
+                headerName = headerName.replace(headerParts.last(), " " + headerParts.last());
+            }
+    
+        }
+        return headerName;
+    }
 }
 
 export default Publisher;
+
+

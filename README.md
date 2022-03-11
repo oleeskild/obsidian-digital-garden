@@ -96,14 +96,31 @@ By default, transclusion of other documents just renders the content as is. If y
 ![[Some Other Note|Heading]]
 ```
 
-This will add a header with the value "Heading" at the start of your transclusion.
+This will add a h1 header with the value "Heading" at the start of your transclusion.
 
-If you want the header to be equal to the title of the transcluded document, you can use this special syntax:
+If you want the header to be equal to the title of the transcluded document, you can use this custom syntax:
 ```
 ![[Some Other Note|{{title}}]]
 ```
 This will replace the heading with the title of the transcluded document when the note is published.
 
+You can also use the title syntax inside other text:
+```
+![[Some Other Note|This is a {{title}}]]
+```
+
+#### Specifying heading level
+You may also specify what heading level you want your transclusion to have. If you want the header to be a h2, you can use this syntax:
+```
+![[Some Other Note|##Heading]]
+```
+
+h4 would look like this:
+```
+![[Some Other Note|####Heading]]
+```
+
+#### Default behaviour
 By just using regular translucion, no header will be added:
 ```
 ![[Some Other Note]]
