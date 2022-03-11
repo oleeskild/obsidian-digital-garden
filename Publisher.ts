@@ -189,14 +189,25 @@ class Publisher {
             for (let i = 0; i < transclusionMatches.length; i++) {
                 try {
                     const transclusionMatch = transclusionMatches[i];
-                    const tranclusionFileName = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']'));
+                    let [tranclusionFileName, headerName] = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']')).split("|");
                     const tranclusionFilePath = getLinkpath(tranclusionFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
-                    if (["md", "txt"].indexOf(linkedFile.extension) == -1) {
+
+                    if (linkedFile.extension !== "md") {
                         continue;
                     }
+
                     let fileText = await this.vault.cachedRead(linkedFile);
-                    fileText = "\n```transclusion\n# " + tranclusionFileName + "\n\n" + fileText + '\n```\n'
+
+                    //Remove frontmatter from transclusion
+                    fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
+
+                    if(headerName === "{{title}}"){
+                        headerName = linkedFile.basename;
+                    }                   
+                    const headerSection = headerName ? `# ${headerName}\n`: '';
+
+                    fileText = "\n```transclusion\n" + headerSection + fileText + '\n```\n'
                     //This should be recursive up to a certain depth
                     transcludedText = transcludedText.replace(transclusionMatch, fileText);
                 } catch {

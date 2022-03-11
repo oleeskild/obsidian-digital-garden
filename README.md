@@ -64,6 +64,7 @@ The plugin currently supports rendering of these types of note contents:
 * Transcluded notes
 
 ## Advanced usage
+### Permalinks
 This plugin also supports setting your own links to a note, if you prefer something else than the default behaviour.
 This is done by adding a dg-permalink attribute to the frontmatter of your file. 
 As an example, the top of your file could look like this:
@@ -86,3 +87,24 @@ The permalinks can be an arbitrary level of folders deep, such as:
 dg-permalink: "category/2022/mynote/"
 ---
 ```
+
+### Transclusion
+By default, transclusion of other documents just renders the content as is. If you want to also include a heading on top of the transclusion you can do so by using the pipe character:
+```
+![[Some Other Note|Heading]]
+```
+
+This will add a header with the value "Heading" at the start of your transclusion.
+
+If you want the header to be equal to the title of the transcluded document, you can use this special syntax:
+```
+![[Some Other Note|{{title}}]]
+```
+This will replace the heading with the title of the transcluded document when the note is published.
+
+By just using regular translucion, no header will be added:
+```
+![[Some Other Note]]
+```
+
+It's also worth noting that transclusions *do not need* the dg-publish attribute. They behave the same as an image. If you transclude something into a document, and publish that document, everything that is transcluded in it will be published as if it was part of that note. 
