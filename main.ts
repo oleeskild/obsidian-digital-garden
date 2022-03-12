@@ -3,6 +3,8 @@ import Publisher from './Publisher';
 import DigitalGardenSettings from 'DigitalGardenSettings';
 import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
 import SettingView from 'SettingView';
+import { PublishStatusBar } from 'PublishStatusBar';
+import { stat } from 'fs';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -75,25 +77,29 @@ export default class DigitalGarden extends Plugin {
 			id: 'publish-multiple-notes',
 			name: 'Publish Multiple Notes',
 			callback: async () => {
+				const statusBarItem = this.addStatusBarItem();
 				try {
 					const { vault, metadataCache } = this.app;
 					const publisher = new Publisher(vault, metadataCache, this.settings);
 
 					const filesToPublish = await publisher.getFilesMarkedForPublishing();
+					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length);
 
 					let errorFiles = 0;
 					for (const file of filesToPublish) {
 						try {
+							statusBar.increment();
 							await publisher.publish(file);
 						} catch {
 							errorFiles++;
 							new Notice(`Unable to publish note ${file.name}, skipping it.`)
 						}
 					}
-
+					statusBar.finish(8000);
 					new Notice(`Successfully published ${filesToPublish.length - errorFiles} notes to your garden.`);
 
 				} catch (e) {
+					statusBarItem.remove();
 					console.error(e)
 					new Notice("Unable to publish multiple notes, something went wrong.")
 				}
