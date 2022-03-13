@@ -1,10 +1,14 @@
 import DigitalGardenSettings from "DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
-import slugify from '@sindresorhus/slugify';
 import { extractBaseUrl, generateUrlPath } from "./utils";
 import { Octokit } from "@octokit/core";
 
-export default class DigitalGardenSiteManager {
+export interface IDigitalGardenSiteManager{
+    getNoteUrl(file: TFile): string;
+    getNoteHashes(): Promise<{[key:string]: string}>;
+    createPullRequestWithSiteChanges(): Promise<string>;
+}
+export default class DigitalGardenSiteManager implements IDigitalGardenSiteManager{
     settings: DigitalGardenSettings;
     metadataCache: MetadataCache;
     constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
@@ -12,7 +16,7 @@ export default class DigitalGardenSiteManager {
         this.metadataCache = metadataCache;
     }
 
-    getNoteUrl(file: TFile) {
+    getNoteUrl(file: TFile): string {
         const baseUrl = this.settings.gardenBaseUrl ?
             `https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
             : `https://${this.settings.githubRepo}.netlify.app`;
@@ -34,33 +38,52 @@ export default class DigitalGardenSiteManager {
 
     }
 
+    async getNoteHashes(): Promise<{[key:string]: string}> {
+        const octokit = new Octokit({ auth: this.settings.githubToken });
+        const response = await octokit.request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=true', {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            tree_sha: 'main'
+        });
+
+        const files = response.data.tree;
+        const notes: Array<{path: string, sha: string}> = files.filter(
+            (x: { path: string; type: string; }) => x.path.startsWith("src/site/notes/") && x.type === "blob" && x.path !== "src/site/notes/notes.json");
+        const hashes:{[key:string]: string} = {};
+        for(const note of notes){
+            const vaultPath = note.path.replace("src/site/notes/", "");
+            hashes[vaultPath] = note.sha;
+        }
+        return hashes;
+    }
+
     /**
      * 
      * @returns {Promise<string>} The url of the created PR. Null if unable to create PR.
      */
-    async createPullRequestWithSiteChanges() {
-        const octokit = new Octokit({ auth: this.settings.githubToken });
-        const latestRelease = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
-            owner: "oleeskild",
-            repo: "digitalgarden",
-        });
+    async createPullRequestWithSiteChanges(): Promise<string> {
+            const octokit = new Octokit({ auth: this.settings.githubToken });
+            const latestRelease = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
+                owner: "oleeskild",
+                repo: "digitalgarden",
+            });
 
-        const templateVersion = latestRelease.data.tag_name;
-        const branchName = "update-template-to-v" + templateVersion;
+            const templateVersion = latestRelease.data.tag_name;
+            const branchName = "update-template-to-v" + templateVersion;
 
-        const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
-            owner: this.settings.githubUserName,
-            repo: this.settings.githubRepo,
-        });
+            const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+            });
 
-        await this.createNewBranch(octokit, branchName, latestCommit.data.sha);
-        await this.deleteFiles(octokit, branchName);
-        await this.addCustomStyleFile(octokit, branchName);
-        await this.modifyFiles(octokit, branchName);
+            await this.createNewBranch(octokit, branchName, latestCommit.data.sha);
+            await this.deleteFiles(octokit, branchName);
+            await this.addCustomStyleFile(octokit, branchName);
+            await this.modifyFiles(octokit, branchName);
 
-        const prUrl = await this.createPullRequest(octokit, branchName, templateVersion);
-        return prUrl;
-    }
+            const prUrl = await this.createPullRequest(octokit, branchName, templateVersion);
+            return prUrl;
+        }
 
     private async createPullRequest(octokit: Octokit, branchName: string, templateVersion: string): Promise<string> {
         try {

@@ -1,5 +1,6 @@
 import { Base64 } from "js-base64";
 import slugify from "@sindresorhus/slugify";
+import sha1 from "crypto-js/sha1";
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -24,4 +25,12 @@ function generateUrlPath(filePath: string): string {
 	return noteUrlPath;
 }
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath};
+function generateBlobHash(content: string){
+	const byteLength = (new TextEncoder().encode(content)).byteLength;
+	const header = `blob ${byteLength}\0`;
+	const gitBlob = header + content;
+
+	return sha1(gitBlob).toString();
+}
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash};

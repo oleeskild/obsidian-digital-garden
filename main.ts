@@ -1,10 +1,11 @@
-import { App, Notice, Plugin, PluginSettingTab, ButtonComponent } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
 import Publisher from './Publisher';
 import DigitalGardenSettings from 'DigitalGardenSettings';
 import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
 import SettingView from 'SettingView';
 import { PublishStatusBar } from 'PublishStatusBar';
-import { stat } from 'fs';
+import { seedling } from 'icons';
+import { PublishModal } from 'PublishModal';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -18,8 +19,10 @@ export default class DigitalGarden extends Plugin {
 	settings: DigitalGardenSettings;
 	appVersion: string;
 
+	publishModal: PublishModal;
+
 	async onload() {
-		this.appVersion = "2.1.3";
+		this.appVersion = "2.4.0";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -27,6 +30,12 @@ export default class DigitalGarden extends Plugin {
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
 		await this.addCommands();
+
+
+		addIcon('digital-garden-icon', seedling);
+		this.addRibbonIcon("digital-garden-icon", "Digital Garden publication status", async ()=>{
+			this.openPublishModal();	
+		});
 	}
 
 	onunload() {
@@ -130,8 +139,24 @@ export default class DigitalGarden extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'dg-open-publish-modal',
+			name: 'View Publication Status',
+			callback: async () => {
+				this.openPublishModal();
+			}
+		});
+
 	}
 
+	openPublishModal(){
+		if(!this.publishModal){
+			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings);
+			const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
+			this.publishModal = new PublishModal(this.app, siteManager, publisher, this.settings);
+		}
+		this.publishModal.open();
+	}
 
 }
 
