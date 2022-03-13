@@ -7,7 +7,13 @@ import { vallidatePublishFrontmatter } from "Validator";
 import slugify from "@sindresorhus/slugify";
 import { title } from "process";
 
-class Publisher {
+
+export interface IPublisher{
+    publish(file: TFile): Promise<boolean>;
+    getFilesMarkedForPublishing(): Promise<TFile[]>;
+    generateMarkdown(file: TFile): Promise<string>;
+}
+export default class Publisher {
     vault: Vault;
     metadataCache: MetadataCache;
     settings: DigitalGardenSettings;
@@ -269,6 +275,5 @@ class Publisher {
     }
 }
 
-export default Publisher;
 
 

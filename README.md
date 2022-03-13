@@ -35,11 +35,14 @@ Congratulations, you now have your own digital garden, hosted free of charge!
 You can now start adding links as you usually would in Obisidan, with double square brackets like this: [[Some Other Note]]) to the note that you just published. Remember to also publish the notes your are linking to as this will not happen automatically. This is by design. You are always in control of what notes you actually want to publish. If you did not publish a linked note, the link will simply lead to a site telling the user that this note does not exist. 
 
 ## Commands
-There are two commands available for publishing notes.
 
-1. The "Digital Garden: Publish Single Note" command will publish the currently active note, and only this.
-2. The "Digital Garden: Publish Multiple Notes" command will publish all notes in your vault that have the dg-publish setting set to true. This way you can easily keep track of which notes you have published.
-(Protip: You can use the "DataView" plugin to list all published notes with this query: "list where dg-publish=true")
+**Digital Garden: Publish Single Note** command will publish the currently active note, and only this.
+
+**Digital Garden: Publish Multiple Notes** command will publish all notes in your vault that have the dg-publish setting set to true. Depending on the number of notes, this may take a while. You can watch the progress of publication in the bottom right statusbar. 
+
+**Copy Garden URL**: This command will copy the URL of the currently active note to your clipboard
+
+**View Publication Status**: This command behaves the same as the ribbon icon. It will list what files are published, changed, deleted and not yet published.
 
 ## Modifying the template/site
 The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
