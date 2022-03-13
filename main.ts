@@ -33,7 +33,7 @@ export default class DigitalGarden extends Plugin {
 
 
 		addIcon('digital-garden-icon', seedling);
-		this.addRibbonIcon("digital-garden-icon", "Digital Garden publication status", async ()=>{
+		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async ()=>{
 			this.openPublishModal();	
 		});
 	}
@@ -141,7 +141,7 @@ export default class DigitalGarden extends Plugin {
 
 		this.addCommand({
 			id: 'dg-open-publish-modal',
-			name: 'View Publication Status',
+			name: 'Open Publication Center',
 			callback: async () => {
 				this.openPublishModal();
 			}

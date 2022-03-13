@@ -42,7 +42,7 @@ You can now start adding links as you usually would in Obisidan, with double squ
 
 **Copy Garden URL**: This command will copy the URL of the currently active note to your clipboard
 
-**View Publication Status**: This command behaves the same as the ribbon icon. It will list what files are published, changed, deleted and not yet published.
+**Open Publication Center**: This command behaves the same as the ribbon icon. It will open the publication center where you can view a list what files are published, changed, deleted and not yet published.
 
 ## Modifying the template/site
 The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
