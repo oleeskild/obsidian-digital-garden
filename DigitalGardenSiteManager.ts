@@ -40,7 +40,8 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
     async getNoteHashes(): Promise<{[key:string]: string}> {
         const octokit = new Octokit({ auth: this.settings.githubToken });
-        const response = await octokit.request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=true', {
+        //Force the cache to be updated
+        const response = await octokit.request(`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(Math.random()*1000)}`, {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
             tree_sha: 'main'

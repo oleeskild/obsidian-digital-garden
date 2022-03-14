@@ -9,6 +9,7 @@ import { excaliDrawBundle, excalidraw } from "./constants";
 
 export interface IPublisher {
     publish(file: TFile): Promise<boolean>;
+    delete(vaultFilePath: string): Promise<boolean>;
     getFilesMarkedForPublishing(): Promise<TFile[]>;
     generateMarkdown(file: TFile): Promise<string>;
 }
@@ -39,6 +40,57 @@ export default class Publisher {
 
         return filesToPublish;
     }
+
+    async delete(vaultFilePath: string): Promise<boolean> {
+        if (!this.settings.githubRepo) {
+            new Notice("Config error: You need to define a GitHub repo in the plugin settings");
+            throw {};
+        }
+        if (!this.settings.githubUserName) {
+            new Notice("Config error: You need to define a GitHub Username in the plugin settings");
+            throw {};
+        }
+        if (!this.settings.githubToken) {
+            new Notice("Config error: You need to define a GitHub Token in the plugin settings");
+            throw {};
+        }
+
+        const octokit = new Octokit({ auth: this.settings.githubToken }); 
+        const path = `src/site/notes/${vaultFilePath}`;
+
+        const payload = {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            path,
+            message: `Delete note ${vaultFilePath}`,
+            sha: ''
+        };
+
+        try {
+            const response = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+                path
+            });
+            if (response.status === 200 && response.data.type === "file") {
+                payload.sha = response.data.sha;
+            }
+        } catch (e) {
+            console.log(e)
+            return false;
+        }
+
+        
+
+        try {
+            const response = await octokit.request('DELETE /repos/{owner}/{repo}/contents/{path}', payload);
+        } catch (e) {
+            console.log(e)
+            return false
+        }
+        return true;
+    }
+
 
     async publish(file: TFile): Promise<boolean> {
         if (!vallidatePublishFrontmatter(this.metadataCache.getCache(file.path).frontmatter)) {
