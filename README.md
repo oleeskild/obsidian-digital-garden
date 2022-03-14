@@ -60,6 +60,7 @@ In the future you will be notified with a visual cue whenever there is an update
 The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
 * Links to other notes
+* Embedded/Transcluded Excalidraw drawings 
 * Code Blocks
 * Admonitions
 * MathJax

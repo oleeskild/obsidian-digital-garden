@@ -4,11 +4,10 @@ import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { arrayBufferToBase64, generateUrlPath } from "utils";
 import { vallidatePublishFrontmatter } from "Validator";
-import slugify from "@sindresorhus/slugify";
-import { title } from "process";
+import { excaliDrawBundle, excalidraw } from "./constants";
 
 
-export interface IPublisher{
+export interface IPublisher {
     publish(file: TFile): Promise<boolean>;
     getFilesMarkedForPublishing(): Promise<TFile[]>;
     generateMarkdown(file: TFile): Promise<string>;
@@ -192,6 +191,7 @@ export default class Publisher {
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.*?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
+        let numberOfExcaliDraws = 0;
         if (transclusionMatches) {
             for (let i = 0; i < transclusionMatches.length; i++) {
                 try {
@@ -200,22 +200,37 @@ export default class Publisher {
                     const tranclusionFilePath = getLinkpath(tranclusionFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
 
-                    if (linkedFile.extension !== "md") {
-                        continue;
+                    if (linkedFile.name.endsWith(".excalidraw.md")) {
+                        let fileText = await this.vault.cachedRead(linkedFile);
+                        const start = fileText.indexOf('```json') + "```json".length;
+                        const end = fileText.lastIndexOf('```')
+                        const excaliDrawJson = JSON.parse(fileText.slice(start, end));
+
+                        const drawingId = linkedFile.name.split(" ").join("_").replace(".", "") + numberOfExcaliDraws;
+                        let excaliDrawCode = "";
+                        if(++numberOfExcaliDraws === 1){
+                            excaliDrawCode += excaliDrawBundle;
+                        }
+
+                        excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
+
+                        transcludedText = transcludedText.replace(transclusionMatch, excaliDrawCode);
+
+                    }else if (linkedFile.extension === "md") {
+
+                        let fileText = await this.vault.cachedRead(linkedFile);
+
+                        //Remove frontmatter from transclusion
+                        fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
+
+                        const header = this.generateTransclusionHeader(headerName, linkedFile);
+
+                        const headerSection = header ? `${header}\n` : '';
+
+                        fileText = `\n<div class="transclusion">\n\n` + headerSection + fileText + '\n</div>\n'
+                        //This should be recursive up to a certain depth
+                        transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }
-
-                    let fileText = await this.vault.cachedRead(linkedFile);
-
-                    //Remove frontmatter from transclusion
-                    fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
-
-                    const header = this.generateTransclusionHeader(headerName, linkedFile);
-
-                    const headerSection = header ? `${header}\n` : '';
-
-                    fileText = `\n<div class="transclusion">\n\n` + headerSection + fileText + '\n</div>\n'
-                    //This should be recursive up to a certain depth
-                    transcludedText = transcludedText.replace(transclusionMatch, fileText);
                 } catch {
                     continue;
                 }
@@ -228,18 +243,20 @@ export default class Publisher {
 
     async createBase64Images(text: string, filePath: string): Promise<string> {
         let imageText = text;
-        const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+        const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
         const imageMatches = text.match(imageRegex);
         if (imageMatches) {
             for (let i = 0; i < imageMatches.length; i++) {
                 try {
                     const imageMatch = imageMatches[i];
-                    const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+
+                    let [imageName, size] = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']')).split("|");
                     const imagePath = getLinkpath(imageName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
-                    const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
+                    const name = size ? `${imageName}|${size}` : imageName;
+                    const imageMarkdown = `![${name}](data:image/${linkedFile.extension};base64,${imageBase64})`;
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch {
                     continue;
@@ -251,15 +268,15 @@ export default class Publisher {
     }
 
     generateTransclusionHeader(headerName: string, transcludedFile: TFile) {
-        if(!headerName) {
+        if (!headerName) {
             return headerName;
         }
-    
+
         const titleVariable = "{{title}}";
         if (headerName && headerName.indexOf(titleVariable) > -1) {
             headerName = headerName.replace(titleVariable, transcludedFile.basename);
         }
-    
+
         //Defaults to h1
         if (headerName && !headerName.startsWith("#")) {
             headerName = "# " + headerName;
@@ -269,7 +286,7 @@ export default class Publisher {
             if (!headerParts.last().startsWith(" ")) {
                 headerName = headerName.replace(headerParts.last(), " " + headerParts.last());
             }
-    
+
         }
         return headerName;
     }

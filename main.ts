@@ -4,7 +4,7 @@ import DigitalGardenSettings from 'DigitalGardenSettings';
 import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
 import SettingView from 'SettingView';
 import { PublishStatusBar } from 'PublishStatusBar';
-import { seedling } from 'icons';
+import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
@@ -22,7 +22,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.4.0";
+		this.appVersion = "2.5.0";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();

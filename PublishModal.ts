@@ -15,7 +15,7 @@ export class PublishModal {
     deletedContainer: HTMLElement;
     unpublishedContainer: HTMLElement;
 
-    constructor(app: App, siteManager: IDigitalGardenSiteManager, publisher: IPublisher, 
+    constructor(app: App, siteManager: IDigitalGardenSiteManager, publisher: IPublisher,
         settings: DigitalGardenSettings) {
         this.modal = new Modal(app)
         this.siteManager = siteManager;
@@ -25,19 +25,19 @@ export class PublishModal {
         this.initialize();
     }
 
-    createCollapsable(title:string): HTMLElement{
-        const toggleHeader = this.modal.contentEl.createEl("h3", { text: `➡️️ ${title}`, attr:{class:"collapsable collapsed"} });
+    createCollapsable(title: string): HTMLElement {
+        const toggleHeader = this.modal.contentEl.createEl("h3", { text: `➕️ ${title}`, attr: { class: "collapsable collapsed" } });
         const toggledList = this.modal.contentEl.createEl("ul");
         toggledList.hide();
 
         toggleHeader.onClickEvent(() => {
-            if(toggledList.isShown()){
-                toggleHeader.textContent = `➡️️ ${title}`;
+            if (toggledList.isShown()) {
+                toggleHeader.textContent = `➕️ ${title}`;
                 toggledList.hide();
                 toggleHeader.removeClass("open");
                 toggleHeader.addClass("collapsed");
-            }else{
-                toggleHeader.textContent = `⬇️ ${title}`;
+            } else {
+                toggleHeader.textContent = `➖ ${title}`;
                 toggledList.show()
                 toggleHeader.removeClass("collapsed");
                 toggleHeader.addClass("open");
@@ -54,29 +54,37 @@ export class PublishModal {
         this.modal.contentEl.createEl("h2", { text: "Publication Status" });
 
         this.publishedContainer = this.createCollapsable("Published");
-        this.changedContainer= this.createCollapsable("Changed");
+        this.changedContainer = this.createCollapsable("Changed");
         this.deletedContainer = this.createCollapsable("Deleted from vault");
         this.unpublishedContainer = this.createCollapsable("Unpublished");
-        
-        this.modal.onOpen = ()=>this.populateWithNotes();
-        this.modal.onClose = ()=>this.clearView();
+
+        this.modal.onOpen = () => this.populateWithNotes();
+        this.modal.onClose = () => this.clearView();
     }
 
-    async clearView(){
-        this.publishedContainer.childNodes.forEach(node=>node.remove());
-        this.changedContainer.childNodes.forEach(node=>node.remove());
-        this.deletedContainer.childNodes.forEach(node=>node.remove());
-        this.unpublishedContainer.childNodes.forEach(node=>node.remove());
+    async clearView() {
+        while (this.publishedContainer.lastElementChild) {
+            this.publishedContainer.removeChild(this.publishedContainer.lastElementChild);
+        }
+        while (this.changedContainer.lastElementChild) {
+            this.changedContainer.removeChild(this.changedContainer.lastElementChild);
+        }
+        while (this.deletedContainer.lastElementChild) {
+            this.deletedContainer.removeChild(this.deletedContainer.lastElementChild);
+        }
+        while (this.unpublishedContainer.lastElementChild) {
+            this.unpublishedContainer.removeChild(this.unpublishedContainer.lastElementChild);
+        }
     }
-    async populateWithNotes(){
+    async populateWithNotes() {
         const publishStatus = await this.buildPublishStatus();
-        publishStatus.publishedNotes.map(file=>this.publishedContainer.createEl("li", { text: file.path}));
-        publishStatus.unpublishedNotes.map(file=>this.unpublishedContainer.createEl("li", { text: file.path}));
-        publishStatus.changedNotes.map(file=>this.changedContainer.createEl("li", { text: file.path}));
-        publishStatus.deletedNotePaths.map(path=>this.deletedContainer.createEl("li", { text: path}));
+        publishStatus.publishedNotes.map(file => this.publishedContainer.createEl("li", { text: file.path }));
+        publishStatus.unpublishedNotes.map(file => this.unpublishedContainer.createEl("li", { text: file.path }));
+        publishStatus.changedNotes.map(file => this.changedContainer.createEl("li", { text: file.path }));
+        publishStatus.deletedNotePaths.map(path => this.deletedContainer.createEl("li", { text: path }));
     }
 
-    async buildPublishStatus(){
+    async buildPublishStatus(): Promise<PublishStatus> {
         const unpublishedNotes: Array<TFile> = [];
         const publishedNotes: Array<TFile> = [];
         const changedNotes: Array<TFile> = [];
@@ -91,27 +99,38 @@ export class PublishModal {
 
             const localHash = generateBlobHash(content);
             const remoteHash = remoteNoteHashes[file.path];
-            if(!remoteHash) {
+            if (!remoteHash) {
                 unpublishedNotes.push(file);
             }
-            else if(remoteHash === localHash) {
+            else if (remoteHash === localHash) {
                 publishedNotes.push(file);
             }
-            else{
+            else {
                 changedNotes.push(file);
             }
         }
 
         Object.keys(remoteNoteHashes).forEach(key => {
-            if(!marked.find(f => f.path === key)) {
+            if (!marked.find(f => f.path === key)) {
                 deletedNotePaths.push(key);
             }
         });
 
-        return {unpublishedNotes, publishedNotes, changedNotes, deletedNotePaths};
+        unpublishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
+        publishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
+        changedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
+        deletedNotePaths.sort((a, b) => a > b ? 1 : -1);
+        return { unpublishedNotes, publishedNotes, changedNotes, deletedNotePaths };
     }
 
     open() {
         this.modal.open();
     }
+}
+
+interface PublishStatus{
+    unpublishedNotes: Array<TFile>;
+    publishedNotes: Array<TFile>;
+    changedNotes: Array<TFile>;
+    deletedNotePaths: Array<string>;
 }
