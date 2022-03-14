@@ -6,6 +6,7 @@ import SettingView from 'SettingView';
 import { PublishStatusBar } from 'PublishStatusBar';
 import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
+import PublishStatusManager from 'PublishStatusManager';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -22,7 +23,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.5.0";
+		this.appVersion = "2.6.0";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -90,11 +91,16 @@ export default class DigitalGarden extends Plugin {
 				try {
 					const { vault, metadataCache } = this.app;
 					const publisher = new Publisher(vault, metadataCache, this.settings);
+					const siteManager = new DigitalGardenSiteManager(metadataCache, this.settings);
+					const publishStatusManager = new PublishStatusManager(siteManager, publisher);
 
-					const filesToPublish = await publisher.getFilesMarkedForPublishing();
-					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length);
+					const publishStatus = await publishStatusManager.getPublishStatus();
+					const filesToPublish = publishStatus.changedNotes.concat(publishStatus.unpublishedNotes)
+					const filesToDelete = publishStatus.deletedNotePaths;
+					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length + filesToDelete.length);
 
 					let errorFiles = 0;
+					let errorDeleteFiles = 0;
 					for (const file of filesToPublish) {
 						try {
 							statusBar.increment();
@@ -104,8 +110,22 @@ export default class DigitalGarden extends Plugin {
 							new Notice(`Unable to publish note ${file.name}, skipping it.`)
 						}
 					}
+
+					for(const filePath of filesToDelete){
+						try {
+							statusBar.increment();
+							await publisher.delete(filePath);
+						} catch {
+							errorDeleteFiles++;
+							new Notice(`Unable to delete note ${filePath}, skipping it.`)
+						}
+					}
+					
 					statusBar.finish(8000);
 					new Notice(`Successfully published ${filesToPublish.length - errorFiles} notes to your garden.`);
+					if(filesToDelete.length > 0){
+						new Notice(`Successfully deleted ${filesToDelete.length - errorDeleteFiles} notes from your garden.`);
+					}
 
 				} catch (e) {
 					statusBarItem.remove();
@@ -153,7 +173,8 @@ export default class DigitalGarden extends Plugin {
 		if(!this.publishModal){
 			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings);
 			const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
-			this.publishModal = new PublishModal(this.app, siteManager, publisher, this.settings);
+			const publishStatusManager = new PublishStatusManager(siteManager, publisher);
+			this.publishModal = new PublishModal(this.app, publishStatusManager, publisher, this.settings);
 		}
 		this.publishModal.open();
 	}

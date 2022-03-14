@@ -1,13 +1,12 @@
 import DigitalGardenSettings from "DigitalGardenSettings";
-import { IDigitalGardenSiteManager } from "DigitalGardenSiteManager";
-import { App, Modal, TFile } from "obsidian";
+import { App, ButtonComponent, Modal} from "obsidian";
 import { IPublisher } from "Publisher";
-import { generateBlobHash } from "utils";
+import { IPublishStatusManager } from "PublishStatusManager";
 
 export class PublishModal {
     modal: Modal;
-    siteManager: IDigitalGardenSiteManager;
     settings: DigitalGardenSettings;
+    publishStatusManager: IPublishStatusManager;
     publisher: IPublisher;
 
     publishedContainer: HTMLElement;
@@ -15,22 +14,35 @@ export class PublishModal {
     deletedContainer: HTMLElement;
     unpublishedContainer: HTMLElement;
 
-    constructor(app: App, siteManager: IDigitalGardenSiteManager, publisher: IPublisher,
-        settings: DigitalGardenSettings) {
+    progressContainer: HTMLElement;
+
+    constructor(app: App, publishStatusManager: IPublishStatusManager, publisher: IPublisher, settings: DigitalGardenSettings) {
         this.modal = new Modal(app)
-        this.siteManager = siteManager;
         this.settings = settings;
+        this.publishStatusManager = publishStatusManager;
         this.publisher = publisher;
 
         this.initialize();
     }
 
-    createCollapsable(title: string): HTMLElement {
-        const toggleHeader = this.modal.contentEl.createEl("h3", { text: `➕️ ${title}`, attr: { class: "collapsable collapsed" } });
+    createCollapsable(title: string, buttonText: string, buttonCallback:()=>Promise<void>): HTMLElement {
+        const headerContainer = this.modal.contentEl.createEl("div", {attr: {style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center"}});
+        const toggleHeader = headerContainer.createEl("h3", { text: `➕️ ${title}`, attr: { class: "collapsable collapsed" } });
+        if(buttonText && buttonCallback){
+
+        const button = new ButtonComponent(headerContainer)
+            .setButtonText(buttonText)
+            .onClick(async () => {
+                button.setDisabled(true);
+                await buttonCallback();
+                button.setDisabled(false);
+            });
+        } 
+
         const toggledList = this.modal.contentEl.createEl("ul");
         toggledList.hide();
 
-        toggleHeader.onClickEvent(() => {
+        headerContainer.onClickEvent(() => {
             if (toggledList.isShown()) {
                 toggleHeader.textContent = `➕️ ${title}`;
                 toggledList.hide();
@@ -53,10 +65,66 @@ export class PublishModal {
         this.modal.contentEl.addClass("digital-garden-publish-status-view");
         this.modal.contentEl.createEl("h2", { text: "Publication Status" });
 
-        this.publishedContainer = this.createCollapsable("Published");
-        this.changedContainer = this.createCollapsable("Changed");
-        this.deletedContainer = this.createCollapsable("Deleted from vault");
-        this.unpublishedContainer = this.createCollapsable("Unpublished");
+        this.progressContainer = this.modal.contentEl.createEl("div", { attr: {style: "height: 30px;" } });
+
+        this.publishedContainer = this.createCollapsable("Published", null, null);
+        this.changedContainer = this.createCollapsable("Changed", "Update changed files", async () => {
+            const publishStatus = await this.publishStatusManager.getPublishStatus();
+            const changed = publishStatus.changedNotes;
+            let counter = 0;
+            for(const note of changed){
+                this.progressContainer.innerText = `⌛Publishing changed notes: ${++counter}/${changed.length}`;
+                await this.publisher.publish(note);
+            }
+
+            const publishedText = `✅ Published all changed notes: ${counter}/${changed.length}`;
+            this.progressContainer.innerText = publishedText;
+            setTimeout(() => {
+                if(this.progressContainer.innerText === publishedText){
+                    this.progressContainer.innerText = "";
+                }
+            }, 5000)
+
+            await this.refreshView();
+        });
+
+        this.deletedContainer = this.createCollapsable("Deleted from vault", "Delete notes from garden", async () => {
+            const deletedNotes = await this.publishStatusManager.getDeletedNotePaths();
+            let counter = 0; 
+            for(const note of deletedNotes){
+                this.progressContainer.innerText = `⌛Deleting Notes: ${++counter}/${deletedNotes.length}`;
+                await this.publisher.delete(note);
+            }
+
+            const deleteDoneText = `✅ Deleted all notes: ${counter}/${deletedNotes.length}`;
+            this.progressContainer.innerText = deleteDoneText;
+            setTimeout(() => {
+                if(this.progressContainer.innerText === deleteDoneText){
+                    this.progressContainer.innerText = "";
+                }
+            }, 5000);
+
+            await this.refreshView();
+
+        });
+        this.unpublishedContainer = this.createCollapsable("Unpublished", "Publish unpublished notes", async () => {
+            const publishStatus = await this.publishStatusManager.getPublishStatus();
+            const unpublished = publishStatus.unpublishedNotes;
+            let counter = 0; 
+            for(const note of unpublished){
+                this.progressContainer.innerText = `⌛Publishing unpublished notes: ${++counter}/${unpublished.length}`;
+                await this.publisher.publish(note);
+            }
+            const publishDoneText = `✅ Published all unpublished notes: ${counter}/${unpublished.length}`;
+            this.progressContainer.innerText = publishDoneText;
+            setTimeout(() => {
+                if(this.progressContainer.innerText === publishDoneText){
+                    this.progressContainer.innerText = "";
+                }
+            }, 5000)
+            await this.refreshView();
+        });
+
 
         this.modal.onOpen = () => this.populateWithNotes();
         this.modal.onClose = () => this.clearView();
@@ -77,60 +145,19 @@ export class PublishModal {
         }
     }
     async populateWithNotes() {
-        const publishStatus = await this.buildPublishStatus();
+        const publishStatus = await this.publishStatusManager.getPublishStatus();
         publishStatus.publishedNotes.map(file => this.publishedContainer.createEl("li", { text: file.path }));
         publishStatus.unpublishedNotes.map(file => this.unpublishedContainer.createEl("li", { text: file.path }));
         publishStatus.changedNotes.map(file => this.changedContainer.createEl("li", { text: file.path }));
         publishStatus.deletedNotePaths.map(path => this.deletedContainer.createEl("li", { text: path }));
     }
 
-    async buildPublishStatus(): Promise<PublishStatus> {
-        const unpublishedNotes: Array<TFile> = [];
-        const publishedNotes: Array<TFile> = [];
-        const changedNotes: Array<TFile> = [];
-
-        const deletedNotePaths: Array<string> = [];
-
-        const remoteNoteHashes = await this.siteManager.getNoteHashes();
-        const marked = await this.publisher.getFilesMarkedForPublishing();
-
-        for (const file of marked) {
-            const content = await this.publisher.generateMarkdown(file);
-
-            const localHash = generateBlobHash(content);
-            const remoteHash = remoteNoteHashes[file.path];
-            if (!remoteHash) {
-                unpublishedNotes.push(file);
-            }
-            else if (remoteHash === localHash) {
-                publishedNotes.push(file);
-            }
-            else {
-                changedNotes.push(file);
-            }
-        }
-
-        Object.keys(remoteNoteHashes).forEach(key => {
-            if (!marked.find(f => f.path === key)) {
-                deletedNotePaths.push(key);
-            }
-        });
-
-        unpublishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
-        publishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
-        changedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
-        deletedNotePaths.sort((a, b) => a > b ? 1 : -1);
-        return { unpublishedNotes, publishedNotes, changedNotes, deletedNotePaths };
+    private async refreshView(){
+        this.clearView();
+        await this.populateWithNotes();
     }
 
     open() {
         this.modal.open();
     }
-}
-
-interface PublishStatus{
-    unpublishedNotes: Array<TFile>;
-    publishedNotes: Array<TFile>;
-    changedNotes: Array<TFile>;
-    deletedNotePaths: Array<string>;
 }
