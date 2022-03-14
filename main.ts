@@ -6,6 +6,7 @@ import SettingView from 'SettingView';
 import { PublishStatusBar } from 'PublishStatusBar';
 import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
+import PublishStatusManager from 'PublishStatusManager';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -153,7 +154,8 @@ export default class DigitalGarden extends Plugin {
 		if(!this.publishModal){
 			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings);
 			const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
-			this.publishModal = new PublishModal(this.app, siteManager, publisher, this.settings);
+			const publishStatusManager = new PublishStatusManager(siteManager, publisher);
+			this.publishModal = new PublishModal(this.app, publishStatusManager, this.settings);
 		}
 		this.publishModal.open();
 	}
