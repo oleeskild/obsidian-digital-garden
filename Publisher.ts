@@ -4,10 +4,7 @@ import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { arrayBufferToBase64, generateUrlPath } from "utils";
 import { vallidatePublishFrontmatter } from "Validator";
-import slugify from "@sindresorhus/slugify";
-import { title } from "process";
-import { excaliDrawBundle } from "constants";
-import { excalidraw } from "constants";
+import { excaliDrawBundle, excalidraw } from "./constants";
 
 
 export interface IPublisher {
@@ -209,13 +206,13 @@ export default class Publisher {
                         const end = fileText.lastIndexOf('```')
                         const excaliDrawJson = JSON.parse(fileText.slice(start, end));
 
-                        const drawingId = linkedFile.name;
+                        const drawingId = linkedFile.name.split(" ").join("_").replace(".", "") + numberOfExcaliDraws;
                         let excaliDrawCode = "";
                         if(++numberOfExcaliDraws === 1){
                             excaliDrawCode += excaliDrawBundle;
                         }
-                        excaliDrawCode +=                            +
-                            `${excalidraw(JSON.stringify(excaliDrawJson), drawingId)}`;
+
+                        excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
 
                         transcludedText = transcludedText.replace(transclusionMatch, excaliDrawCode);
 
@@ -246,18 +243,20 @@ export default class Publisher {
 
     async createBase64Images(text: string, filePath: string): Promise<string> {
         let imageText = text;
-        const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+        const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
         const imageMatches = text.match(imageRegex);
         if (imageMatches) {
             for (let i = 0; i < imageMatches.length; i++) {
                 try {
                     const imageMatch = imageMatches[i];
-                    const imageName = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']'));
+
+                    let [imageName, size] = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']')).split("|");
                     const imagePath = getLinkpath(imageName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
-                    const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
+                    const name = size ? `${imageName}|${size}` : imageName;
+                    const imageMarkdown = `![${name}](data:image/${linkedFile.extension};base64,${imageBase64})`;
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch {
                     continue;
