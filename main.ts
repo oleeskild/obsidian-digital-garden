@@ -4,7 +4,7 @@ import DigitalGardenSettings from 'DigitalGardenSettings';
 import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
 import SettingView from 'SettingView';
 import { PublishStatusBar } from 'PublishStatusBar';
-import { seedling } from 'icons';
+import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
