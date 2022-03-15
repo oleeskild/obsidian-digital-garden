@@ -169,39 +169,37 @@ export default class Publisher {
         const cachedFrontMatter = this.metadataCache.getCache(path).frontmatter;
         const frontMatter = { ...cachedFrontMatter };
 
+        const publishedFrontMatter:any = {};
         if (frontMatter && frontMatter["dg-permalink"]) {
-            frontMatter["permalink"] = frontMatter["dg-permalink"];
-            if (!frontMatter["permalink"].endsWith("/")) {
-                frontMatter["permalink"] += "/";
+            publishedFrontMatter["permalink"] = frontMatter["dg-permalink"];
+            if (!publishedFrontMatter["permalink"].endsWith("/")) {
+                publishedFrontMatter["permalink"] += "/";
             }
-            if (!frontMatter["permalink"].startsWith("/")) {
-                frontMatter["permalink"] = "/" + frontMatter["permalink"];
+            if (!publishedFrontMatter["permalink"].startsWith("/")) {
+                publishedFrontMatter["permalink"] = "/" + publishedFrontMatter["permalink"];
             }
         } else {
             const noteUrlPath = generateUrlPath(path);
-            frontMatter["permalink"] = "/" + noteUrlPath;
+            publishedFrontMatter["permalink"] = "/" + noteUrlPath;
         }
 
         if (frontMatter && frontMatter["dg-home"]) {
             const tags = frontMatter["tags"];
             if (tags) {
                 if (typeof (tags) === "string") {
-                    frontMatter["tags"] = [tags, "gardenEntry"];
+                    publishedFrontMatter["tags"] = [tags, "gardenEntry"];
                 } else {
-                    frontMatter["tags"] = [...tags, "gardenEntry"];
+                    publishedFrontMatter["tags"] = [...tags, "gardenEntry"];
                 }
             } else {
-                frontMatter["tags"] = "gardenEntry";
+                publishedFrontMatter["tags"] = "gardenEntry";
             }
 
         }
         //replace frontmatter at start of file
 
         const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
-            const copy = { ...frontMatter };
-            delete copy["position"];
-            delete copy["end"];
-            const frontMatterString = JSON.stringify(copy);
+            const frontMatterString = JSON.stringify(publishedFrontMatter);
             return `---\n${frontMatterString}\n---`;
         });
         return replaced;
@@ -279,7 +277,7 @@ export default class Publisher {
 
                         const headerSection = header ? `${header}\n` : '';
 
-                        fileText = `\n<div class="transclusion">\n\n` + headerSection + fileText + '\n</div>\n'
+                        fileText = `\n<div class="transclusion internal-embed is-loaded">\n\n` + headerSection + fileText + '\n</div>\n'
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }

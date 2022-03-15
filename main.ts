@@ -23,7 +23,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.6.0";
+		this.appVersion = "2.6.1";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -219,7 +219,7 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 
 		};
 		settingView.renderCreatePr(handlePR);
-		settingView.renderPullRequestHistory(this.plugin.settings.prHistory.slice(0,10));
+		settingView.renderPullRequestHistory(this.plugin.settings.prHistory.reverse().slice(0,10));
 	}
 }
 
