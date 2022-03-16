@@ -169,8 +169,10 @@ export default class Publisher {
         const cachedFrontMatter = this.metadataCache.getCache(path).frontmatter;
         const frontMatter = { ...cachedFrontMatter };
 
-        const publishedFrontMatter:any = {};
+        const publishedFrontMatter:any = {"dg-publish":true};
+
         if (frontMatter && frontMatter["dg-permalink"]) {
+            publishedFrontMatter["dg-permalink"] = frontMatter["dg-permalink"];
             publishedFrontMatter["permalink"] = frontMatter["dg-permalink"];
             if (!publishedFrontMatter["permalink"].endsWith("/")) {
                 publishedFrontMatter["permalink"] += "/";

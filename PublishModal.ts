@@ -126,7 +126,7 @@ export class PublishModal {
         });
 
 
-        this.modal.onOpen = () => this.populateWithNotes();
+        this.modal.onOpen = () => this.refreshView();
         this.modal.onClose = () => this.clearView();
     }
 
