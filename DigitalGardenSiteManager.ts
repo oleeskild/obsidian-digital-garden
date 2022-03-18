@@ -134,6 +134,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
     private async modifyFiles(octokit: Octokit, branchName: string) {
         const filesToModify = [
+            ".env",
             ".eleventy.js",
             "README.md",
             "netlify.toml",
@@ -144,19 +145,25 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "src/site/versionednote.njk",
             "src/site/versionednote.njk",
             "src/site/styles/style.scss",
+            "src/site/styles/digital-garden-base.scss",
+            "src/site/styles/obsidian-base.scss",
             "src/site/notes/notes.json",
             "src/site/_includes/layouts/note.njk",
             "src/site/_includes/layouts/versionednote.njk",
             "src/site/_includes/components/notegrowthhistory.njk",
             "src/site/_includes/components/pageheader.njk",
             "src/site/_data/versionednotes.js",
+            "src/site/_data/meta.js",
+            "src/site/favicon.svg",
+            "src/site/img/outgoing.svg"
         ];
         for (const file of filesToModify) {
             //get from my repo
             const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
                 owner: "oleeskild",
                 repo: "digitalgarden",
-                path: file
+                path: file,
+                ref: "feature/customthemes"//TODO: Remove before release
             });
 
             let currentFile = {};

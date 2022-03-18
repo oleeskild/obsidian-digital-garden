@@ -1,6 +1,8 @@
 import DigitalGardenSettings from 'DigitalGardenSettings';
-import { ButtonComponent, Setting } from 'obsidian';
+import { ButtonComponent, Notice, Setting, TFile } from 'obsidian';
 import axios from "axios";
+import { Octokit } from '@octokit/core';
+import { Base64 } from 'js-base64';
 
 export default class SettingView {
     private settings: DigitalGardenSettings;
@@ -44,6 +46,10 @@ export default class SettingView {
             .addDropdown(dd => {
                 dd.addOption("dark", "Dark");
                 dd.addOption("light", "Light");
+                dd.onChange(async (val: string) => {
+                    this.settings.baseTheme = val;
+                    await this.saveSettings();
+                });
             });
 
         const themesListResponse = await axios.get("https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json")
@@ -51,26 +57,60 @@ export default class SettingView {
             .setName("Theme")
             .addDropdown(dd => {
                 themesListResponse.data.map((x: any) => {
-                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/master/obsidian.css` }), x.name);
+                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'master'}/obsidian.css` }), x.name);
                     dd.onChange(async (val: any) => {
-
-                        //gastown only light
-                        const theme = JSON.parse(val);
-                        const baseTheme= baseThemeSetting.controlEl.querySelector("select").value;
-                        if(theme.modes.indexOf() <0){
-                            //Not allowed
-                        }
-                        const settings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
-                        //push settings to .env file in github.
-
-                        // this.settings.theme = val;
-                        // await this.saveSettings();
+                        this.settings.theme = val;
+                        await this.saveSettings();
                     });
 
                 });
             })
 
+        new Setting(this.settingsRootElement)
+            .setName("Apply")
+            .addButton(cb => {
+                cb.setButtonText("Apply");
+                cb.onClick(async ev => {
+                    //Will only have valid settings after actually selecting. 
+                    //Add a Default option on which will not apply any theme
+                    const theme = JSON.parse(this.settings.theme);
+                    const baseTheme = this.settings.baseTheme;
+                    if (theme.modes.indexOf(baseTheme) < 0) {
+                        new Notice(`This theme doesn't support ${baseTheme} mode.`)
+                        return;
+                    }
+
+                    const envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
+                    const base64Settings = Base64.encode(envSettings);
+
+                    const octokit = new Octokit({ auth: this.settings.githubToken });
+                    //push settings to .env file in github.
+                    let fileExists = true;
+                    let currentFile = null;
+                    try {
+                        currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                            owner: this.settings.githubUserName,
+                            repo: this.settings.githubRepo,
+                            path: ".env",
+                        });
+                    } catch (error) {
+                        fileExists = false;
+                    }
         
+                        //commit
+                        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+                            owner: this.settings.githubUserName,
+                            repo: this.settings.githubRepo,
+                            path: ".env",
+                            message: `Update theme`,
+                            content: base64Settings,
+                            sha: fileExists ? currentFile.data.sha : null
+                        });
+                        new Notice("Successfully applied theme");
+                })
+            })
+
+
     }
     private initializeGitHubRepoSetting() {
         new Setting(this.settingsRootElement)

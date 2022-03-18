@@ -14,7 +14,9 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubToken: '',
 	githubUserName: '',
 	gardenBaseUrl: '',
-	prHistory: []
+	prHistory: [],
+	theme:"dark",
+	baseTheme:"default"
 }
 
 export default class DigitalGarden extends Plugin {
