@@ -1,5 +1,6 @@
 import DigitalGardenSettings from 'DigitalGardenSettings';
 import { ButtonComponent, Setting } from 'obsidian';
+import axios from "axios";
 
 export default class SettingView {
     private settings: DigitalGardenSettings;
@@ -15,10 +16,9 @@ export default class SettingView {
         this.settingsRootElement = settingsRootElement;
         this.settings = settings;
         this.saveSettings = saveSettings;
-        this.initialize();
     }
 
-    private initialize() {
+    async initialize() {
         this.settingsRootElement.empty();
         this.settingsRootElement.createEl('h2', { text: 'Settings ' });
         this.settingsRootElement.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
@@ -29,12 +29,49 @@ export default class SettingView {
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
         this.initializeGitHubBaseURLSetting();
+        await this.initializeThemesSettings();
 
-        this.updateTemplateTop = this.settingsRootElement.createEl('div', {cls: 'setting-item'});
+        this.updateTemplateTop = this.settingsRootElement.createEl('div', { cls: 'setting-item' });
         this.progressViewTop = this.settingsRootElement.createEl('div', {});
-        this.previousPrsViewTop = this.settingsRootElement.createEl('div', {cls: 'setting-item'});
+        this.previousPrsViewTop = this.settingsRootElement.createEl('div', { cls: 'setting-item' });
     }
 
+
+    private async initializeThemesSettings() {
+        //should get theme settings from env in github, not settings
+        const baseThemeSetting = new Setting(this.settingsRootElement)
+            .setName("Base theme")
+            .addDropdown(dd => {
+                dd.addOption("dark", "Dark");
+                dd.addOption("light", "Light");
+            });
+
+        const themesListResponse = await axios.get("https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json")
+        new Setting(this.settingsRootElement)
+            .setName("Theme")
+            .addDropdown(dd => {
+                themesListResponse.data.map((x: any) => {
+                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/master/obsidian.css` }), x.name);
+                    dd.onChange(async (val: any) => {
+
+                        //gastown only light
+                        const theme = JSON.parse(val);
+                        const baseTheme= baseThemeSetting.controlEl.querySelector("select").value;
+                        if(theme.modes.indexOf() <0){
+                            //Not allowed
+                        }
+                        const settings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
+                        //push settings to .env file in github.
+
+                        // this.settings.theme = val;
+                        // await this.saveSettings();
+                    });
+
+                });
+            })
+
+        
+    }
     private initializeGitHubRepoSetting() {
         new Setting(this.settingsRootElement)
             .setName('GitHub repo name')
@@ -103,17 +140,17 @@ export default class SettingView {
                 }));
     }
 
-    renderCreatePr(handlePR: (button: ButtonComponent) => Promise<void>){
+    renderCreatePr(handlePR: (button: ButtonComponent) => Promise<void>) {
         new Setting(this.updateTemplateTop)
-			.setName('Update site to latest template')
-			.setDesc(`
+            .setName('Update site to latest template')
+            .setDesc(`
 				This will create a pull request with the latest template changes. 
 				It will not publish any changes before you approve them.
 				You can even test the changes first Netlify will automatically provide you with a test URL.
 			`)
-			.addButton(button => button
-				.setButtonText('Create PR')
-				.onClick(()=>handlePR(button)));
+            .addButton(button => button
+                .setButtonText('Create PR')
+                .onClick(() => handlePR(button)));
 
     }
 
@@ -124,7 +161,7 @@ export default class SettingView {
         this.previousPrsViewTop.createEl('h2', { text: 'Recent Pull Request History' })
         const prsContainer = this.previousPrsViewTop.createEl('ul', {});
         previousPrUrls.map(prUrl => {
-            const li = prsContainer.createEl('li', {attr: {'style': 'margin-bottom: 10px'}});
+            const li = prsContainer.createEl('li', { attr: { 'style': 'margin-bottom: 10px' } });
             const prUrlElement = document.createElement('a');
             prUrlElement.href = prUrl;
             prUrlElement.textContent = prUrl;

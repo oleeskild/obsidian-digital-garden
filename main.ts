@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon} from 'obsidian';
 import Publisher from './Publisher';
 import DigitalGardenSettings from 'DigitalGardenSettings';
 import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
@@ -7,6 +7,7 @@ import { PublishStatusBar } from 'PublishStatusBar';
 import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
 import PublishStatusManager from 'PublishStatusManager';
+import axios from "axios";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -37,7 +38,9 @@ export default class DigitalGarden extends Plugin {
 		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async ()=>{
 			this.openPublishModal();	
 		});
-	}
+
+
+			}
 
 	onunload() {
 
@@ -191,9 +194,10 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 	}
 
 	
-	display(): void {
+	async display(): Promise<void> {
 		const { containerEl } = this;
 		const settingView = new SettingView(containerEl, this.plugin.settings, async ()=> await this.plugin.saveData(this.plugin.settings));
+		await settingView.initialize();
 
 
 		const handlePR = async (button: ButtonComponent) => {
