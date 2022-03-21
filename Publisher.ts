@@ -198,6 +198,11 @@ export default class Publisher {
             }
 
         }
+
+        if(frontMatter && frontMatter["dg-home-link"]===true){
+            publishedFrontMatter["dgHomeLink"] = true
+        }
+
         //replace frontmatter at start of file
 
         const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
