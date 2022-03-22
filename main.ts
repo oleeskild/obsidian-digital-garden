@@ -7,7 +7,6 @@ import { PublishStatusBar } from 'PublishStatusBar';
 import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
 import PublishStatusManager from 'PublishStatusManager';
-import axios from "axios";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -27,7 +26,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.6.2";
+		this.appVersion = "2.7.0";
 		//If current appversion in settings unmatches this, show new notice with info about updating the template
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
