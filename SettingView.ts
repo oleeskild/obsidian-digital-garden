@@ -85,7 +85,7 @@ export default class SettingView {
             .setName("Favicon")
             .setDesc("Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.")
             .addText(tc => {
-                tc.setPlaceholder("attachments/myfavicon.svg")
+                tc.setPlaceholder("myfavicon.svg")
                 tc.setValue(this.settings.faviconPath);
                 tc.onChange(async val => {
                     this.settings.faviconPath = val;
@@ -144,6 +144,7 @@ export default class SettingView {
         new Notice("Successfully applied theme");
     }
     private async addFavicon(octokit: Octokit) {
+        let base64FaviconContent = "";
         if (this.settings.faviconPath) {
 
             const faviconFile = this.app.vault.getAbstractFileByPath(this.settings.faviconPath);
@@ -151,33 +152,41 @@ export default class SettingView {
                 new Notice(`${this.settings.faviconPath} is not a valid file.`)
                 return;
             }
-
-            //The getting and setting sha when putting can be generalized into a utility function
-            let faviconExists = true;
-            let currentFavicon = null;
-            try {
-                currentFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-                    owner: this.settings.githubUserName,
-                    repo: this.settings.githubRepo,
-                    path: "src/site/favicon.svg",
-                });
-            } catch (error) {
-                faviconExists = false;
-            }
-
             const faviconContent = await this.app.vault.readBinary(faviconFile);
-            const base64Content = arrayBufferToBase64(faviconContent);
-            await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            base64FaviconContent = arrayBufferToBase64(faviconContent);
+        }
+        else {
+            const defaultFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: "oleeskild",
+                repo: "digitalgarden",
+                path: "src/site/favicon.svg"
+            });
+            base64FaviconContent = defaultFavicon.data.content;
+        }
+
+        //The getting and setting sha when putting can be generalized into a utility function
+        let faviconExists = true;
+        let currentFavicon = null;
+        try {
+            currentFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
                 owner: this.settings.githubUserName,
                 repo: this.settings.githubRepo,
                 path: "src/site/favicon.svg",
-                message: `Update favicon.svg`,
-                content: base64Content,
-                sha: fileExists ? currentFavicon.data.sha : null
             });
-
-            new Notice(`Successfully set favicon`)
+        } catch (error) {
+            faviconExists = false;
         }
+
+        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            path: "src/site/favicon.svg",
+            message: `Update favicon.svg`,
+            content: base64FaviconContent,
+            sha: faviconExists ? currentFavicon.data.sha : null
+        });
+
+        new Notice(`Successfully set favicon`)
     }
     private initializeGitHubRepoSetting() {
         new Setting(this.settingsRootElement)

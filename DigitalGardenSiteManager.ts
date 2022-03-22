@@ -161,7 +161,6 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
                 owner: "oleeskild",
                 repo: "digitalgarden",
                 path: file,
-                ref: "feature/customthemes"//TODO: Remove before release
             });
 
             let currentFile = {};

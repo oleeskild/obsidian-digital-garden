@@ -49,7 +49,7 @@ The code for the website is available in the repo you created in step 3, and thi
 future conflict when updating the template. Netlify should automatically update your site when you make changes to the code.
 
 ## Updating the template
-In the setting menu for the plugin there is, in addition to the previously mentioned settings, a setting with the name "Update site to latest template" with a button saying "Create PR". Whenever this template receives any updates, this button can be used to update your site. It will create a new branch in your repo with the changes and create a Pull Request to your main branch. The plugin will present you with this URL in the setting view. 
+In the setting menu for the plugin there is, in addition to the previously mentioned settings, a setting with the name "Site Template" with a button saying "Manage site template". Clicking this should open up a popup-window with the setting "Update site to latest template" and a button saying "Create PR". Whenever digital garden template receives any updates, this button can be used to update your site. It will create a new branch in your repo with the changes and create a Pull Request to your main branch. The plugin will present you with this URL in the setting view. 
 
 If you used the "Deploy to Netlify" button, a Netlify bot will build a preview version of your site which you can visit to see that the changes does not contain any breaking changes. The URL should be visible in the PR. 
 When you are ready you can use the "Merge pull request" button on the pull request page to merge the changes into your main branch and make the changes go live.
@@ -59,6 +59,7 @@ In the future you will be notified with a visual cue whenever there is an update
 ## Content support
 The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
+* Checkboxes
 * Links to other notes
 * Embedded/Transcluded Excalidraw drawings 
 * Code Blocks
@@ -68,6 +69,15 @@ The plugin currently supports rendering of these types of note contents:
 * Transcluded notes
 * Highlighted text
 * Footnotes
+
+
+## Themes
+This plugin support applying any community obsidian theme to your garden. 
+In the Digital Garden Settings, there is an Appearance setting. Clicking the "Manage" button brings up a modal which lets you select a theme and optionally a favicon. Click the "Apply settings to site" button for them to take effect to your site. 
+
+Choose the "Default" theme if you want the original Digital Garden theme. 
+
+Leave the favicon setting blank if you want to use the default favicon. 
 
 ## Advanced usage
 ### Permalinks
@@ -131,3 +141,12 @@ By just using regular translucion, no header will be added:
 ```
 
 It's also worth noting that transclusions *do not need* the dg-publish attribute. They behave the same as an image. If you transclude something into a document, and publish that document, everything that is transcluded in it will be published as if it was part of that note. 
+
+## Hiding home link
+By default, all notes except the home-note shows a link back to the home-note. If you don't want to show this in one of your notes you can set this property in your frontmatter>
+
+```
+---
+dg-home-link: false
+---
+```
