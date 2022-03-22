@@ -7,13 +7,17 @@ import { PublishStatusBar } from 'PublishStatusBar';
 import { seedling } from './constants';
 import { PublishModal } from 'PublishModal';
 import PublishStatusManager from 'PublishStatusManager';
+import axios from "axios";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
 	githubToken: '',
 	githubUserName: '',
 	gardenBaseUrl: '',
-	prHistory: []
+	prHistory: [],
+	theme: "dark",
+	baseTheme: '{"name": "default", "modes": ["dark"]}',
+	faviconPath: ''
 }
 
 export default class DigitalGarden extends Plugin {
@@ -24,6 +28,7 @@ export default class DigitalGarden extends Plugin {
 
 	async onload() {
 		this.appVersion = "2.6.2";
+		//If current appversion in settings unmatches this, show new notice with info about updating the template
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -34,9 +39,11 @@ export default class DigitalGarden extends Plugin {
 
 
 		addIcon('digital-garden-icon', seedling);
-		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async ()=>{
-			this.openPublishModal();	
+		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
+			this.openPublishModal();
 		});
+
+
 	}
 
 	onunload() {
@@ -64,7 +71,7 @@ export default class DigitalGarden extends Plugin {
 						new Notice("No file is open/active. Please open a file and try again.")
 						return;
 					}
-					if(currentFile.extension !== 'md'){
+					if (currentFile.extension !== 'md') {
 						new Notice("The current file is not a markdown file. Please open a markdown file and try again.")
 						return;
 					}
@@ -72,7 +79,7 @@ export default class DigitalGarden extends Plugin {
 					const publisher = new Publisher(vault, metadataCache, this.settings);
 					const publishSuccessful = await publisher.publish(currentFile);
 
-					if(publishSuccessful){
+					if (publishSuccessful) {
 						new Notice(`Successfully published note to your garden.`);
 					}
 
@@ -111,7 +118,7 @@ export default class DigitalGarden extends Plugin {
 						}
 					}
 
-					for(const filePath of filesToDelete){
+					for (const filePath of filesToDelete) {
 						try {
 							statusBar.increment();
 							await publisher.delete(filePath);
@@ -120,10 +127,10 @@ export default class DigitalGarden extends Plugin {
 							new Notice(`Unable to delete note ${filePath}, skipping it.`)
 						}
 					}
-					
+
 					statusBar.finish(8000);
 					new Notice(`Successfully published ${filesToPublish.length - errorFiles} notes to your garden.`);
-					if(filesToDelete.length > 0){
+					if (filesToDelete.length > 0) {
 						new Notice(`Successfully deleted ${filesToDelete.length - errorDeleteFiles} notes from your garden.`);
 					}
 
@@ -169,8 +176,8 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	openPublishModal(){
-		if(!this.publishModal){
+	openPublishModal() {
+		if (!this.publishModal) {
 			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings);
 			const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
 			const publishStatusManager = new PublishStatusManager(siteManager, publisher);
@@ -190,10 +197,12 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	
-	display(): void {
+
+	async display(): Promise<void> {
 		const { containerEl } = this;
-		const settingView = new SettingView(containerEl, this.plugin.settings, async ()=> await this.plugin.saveData(this.plugin.settings));
+		const settingView = new SettingView(this.app, containerEl, this.plugin.settings, async () => await this.plugin.saveData(this.plugin.settings));
+		const prModal = new Modal(this.app)
+		await settingView.initialize(prModal);
 
 
 		const handlePR = async (button: ButtonComponent) => {
@@ -218,8 +227,8 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 
 
 		};
-		settingView.renderCreatePr(handlePR);
-		settingView.renderPullRequestHistory(this.plugin.settings.prHistory.reverse().slice(0,10));
+		settingView.renderCreatePr(prModal, handlePR);
+		settingView.renderPullRequestHistory(prModal, this.plugin.settings.prHistory.reverse().slice(0, 10));
 	}
 }
 

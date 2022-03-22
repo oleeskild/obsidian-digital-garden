@@ -198,6 +198,11 @@ export default class Publisher {
             }
 
         }
+
+        if(frontMatter && frontMatter["dg-home-link"] === false){
+            publishedFrontMatter["dgHomeLink"] = false;
+        }
+
         //replace frontmatter at start of file
 
         const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
@@ -279,7 +284,8 @@ export default class Publisher {
 
                         const headerSection = header ? `${header}\n` : '';
 
-                        fileText = `\n<div class="transclusion internal-embed is-loaded">\n\n` + headerSection + fileText + '\n</div>\n'
+                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n` 
+                            + fileText + '\n</div></div>\n'
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }

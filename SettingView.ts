@@ -1,24 +1,27 @@
 import DigitalGardenSettings from 'DigitalGardenSettings';
-import { ButtonComponent, Setting } from 'obsidian';
+import { ButtonComponent, Modal, Notice, Setting, App, TAbstractFile, TFile } from 'obsidian';
+import axios from "axios";
+import { Octokit } from '@octokit/core';
+import { Base64 } from 'js-base64';
+import { arrayBufferToBase64 } from 'utils';
 
 export default class SettingView {
+    private app: App;
     private settings: DigitalGardenSettings;
     private saveSettings: () => Promise<void>;
     private settingsRootElement: HTMLElement;
-    private previousPrsViewTop: HTMLElement;
     private progressViewTop: HTMLElement;
-    private updateTemplateTop: HTMLElement;
     private loading: HTMLElement;
     private loadingInterval: any;
 
-    constructor(settingsRootElement: HTMLElement, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
+    constructor(app: App, settingsRootElement: HTMLElement, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
+        this.app = app;
         this.settingsRootElement = settingsRootElement;
         this.settings = settings;
         this.saveSettings = saveSettings;
-        this.initialize();
     }
 
-    private initialize() {
+    async initialize(prModal: Modal) {
         this.settingsRootElement.empty();
         this.settingsRootElement.createEl('h2', { text: 'Settings ' });
         this.settingsRootElement.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
@@ -29,12 +32,162 @@ export default class SettingView {
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
         this.initializeGitHubBaseURLSetting();
-
-        this.updateTemplateTop = this.settingsRootElement.createEl('div', {cls: 'setting-item'});
-        this.progressViewTop = this.settingsRootElement.createEl('div', {});
-        this.previousPrsViewTop = this.settingsRootElement.createEl('div', {cls: 'setting-item'});
+        this.initializeThemesSettings();
+        prModal.titleEl.createEl("h1", "Site template settings");
     }
 
+
+    private async initializeThemesSettings() {
+
+        const themeModal = new Modal(this.app);
+        themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
+
+        new Setting(this.settingsRootElement)
+            .setName("Appearance")
+            .setDesc("Manage themes and favicons on your site")
+            .addButton(cb => {
+                cb.setButtonText("Manage");
+                cb.onClick(async () => {
+                    themeModal.open();
+                })
+            })
+
+        const themesListResponse = await axios.get("https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json")
+        new Setting(themeModal.contentEl)
+            .setName("Theme")
+            .addDropdown(dd => {
+                dd.addOption('{"name": "default", "modes": ["dark"]}', "Default")
+                themesListResponse.data.map((x: any) => {
+                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'master'}/obsidian.css` }), x.name);
+                    dd.setValue(this.settings.theme)
+                    dd.onChange(async (val: any) => {
+                        this.settings.theme = val;
+                        await this.saveSettings();
+                    });
+
+                });
+            })
+
+        //should get theme settings from env in github, not settings
+        new Setting(themeModal.contentEl)
+            .setName("Base theme")
+            .addDropdown(dd => {
+                dd.addOption("dark", "Dark");
+                dd.addOption("light", "Light");
+                dd.setValue(this.settings.baseTheme)
+                dd.onChange(async (val: string) => {
+                    this.settings.baseTheme = val;
+                    await this.saveSettings();
+                });
+            });
+
+        new Setting(themeModal.contentEl)
+            .setName("Favicon")
+            .setDesc("Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.")
+            .addText(tc => {
+                tc.setPlaceholder("myfavicon.svg")
+                tc.setValue(this.settings.faviconPath);
+                tc.onChange(async val => {
+                    this.settings.faviconPath = val;
+                    await this.saveSettings();
+                });
+            })
+
+
+        new Setting(themeModal.contentEl)
+            .addButton(cb => {
+                cb.setButtonText("Apply settings to site");
+                cb.onClick(async ev => {
+                    const octokit = new Octokit({ auth: this.settings.githubToken });
+                    await this.updateEnv(octokit);
+                    await this.addFavicon(octokit);
+                });
+            })
+
+
+    }
+    private async updateEnv(octokit: Octokit) {
+        const theme = JSON.parse(this.settings.theme);
+        const baseTheme = this.settings.baseTheme;
+        if (theme.modes.indexOf(baseTheme) < 0) {
+            new Notice(`The ${theme.name} theme doesn't support ${baseTheme} mode.`)
+            return;
+        }
+
+        let envSettings = '';
+        if (theme.name !== 'default') {
+            envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
+        }
+        const base64Settings = Base64.encode(envSettings);
+
+        let fileExists = true;
+        let currentFile = null;
+        try {
+            currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+                path: ".env",
+            });
+        } catch (error) {
+            fileExists = false;
+        }
+
+        //commit
+        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            path: ".env",
+            message: `Update theme`,
+            content: base64Settings,
+            sha: fileExists ? currentFile.data.sha : null
+        });
+        new Notice("Successfully applied theme");
+    }
+    private async addFavicon(octokit: Octokit) {
+        let base64FaviconContent = "";
+        if (this.settings.faviconPath) {
+
+            const faviconFile = this.app.vault.getAbstractFileByPath(this.settings.faviconPath);
+            if (!(faviconFile instanceof TFile)) {
+                new Notice(`${this.settings.faviconPath} is not a valid file.`)
+                return;
+            }
+            const faviconContent = await this.app.vault.readBinary(faviconFile);
+            base64FaviconContent = arrayBufferToBase64(faviconContent);
+        }
+        else {
+            const defaultFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: "oleeskild",
+                repo: "digitalgarden",
+                path: "src/site/favicon.svg"
+            });
+            base64FaviconContent = defaultFavicon.data.content;
+        }
+
+        //The getting and setting sha when putting can be generalized into a utility function
+        let faviconExists = true;
+        let currentFavicon = null;
+        try {
+            currentFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+                path: "src/site/favicon.svg",
+            });
+        } catch (error) {
+            faviconExists = false;
+        }
+
+        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            path: "src/site/favicon.svg",
+            message: `Update favicon.svg`,
+            content: base64FaviconContent,
+            sha: faviconExists ? currentFavicon.data.sha : null
+        });
+
+        new Notice(`Successfully set favicon`)
+    }
     private initializeGitHubRepoSetting() {
         new Setting(this.settingsRootElement)
             .setName('GitHub repo name')
@@ -95,7 +248,7 @@ export default class SettingView {
             If you leave it blank, the plugin will try to guess it from the repo name.
             `)
             .addText(text => text
-                .setPlaceholder('my-digital-garden.netlify.app')
+                .setPlaceholder('my-garden.netlify.app')
                 .setValue(this.settings.gardenBaseUrl)
                 .onChange(async (value) => {
                     this.settings.gardenBaseUrl = value;
@@ -103,56 +256,82 @@ export default class SettingView {
                 }));
     }
 
-    renderCreatePr(handlePR: (button: ButtonComponent) => Promise<void>){
-        new Setting(this.updateTemplateTop)
-			.setName('Update site to latest template')
-			.setDesc(`
-				This will create a pull request with the latest template changes. 
+    renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
+
+
+        new Setting(this.settingsRootElement)
+            .setName("Site Template")
+            .setDesc("Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.")
+            .addButton(button => {
+                button.setButtonText("Manage site template")
+                button.onClick(() => {
+                    modal.open();
+                })
+            })
+        new Setting(modal.contentEl)
+            .setName('Update site to latest template')
+            .setDesc(`
+				This will create a pull request with the latest template changes, which you'll need to use all plugin features. 
 				It will not publish any changes before you approve them.
 				You can even test the changes first Netlify will automatically provide you with a test URL.
 			`)
-			.addButton(button => button
-				.setButtonText('Create PR')
-				.onClick(()=>handlePR(button)));
+            .addButton(button => button
+                .setButtonText('Create PR')
+                .onClick(() => handlePR(button)));
 
+        if (!this.progressViewTop) {
+            this.progressViewTop = modal.contentEl.createEl('div', {});
+        }
+        if (!this.loading) {
+            this.loading = modal.contentEl.createEl('div', {});
+            this.loading.hide();
+        }
     }
 
-    renderPullRequestHistory(previousPrUrls: string[]) {
+    renderPullRequestHistory(modal: Modal, previousPrUrls: string[]) {
         if (previousPrUrls.length === 0) {
             return;
         }
-        this.previousPrsViewTop.createEl('h2', { text: 'Recent Pull Request History' })
-        const prsContainer = this.previousPrsViewTop.createEl('ul', {});
+        const header = modal.contentEl.createEl('h2', { text: '➕ Recent Pull Request History' })
+        const prsContainer = modal.contentEl.createEl('ul', {});
+        prsContainer.hide();
+        header.onClickEvent(() => {
+            if (prsContainer.isShown()) {
+                prsContainer.hide();
+                header.textContent = "➕  Recent Pull Request History";
+            } else {
+                prsContainer.show();
+                header.textContent = "➖ Recent Pull Request History";
+            }
+        })
         previousPrUrls.map(prUrl => {
-            const li = prsContainer.createEl('li', {attr: {'style': 'margin-bottom: 10px'}});
+            const li = prsContainer.createEl('li', { attr: { 'style': 'margin-bottom: 10px' } });
             const prUrlElement = document.createElement('a');
             prUrlElement.href = prUrl;
             prUrlElement.textContent = prUrl;
             li.appendChild(prUrlElement);
-            this.settingsRootElement.appendChild(li);
         });
     };
 
     renderLoading() {
-        this.loading = this.progressViewTop.createEl('div', {});
-        this.loading.createEl('p', { text: 'Creating PR. This should take less than 1 minute' });
-        const loadingText = this.loading.createEl('p', { text: 'Loading' });
+        this.loading.show();
+        const text = "Creating PR. This should take less than 1 minute";
+        const loadingText = this.loading.createEl('h2', { text });
         this.loadingInterval = setInterval(() => {
-            if (loadingText.innerText === 'Loading') {
-                loadingText.innerText = 'Loading.';
-            } else if (loadingText.innerText === 'Loading.') {
-                loadingText.innerText = 'Loading..';
-            } else if (loadingText.innerText === 'Loading..') {
-                loadingText.innerText = 'Loading...';
+            if (loadingText.innerText === `${text}`) {
+                loadingText.innerText = `${text}.`;
+            } else if (loadingText.innerText === `${text}.`) {
+                loadingText.innerText = `${text}..`;
+            } else if (loadingText.innerText === `${text}..`) {
+                loadingText.innerText = `${text}...`;
             } else {
-                loadingText.innerText = 'Loading';
+                loadingText.innerText = `${text}`;
             }
         }, 400)
     }
 
     renderSuccess(prUrl: string) {
         this.loading.remove();
-        this.loading = null;
         clearInterval(this.loadingInterval);
 
         const successmessage = prUrl ?
@@ -168,7 +347,6 @@ export default class SettingView {
 
     renderError() {
         this.loading.remove();
-        this.loading = null;
         clearInterval(this.loadingInterval);
         const errorMsg = { text: '❌ Something went wrong. Try deleting the branch in GitHub.', attr: {} };
         this.progressViewTop.createEl('p', errorMsg);
