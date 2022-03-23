@@ -224,10 +224,11 @@ export default class Publisher {
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
+                    let headerPath = "";
                     if (linkedFileName.includes("#")) {
-                        const headerSplit = linkedFileName.split("#");
+                        linkedFilename = linkedFileName.split("#")[0];
                         //currently no support for linking to nested heading with multiple #s
-                        linkedFileName = headerSplit.length > 1 ? `${headerSplit[0]}#${headerSplit[1]}` : headerSplit[0];
+                        headerPath = headerSplit.length > 1 ? `#${headerSplit[1]}` : '';
                         
                     }
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
@@ -235,7 +236,7 @@ export default class Publisher {
 
                     if (linkedFile.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
                 } catch {
                     continue;
