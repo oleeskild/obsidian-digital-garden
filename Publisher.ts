@@ -224,15 +224,20 @@ export default class Publisher {
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
+                    let headerPath = "";
                     if (linkedFileName.includes("#")) {
-                        linkedFileName = linkedFileName.split("#")[0];
+                        const headerSplit = linkedFileName.split("#");
+                        linkedFileName = headerSplit[0];
+                        //currently no support for linking to nested heading with multiple #s
+                        headerPath = headerSplit.length > 1 ? `#${headerSplit[1]}` : '';
+                        
                     }
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
 
                     if (linkedFile.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
                 } catch {
                     continue;
