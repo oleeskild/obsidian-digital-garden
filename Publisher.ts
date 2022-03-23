@@ -226,7 +226,8 @@ export default class Publisher {
                     prettyName = prettyName || linkedFileName;
                     let headerPath = "";
                     if (linkedFileName.includes("#")) {
-                        linkedFilename = linkedFileName.split("#")[0];
+                        const headerSplit = linkedFileName.split("#");
+                        linkedFileName = headerSplit[0];
                         //currently no support for linking to nested heading with multiple #s
                         headerPath = headerSplit.length > 1 ? `#${headerSplit[1]}` : '';
                         
