@@ -17,6 +17,7 @@ export default class Publisher {
     vault: Vault;
     metadataCache: MetadataCache;
     settings: DigitalGardenSettings;
+    frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 
     constructor(vault: Vault, metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.vault = vault;
@@ -205,7 +206,7 @@ export default class Publisher {
 
         //replace frontmatter at start of file
 
-        const replaced = text.replace(/^---\n([\s\S]*?)\n---/g, (match, p1) => {
+        const replaced = text.replace(this.frontmatterRegex, (match, p1) => {
             const frontMatterString = JSON.stringify(publishedFrontMatter);
             return `---\n${frontMatterString}\n---`;
         });
@@ -283,7 +284,7 @@ export default class Publisher {
                         let fileText = await this.vault.cachedRead(linkedFile);
 
                         //Remove frontmatter from transclusion
-                        fileText = fileText.replace(/^---\n([\s\S]*?)\n---/g, "");
+                        fileText = fileText.replace(this.frontmatterRegex, "");
 
                         const header = this.generateTransclusionHeader(headerName, linkedFile);
 

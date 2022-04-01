@@ -26,8 +26,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.8.0";
-		//If current appversion in settings unmatches this, show new notice with info about updating the template
+		this.appVersion = "2.8.1";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
