@@ -1,6 +1,6 @@
 # Obsidian Digital Garden
 Publish your notes in your own personal digital garden. 
-An example can be found [here](https://ole.dev/garden)
+An example can be found [here](https://ole.dev/garden).
 
 ## Configuration
 It's a bit of work to set this all up, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
@@ -10,7 +10,7 @@ Lets get started:
 2. You'll also need a Netlify account. You can sign up using your GitHub account [here](https://app.netlify.com/)
 3. Open [this repo](https://github.com/oleeskild/digitalgarden), and click the green "Deploy to netlify" button. This will open netlify which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-digital-garden'. Follow the steps to publish your site to the internet.
 4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Go to [this page](https://github.com/settings/tokens/new?scopes=repo) while logged in to GitHub. The correct settings should already be applied. If you don't want to generate this every few months, choose the "No expiration" option. Click the "Generate token" button, and copy the token you are presented with on the next page. 
-5. Open Obsidian and the settings for "Digital Garden" and fill in your github username, the name of the repo with your notes which you created in step 3, and lastly paste in your token. 
+5. In Obsidian open the setting menu and find the settings for "Digital Garden". Fill in your GitHub username, the name of the repo with your notes which you created in step 3. Lastly paste the token you created in step 4.
 6. Now, let's publish your first note! Create a new note in Obsidian. And add this to the top of your file
 
 ```
@@ -26,9 +26,7 @@ dg-publish: true
 
 * The dg-publish setting tells the plugin that this note should be published to your digital garden. Notes without this setting will not be published. (In other terms: Every note you publish will need this setting.)
 
-
 7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
-
 8. Go to your site's URL which you should find on [Netlify](https://app.netlify.com). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge! 
@@ -38,7 +36,8 @@ You can now start adding links as you usually would in Obisidan, with double squ
 
 **Digital Garden: Publish Single Note** command will publish the currently active note, and only this.
 
-**Digital Garden: Publish Multiple Notes** command will publish all notes in your vault that have the dg-publish setting set to true. Depending on the number of notes, this may take a while. You can watch the progress of publication in the bottom right statusbar. 
+**Digital Garden: Publish Multiple Notes** command will publish all notes in your vault that have the dg-publish setting set to true that are unpublished or have changed since last publication. It will also delete any notes that are no longer in your vault.
+Depending on the number of notes, this may take a while. You can watch the progress of publication in the bottom right statusbar. 
 
 **Copy Garden URL**: This command will copy the URL of the currently active note to your clipboard
 
@@ -81,7 +80,7 @@ Leave the favicon setting blank if you want to use the default favicon.
 
 ## Advanced usage
 ### Permalinks
-This plugin also supports setting your own links to a note, if you prefer something else than the default behaviour.
+This plugin supports setting your own links to a note, if you prefer something else than the default behaviour.
 This is done by adding a dg-permalink attribute to the frontmatter of your file. 
 As an example, the top of your file could look like this:
 
@@ -91,7 +90,6 @@ dg-publish: true
 dg-permalink: "mynote"
 ---
 ```
-
 
 This will make the URL to you note be "{Your-Garden-Name}.netlify.app/mynote/". You can still use normal obsidian links as before to link to it. These will be automatically corrected once you publish a note with the permalink attribute. 
 Same goes for deleting the attribute. Doing so will result in the note using the default URL. All links in other notes should automatically be corrected and still work.  
@@ -143,7 +141,7 @@ By just using regular translucion, no header will be added:
 It's also worth noting that transclusions *do not need* the dg-publish attribute. They behave the same as an image. If you transclude something into a document, and publish that document, everything that is transcluded in it will be published as if it was part of that note. 
 
 ## Hiding home link
-By default, all notes except the home-note shows a link back to the home-note. If you don't want to show this in one of your notes you can set this property in your frontmatter>
+By default, all notes except the home-note shows a link back to the home-note. If you want this to be hidden in one of your notes (handy if you simply want to share a single note with someone) you can set this property in your frontmatter:
 
 ```
 ---
