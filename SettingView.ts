@@ -57,7 +57,8 @@ export default class SettingView {
             .setName("Theme")
             .addDropdown(dd => {
                 dd.addOption('{"name": "default", "modes": ["dark"]}', "Default")
-                themesListResponse.data.map((x: any) => {
+                const sortedThemes = themesListResponse.data.sort((a: { name: string; }, b: { name: any; }) => a.name.localeCompare(b.name));               
+                sortedThemes.map((x: any) => {
                     dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'master'}/obsidian.css` }), x.name);
                     dd.setValue(this.settings.theme)
                     dd.onChange(async (val: any) => {
