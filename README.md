@@ -1,4 +1,4 @@
-# Obsidian Digital Garden
+# 🌱 Obsidian Digital Garden
 Publish your notes in your own personal digital garden. 
 An example can be found [here](https://ole.dev/garden).
 
