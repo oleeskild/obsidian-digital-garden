@@ -28,7 +28,9 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
         const frontMatter = this.metadataCache.getCache(file.path).frontmatter;
 
-        if (frontMatter && frontMatter.permalink) {
+        if (frontMatter && frontMatter["dg-home"] === true) {
+            urlPath = "/";
+        } else if (frontMatter && frontMatter.permalink) {
             urlPath = `/${frontMatter.permalink}`;
         } else if (frontMatter && frontMatter["dg-permalink"]) {
             urlPath = `/${frontMatter["dg-permalink"]}`;
