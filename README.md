@@ -2,7 +2,7 @@
 Publish your notes in your own personal digital garden. 
 An example can be found [here](https://ole.dev/garden).
 
-![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/2.8.2/img/dg-demo.gif)
+![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
 
 ## Configuration
 It's a bit of work to set this all up, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
@@ -34,6 +34,8 @@ dg-publish: true
 
 Congratulations, you now have your own digital garden, hosted free of charge! 
 You can now start adding links as you usually would in Obisidan, with double square brackets like this: [[Some Other Note]]) to the note that you just published. You can also link to a specific header by using the syntax [[Some Other Note#A Header]]. Remember to also publish the notes your are linking to as this will not happen automatically. This is by design. You are always in control of what notes you actually want to publish. If you did not publish a linked note, the link will simply lead to a site telling the user that this note does not exist. 
+
+![new-note-demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/new-note-demo.gif)
 
 ## Commands
 
