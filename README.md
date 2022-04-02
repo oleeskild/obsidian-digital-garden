@@ -2,6 +2,8 @@
 Publish your notes in your own personal digital garden. 
 An example can be found [here](https://ole.dev/garden).
 
+![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/2.8.2/img/dg-demo.gif)
+
 ## Configuration
 It's a bit of work to set this all up, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
 Lets get started:
