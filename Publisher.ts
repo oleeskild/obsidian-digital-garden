@@ -290,8 +290,8 @@ export default class Publisher {
 
                         const headerSection = header ? `${header}\n` : '';
 
-                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n` 
-                            + fileText + '\n</div></div>\n'
+                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n` 
+                            + fileText + '\n\n</div></div>\n'
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }

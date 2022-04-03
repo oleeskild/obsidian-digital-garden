@@ -1,7 +1,7 @@
 {
     "name": "obsidian-garden",
     "version": "1.0.0",
-    "description": "A plugin used for publishing notes to personal site",
+    "description": "A plugin used for publishing notes to a digital garden",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
