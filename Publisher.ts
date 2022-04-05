@@ -215,13 +215,11 @@ export default class Publisher {
 
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
-        const linkedFileRegex = /\[\[(.*?)\]\]/g;
-        const linkedFileMatches = text.match(linkedFileRegex);
-        if (linkedFileMatches) {
-            for (let i = 0; i < linkedFileMatches.length; i++) {
+        const links = this.metadataCache.getCache(filePath).links;
+        if (links && links.length) {
+            for (const link of links) {
                 try {
-                    const linkedFileMatch = linkedFileMatches[i];
-                    const textInsideBrackets = linkedFileMatch.substring(linkedFileMatch.indexOf('[') + 2, linkedFileMatch.indexOf(']'));
+                    const textInsideBrackets =link.original.substring(link.original.indexOf('[') + 2,link.original.indexOf(']'));
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
@@ -238,7 +236,7 @@ export default class Publisher {
 
                     if (linkedFile.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkedFileMatch, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(link.original, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
                 } catch {
                     continue;
