@@ -63,14 +63,13 @@ In the future you will be notified with a visual cue whenever there is an update
 ## Content support
 The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
-* Checkboxes
 * Links to other notes
+* Callouts/Admonitions
 * Embedded/Transcluded Excalidraw drawings 
-* Code Blocks
-* Admonitions
-* MathJax
 * Embedded/Transcluded Images
 * Transcluded notes
+* Code Blocks
+* MathJax
 * Highlighted text
 * Footnotes
 
