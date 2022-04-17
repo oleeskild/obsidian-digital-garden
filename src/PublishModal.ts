@@ -1,7 +1,7 @@
-import DigitalGardenSettings from "DigitalGardenSettings";
+import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { App, ButtonComponent, Modal} from "obsidian";
-import { IPublisher } from "Publisher";
-import { IPublishStatusManager } from "PublishStatusManager";
+import { IPublisher } from "./Publisher";
+import { IPublishStatusManager } from "./PublishStatusManager";
 
 export class PublishModal {
     modal: Modal;
@@ -17,7 +17,7 @@ export class PublishModal {
     progressContainer: HTMLElement;
 
     constructor(app: App, publishStatusManager: IPublishStatusManager, publisher: IPublisher, settings: DigitalGardenSettings) {
-        this.modal = new Modal(app)
+        this.modal = new Modal(app);
         this.settings = settings;
         this.publishStatusManager = publishStatusManager;
         this.publisher = publisher;

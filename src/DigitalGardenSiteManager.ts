@@ -1,4 +1,4 @@
-import DigitalGardenSettings from "DigitalGardenSettings";
+import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
 import { extractBaseUrl, generateUrlPath } from "./utils";
 import { Octokit } from "@octokit/core";

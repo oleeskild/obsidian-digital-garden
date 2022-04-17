@@ -33,4 +33,12 @@ function generateBlobHash(content: string){
 	return sha1(gitBlob).toString();
 }
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash};
+function kebabize(str: string){ 
+	return str.split('').map((letter, idx) => {
+	  return letter.toUpperCase() === letter
+	   ? `${idx !== 0 ? '-' : ''}${letter.toLowerCase()}`
+	   : letter;
+	}).join('');
+ }
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize};
