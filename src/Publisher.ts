@@ -1,10 +1,11 @@
 import { MetadataCache, TFile, Vault, Notice, getLinkpath } from "obsidian";
-import DigitalGardenSettings from "DigitalGardenSettings";
+import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64, generateUrlPath } from "utils";
-import { vallidatePublishFrontmatter } from "Validator";
+import { arrayBufferToBase64, generateUrlPath, kebabize } from "./utils";
+import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
+import { getuid } from "process";
 
 
 export interface IPublisher {
@@ -56,7 +57,7 @@ export default class Publisher {
             throw {};
         }
 
-        const octokit = new Octokit({ auth: this.settings.githubToken }); 
+        const octokit = new Octokit({ auth: this.settings.githubToken });
         const path = `src/site/notes/${vaultFilePath}`;
 
         const payload = {
@@ -81,7 +82,7 @@ export default class Publisher {
             return false;
         }
 
-        
+
 
         try {
             const response = await octokit.request('DELETE /repos/{owner}/{repo}/contents/{path}', payload);
@@ -107,13 +108,16 @@ export default class Publisher {
     }
 
     async generateMarkdown(file: TFile): Promise<string> {
+        if (file.name.endsWith(".excalidraw.md")) {
+            return await this.generateExcalidrawMarkdown(file, true);
+        }
+
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
         text = await this.createTranscludedText(text, file.path);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
         return text;
-
     }
 
 
@@ -167,14 +171,35 @@ export default class Publisher {
     }
 
     async convertFrontMatter(text: string, path: string): Promise<string> {
-        const cachedFrontMatter = this.metadataCache.getCache(path).frontmatter;
-        const frontMatter = { ...cachedFrontMatter };
+        const publishedFrontMatter = this.getProcessedFrontMatter(path);
+        const replaced = text.replace(this.frontmatterRegex, (match, p1) => {
+            return publishedFrontMatter;
+        });
+        return replaced;
+    }
 
-        const publishedFrontMatter:any = {"dg-publish":true};
+    getProcessedFrontMatter(filePath: string): string {
+        const fileFrontMatter = { ...this.metadataCache.getCache(filePath).frontmatter };
+        delete fileFrontMatter["position"];
 
-        if (frontMatter && frontMatter["dg-permalink"]) {
-            publishedFrontMatter["dg-permalink"] = frontMatter["dg-permalink"];
-            publishedFrontMatter["permalink"] = frontMatter["dg-permalink"];
+        let publishedFrontMatter: any = { "dg-publish": true };
+
+        publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, filePath);
+        publishedFrontMatter = this.addHomePageTag(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
+
+        const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
+        const frontMatterString = JSON.stringify(fullFrontMatter);
+
+        return `---\n${frontMatterString}\n---\n`;
+    }
+
+    addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
+        let publishedFrontMatter = { ...newFrontMatter };
+
+        if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
+            publishedFrontMatter["dg-permalink"] = baseFrontMatter["dg-permalink"];
+            publishedFrontMatter["permalink"] = baseFrontMatter["dg-permalink"];
             if (!publishedFrontMatter["permalink"].endsWith("/")) {
                 publishedFrontMatter["permalink"] += "/";
             }
@@ -182,12 +207,17 @@ export default class Publisher {
                 publishedFrontMatter["permalink"] = "/" + publishedFrontMatter["permalink"];
             }
         } else {
-            const noteUrlPath = generateUrlPath(path);
+            const noteUrlPath = generateUrlPath(filePath);
             publishedFrontMatter["permalink"] = "/" + noteUrlPath;
         }
 
-        if (frontMatter && frontMatter["dg-home"]) {
-            const tags = frontMatter["tags"];
+        return publishedFrontMatter;
+    }
+
+    addHomePageTag(baseFrontMatter: any, newFrontMatter: any) {
+        const publishedFrontMatter = { ...newFrontMatter };
+        if (baseFrontMatter && baseFrontMatter["dg-home"]) {
+            const tags = baseFrontMatter["tags"];
             if (tags) {
                 if (typeof (tags) === "string") {
                     publishedFrontMatter["tags"] = [tags, "gardenEntry"];
@@ -197,21 +227,31 @@ export default class Publisher {
             } else {
                 publishedFrontMatter["tags"] = "gardenEntry";
             }
-
         }
 
-        if(frontMatter && frontMatter["dg-home-link"] === false){
-            publishedFrontMatter["dgHomeLink"] = false;
-        }
-
-        //replace frontmatter at start of file
-
-        const replaced = text.replace(this.frontmatterRegex, (match, p1) => {
-            const frontMatterString = JSON.stringify(publishedFrontMatter);
-            return `---\n${frontMatterString}\n---`;
-        });
-        return replaced;
+        return publishedFrontMatter;
     }
+
+    addFrontMatterSettings(baseFrontMatter: {}, newFrontMatter: {}) {
+        if (!baseFrontMatter) {
+            baseFrontMatter = {};
+        }
+        const publishedFrontMatter = { ...newFrontMatter };
+        for (const key of Object.keys(this.settings.defaultNoteSettings)) {
+            //@ts-ignore
+            if (baseFrontMatter[kebabize(key)] !== undefined) {
+                //@ts-ignore
+                publishedFrontMatter[key] = baseFrontMatter[kebabize(key)]
+            }
+            else {
+                //@ts-ignore
+                publishedFrontMatter[key] = this.settings.defaultNoteSettings[key];
+            }
+        }
+
+        return publishedFrontMatter;
+    }
+
 
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
@@ -219,7 +259,7 @@ export default class Publisher {
         if (links && links.length) {
             for (const link of links) {
                 try {
-                    const textInsideBrackets =link.original.substring(link.original.indexOf('[') + 2,link.original.indexOf(']'));
+                    const textInsideBrackets = link.original.substring(link.original.indexOf('[') + 2, link.original.indexOf(']'));
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
@@ -229,16 +269,19 @@ export default class Publisher {
                         linkedFileName = headerSplit[0];
                         //currently no support for linking to nested heading with multiple #s
                         headerPath = headerSplit.length > 1 ? `#${headerSplit[1]}` : '';
-                        
+
                     }
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
-
-                    if (linkedFile.extension === "md") {
+                    if(!linkedFile){
+                        convertedText = convertedText.replace(link.original, `[[${linkedFileName}${headerPath}|${prettyName}]]`);
+                    }
+                    if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
                         convertedText = convertedText.replace(link.original, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
-                } catch {
+                } catch(e){
+                    console.log(e);
                     continue;
                 }
             }
@@ -262,22 +305,11 @@ export default class Publisher {
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
 
                     if (linkedFile.name.endsWith(".excalidraw.md")) {
-                        let fileText = await this.vault.cachedRead(linkedFile);
-                        const start = fileText.indexOf('```json') + "```json".length;
-                        const end = fileText.lastIndexOf('```')
-                        const excaliDrawJson = JSON.parse(fileText.slice(start, end));
-
-                        const drawingId = linkedFile.name.split(" ").join("_").replace(".", "") + numberOfExcaliDraws;
-                        let excaliDrawCode = "";
-                        if(++numberOfExcaliDraws === 1){
-                            excaliDrawCode += excaliDrawBundle;
-                        }
-
-                        excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
-
+                        let firstDrawing = ++numberOfExcaliDraws === 1;
+                        const excaliDrawCode = await this.generateExcalidrawMarkdown(linkedFile, firstDrawing, `${numberOfExcaliDraws}`);
                         transcludedText = transcludedText.replace(transclusionMatch, excaliDrawCode);
 
-                    }else if (linkedFile.extension === "md") {
+                    } else if (linkedFile.extension === "md") {
 
                         let fileText = await this.vault.cachedRead(linkedFile);
 
@@ -288,7 +320,7 @@ export default class Publisher {
 
                         const headerSection = header ? `${header}\n` : '';
 
-                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n` 
+                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n`
                             + fileText + '\n\n</div></div>\n'
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
@@ -351,6 +383,27 @@ export default class Publisher {
 
         }
         return headerName;
+    }
+
+    async generateExcalidrawMarkdown(file: TFile, includeExcaliDrawJs: boolean, idAppendage: string = ""): Promise<string> {
+        if (!file.name.endsWith(".excalidraw.md")) return "";
+
+        const fileText = await this.vault.cachedRead(file);
+        const frontMatter = await this.getProcessedFrontMatter(file.path);
+
+        const start = fileText.indexOf('```json') + "```json".length;
+        const end = fileText.lastIndexOf('```')
+        const excaliDrawJson = JSON.parse(fileText.slice(start, end));
+
+        const drawingId = file.name.split(" ").join("_").replace(".", "") + idAppendage;
+        let excaliDrawCode = "";
+        if (includeExcaliDrawJs) {
+            excaliDrawCode += excaliDrawBundle;
+        }
+
+        excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
+
+        return frontMatter + excaliDrawCode;
     }
 }
 

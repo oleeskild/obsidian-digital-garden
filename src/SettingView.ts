@@ -1,9 +1,9 @@
-import DigitalGardenSettings from 'DigitalGardenSettings';
+import DigitalGardenSettings from './DigitalGardenSettings';
 import { ButtonComponent, Modal, Notice, Setting, App, TAbstractFile, TFile } from 'obsidian';
 import axios from "axios";
 import { Octokit } from '@octokit/core';
 import { Base64 } from 'js-base64';
-import { arrayBufferToBase64 } from 'utils';
+import { arrayBufferToBase64 } from './utils';
 
 export default class SettingView {
     private app: App;
@@ -32,8 +32,47 @@ export default class SettingView {
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
         this.initializeGitHubBaseURLSetting();
+        this.initializeDefaultNoteSettings();
         this.initializeThemesSettings();
         prModal.titleEl.createEl("h1", "Site template settings");
+    }
+
+    private async initializeDefaultNoteSettings() {
+        const noteSettingsModal = new Modal(this.app);
+        noteSettingsModal.titleEl.createEl("h1", { text: "Note Settings" });
+
+        new Setting(this.settingsRootElement)
+            .setName("Note Settings")
+            .setDesc(`Default settings for each published note. These can be overwritten per note via frontmatter. 
+            Note: After changing any of these settings, you must re-publish notes for it to take effect. They will appear in the "Changed" list in the publication center.`)
+            .addButton(cb => {
+                cb.setButtonText("Edit");
+                cb.onClick(async () => {
+                    noteSettingsModal.open();
+                })
+            })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show home link (dg-home-link)")
+            .setDesc("Determines whether to show a link back to the homepage or not.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgHomeLink)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgHomeLink = val;
+                    this.saveSettings();
+                })
+            })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Let all frontmatter through (dg-pass-frontmatter)")
+            .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgPassFrontmatter = val;
+                    this.saveSettings();
+                })
+            })
     }
 
 
@@ -57,7 +96,7 @@ export default class SettingView {
             .setName("Theme")
             .addDropdown(dd => {
                 dd.addOption('{"name": "default", "modes": ["dark"]}', "Default")
-                const sortedThemes = themesListResponse.data.sort((a: { name: string; }, b: { name: any; }) => a.name.localeCompare(b.name));               
+                const sortedThemes = themesListResponse.data.sort((a: { name: string; }, b: { name: any; }) => a.name.localeCompare(b.name));
                 sortedThemes.map((x: any) => {
                     dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'master'}/obsidian.css` }), x.name);
                     dd.setValue(this.settings.theme)
@@ -144,8 +183,9 @@ export default class SettingView {
         });
         new Notice("Successfully applied theme");
     }
+
     private async addFavicon(octokit: Octokit) {
-        let base64FaviconContent = "";
+        let base64SettingsFaviconContent = "";
         if (this.settings.faviconPath) {
 
             const faviconFile = this.app.vault.getAbstractFileByPath(this.settings.faviconPath);
@@ -154,7 +194,7 @@ export default class SettingView {
                 return;
             }
             const faviconContent = await this.app.vault.readBinary(faviconFile);
-            base64FaviconContent = arrayBufferToBase64(faviconContent);
+            base64SettingsFaviconContent = arrayBufferToBase64(faviconContent);
         }
         else {
             const defaultFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
@@ -162,32 +202,37 @@ export default class SettingView {
                 repo: "digitalgarden",
                 path: "src/site/favicon.svg"
             });
-            base64FaviconContent = defaultFavicon.data.content;
+            base64SettingsFaviconContent = defaultFavicon.data.content;
         }
 
         //The getting and setting sha when putting can be generalized into a utility function
         let faviconExists = true;
-        let currentFavicon = null;
+        let faviconsAreIdentical = false;
+        let currentFaviconOnSite = null;
         try {
-            currentFavicon = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+            currentFaviconOnSite = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
                 owner: this.settings.githubUserName,
                 repo: this.settings.githubRepo,
                 path: "src/site/favicon.svg",
             });
+            faviconsAreIdentical = (currentFaviconOnSite.data.content.replaceAll("\n", "").replaceAll(" ", "") === base64SettingsFaviconContent)
         } catch (error) {
             faviconExists = false;
         }
 
-        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-            owner: this.settings.githubUserName,
-            repo: this.settings.githubRepo,
-            path: "src/site/favicon.svg",
-            message: `Update favicon.svg`,
-            content: base64FaviconContent,
-            sha: faviconExists ? currentFavicon.data.sha : null
-        });
+        if (!faviconExists || !faviconsAreIdentical) {
+            await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+                path: "src/site/favicon.svg",
+                message: `Update favicon.svg`,
+                content: base64SettingsFaviconContent,
+                sha: faviconExists ? currentFaviconOnSite.data.sha : null
+            });
 
-        new Notice(`Successfully set favicon`)
+            new Notice(`Successfully set new favicon`)
+        }
+
     }
     private initializeGitHubRepoSetting() {
         new Setting(this.settingsRootElement)
@@ -259,7 +304,6 @@ export default class SettingView {
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
 
-
         new Setting(this.settingsRootElement)
             .setName("Site Template")
             .setDesc("Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.")
@@ -274,7 +318,7 @@ export default class SettingView {
             .setDesc(`
 				This will create a pull request with the latest template changes, which you'll need to use all plugin features. 
 				It will not publish any changes before you approve them.
-				You can even test the changes first Netlify will automatically provide you with a test URL.
+				You can even test the changes first as Netlify will automatically provide you with a test URL.
 			`)
             .addButton(button => button
                 .setButtonText('Create PR')

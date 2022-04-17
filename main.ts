@@ -1,12 +1,12 @@
 import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
-import Publisher from './Publisher';
-import DigitalGardenSettings from 'DigitalGardenSettings';
-import DigitalGardenSiteManager from 'DigitalGardenSiteManager';
-import SettingView from 'SettingView';
-import { PublishStatusBar } from 'PublishStatusBar';
-import { seedling } from './constants';
-import { PublishModal } from 'PublishModal';
-import PublishStatusManager from 'PublishStatusManager';
+import Publisher from 'src/Publisher';
+import DigitalGardenSettings from 'src/DigitalGardenSettings';
+import DigitalGardenSiteManager from 'src/DigitalGardenSiteManager';
+import SettingView from 'src/SettingView';
+import { PublishStatusBar } from 'src/PublishStatusBar';
+import { seedling } from 'src/constants';
+import { PublishModal } from 'src/PublishModal';
+import PublishStatusManager from 'src/PublishStatusManager';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -16,7 +16,11 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	prHistory: [],
 	theme: "dark",
 	baseTheme: '{"name": "default", "modes": ["dark"]}',
-	faviconPath: ''
+	faviconPath: '',
+	defaultNoteSettings: {
+		dgHomeLink: true,
+		dgPassFrontmatter: false,
+	}
 }
 
 export default class DigitalGarden extends Plugin {

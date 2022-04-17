@@ -8,4 +8,10 @@ export default interface DigitalGardenSettings {
 	theme: string;
 	baseTheme: string;
 	faviconPath: string;
+
+
+	defaultNoteSettings: {
+		dgHomeLink: boolean;
+		dgPassFrontmatter: boolean;
+	}
 }
