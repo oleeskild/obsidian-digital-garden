@@ -306,7 +306,8 @@ export default class Publisher {
 
                     if (linkedFile.name.endsWith(".excalidraw.md")) {
                         let firstDrawing = ++numberOfExcaliDraws === 1;
-                        const excaliDrawCode = await this.generateExcalidrawMarkdown(linkedFile, firstDrawing, `${numberOfExcaliDraws}`);
+                        const excaliDrawCode = await this.generateExcalidrawMarkdown(linkedFile, firstDrawing, `${numberOfExcaliDraws}`, false);
+
                         transcludedText = transcludedText.replace(transclusionMatch, excaliDrawCode);
 
                     } else if (linkedFile.extension === "md") {
@@ -385,7 +386,7 @@ export default class Publisher {
         return headerName;
     }
 
-    async generateExcalidrawMarkdown(file: TFile, includeExcaliDrawJs: boolean, idAppendage: string = ""): Promise<string> {
+    async generateExcalidrawMarkdown(file: TFile, includeExcaliDrawJs: boolean, idAppendage: string = "", includeFrontMatter = true): Promise<string> {
         if (!file.name.endsWith(".excalidraw.md")) return "";
 
         const fileText = await this.vault.cachedRead(file);
@@ -403,7 +404,7 @@ export default class Publisher {
 
         excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
 
-        return frontMatter + excaliDrawCode;
+        return `${includeFrontMatter ? frontMatter:''}${excaliDrawCode}`;
     }
 }
 
