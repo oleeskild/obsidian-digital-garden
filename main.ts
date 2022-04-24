@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal, TFolder, TFile, TAbstractFile } from 'obsidian';
 import Publisher from 'src/Publisher';
 import DigitalGardenSettings from 'src/DigitalGardenSettings';
 import DigitalGardenSiteManager from 'src/DigitalGardenSiteManager';
@@ -180,14 +180,60 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'dg-mark-note-as-published',
-			name: 'Mark note for publish',
+			id: 'dg-mark-note-for-publish',
+			name: 'Add publish flag',
 			callback: async () => {
-				const engine = new ObsidianFrontMatterEngine(this.app.vault, this. app.metadataCache, this.app.workspace.getActiveFile());
+				const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, this.app.workspace.getActiveFile());
 				engine.set("dg-publish", true).apply();
 			}
 		});
 
+		this.addCommand({
+			id: 'testing',
+			name: 'Open filetree',
+			callback: async () => {
+				await this.expandFileSystemTree();
+			}
+		});
+
+
+
+	}
+
+	async expandFileSystemTree(): Promise<void> {
+		const folder = await this.app.vault.getRoot();
+		const modal = new Modal(this.app);
+		this.expandChildren(folder.children, modal.contentEl.createEl('div', {}), false);
+		modal.open();
+
+		//Render children.
+		//For each child, render its children
+	}
+
+	async expandChildren(children: TAbstractFile[], container: HTMLElement, hide: boolean): Promise<void> {
+		const ul = container.createEl("ul");
+		ul.style.listStyle = "none";
+		ul.parentElement.onClickEvent(function (e) {
+			if(!hide) return;
+			e.stopPropagation();
+			if(ul.style.display === "none"){
+				ul.show();
+			}else{
+				ul.hide();
+			}
+		});
+		if (hide) ul.hide();
+		for (const child of children) {
+			let icon = child instanceof TFolder ? "📁" : "📄";
+			const li = ul.createEl("li", {text: `${icon} ${child.name}`});
+			// li.createEl("label", {text: `${icon} ${child.name}`}).createEl("input", {type: 'checkbox'})
+			if (child instanceof TFolder) {
+				if (child.children) {
+					await this.expandChildren(child.children, li, true);
+				}
+			}
+
+		}
 	}
 
 	openPublishModal() {

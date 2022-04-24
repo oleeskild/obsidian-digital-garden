@@ -42,8 +42,6 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
             newContent = content.replace(frontmatterRegex, (match) => {
                 return yaml;
             });
-
-
         } else {
             newContent = `${yaml}\n${content}`;
         }
