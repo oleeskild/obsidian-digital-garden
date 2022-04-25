@@ -203,30 +203,73 @@ export default class DigitalGarden extends Plugin {
 	async expandFileSystemTree(): Promise<void> {
 		const folder = await this.app.vault.getRoot();
 		const modal = new Modal(this.app);
-		this.expandChildren(folder.children, modal.contentEl.createEl('div', {}), false);
+		modal.contentEl.style.display = "flex"
+		modal.contentEl.style.flexDirection= "column";
+		modal.contentEl.style.justifyContent= "space-between";
+		const fileTree = modal.contentEl.createEl('div', {attr:{style: "height: 500px"}});
+		this.expandChildren(folder.children, fileTree, false);
+		
+		const buttonContainer = modal.modalEl.createEl("div");
+		const button = new ButtonComponent(buttonContainer);
+		button
+		.setButtonText("Add publish flag")
+		.onClick(()=>{
+			let counter = 0;
+			fileTree.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+				const htmlEl = el as HTMLInputElement; 
+				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
+					console.log(htmlEl.dataset.filePath);
+					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
+					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
+					engine.set("dg-publish", true).apply();
+					counter++;
+				}
+			});
+			new Notice(`Added publish flag to ${counter} files.`);
+		});
 		modal.open();
 
-		//Render children.
-		//For each child, render its children
 	}
 
 	async expandChildren(children: TAbstractFile[], container: HTMLElement, hide: boolean): Promise<void> {
 		const ul = container.createEl("ul");
 		ul.style.listStyle = "none";
-		ul.parentElement.onClickEvent(function (e) {
-			if(!hide) return;
-			e.stopPropagation();
-			if(ul.style.display === "none"){
-				ul.show();
-			}else{
-				ul.hide();
-			}
-		});
+
+		const expandButton = ul.parentElement.querySelector(".expand") as HTMLElement;
+		if (expandButton) {
+			expandButton.addEventListener("click", function (e) {
+				if (!hide) return;
+				e.stopPropagation();
+				if (ul.style.display === "none") {
+					ul.show();
+					expandButton.style.transform = "rotate(90deg)";
+				} else {
+					expandButton.style.transform = "rotate(0deg)";
+					ul.hide();
+				}
+			});
+
+		}
 		if (hide) ul.hide();
 		for (const child of children) {
-			let icon = child instanceof TFolder ? "📁" : "📄";
-			const li = ul.createEl("li", {text: `${icon} ${child.name}`});
-			// li.createEl("label", {text: `${icon} ${child.name}`}).createEl("input", {type: 'checkbox'})
+			const isFolder = child instanceof TFolder ;
+			let icon = isFolder ? "📁" : "📄";
+			const li = ul.createEl("li");
+			const container = li.createEl("div");
+
+			if(isFolder){
+				container.createEl("span", { text: ">", cls: "expand", attr:{style: "display: inline-block; transition: transform 0.5s;"} });
+			}else{
+				container.createEl("span", { text: "-", attr:{style: "display: inline-block"}});
+			}
+
+			const checkbox = container.createEl("input", { type: "checkbox", attr: { id: child.path }});
+			checkbox.dataset.filePath = child.path;
+
+			container.createEl("label", { text: `${icon} ${child.name}`, attr: { for: child.path } });
+			checkbox.addEventListener("change", function(){
+				li.querySelectorAll("input[type=checkbox]").forEach(el=>{(el as HTMLInputElement).checked = this.checked});
+			});
 			if (child instanceof TFolder) {
 				if (child.children) {
 					await this.expandChildren(child.children, li, true);
