@@ -16,3 +16,83 @@
     cursor: pointer;
     margin-left: 10px;
 }
+
+.dg-tab {
+    padding: 5px 10px;
+    height: fit-content;
+    cursor: pointer;
+    border-bottom: 1px solid;
+}
+
+.dg-tab.dg-active {
+    border: none;
+}
+
+.dg-tab:not(.dg-active) {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dg-tab.dg-active>.dg-tab-content {
+    display: block;
+}
+
+.dg-tab:not(.dg-active)>.dg-tab-content {
+    display: none;
+}
+
+.dg-tab-content {
+    height: 100%;
+    position: absolute;
+    top: 3em;
+    left: 0;
+    height: 500px;
+    overflow-y: auto;
+}
+
+.dg-tab-content>ul {
+    list-style-type: none;
+    margin-left: 0;
+    margin-top: 0;
+    padding-left: 0;
+}
+
+.dg-expand {
+    margin-top: 5px;
+}
+
+.dg-chevron::before {
+    border-style: solid;
+    border-width: 0.15em 0.15em 0 0;
+    border-color: var(---text-muted);
+    content: '';
+    display: inline-block;
+    height: 0.45em;
+    left: 0.15em;
+    position: relative;
+    top: 0.15em;
+    transform: rotate(-45deg);
+    vertical-align: top;
+    width: 0.45em;
+    margin-right: 3px;
+    transition: transform 0.3s;
+    margin-top: 5px;
+}
+
+.dg-chevron.invisible:before {
+    border-color: transparent;
+}
+
+.dg-chevron.right:before {
+    left: 0;
+    transform: rotate(45deg);
+}
+
+.dg-chevron.down:before {
+    top: 0;
+    transform: rotate(135deg);
+}
+
+.dg-chevron.left:before {
+    left: 0.25em;
+    transform: rotate(-135deg);
+}

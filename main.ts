@@ -200,14 +200,42 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
+	filesMarkedForPublish:string[] = [];
+
 	async expandFileSystemTree(): Promise<void> {
 		const folder = await this.app.vault.getRoot();
 		const modal = new Modal(this.app);
 		modal.contentEl.style.display = "flex"
-		modal.contentEl.style.flexDirection= "column";
-		modal.contentEl.style.justifyContent= "space-between";
-		const fileTree = modal.contentEl.createEl('div', {attr:{style: "height: 500px"}});
-		this.expandChildren(folder.children, fileTree, false);
+		modal.contentEl.style.flexDirection= "row";
+		modal.contentEl.style.position= "relative";
+		modal.contentEl.style.height= "500px";
+		modal.contentEl.style.width= "600px";
+		modal.contentEl.style.overflowY= "hidden";
+
+
+		function activateTab() {
+			if(this.parentElement.querySelector(".dg-active")) {
+				this.parentElement.querySelector(".dg-active").classList.remove("dg-active");
+			}
+			this.classList.add("dg-active");
+		}
+
+		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-active"}).createEl("div", {cls: "dg-tab-content"});
+
+		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+
+		const publishedFiles = modal.contentEl.createEl('div', {text: "🟣 Published", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+
+		const unPublishedFiles = modal.contentEl.createEl('div', {text: "🔴 Unpublished", cls: "dg-unpublished-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+
+		modal.contentEl.querySelectorAll(".dg-tab").forEach(x=>x.addEventListener('click', activateTab));
+		
+		this.filesMarkedForPublish = (await new Publisher(this.app.vault, this.app.metadataCache, this.settings).getFilesMarkedForPublishing()).map(x=>x.path);
+
+		this.expandChildren(folder.children, changedFiles, false);
+		this.expandChildren(folder.children, readyToPublishFiles, false);
+		this.expandChildren(folder.children, publishedFiles, false);
+		this.expandChildren(folder.children, unPublishedFiles, false);
 		
 		const buttonContainer = modal.modalEl.createEl("div");
 		const button = new ButtonComponent(buttonContainer);
@@ -215,7 +243,7 @@ export default class DigitalGarden extends Plugin {
 		.setButtonText("Add publish flag")
 		.onClick(()=>{
 			let counter = 0;
-			fileTree.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+			changedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
 				const htmlEl = el as HTMLInputElement; 
 				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
 					console.log(htmlEl.dataset.filePath);
@@ -231,26 +259,28 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async expandChildren(children: TAbstractFile[], container: HTMLElement, hide: boolean): Promise<void> {
+	async expandChildren(children: TAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
 		const ul = container.createEl("ul");
 		ul.style.listStyle = "none";
 
-		const expandButton = ul.parentElement.querySelector(".expand") as HTMLElement;
+		const expandButton = ul.parentElement.querySelector(".dg-expand") as HTMLElement;
 		if (expandButton) {
 			expandButton.addEventListener("click", function (e) {
-				if (!hide) return;
+				if (!initial) return;
 				e.stopPropagation();
 				if (ul.style.display === "none") {
 					ul.show();
-					expandButton.style.transform = "rotate(90deg)";
+					expandButton.classList.remove("right");
+					expandButton.classList.add("down");
 				} else {
-					expandButton.style.transform = "rotate(0deg)";
+					expandButton.classList.remove("down");
+					expandButton.classList.add("right");
 					ul.hide();
 				}
 			});
 
 		}
-		if (hide) ul.hide();
+		if (initial) ul.hide();
 		for (const child of children) {
 			const isFolder = child instanceof TFolder ;
 			let icon = isFolder ? "📁" : "📄";
@@ -258,13 +288,15 @@ export default class DigitalGarden extends Plugin {
 			const container = li.createEl("div");
 
 			if(isFolder){
-				container.createEl("span", { text: ">", cls: "expand", attr:{style: "display: inline-block; transition: transform 0.5s;"} });
+				container.createEl("span", { text: " ", cls: "dg-expand dg-chevron right"});
 			}else{
-				container.createEl("span", { text: "-", attr:{style: "display: inline-block"}});
+				container.createEl("span", { text: " ", cls: "dg-chevron-invisible", attr:{style: ""}});
 			}
 
 			const checkbox = container.createEl("input", { type: "checkbox", attr: { id: child.path }});
 			checkbox.dataset.filePath = child.path;
+			checkbox.checked = this.filesMarkedForPublish.includes(child.path);
+			
 
 			container.createEl("label", { text: `${icon} ${child.name}`, attr: { for: child.path } });
 			checkbox.addEventListener("change", function(){
