@@ -255,11 +255,42 @@ export default class Publisher {
 
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
-        const links = this.metadataCache.getCache(filePath).links;
-        if (links && links.length) {
-            for (const link of links) {
+
+        const linkedFileRegex = /\[\[(.*?)\]\]/g;
+        const linkedFileMatches = text.match(linkedFileRegex);
+
+        const codeFenceRegex = /`(.*?)`/g;
+        const codeFences = text.match(codeFenceRegex);
+
+        const codeBlockRegex = /```.*?\n[\s\S]+?```/g;
+        const codeBlocks = text.match(codeBlockRegex);
+
+        const excaliDrawRegex = /:\[\[(\d*?,\d*?)\],.*?\]\]/g; 
+        const excalidrawings = text.match(excaliDrawRegex);
+
+        if (linkedFileMatches) {
+            for (const linkMatch of linkedFileMatches) {
                 try {
-                    const textInsideBrackets = link.original.substring(link.original.indexOf('[') + 2, link.original.indexOf(']'));
+                    const insideCodeBlockIndex = codeBlocks ? codeBlocks.findIndex(codeBlock => codeBlock.includes(linkMatch)) : -1;
+                    if(insideCodeBlockIndex>-1) {
+                        codeBlocks.splice(insideCodeBlockIndex, 1);
+                        continue;
+                    }
+
+                    const insideCodeFenceIndex = codeFences ? codeFences.findIndex(codeFence => codeFence.includes(linkMatch)) : -1;
+                    if(insideCodeFenceIndex>-1) {
+                        codeFences.splice(insideCodeFenceIndex, 1);
+                        continue;
+                    }
+
+                    const excalidrawIndex = excalidrawings ? excalidrawings.findIndex(excalidraw => excalidraw.includes(linkMatch)) : -1;
+                    if(excalidrawIndex>-1) {
+                        excalidrawings.splice(excalidrawIndex, 1);
+                        continue;
+                    }
+
+
+                    const textInsideBrackets = linkMatch.substring(linkMatch.indexOf('[') + 2,linkMatch.lastIndexOf(']')-1);
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
@@ -274,11 +305,11 @@ export default class Publisher {
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
                     if(!linkedFile){
-                        convertedText = convertedText.replace(link.original, `[[${linkedFileName}${headerPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${linkedFileName}${headerPath}|${prettyName}]]`);
                     }
                     if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(link.original, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
                 } catch(e){
                     console.log(e);

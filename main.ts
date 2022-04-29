@@ -30,7 +30,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.9.2";
+		this.appVersion = "2.9.3";
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -78,6 +78,7 @@ export default class DigitalGarden extends Plugin {
 						return;
 					}
 
+					new Notice("Publishing note...");
 					const publisher = new Publisher(vault, metadataCache, this.settings);
 					const publishSuccessful = await publisher.publish(currentFile);
 
