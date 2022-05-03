@@ -30,7 +30,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion = "2.9.3";
+		this.appVersion =  this.manifest.version;
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -39,12 +39,10 @@ export default class DigitalGarden extends Plugin {
 
 		await this.addCommands();
 
-
 		addIcon('digital-garden-icon', seedling);
 		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
 			this.openPublishModal();
 		});
-
 
 	}
 

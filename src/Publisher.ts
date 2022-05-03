@@ -114,7 +114,7 @@ export default class Publisher {
 
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
-        text = await this.createTranscludedText(text, file.path);
+        text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
         return text;
@@ -322,7 +322,11 @@ export default class Publisher {
 
     }
 
-    async createTranscludedText(text: string, filePath: string): Promise<string> {
+    async createTranscludedText(text: string, filePath: string, currentDepth:number): Promise<string> {
+        if(currentDepth >= 4){
+            return text;
+        }
+
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.*?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
@@ -354,6 +358,10 @@ export default class Publisher {
 
                         fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n`
                             + fileText + '\n\n</div></div>\n'
+
+                        if(fileText.match(transcludedRegex)) {
+                            fileText = await this.createTranscludedText(fileText,linkedFile.path, currentDepth+1);
+                        }
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }
@@ -369,12 +377,13 @@ export default class Publisher {
 
     async createBase64Images(text: string, filePath: string): Promise<string> {
         let imageText = text;
-        const imageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
-        const imageMatches = text.match(imageRegex);
-        if (imageMatches) {
-            for (let i = 0; i < imageMatches.length; i++) {
+        //![[image.png]]
+        const transcludedImageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+        const transcludedImageMatches = text.match(transcludedImageRegex);
+        if (transcludedImageMatches) {
+            for (let i = 0; i < transcludedImageMatches.length; i++) {
                 try {
-                    const imageMatch = imageMatches[i];
+                    const imageMatch = transcludedImageMatches[i];
 
                     let [imageName, size] = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']')).split("|");
                     const imagePath = getLinkpath(imageName);
@@ -385,6 +394,36 @@ export default class Publisher {
                     const imageMarkdown = `![${name}](data:image/${linkedFile.extension};base64,${imageBase64})`;
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch {
+                    continue;
+                }
+            }
+        }
+
+        //![](image.png)
+        const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
+        const imageMatches = text.match(imageRegex);
+        if(imageMatches){
+            for(let i = 0; i<imageMatches.length; i++){
+                try{
+                    const imageMatch = imageMatches[i];
+
+                    let nameStart = imageMatch.indexOf('[') + 1;
+                    let nameEnd = imageMatch.indexOf(']');
+                    let imageName = imageMatch.substring(nameStart, nameEnd);
+
+                    let pathStart= imageMatch.lastIndexOf("(")+1;
+                    let pathEnd = imageMatch.lastIndexOf(")");
+                    let imagePath = imageMatch.substring(pathStart, pathEnd);
+                    if(imagePath.startsWith("http")){
+                        continue;
+                    }
+
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
+                    const image = await this.vault.readBinary(linkedFile);
+                    const imageBase64 = arrayBufferToBase64(image)
+                    const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
+                    imageText = imageText.replace(imageMatch, imageMarkdown);
+                }catch{
                     continue;
                 }
             }
