@@ -82,7 +82,30 @@ Choose the "Default" theme if you want the original Digital Garden theme.
 
 Leave the favicon setting blank if you want to use the default favicon. 
 
+
+## Note settings
+All notes published with Digital Garden supports settings that can be set via frontmatter. This can either be set on a per-note basis, or you can change the default setting for all notes by changing the settings in the "Settings > Digital Garden > Note Settings - Edit". When changing the default setting, any explicit flag in any note will overwrite the default value. 
+
+### Hiding home link
+By default, all notes except the home-note shows a link back to the home-note. If you want this to be hidden in one of your notes (handy if you simply want to share a single note with someone) you can set this property in your frontmatter:
+
+```
+---
+dg-home-link: false
+---
+```
+
+## Letting through all frontmatter
+By default, only frontmatter recognized by the plugin will be published to GitHub. This is to prevent errors in the template build, if you happen to use a format that the template engine is unfamiliar with. 
+If you for some reason want all the frontmatter to be sent through, you can set the following flag in your notes:
+```
+---
+dg-pass-frontmatter: true
+---
+```
+
 ## Advanced usage
+
 ### Permalinks
 This plugin supports setting your own links to a note, if you prefer something else than the default behaviour.
 This is done by adding a dg-permalink attribute to the frontmatter of your file. 
@@ -105,6 +128,9 @@ The permalinks can be an arbitrary level of folders deep, such as:
 dg-permalink: "category/2022/mynote/"
 ---
 ```
+
+### Publish all notes in a specific folder
+Some people have requested functionality for publishing all notes in a given folder. To do this, you can combine this plugin with the Templater plugin to create folders which will automatically use a template having the dg-publish attribute set. Thanks to [vanadium23](https://github.com/vanadium23) for [sharing this tip.](https://github.com/oleeskild/obsidian-digital-garden/issues/26#issuecomment-1114321275)
 
 ### Transclusion
 By default, transclusion of other documents just renders the content as is. If you want to also include a heading on top of the transclusion you can do so by using the pipe character:
@@ -144,11 +170,4 @@ By just using regular translucion, no header will be added:
 
 It's also worth noting that transclusions *do not need* the dg-publish attribute. They behave the same as an image. If you transclude something into a document, and publish that document, everything that is transcluded in it will be published as if it was part of that note. 
 
-## Hiding home link
-By default, all notes except the home-note shows a link back to the home-note. If you want this to be hidden in one of your notes (handy if you simply want to share a single note with someone) you can set this property in your frontmatter:
 
-```
----
-dg-home-link: false
----
-```
