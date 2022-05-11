@@ -8,6 +8,7 @@ import { seedling } from 'src/constants';
 import { PublishModal } from 'src/PublishModal';
 import PublishStatusManager from 'src/PublishStatusManager';
 import ObsidianFrontMatterEngine from 'src/ObsidianFrontMatterEngine';
+import {DgAbstractFile, DgFolder} from 'src/DgFolder';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -202,8 +203,45 @@ export default class DigitalGarden extends Plugin {
 
 	filesMarkedForPublish:string[] = [];
 
+	generateFolderTree(files:TFile[]): DgFolder{
+		const folder =  this.app.vault.getRoot();
+		var rootFolder= new DgFolder(folder);
+		for(const path of files.map(x=>x.path)) {
+			let currentFolder = rootFolder;
+			let currentRootFolder = folder;
+			const pathParts = path.split("/");
+			for(const part of pathParts){
+				const localFolder = currentFolder.children.find(x=>x.name === part)
+				const globalFolder = currentRootFolder.children.find(x=>x.name === part);
+				const folderAlreadyExists = !!localFolder;
+				if(!folderAlreadyExists && globalFolder instanceof TFile) {
+					const originalFile = ({...globalFolder, parent: currentFolder} as TFile);
+					currentFolder.children = [...currentFolder.children, originalFile];
+				}else if(!folderAlreadyExists){
+					if(globalFolder instanceof TFolder){
+						const folder =new DgFolder(globalFolder);
+						folder.parent = currentFolder;
+
+						currentFolder.children = [...currentFolder.children, folder];
+					}
+				}
+				
+				//Folder exists, go to next;
+				const nextLocalFolder = currentFolder.children.find(x=>x.name === part)
+				const nextGlobalFolder = currentRootFolder.children.find(x=>x.name === part);
+				if(nextLocalFolder instanceof DgFolder) {
+					currentFolder = nextLocalFolder;
+				}
+				if(nextGlobalFolder instanceof TFolder) {
+					currentRootFolder = nextGlobalFolder;
+				}
+			}
+		}
+
+		return rootFolder;
+	}
+
 	async expandFileSystemTree(): Promise<void> {
-		const folder = await this.app.vault.getRoot();
 		const modal = new Modal(this.app);
 		modal.contentEl.style.display = "flex"
 		modal.contentEl.style.flexDirection= "row";
@@ -221,21 +259,29 @@ export default class DigitalGarden extends Plugin {
 		}
 
 		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-active"}).createEl("div", {cls: "dg-tab-content"});
+		changedFiles.createEl("div", {text: "These are notes that have been changed since the last publish."});
 
 		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		readyToPublishFiles.createEl("div", {text: "These are notes marked with dg-publish: true, but hasn't been published yet."});
 
 		const publishedFiles = modal.contentEl.createEl('div', {text: "🟣 Published", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		publishedFiles.createEl("div", {text: "These are notes that have been published and are unchanged."});
 
 		const unPublishedFiles = modal.contentEl.createEl('div', {text: "🔴 Unpublished", cls: "dg-unpublished-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		unPublishedFiles.createEl("div", {text: "These are all notes that are not marked with dg-publish: true."});
 
 		modal.contentEl.querySelectorAll(".dg-tab").forEach(x=>x.addEventListener('click', activateTab));
 		
-		this.filesMarkedForPublish = (await new Publisher(this.app.vault, this.app.metadataCache, this.settings).getFilesMarkedForPublishing()).map(x=>x.path);
+		const publishStatusManager = new PublishStatusManager(new DigitalGardenSiteManager(this.app.metadataCache, this.settings), new Publisher(this.app.vault, this.app.metadataCache, this.settings));	
+		const status = await publishStatusManager.getPublishStatus();
+		const changedNotes = this.generateFolderTree(status.changedNotes);
+		const publishedNotes = this.generateFolderTree(status.publishedNotes);
+		const readyToPublishNotes = this.generateFolderTree(status.unpublishedNotes);
 
-		this.expandChildren(folder.children, changedFiles, false);
-		this.expandChildren(folder.children, readyToPublishFiles, false);
-		this.expandChildren(folder.children, publishedFiles, false);
-		this.expandChildren(folder.children, unPublishedFiles, false);
+		this.expandChildren(changedNotes.children, changedFiles, false);
+		this.expandChildren(readyToPublishNotes.children, readyToPublishFiles, false);
+		this.expandChildren(publishedNotes.children, publishedFiles, false);
+		this.expandChildren(this.app.vault.getRoot().children, unPublishedFiles, false);
 		
 		const buttonContainer = modal.modalEl.createEl("div");
 		const button = new ButtonComponent(buttonContainer);
@@ -259,7 +305,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async expandChildren(children: TAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
+	async expandChildren(children: TAbstractFile[] | DgAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
 		const ul = container.createEl("ul");
 		ul.style.listStyle = "none";
 
@@ -282,7 +328,7 @@ export default class DigitalGarden extends Plugin {
 		}
 		if (initial) ul.hide();
 		for (const child of children) {
-			const isFolder = child instanceof TFolder ;
+			const isFolder = child instanceof TFolder || child instanceof DgFolder;
 			let icon = isFolder ? "📁" : "📄";
 			const li = ul.createEl("li");
 			const container = li.createEl("div");
@@ -302,7 +348,7 @@ export default class DigitalGarden extends Plugin {
 			checkbox.addEventListener("change", function(){
 				li.querySelectorAll("input[type=checkbox]").forEach(el=>{(el as HTMLInputElement).checked = this.checked});
 			});
-			if (child instanceof TFolder) {
+			if (child instanceof TFolder || child instanceof DgFolder) {
 				if (child.children) {
 					await this.expandChildren(child.children, li, true);
 				}
