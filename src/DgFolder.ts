@@ -1,4 +1,5 @@
-import {TFolder} from "obsidian";
+import {TFile, TFolder} from "obsidian";
+import { PublishStatus } from "./PublishStatus";
 export abstract class DgAbstractFile{
 	name: string;
 	path: string;
@@ -16,6 +17,14 @@ export class DgFolder extends DgAbstractFile {
 }
 
 
-export class DgFile extends DgAbstractFile {}
+export class DgFile extends DgAbstractFile {
+	publishStatus: PublishStatus;
+	constructor(file: TFile){
+		super();
+		this.name = file.name;
+		this.path = file.path;
+		this.publishStatus = PublishStatus.Undefined;
+	}
+}
 
 

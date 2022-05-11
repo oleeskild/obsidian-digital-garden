@@ -17,6 +17,14 @@
     margin-left: 10px;
 }
 
+.dg-file-item.Changed{
+    background-color: yellow;
+}
+
+.dg-file-item.Deleted{
+    background-color: red;
+}
+
 .dg-tab {
     padding: 5px 10px;
     height: fit-content;

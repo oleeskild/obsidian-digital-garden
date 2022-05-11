@@ -8,7 +8,8 @@ import { seedling } from 'src/constants';
 import { PublishModal } from 'src/PublishModal';
 import PublishStatusManager from 'src/PublishStatusManager';
 import ObsidianFrontMatterEngine from 'src/ObsidianFrontMatterEngine';
-import {DgAbstractFile, DgFolder} from 'src/DgFolder';
+import {DgAbstractFile, DgFile, DgFolder} from 'src/DgFolder';
+import {PublishStatus, PublishFileGroup} from "src/PublishStatus";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -203,37 +204,45 @@ export default class DigitalGarden extends Plugin {
 
 	filesMarkedForPublish:string[] = [];
 
-	generateFolderTree(files:TFile[]): DgFolder{
+	//[{files: TFile[], status:Enum}]
+	generateFolderTree(files: PublishFileGroup[]): DgFolder{
 		const folder =  this.app.vault.getRoot();
-		var rootFolder= new DgFolder(folder);
-		for(const path of files.map(x=>x.path)) {
-			let currentFolder = rootFolder;
-			let currentRootFolder = folder;
-			const pathParts = path.split("/");
-			for(const part of pathParts){
-				const localFolder = currentFolder.children.find(x=>x.name === part)
-				const globalFolder = currentRootFolder.children.find(x=>x.name === part);
-				const folderAlreadyExists = !!localFolder;
-				if(!folderAlreadyExists && globalFolder instanceof TFile) {
-					const originalFile = ({...globalFolder, parent: currentFolder} as TFile);
-					currentFolder.children = [...currentFolder.children, originalFile];
-				}else if(!folderAlreadyExists){
-					if(globalFolder instanceof TFolder){
-						const folder =new DgFolder(globalFolder);
-						folder.parent = currentFolder;
 
-						currentFolder.children = [...currentFolder.children, folder];
+		var rootFolder= new DgFolder(folder);
+
+		for(const group of files){
+			for (const path of group.files) {
+				let currentFolder = rootFolder;
+				let currentRootFolder = folder;
+				const pathParts = path.split("/");
+				for (const part of pathParts) {
+					const localFolder = currentFolder.children.find(x => x.name === part)
+					const globalFolder = currentRootFolder.children.find(x => x.name === part);
+					const folderAlreadyExists = !!localFolder;
+					if (!folderAlreadyExists && globalFolder instanceof TFile) {
+
+						const originalFile = new DgFile({...globalFolder});
+						originalFile.parent = currentFolder;
+						originalFile.publishStatus = group.status;
+						currentFolder.children.push(originalFile);
+
+					} else if (!folderAlreadyExists) {
+						if (globalFolder instanceof TFolder) {
+							const folder = new DgFolder(globalFolder);
+							folder.parent = currentFolder;
+							currentFolder.children.push(folder);
+						}
 					}
-				}
-				
-				//Folder exists, go to next;
-				const nextLocalFolder = currentFolder.children.find(x=>x.name === part)
-				const nextGlobalFolder = currentRootFolder.children.find(x=>x.name === part);
-				if(nextLocalFolder instanceof DgFolder) {
-					currentFolder = nextLocalFolder;
-				}
-				if(nextGlobalFolder instanceof TFolder) {
-					currentRootFolder = nextGlobalFolder;
+
+					//Folder exists, go to next;
+					const nextLocalFolder = currentFolder.children.find(x => x.name === part)
+					const nextGlobalFolder = currentRootFolder.children.find(x => x.name === part);
+					if (nextLocalFolder instanceof DgFolder) {
+						currentFolder = nextLocalFolder;
+					}
+					if (nextGlobalFolder instanceof TFolder) {
+						currentRootFolder = nextGlobalFolder;
+					}
 				}
 			}
 		}
@@ -274,9 +283,9 @@ export default class DigitalGarden extends Plugin {
 		
 		const publishStatusManager = new PublishStatusManager(new DigitalGardenSiteManager(this.app.metadataCache, this.settings), new Publisher(this.app.vault, this.app.metadataCache, this.settings));	
 		const status = await publishStatusManager.getPublishStatus();
-		const changedNotes = this.generateFolderTree(status.changedNotes);
-		const publishedNotes = this.generateFolderTree(status.publishedNotes);
-		const readyToPublishNotes = this.generateFolderTree(status.unpublishedNotes);
+		const changedNotes = this.generateFolderTree([{files: status.changedNotes.map(x=>x.path), status: PublishStatus.Changed}, {files: status.deletedNotePaths, status: PublishStatus.Deleted}]);
+		const publishedNotes = this.generateFolderTree([{files: status.publishedNotes.map(x=>x.path), status: PublishStatus.Published}]);
+		const readyToPublishNotes = this.generateFolderTree([{files: status.unpublishedNotes.map(x=>x.path), status: PublishStatus.ReadyToPublish}]);
 
 		this.expandChildren(changedNotes.children, changedFiles, false);
 		this.expandChildren(readyToPublishNotes.children, readyToPublishFiles, false);
@@ -305,7 +314,7 @@ export default class DigitalGarden extends Plugin {
 
 	}
 
-	async expandChildren(children: TAbstractFile[] | DgAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
+	async expandChildren(children: DgAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
 		const ul = container.createEl("ul");
 		ul.style.listStyle = "none";
 
@@ -328,10 +337,11 @@ export default class DigitalGarden extends Plugin {
 		}
 		if (initial) ul.hide();
 		for (const child of children) {
-			const isFolder = child instanceof TFolder || child instanceof DgFolder;
+			const isFolder = child instanceof DgFolder;
 			let icon = isFolder ? "📁" : "📄";
 			const li = ul.createEl("li");
-			const container = li.createEl("div");
+			const status = child instanceof DgFile ? child.publishStatus : '' 
+			const container = li.createEl("div",{cls:["dg-file-item", status]});
 
 			if(isFolder){
 				container.createEl("span", { text: " ", cls: "dg-expand dg-chevron right"});
@@ -341,7 +351,12 @@ export default class DigitalGarden extends Plugin {
 
 			const checkbox = container.createEl("input", { type: "checkbox", attr: { id: child.path }});
 			checkbox.dataset.filePath = child.path;
-			checkbox.checked = this.filesMarkedForPublish.includes(child.path);
+			if(isFolder){
+				checkbox.indeterminate = true;
+			}else if(child instanceof DgFile){
+				checkbox.checked = true;
+			}
+			//checkbox.checked = this.filesMarkedForPublish.includes(child.path);
 			
 
 			container.createEl("label", { text: `${icon} ${child.name}`, attr: { for: child.path } });
