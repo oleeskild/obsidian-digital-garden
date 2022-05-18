@@ -18,7 +18,8 @@ export default class Publisher {
     vault: Vault;
     metadataCache: MetadataCache;
     settings: DigitalGardenSettings;
-    frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
+    frontmatterRegex: RegExp = /^\s*?---\n([\s\S]*?)\n---/g;
+    obsidianCommentsRegex: RegExp = /%%.+?%%/gms;
 
     constructor(vault: Vault, metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.vault = vault;
@@ -117,6 +118,7 @@ export default class Publisher {
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
+        text = await this.removeObsidianComments(text);
         return text;
     }
 
@@ -168,6 +170,10 @@ export default class Publisher {
 
         await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
 
+    }
+
+    async removeObsidianComments(text: string): Promise<string> {
+        return text.replace(this.obsidianCommentsRegex, '');
     }
 
     async convertFrontMatter(text: string, path: string): Promise<string> {
