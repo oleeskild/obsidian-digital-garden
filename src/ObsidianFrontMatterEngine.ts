@@ -2,6 +2,7 @@ import { MetadataCache, TFile, Vault } from "obsidian";
 
 export interface IFrontMatterEngine {
     set(key: string, value: string | boolean | number): IFrontMatterEngine;
+    remove(key: string): IFrontMatterEngine;
     get(key: string): string | boolean | number;
     apply(): Promise<void>;
 }
@@ -23,6 +24,12 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
     set(key: string, value: string | boolean | number): ObsidianFrontMatterEngine {
         //@ts-ignore
         this.generatedFrontMatter[key] = value;
+        return this;
+    }
+
+    remove(key: string): ObsidianFrontMatterEngine {
+        //@ts-ignore
+        this.generatedFrontMatter[key] = undefined;
         return this;
     }
 
@@ -50,6 +57,18 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
     }
 
     private frontMatterToYaml(frontMatter: {}) {
+        for(const key of Object.keys(frontMatter)) {
+            //@ts-ignore
+            if (frontMatter[key] === undefined) {
+                //@ts-ignore
+                delete frontMatter[key];
+            }
+        }
+
+        if(Object.keys(frontMatter).length === 0) {
+            return "";
+        }
+
         let yaml = "---\n";
         for (const key of Object.keys(frontMatter)) {
             //@ts-ignore

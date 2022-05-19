@@ -194,7 +194,9 @@ export default class DigitalGarden extends Plugin {
 			id: 'testing',
 			name: 'Open filetree',
 			callback: async () => {
+				const notice = new Notice("Loading Publication Center...");
 				await this.expandFileSystemTree();
+				notice.hide();
 			}
 		});
 
@@ -256,7 +258,7 @@ export default class DigitalGarden extends Plugin {
 		modal.contentEl.style.flexDirection= "row";
 		modal.contentEl.style.position= "relative";
 		modal.contentEl.style.height= "500px";
-		modal.contentEl.style.width= "600px";
+		modal.contentEl.style.width= "800px";
 		modal.contentEl.style.overflowY= "hidden";
 
 
@@ -267,16 +269,16 @@ export default class DigitalGarden extends Plugin {
 			this.classList.add("dg-active");
 		}
 
-		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-active"}).createEl("div", {cls: "dg-tab-content"});
+		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-tab-title dg-active"}).createEl("div", {cls: "dg-tab-content"});
 		changedFiles.createEl("div", {text: "These are notes that have been changed since the last publish."});
 
-		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
 		readyToPublishFiles.createEl("div", {text: "These are notes marked with dg-publish: true, but hasn't been published yet."});
 
-		const publishedFiles = modal.contentEl.createEl('div', {text: "🟣 Published", cls: "dg-ready-to-publish-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		const publishedFiles = modal.contentEl.createEl('div', {text: "🟣 Published", cls: "dg-ready-to-publish-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
 		publishedFiles.createEl("div", {text: "These are notes that have been published and are unchanged."});
 
-		const unPublishedFiles = modal.contentEl.createEl('div', {text: "🔴 Unpublished", cls: "dg-unpublished-files dg-tab"}).createEl("div", {cls: "dg-tab-content"});
+		const unPublishedFiles = modal.contentEl.createEl('div', {text: "🔴 Unpublished", cls: "dg-unpublished-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
 		unPublishedFiles.createEl("div", {text: "These are all notes that are not marked with dg-publish: true."});
 
 		modal.contentEl.querySelectorAll(".dg-tab").forEach(x=>x.addEventListener('click', activateTab));
@@ -292,29 +294,51 @@ export default class DigitalGarden extends Plugin {
 		this.expandChildren(publishedNotes.children, publishedFiles, false);
 		this.expandChildren(this.app.vault.getRoot().children, unPublishedFiles, false);
 		
-		const buttonContainer = modal.modalEl.createEl("div");
+		//Add button for publishflag
+		const buttonContainer = unPublishedFiles.createEl("div");
 		const button = new ButtonComponent(buttonContainer);
 		button
 		.setButtonText("Add publish flag")
 		.onClick(()=>{
 			let counter = 0;
-			changedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+			unPublishedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
 				const htmlEl = el as HTMLInputElement; 
 				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
 					console.log(htmlEl.dataset.filePath);
 					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
 					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
-					engine.set("dg-publish", true).apply();
+					engine.set("dg-publish", true);
 					counter++;
 				}
 			});
 			new Notice(`Added publish flag to ${counter} files.`);
 		});
+
+		const readyToPublishButtonContainer = readyToPublishFiles.createEl("div");
+		const readyToPublishButton = new ButtonComponent(readyToPublishButtonContainer );
+		readyToPublishButton 
+		.setButtonText("Remove publish flag")
+		.onClick(()=>{
+			let counter = 0;
+			readyToPublishFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+				const htmlEl = el as HTMLInputElement; 
+				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
+					console.log(htmlEl.dataset.filePath);
+					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
+					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
+					engine.remove("dg-publish").apply()//Add a remove method
+					counter++;
+				}
+			});
+			new Notice(`Removed publish flag to ${counter} files.`);
+			//Reload the publication center
+		});
+
 		modal.open();
 
 	}
 
-	async expandChildren(children: DgAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
+	async expandChildren(children: DgAbstractFile[]|TAbstractFile[], container: HTMLElement, initial: boolean): Promise<void> {
 		const ul = container.createEl("ul");
 		ul.style.listStyle = "none";
 
@@ -337,7 +361,7 @@ export default class DigitalGarden extends Plugin {
 		}
 		if (initial) ul.hide();
 		for (const child of children) {
-			const isFolder = child instanceof DgFolder;
+			const isFolder = child instanceof DgFolder || child instanceof TFolder;
 			let icon = isFolder ? "📁" : "📄";
 			const li = ul.createEl("li");
 			const status = child instanceof DgFile ? child.publishStatus : '' 
@@ -351,11 +375,6 @@ export default class DigitalGarden extends Plugin {
 
 			const checkbox = container.createEl("input", { type: "checkbox", attr: { id: child.path }});
 			checkbox.dataset.filePath = child.path;
-			if(isFolder){
-				checkbox.indeterminate = true;
-			}else if(child instanceof DgFile){
-				checkbox.checked = true;
-			}
 			//checkbox.checked = this.filesMarkedForPublish.includes(child.path);
 			
 

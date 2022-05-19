@@ -25,12 +25,14 @@
     background-color: red;
 }
 
-.dg-tab {
-    padding: 5px 10px;
+.dg-tab-title {
+    padding: 10px 10px;
     height: fit-content;
     cursor: pointer;
     border-bottom: 1px solid;
+    font-size: 1.5rem;
 }
+
 
 .dg-tab.dg-active {
     border: none;
@@ -55,12 +57,16 @@
     left: 0;
     height: 500px;
     overflow-y: auto;
+    font-size: 1.2rem;
+}
+.dg-tab-content>li {
+    margin-top: 10px;
 }
 
 .dg-tab-content>ul {
     list-style-type: none;
     margin-left: 0;
-    margin-top: 0;
+    margin-top: 10px;
     padding-left: 0;
 }
 
