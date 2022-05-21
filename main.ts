@@ -255,11 +255,10 @@ export default class DigitalGarden extends Plugin {
 	async expandFileSystemTree(): Promise<void> {
 		const modal = new Modal(this.app);
 		modal.contentEl.style.display = "flex"
-		modal.contentEl.style.flexDirection= "row";
+		modal.contentEl.style.flexDirection= "column";
 		modal.contentEl.style.position= "relative";
 		modal.contentEl.style.height= "500px";
 		modal.contentEl.style.width= "800px";
-		modal.contentEl.style.overflowY= "hidden";
 
 
 		function activateTab() {
@@ -269,17 +268,19 @@ export default class DigitalGarden extends Plugin {
 			this.classList.add("dg-active");
 		}
 
-		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-tab-title dg-active"}).createEl("div", {cls: "dg-tab-content"});
-		changedFiles.createEl("div", {text: "These are notes that have been changed since the last publish."});
-
-		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
-		readyToPublishFiles.createEl("div", {text: "These are notes marked with dg-publish: true, but hasn't been published yet."});
 
 		const publishedFiles = modal.contentEl.createEl('div', {text: "🟣 Published", cls: "dg-ready-to-publish-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
-		publishedFiles.createEl("div", {text: "These are notes that have been published and are unchanged."});
+		publishedFiles.createEl("div", {text: "These are notes that have been published and are unchanged.", cls:"dg-explanation"});
+
+		const changedFiles = modal.contentEl.createEl('div', {text: "🟡 Changed", cls: "dg-changed-files dg-tab dg-tab-title dg-active"}).createEl("div", {cls: "dg-tab-content"});
+		changedFiles.createEl("div", {text: "These are notes that have been changed since the last publish.", cls:"dg-explanation"});
+
+		const readyToPublishFiles = modal.contentEl.createEl('div', {text: "🟢 Ready to publish", cls: "dg-ready-to-publish-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
+		readyToPublishFiles.createEl("div", {text: "These are notes that are marked with dg-publish: true, but hasn't been published yet.", cls:"dg-explanation"});
+
 
 		const unPublishedFiles = modal.contentEl.createEl('div', {text: "🔴 Unpublished", cls: "dg-unpublished-files dg-tab dg-tab-title"}).createEl("div", {cls: "dg-tab-content"});
-		unPublishedFiles.createEl("div", {text: "These are all notes that are not marked with dg-publish: true."});
+		unPublishedFiles.createEl("div", {text: "These are all notes that are not marked with dg-publish: true.", cls:"dg-explanation"});
 
 		modal.contentEl.querySelectorAll(".dg-tab").forEach(x=>x.addEventListener('click', activateTab));
 		
@@ -314,16 +315,16 @@ export default class DigitalGarden extends Plugin {
 			new Notice(`Added publish flag to ${counter} files.`);
 		});
 
-		const readyToPublishButtonContainer = readyToPublishFiles.createEl("div");
-		const readyToPublishButton = new ButtonComponent(readyToPublishButtonContainer );
-		readyToPublishButton 
+		//Button for removing publish
+		const removeFlagButtonContainer = readyToPublishFiles.createEl("div");
+		const removeFlagButton = new ButtonComponent(removeFlagButtonContainer );
+		removeFlagButton 
 		.setButtonText("Remove publish flag")
 		.onClick(()=>{
 			let counter = 0;
 			readyToPublishFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
 				const htmlEl = el as HTMLInputElement; 
 				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
-					console.log(htmlEl.dataset.filePath);
 					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
 					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
 					engine.remove("dg-publish").apply()//Add a remove method
@@ -333,6 +334,27 @@ export default class DigitalGarden extends Plugin {
 			new Notice(`Removed publish flag to ${counter} files.`);
 			//Reload the publication center
 		});
+
+		//Button for removing publish
+		const publishFileButtonContainer = readyToPublishFiles.createEl("div");
+		const publishFileButton = new ButtonComponent(publishFileButtonContainer);
+		publishFileButton 
+		.setButtonText("Publish")
+		.onClick(()=>{
+			let counter = 0;
+			readyToPublishFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+				const htmlEl = el as HTMLInputElement; 
+				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
+					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
+					const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
+					publisher.publish(file as TFile);
+					counter++;
+				}
+			});
+			new Notice(`Published ${counter} files.`);
+			//Reload the publication center
+		});
+
 
 		modal.open();
 

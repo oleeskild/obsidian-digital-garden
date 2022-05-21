@@ -17,30 +17,45 @@
     margin-left: 10px;
 }
 
-.dg-file-item.Changed{
+.dg-file-item.Changed::after {
+    content: 'Changed';
     background-color: yellow;
+    color: black;
+    width: 10px;
+    height: 5px;
+    border-radius: 25px;
+    padding: 2px 4px;
+    margin-left: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
-.dg-file-item.Deleted{
+.dg-file-item.Deleted::after {
+    content: 'Changed';
     background-color: red;
+    color: black;
+    width: 10px;
+    height: 5px;
+    border-radius: 25px;
+    padding: 2px 4px;
+    margin-left: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
 .dg-tab-title {
     padding: 10px 10px;
     height: fit-content;
     cursor: pointer;
-    border-bottom: 1px solid;
     font-size: 1.5rem;
 }
 
-
 .dg-tab.dg-active {
-    border: none;
-}
-
-.dg-tab:not(.dg-active) {
+    border-left: 1px solid var(--text-accent);
     background-color: rgba(255, 255, 255, 0.1);
 }
+
+.dg-tab:not(.dg-active) {}
 
 .dg-tab.dg-active>.dg-tab-content {
     display: block;
@@ -50,15 +65,20 @@
     display: none;
 }
 
+.dg-tab {
+    width: 30%;
+}
+
 .dg-tab-content {
     height: 100%;
     position: absolute;
-    top: 3em;
-    left: 0;
+    top: 1em;
+    left: 33%;
     height: 500px;
     overflow-y: auto;
     font-size: 1.2rem;
 }
+
 .dg-tab-content>li {
     margin-top: 10px;
 }
@@ -109,4 +129,9 @@
 .dg-chevron.left:before {
     left: 0.25em;
     transform: rotate(-135deg);
+}
+
+.dg-explanation {
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 10px;
 }
