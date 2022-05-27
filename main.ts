@@ -210,27 +210,36 @@ export default class DigitalGarden extends Plugin {
 	generateFolderTree(files: PublishFileGroup[]): DgFolder{
 		const folder =  this.app.vault.getRoot();
 
-		var rootFolder= new DgFolder(folder);
+		var rootFolder=  DgFolder.fromTFolder(folder);
 
 		for(const group of files){
 			for (const path of group.files) {
 				let currentFolder = rootFolder;
 				let currentRootFolder = folder;
 				const pathParts = path.split("/");
+				let currentPath= "";
 				for (const part of pathParts) {
+					currentPath += "/" + part;
 					const localFolder = currentFolder.children.find(x => x.name === part)
 					const globalFolder = currentRootFolder.children.find(x => x.name === part);
 					const folderAlreadyExists = !!localFolder;
-					if (!folderAlreadyExists && globalFolder instanceof TFile) {
-
-						const originalFile = new DgFile({...globalFolder});
+					const folderIsDeleted = !globalFolder;
+					if(folderIsDeleted && !folderAlreadyExists){
+						if(part.endsWith(".md")){
+							currentFolder.children.push(new DgFile(part, currentPath, group.status))
+						}else{
+							currentFolder.children.push(new DgFolder(part, currentPath))
+						}
+					}
+					else if (!folderAlreadyExists && globalFolder instanceof TFile) {
+						const originalFile = DgFile.fromTFile({...globalFolder});
 						originalFile.parent = currentFolder;
 						originalFile.publishStatus = group.status;
 						currentFolder.children.push(originalFile);
 
 					} else if (!folderAlreadyExists) {
 						if (globalFolder instanceof TFolder) {
-							const folder = new DgFolder(globalFolder);
+							const folder = DgFolder.fromTFolder(globalFolder);
 							folder.parent = currentFolder;
 							currentFolder.children.push(folder);
 						}
@@ -286,14 +295,41 @@ export default class DigitalGarden extends Plugin {
 		
 		const publishStatusManager = new PublishStatusManager(new DigitalGardenSiteManager(this.app.metadataCache, this.settings), new Publisher(this.app.vault, this.app.metadataCache, this.settings));	
 		const status = await publishStatusManager.getPublishStatus();
-		const changedNotes = this.generateFolderTree([{files: status.changedNotes.map(x=>x.path), status: PublishStatus.Changed}, {files: status.deletedNotePaths, status: PublishStatus.Deleted}]);
+		const changedNotes = this.generateFolderTree([{files: status.deletedNotePaths, status: PublishStatus.Deleted}, {files: status.changedNotes.map(x=>x.path), status: PublishStatus.Changed}]);
 		const publishedNotes = this.generateFolderTree([{files: status.publishedNotes.map(x=>x.path), status: PublishStatus.Published}]);
 		const readyToPublishNotes = this.generateFolderTree([{files: status.unpublishedNotes.map(x=>x.path), status: PublishStatus.ReadyToPublish}]);
+
+		const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
+		const unPublishedNoteFiles = await publisher.getFilesNotMarkedForPublishing();
+		const unPublishedNotes = this.generateFolderTree([{files: unPublishedNoteFiles.map(x=>x.path), status: PublishStatus.Unpublished}]);
 
 		this.expandChildren(changedNotes.children, changedFiles, false);
 		this.expandChildren(readyToPublishNotes.children, readyToPublishFiles, false);
 		this.expandChildren(publishedNotes.children, publishedFiles, false);
-		this.expandChildren(this.app.vault.getRoot().children, unPublishedFiles, false);
+		this.expandChildren(unPublishedNotes.children, unPublishedFiles, false);
+		
+		//Remove flag an unpublish button for publishednotes
+		//Button for removing publish
+		const publishFileButtonContainer = publishedFiles.createEl("div");
+		const publishFileButton = new ButtonComponent(publishFileButtonContainer);
+		publishFileButton 
+		.setButtonText("Remove publish flag and unpublish")
+		.onClick(async ()=>{
+			let counter = 0;
+			await publishedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(async el=>{
+				const htmlEl = el as HTMLInputElement; 
+				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
+					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
+					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
+					const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
+					await publisher.delete((file as TFile).path);
+					await engine.remove("dg-publish").apply();
+					counter++;
+				}
+			});
+			new Notice(`Unpublished ${counter} files.`);
+			//Reload the publication center
+		});
 		
 		//Add button for publishflag
 		const buttonContainer = unPublishedFiles.createEl("div");
@@ -305,10 +341,9 @@ export default class DigitalGarden extends Plugin {
 			unPublishedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
 				const htmlEl = el as HTMLInputElement; 
 				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
-					console.log(htmlEl.dataset.filePath);
 					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
 					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
-					engine.set("dg-publish", true);
+					engine.set("dg-publish", true).apply();
 					counter++;
 				}
 			});
@@ -327,7 +362,7 @@ export default class DigitalGarden extends Plugin {
 				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
 					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
 					const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, file as TFile);
-					engine.remove("dg-publish").apply()//Add a remove method
+					engine.remove("dg-publish").apply();
 					counter++;
 				}
 			});
@@ -336,9 +371,9 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		//Button for removing publish
-		const publishFileButtonContainer = readyToPublishFiles.createEl("div");
-		const publishFileButton = new ButtonComponent(publishFileButtonContainer);
-		publishFileButton 
+		const readyPublishFileButtonContainer = readyToPublishFiles.createEl("div");
+		const readyPublishFileButton = new ButtonComponent(readyPublishFileButtonContainer);
+		readyPublishFileButton	
 		.setButtonText("Publish")
 		.onClick(()=>{
 			let counter = 0;
@@ -352,6 +387,34 @@ export default class DigitalGarden extends Plugin {
 				}
 			});
 			new Notice(`Published ${counter} files.`);
+			//Reload the publication center
+		});
+
+		//Button for removing publish
+		const changedFileButtonContainer = changedFiles.createEl("div");
+		const changedFileButton = new ButtonComponent(changedFileButtonContainer);
+		changedFileButton  
+		.setButtonText("Update")
+		.onClick(()=>{
+			let counter = 0;
+			changedFiles.querySelectorAll("input[type=checkbox][data-file-path]").forEach(el=>{
+				const htmlEl = el as HTMLInputElement; 
+				if(htmlEl.checked && htmlEl.dataset.filePath.endsWith(".md")){
+					const file = this.app.vault.getAbstractFileByPath(htmlEl.dataset.filePath);
+					const publisher = new Publisher(this.app.vault, this.app.metadataCache, this.settings);
+					if(!file){
+						let filePath = htmlEl.dataset.filePath;
+						if(htmlEl.dataset.filePath.startsWith("/")){
+							filePath = htmlEl.dataset.filePath.substring(1);
+						}
+						publisher.delete(filePath);
+					}else{
+						publisher.publish(file as TFile);
+					}
+					counter++;
+				}
+			});
+			new Notice(`Updated ${counter} files.`);
 			//Reload the publication center
 		});
 

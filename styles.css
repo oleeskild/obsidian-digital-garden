@@ -24,23 +24,23 @@
     width: 10px;
     height: 5px;
     border-radius: 25px;
-    padding: 2px 4px;
+    padding: 2px 8px;
     margin-left: 10px;
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .dg-file-item.Deleted::after {
-    content: 'Changed';
+    content: 'Deleted';
     background-color: red;
     color: black;
     width: 10px;
     height: 5px;
     border-radius: 25px;
-    padding: 2px 4px;
+    padding: 2px 8px;
     margin-left: 10px;
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .dg-tab-title {

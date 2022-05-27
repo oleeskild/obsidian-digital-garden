@@ -13,6 +13,7 @@ export interface IPublisher {
     delete(vaultFilePath: string): Promise<boolean>;
     getFilesMarkedForPublishing(): Promise<TFile[]>;
     generateMarkdown(file: TFile): Promise<string>;
+    getFilesNotMarkedForPublishing() :Promise<TFile[]>;
 }
 export default class Publisher {
     vault: Vault;
@@ -45,6 +46,23 @@ export default class Publisher {
         }
 
         return filesToPublish;
+    }
+
+    async getFilesNotMarkedForPublishing(): Promise<TFile[]> {
+        const files = this.vault.getMarkdownFiles();
+        const notMarkedForPublish = [];
+        for (const file of files) {
+            try {
+                const frontMatter = this.metadataCache.getCache(file.path).frontmatter
+                if (!frontMatter || (frontMatter && frontMatter["dg-publish"] !== true)) {
+                    notMarkedForPublish.push(file);
+                }
+            } catch {
+                //ignore
+            }
+        }
+
+        return notMarkedForPublish;
     }
 
     async delete(vaultFilePath: string): Promise<boolean> {

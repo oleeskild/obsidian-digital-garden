@@ -8,22 +8,31 @@ export abstract class DgAbstractFile{
 
 export class DgFolder extends DgAbstractFile {
 	children: DgAbstractFile[];
-	constructor(folder: TFolder){
+
+	constructor(name: string, path: string){
 		super();
-		this.name = folder.name;
-		this.path = folder.path;
+		this.name = name;
+		this.path = path;
 		this.children = [];
+	}
+	
+	static fromTFolder(folder: TFolder){
+		return new DgFolder(folder.name, folder.path);
 	}
 }
 
 
 export class DgFile extends DgAbstractFile {
 	publishStatus: PublishStatus;
-	constructor(file: TFile){
+	constructor(name: string, path: string, publishStatus: PublishStatus = PublishStatus.Undefined){
 		super();
-		this.name = file.name;
-		this.path = file.path;
-		this.publishStatus = PublishStatus.Undefined;
+		this.name = name;
+		this.path = path;
+		this.publishStatus = publishStatus;
+	}
+
+	static fromTFile(file: TFile){
+		return new DgFile(file.name, file.path);
 	}
 }
 
