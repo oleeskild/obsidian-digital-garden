@@ -115,6 +115,7 @@ export default class Publisher {
 
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
+        text = await this.unlinkNotPublished(text, file.path);
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
@@ -182,6 +183,33 @@ export default class Publisher {
             return publishedFrontMatter;
         });
         return replaced;
+    }
+
+    async unlinkNotPublished(text: string, path: string): Promise<string> {
+		let converted = text;
+        const linkRegex = /[^!]\[\[.*?\]\]/g;
+        const linkMatches = text.match(linkRegex);
+        if (!linkMatches) return text;
+		for (const linkMatch of linkMatches) {
+			try {
+				const [linkFileName] = linkMatch.substring(linkMatch.indexOf('[') + 2, linkMatch.indexOf(']')).split("|");
+				const linkFilePath = getLinkpath(linkFileName);
+				const linkedFile = this.metadataCache.getFirstLinkpathDest(linkFilePath, path);
+				if (linkedFile) {
+					if (linkedFile.extension === "md") {
+						const cache = this.metadataCache.getCache(linkedFile.path);
+						if (cache.frontmatter && cache.frontmatter['dg-publish']) {
+							continue;
+						}
+					}
+				}
+				converted = converted.replace(linkMatch.trim(), linkFileName);
+			} catch (e) {
+				console.error(e);
+				continue;
+			}
+		}
+        return converted;
     }
 
     getProcessedFrontMatter(filePath: string): string {
