@@ -21,7 +21,7 @@ export default class Publisher {
 
     codeFenceRegex: RegExp = /`(.*?)`/g;
     codeBlockRegex: RegExp = /```.*?\n[\s\S]+?```/g;
-    excaliDrawRegex: RegExp = /:\[\[(\d*?,\d*?)\],.*?\]\]/g; 
+    excaliDrawRegex: RegExp = /:\[\[(\d*?,\d*?)\],.*?\]\]/g;
 
     constructor(vault: Vault, metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.vault = vault;
@@ -120,6 +120,7 @@ export default class Publisher {
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.createBase64Images(text, file.path);
+        text = await this.createSvgEmbeds(text, file.path);
         text = await this.removeObsidianComments(text);
         return text;
     }
@@ -174,7 +175,7 @@ export default class Publisher {
 
     }
 
-    stripAwayCodeFences(text: string): string{
+    stripAwayCodeFences(text: string): string {
         let textToBeProcessed = text;
         textToBeProcessed = textToBeProcessed.replace(this.excaliDrawRegex, '');
         textToBeProcessed = textToBeProcessed.replace(this.codeBlockRegex, '');
@@ -189,9 +190,9 @@ export default class Publisher {
         const obsidianCommentsRegex: RegExp = /%%.+?%%/gms;
         const obsidianCommentsMatches = textToBeProcessed.match(obsidianCommentsRegex);
 
-        if(obsidianCommentsMatches){
-            for(const commentMatch of obsidianCommentsMatches){
-                    text = text.replace(commentMatch, '');
+        if (obsidianCommentsMatches) {
+            for (const commentMatch of obsidianCommentsMatches) {
+                text = text.replace(commentMatch, '');
             }
         }
 
@@ -293,7 +294,7 @@ export default class Publisher {
             for (const linkMatch of linkedFileMatches) {
                 try {
 
-                    const textInsideBrackets = linkMatch.substring(linkMatch.indexOf('[') + 2,linkMatch.lastIndexOf(']')-1);
+                    const textInsideBrackets = linkMatch.substring(linkMatch.indexOf('[') + 2, linkMatch.lastIndexOf(']') - 1);
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
 
                     prettyName = prettyName || linkedFileName;
@@ -307,14 +308,14 @@ export default class Publisher {
                     }
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
-                    if(!linkedFile){
+                    if (!linkedFile) {
                         convertedText = convertedText.replace(linkMatch, `[[${linkedFileName}${headerPath}|${prettyName}]]`);
                     }
                     if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
                         convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}|${prettyName}]]`);
                     }
-                } catch(e){
+                } catch (e) {
                     console.log(e);
                     continue;
                 }
@@ -325,8 +326,8 @@ export default class Publisher {
 
     }
 
-    async createTranscludedText(text: string, filePath: string, currentDepth:number): Promise<string> {
-        if(currentDepth >= 4){
+    async createTranscludedText(text: string, filePath: string, currentDepth: number): Promise<string> {
+        if (currentDepth >= 4) {
             return text;
         }
 
@@ -362,8 +363,8 @@ export default class Publisher {
                         fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n`
                             + fileText + '\n\n</div></div>\n'
 
-                        if(fileText.match(transcludedRegex)) {
-                            fileText = await this.createTranscludedText(fileText,linkedFile.path, currentDepth+1);
+                        if (fileText.match(transcludedRegex)) {
+                            fileText = await this.createTranscludedText(fileText, linkedFile.path, currentDepth + 1);
                         }
                         //This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
@@ -378,7 +379,60 @@ export default class Publisher {
 
     }
 
+
+    async createSvgEmbeds(text: string, filePath: string): Promise<string> {
+
+        //![[image.svg]]
+        const transcludedSvgRegex = /!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
+        const transcludedSvgs = text.match(transcludedSvgRegex);
+        if (transcludedSvgs) {
+            for (const svg of transcludedSvgs) {
+                try {
+
+                    let [imageName, size] = svg.substring(svg.indexOf('[') + 2, svg.indexOf(']')).split("|");
+                    const imagePath = getLinkpath(imageName);
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
+                    const svgText = await this.vault.read(linkedFile);
+                    text = text.replace(svg, svgText);
+                } catch {
+                    continue;
+                }
+            }
+        }
+
+        //!()[image.svg]
+        const linkedSvgRegex = /!\[(.*?)\]\((.*?)(\.(svg))\)/g;
+        const linkedSvgMatches = text.match(linkedSvgRegex);
+        if (linkedSvgMatches) {
+            for (const svg of linkedSvgMatches) {
+                try {
+                    let pathStart = svg.lastIndexOf("(") + 1;
+                    let pathEnd = svg.lastIndexOf(")");
+                    let imagePath = svg.substring(pathStart, pathEnd);
+                    if (imagePath.startsWith("http")) {
+                        continue;
+                    }
+
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
+                    const svgText = await this.vault.read(linkedFile);
+                    text = text.replace(svg, svgText);
+                } catch {
+                    continue;
+                }
+            }
+        }
+
+        return text;
+    }
     async createBase64Images(text: string, filePath: string): Promise<string> {
+
+        function getExtension(linkedFile: TFile) {
+            //Markdown-it will not recognize jpg images. But putting png as the extension makes it work for some reason.
+            if (linkedFile.extension === 'jpg' || linkedFile.extension === 'jpeg')
+                return 'png'
+            return linkedFile.extension;
+        }
+
         let imageText = text;
         //![[image.png]]
         const transcludedImageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
@@ -394,7 +448,7 @@ export default class Publisher {
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
                     const name = size ? `${imageName}|${size}` : imageName;
-                    const imageMarkdown = `![${name}](data:image/${linkedFile.extension};base64,${imageBase64})`;
+                    const imageMarkdown = `![${name}](data:image/${getExtension(linkedFile)};base64,${imageBase64})`;
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch {
                     continue;
@@ -405,28 +459,28 @@ export default class Publisher {
         //![](image.png)
         const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
         const imageMatches = text.match(imageRegex);
-        if(imageMatches){
-            for(let i = 0; i<imageMatches.length; i++){
-                try{
+        if (imageMatches) {
+            for (let i = 0; i < imageMatches.length; i++) {
+                try {
                     const imageMatch = imageMatches[i];
 
                     let nameStart = imageMatch.indexOf('[') + 1;
                     let nameEnd = imageMatch.indexOf(']');
                     let imageName = imageMatch.substring(nameStart, nameEnd);
 
-                    let pathStart= imageMatch.lastIndexOf("(")+1;
+                    let pathStart = imageMatch.lastIndexOf("(") + 1;
                     let pathEnd = imageMatch.lastIndexOf(")");
                     let imagePath = imageMatch.substring(pathStart, pathEnd);
-                    if(imagePath.startsWith("http")){
+                    if (imagePath.startsWith("http")) {
                         continue;
                     }
 
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
-                    const imageMarkdown = `![${imageName}](data:image/${linkedFile.extension};base64,${imageBase64})`;
+                    const imageMarkdown = `![${imageName}](data:image/${getExtension(linkedFile)};base64,${imageBase64})`;
                     imageText = imageText.replace(imageMatch, imageMarkdown);
-                }catch{
+                } catch {
                     continue;
                 }
             }
@@ -477,7 +531,7 @@ export default class Publisher {
 
         excaliDrawCode += excalidraw(JSON.stringify(excaliDrawJson), drawingId);
 
-        return `${includeFrontMatter ? frontMatter:''}${excaliDrawCode}`;
+        return `${includeFrontMatter ? frontMatter : ''}${excaliDrawCode}`;
     }
 }
 
