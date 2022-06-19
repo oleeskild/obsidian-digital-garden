@@ -5,7 +5,6 @@ import { Octokit } from "@octokit/core";
 import { arrayBufferToBase64, generateUrlPath, kebabize } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
-import { getuid } from "process";
 
 
 export interface IPublisher {
@@ -19,7 +18,10 @@ export default class Publisher {
     metadataCache: MetadataCache;
     settings: DigitalGardenSettings;
     frontmatterRegex: RegExp = /^\s*?---\n([\s\S]*?)\n---/g;
-    obsidianCommentsRegex: RegExp = /%%.+?%%/gms;
+
+    codeFenceRegex: RegExp = /`(.*?)`/g;
+    codeBlockRegex: RegExp = /```.*?\n[\s\S]+?```/g;
+    excaliDrawRegex: RegExp = /:\[\[(\d*?,\d*?)\],.*?\]\]/g; 
 
     constructor(vault: Vault, metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.vault = vault;
@@ -172,8 +174,28 @@ export default class Publisher {
 
     }
 
+    stripAwayCodeFences(text: string): string{
+        let textToBeProcessed = text;
+        textToBeProcessed = textToBeProcessed.replace(this.excaliDrawRegex, '');
+        textToBeProcessed = textToBeProcessed.replace(this.codeBlockRegex, '');
+        textToBeProcessed = textToBeProcessed.replace(this.codeFenceRegex, '');
+        return textToBeProcessed;
+
+    }
+
     async removeObsidianComments(text: string): Promise<string> {
-        return text.replace(this.obsidianCommentsRegex, '');
+
+        const textToBeProcessed = this.stripAwayCodeFences(text);
+        const obsidianCommentsRegex: RegExp = /%%.+?%%/gms;
+        const obsidianCommentsMatches = textToBeProcessed.match(obsidianCommentsRegex);
+
+        if(obsidianCommentsMatches){
+            for(const commentMatch of obsidianCommentsMatches){
+                    text = text.replace(commentMatch, '');
+            }
+        }
+
+        return text;
     }
 
     async convertFrontMatter(text: string, path: string): Promise<string> {
@@ -262,39 +284,14 @@ export default class Publisher {
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
 
+        const textToBeProcessed = this.stripAwayCodeFences(text);
+
         const linkedFileRegex = /\[\[(.*?)\]\]/g;
-        const linkedFileMatches = text.match(linkedFileRegex);
-
-        const codeFenceRegex = /`(.*?)`/g;
-        const codeFences = text.match(codeFenceRegex);
-
-        const codeBlockRegex = /```.*?\n[\s\S]+?```/g;
-        const codeBlocks = text.match(codeBlockRegex);
-
-        const excaliDrawRegex = /:\[\[(\d*?,\d*?)\],.*?\]\]/g; 
-        const excalidrawings = text.match(excaliDrawRegex);
+        const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
 
         if (linkedFileMatches) {
             for (const linkMatch of linkedFileMatches) {
                 try {
-                    const insideCodeBlockIndex = codeBlocks ? codeBlocks.findIndex(codeBlock => codeBlock.includes(linkMatch)) : -1;
-                    if(insideCodeBlockIndex>-1) {
-                        codeBlocks.splice(insideCodeBlockIndex, 1);
-                        continue;
-                    }
-
-                    const insideCodeFenceIndex = codeFences ? codeFences.findIndex(codeFence => codeFence.includes(linkMatch)) : -1;
-                    if(insideCodeFenceIndex>-1) {
-                        codeFences.splice(insideCodeFenceIndex, 1);
-                        continue;
-                    }
-
-                    const excalidrawIndex = excalidrawings ? excalidrawings.findIndex(excalidraw => excalidraw.includes(linkMatch)) : -1;
-                    if(excalidrawIndex>-1) {
-                        excalidrawings.splice(excalidrawIndex, 1);
-                        continue;
-                    }
-
 
                     const textInsideBrackets = linkMatch.substring(linkMatch.indexOf('[') + 2,linkMatch.lastIndexOf(']')-1);
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
