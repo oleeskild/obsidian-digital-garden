@@ -72,6 +72,8 @@ The plugin currently supports rendering of these types of note contents:
 * MathJax
 * Highlighted text
 * Footnotes
+* Mermaid diagrams
+* PlantUML diagrams
 
 
 ## Themes
