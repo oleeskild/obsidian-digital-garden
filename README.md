@@ -64,6 +64,7 @@ In the future you will be notified with a visual cue whenever there is an update
 The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
 * Links to other notes
+* Dataview queries (currently no support for DataviewJS)
 * Callouts/Admonitions
 * Embedded/Transcluded Excalidraw drawings 
 * Embedded/Transcluded Images
