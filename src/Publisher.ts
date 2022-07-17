@@ -5,6 +5,7 @@ import { Octokit } from "@octokit/core";
 import { arrayBufferToBase64, generateUrlPath, kebabize } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
+import { getAPI } from "obsidian-dataview";
 
 
 export interface IPublisher {
@@ -118,10 +119,11 @@ export default class Publisher {
         let text = await this.vault.cachedRead(file);
         text = await this.convertFrontMatter(text, file.path);
         text = await this.createTranscludedText(text, file.path, 0);
+        text = await this.convertDataViews(text, file.path);
         text = await this.convertLinksToFullPath(text, file.path);
-        text = await this.createBase64Images(text, file.path);
-        text = await this.createSvgEmbeds(text, file.path);
         text = await this.removeObsidianComments(text);
+        text = await this.createSvgEmbeds(text, file.path);
+        text = await this.createBase64Images(text, file.path);
         return text;
     }
 
@@ -205,6 +207,29 @@ export default class Publisher {
             return publishedFrontMatter;
         });
         return replaced;
+    }
+
+    async convertDataViews(text: string, path:string): Promise<string> {
+        let replacedText = text;
+        const dataViewRegex: RegExp = /```dataview(.+?)```/gsm;
+        const dvApi = getAPI();
+        const matches = text.matchAll(dataViewRegex);
+        if(!matches)return;
+
+        for(const queryBlock of matches){
+            try{
+                const block = queryBlock[0];
+                const query = queryBlock[1];
+                const markdown = await dvApi.tryQueryMarkdown(query, path);
+                replacedText = replacedText.replace(block, markdown);                
+            }catch(e){
+                console.log(e)
+                new Notice("Unable to render dataview query. Please update the dataview plugin to the latest version.")
+                return queryBlock[0];
+            }
+        }
+        return replacedText;
+
     }
 
     getProcessedFrontMatter(filePath: string): string {

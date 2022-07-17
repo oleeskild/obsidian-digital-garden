@@ -26,6 +26,7 @@
         "@sindresorhus/slugify": "^1.1.0",
         "axios": "^0.26.1",
         "crypto-js": "^4.1.1",
-        "js-base64": "^3.7.2"
+        "js-base64": "^3.7.2",
+        "obsidian-dataview": "^0.5.41"
     }
 }
