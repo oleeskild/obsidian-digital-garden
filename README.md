@@ -22,6 +22,7 @@ dg-home: true
 dg-publish: true
 ---
 ```
+(If you get backticks, \`\`\`, at the start and beginning when copy-pasting the above text, delete those. It should start and end with a triple dash, ---. See [this page](https://help.obsidian.md/Advanced+topics/YAML+front+matter) for more info about Obsidian and frontmatter.)
 
 **This does two things:**
 
