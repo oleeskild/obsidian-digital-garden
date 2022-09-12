@@ -4,6 +4,7 @@ import axios from "axios";
 import { Octokit } from '@octokit/core';
 import { Base64 } from 'js-base64';
 import { arrayBufferToBase64 } from './utils';
+import DigitalGarden from 'main';
 
 export default class SettingView {
     private app: App;
@@ -32,6 +33,7 @@ export default class SettingView {
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
         this.initializeGitHubBaseURLSetting();
+        this.initializeRibbonIconSetting();
         this.initializeDefaultNoteSettings();
         this.initializeThemesSettings();
         prModal.titleEl.createEl("h1", "Site template settings");
@@ -70,7 +72,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-                    this.saveSettings();
+                    this.saveSettings(); 
                 })
             })
     }
@@ -300,6 +302,19 @@ export default class SettingView {
                     this.settings.gardenBaseUrl = value;
                     await this.saveSettings();
                 }));
+    }
+
+    private initializeRibbonIconSetting() {
+        new Setting(this.settingsRootElement)
+            .setName('Show ribbon icon')
+            .setDesc('Show ribbon icon in the Obsidian sidebar. You need to reload Obsdian for changes to take effect.')
+            .addToggle(toggle=>
+                toggle.setValue(this.settings.showRibbonIcon)
+                .onChange(async (value)=>{
+                    this.settings.showRibbonIcon = value;
+                    await this.saveSettings();
+                })
+        ); 
     }
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {

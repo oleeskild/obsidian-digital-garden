@@ -19,3 +19,6 @@ main.js
 # obsidian
 data.json
 deploy.ps1
+
+# mac
+.DS_Store

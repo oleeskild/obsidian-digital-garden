@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	theme: "dark",
 	baseTheme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: '',
+	showRibbonIcon: true,
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
@@ -40,9 +41,11 @@ export default class DigitalGarden extends Plugin {
 		await this.addCommands();
 
 		addIcon('digital-garden-icon', seedling);
-		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
-			this.openPublishModal();
-		});
+		if(this.settings.showRibbonIcon){
+			this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
+				this.openPublishModal();
+			});
+		}
 
 	}
 
