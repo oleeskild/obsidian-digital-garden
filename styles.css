@@ -66,14 +66,22 @@
 }
 
 .dg-tab {
-    width: 30%;
+    width: 35%;
+}
+
+.dg-tab.dg-active button{
+    display: block;
+}
+
+.dg-tab:not(.dg-active) button{
+    display: none;
 }
 
 .dg-tab-content {
     height: 100%;
     position: absolute;
     top: 1em;
-    left: 33%;
+    left: 38%;
     height: 500px;
     overflow-y: auto;
     font-size: 1.2rem;
@@ -132,6 +140,8 @@
 }
 
 .dg-explanation {
-    background-color: rgba(0, 0, 0, 0.8);
+    /* background-color: rgba(0, 0, 0, 0.8); */
     padding: 10px;
+    max-height: 500px;
+    overflow-y: auto;
 }
