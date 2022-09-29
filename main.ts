@@ -7,6 +7,7 @@ import { PublishStatusBar } from 'src/PublishStatusBar';
 import { seedling } from 'src/constants';
 import { PublishModal } from 'src/PublishModal';
 import PublishStatusManager from 'src/PublishStatusManager';
+import ObsidianFrontMatterEngine from 'src/ObsidianFrontMatterEngine';
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: '',
@@ -175,6 +176,15 @@ export default class DigitalGarden extends Plugin {
 			name: 'Open Publication Center',
 			callback: async () => {
 				this.openPublishModal();
+			}
+		});
+
+		this.addCommand({
+			id: 'dg-mark-note-for-publish',
+			name: 'Add publish flag',
+			callback: async () => {
+				const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, this.app.workspace.getActiveFile());
+				engine.set("dg-publish", true).apply();
 			}
 		});
 
