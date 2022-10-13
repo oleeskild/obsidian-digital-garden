@@ -14,5 +14,7 @@ export default interface DigitalGardenSettings {
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;
+		dgShowBacklinks: boolean;
+		dgShowLocalGraph: boolean;
 	}
 }

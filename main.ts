@@ -22,6 +22,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
+		dgShowBacklinks: false,
+		dgShowLocalGraph: false,
 	}
 }
 

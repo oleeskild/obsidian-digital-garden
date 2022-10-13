@@ -306,7 +306,6 @@ export default class Publisher {
         return publishedFrontMatter;
     }
 
-
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
 

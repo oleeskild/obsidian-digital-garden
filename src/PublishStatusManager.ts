@@ -22,7 +22,9 @@ export default class PublishStatusManager implements IPublishStatusManager{
         const deletedNotePaths: Array<string> = [];
         Object.keys(remoteNoteHashes).forEach(key => {
             if (!marked.find(f => f.path === key)) {
-                deletedNotePaths.push(key);
+                if(!key.endsWith(".js")){
+                    deletedNotePaths.push(key);
+                }
             }
         });
 

@@ -72,7 +72,29 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-                    this.saveSettings(); 
+                    this.saveSettings();
+                })
+            })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show backlinks for notes (dg-show-backlinks)")
+            .setDesc("When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowBacklinks = val;
+                    this.saveSettings();
+                })
+            })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show local graph for notes (dg-show-local-graph)")
+            .setDesc("When turned on, notes will show its local graph on desktop. It will not be shown on mobile devices.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowLocalGraph = val;
+                    this.saveSettings();
                 })
             })
     }
@@ -308,13 +330,13 @@ export default class SettingView {
         new Setting(this.settingsRootElement)
             .setName('Show ribbon icon')
             .setDesc('Show ribbon icon in the Obsidian sidebar. You need to reload Obsdian for changes to take effect.')
-            .addToggle(toggle=>
+            .addToggle(toggle =>
                 toggle.setValue(this.settings.showRibbonIcon)
-                .onChange(async (value)=>{
-                    this.settings.showRibbonIcon = value;
-                    await this.saveSettings();
-                })
-        ); 
+                    .onChange(async (value) => {
+                        this.settings.showRibbonIcon = value;
+                        await this.saveSettings();
+                    })
+            );
     }
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {

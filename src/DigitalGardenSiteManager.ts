@@ -143,20 +143,24 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "package.json",
             "src/site/404.njk",
             "src/site/index.njk",
-            "src/site/versionednote.njk",
+            "src/site/index.11tydata.js",
             "src/site/versionednote.njk",
             "src/site/styles/style.scss",
             "src/site/styles/digital-garden-base.scss",
             "src/site/styles/obsidian-base.scss",
             "src/site/notes/notes.json",
+            "src/site/notes/notes.11tydata.js",
             "src/site/_includes/layouts/note.njk",
             "src/site/_includes/layouts/versionednote.njk",
             "src/site/_includes/components/notegrowthhistory.njk",
             "src/site/_includes/components/pageheader.njk",
+            "src/site/_includes/components/sidebar.njk",
+            "src/site/_includes/components/graphScript.njk",
             "src/site/_data/versionednotes.js",
             "src/site/_data/meta.js",
             "src/site/img/outgoing.svg"
         ];
+
         for (const file of filesToModify) {
             //get from my repo
             const latestFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
