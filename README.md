@@ -66,6 +66,8 @@ The plugin currently supports rendering of these types of note contents:
 * Basic Markdown Syntax
 * Links to other notes
 * Dataview queries (currently no support for DataviewJS)
+* Backlinks
+* Local graph
 * Callouts/Admonitions
 * Embedded/Transcluded Excalidraw drawings 
 * Embedded/Transcluded Images
@@ -105,6 +107,22 @@ If you for some reason want all the frontmatter to be sent through, you can set 
 ```
 ---
 dg-pass-frontmatter: true
+---
+```
+
+## Show backlinks
+If you want to show all (published) backlinks to a note you can enable this setting. It will appear in a sidebar on desktop, and the bottom of the page for mobile.
+```
+---
+dg-show-backlinks: true
+---
+```
+
+## Show local graph
+Enable this if you want to show a local graph similar to the one in Obsidian. It will show both incoming and outgoing links to the current note. It will only be displayed on desktop.
+```
+---
+dg-show-local-graph: true
 ---
 ```
 
