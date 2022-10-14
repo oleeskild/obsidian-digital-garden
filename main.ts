@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgPassFrontmatter: false,
 		dgShowBacklinks: false,
 		dgShowLocalGraph: false,
+		dgShowInlineTitle: false
 	}
 }
 

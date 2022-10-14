@@ -97,6 +97,17 @@ export default class SettingView {
                     this.saveSettings();
                 })
             })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show inline title (dg-show-inline-title)")
+            .setDesc("When turned on, the title of the note will show on top of the page.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowInlineTitle = val;
+                    this.saveSettings();
+                })
+            })
     }
 
 
