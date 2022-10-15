@@ -377,14 +377,29 @@ export default class Publisher {
 
                         let fileText = await this.vault.cachedRead(linkedFile);
 
+						if (tranclusionFileName.includes('#')) { // transcluding header only
+							const metadata = this.metadataCache.getFileCache(linkedFile);
+							const refHeader = tranclusionFileName.split('#')[1]; 
+							const headerInFile = metadata.headings?.find(header => header.heading === refHeader);
+
+							if (headerInFile) {
+								const cutTo = metadata.headings[metadata.headings.indexOf(headerInFile) + 1];
+								const cutToLine = cutTo?.position?.start?.line;
+
+								fileText = fileText
+									.split('\n')
+									.slice(headerInFile.position.start.line, cutToLine)
+									.join('\n');
+							}
+						}
                         //Remove frontmatter from transclusion
                         fileText = fileText.replace(this.frontmatterRegex, "");
 
                         const header = this.generateTransclusionHeader(headerName, linkedFile);
 
-                        const headerSection = header ? `${header}\n` : '';
+                        const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
 
-                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n<div class="markdown-embed-title">\n\n${headerSection}\n\n</div>\n\n`
+                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n${headerSection}\n\n`
                             + fileText + '\n\n</div></div>\n'
 
                         if (fileText.match(transcludedRegex)) {
