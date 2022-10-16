@@ -16,5 +16,6 @@ export default interface DigitalGardenSettings {
 		dgPassFrontmatter: boolean;
 		dgShowBacklinks: boolean;
 		dgShowLocalGraph: boolean;
+		dgShowInlineTitle: boolean;
 	}
 }
