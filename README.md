@@ -90,7 +90,7 @@ Leave the favicon setting blank if you want to use the default favicon.
 
 
 ## Note settings
-All notes published with Digital Garden supports settings that can be set via frontmatter. This can either be set on a per-note basis, or you can change the default setting for all notes by changing the settings in the "Settings > Digital Garden > Note Settings - Edit". When changing the default setting, any explicit flag in any note will overwrite the default value. 
+All notes published with Digital Garden supports settings that can be set via frontmatter. This can either be set on a per-note basis, or you can change the default setting for all notes by changing the settings in the "Settings > Digital Garden > Note Settings > Edit". When changing the default setting, any explicit flag in any note will overwrite the default value. 
 
 ### Hiding home link
 By default, all notes except the home-note shows a link back to the home-note. If you want this to be hidden in one of your notes (handy if you simply want to share a single note with someone) you can set this property in your frontmatter:
@@ -123,6 +123,14 @@ Enable this if you want to show a local graph similar to the one in Obsidian. It
 ```
 ---
 dg-show-local-graph: true
+---
+```
+
+## Show inline title
+Enable this if you want to show the title of your note at the top of the page .
+```
+---
+dg-show-inline-title: true
 ---
 ```
 
