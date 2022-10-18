@@ -333,11 +333,11 @@ export default class Publisher {
                     const fullLinkedFilePath = getLinkpath(linkedFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(fullLinkedFilePath, filePath);
                     if (!linkedFile) {
-                        convertedText = convertedText.replace(linkMatch, `[[${linkedFileName}${headerPath}\|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${linkedFileName}${headerPath}\\|${prettyName}]]`);
                     }
                     if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}\|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}\\|${prettyName}]]`);
                     }
                 } catch (e) {
                     console.log(e);
