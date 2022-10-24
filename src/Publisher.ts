@@ -297,11 +297,13 @@ export default class Publisher {
                 //@ts-ignore
                 publishedFrontMatter[key] = baseFrontMatter[kebabize(key)]
             }
-            else {
-                //@ts-ignore
-                publishedFrontMatter[key] = this.settings.defaultNoteSettings[key];
-            }
         }
+
+        if(this.settings.defaultNoteSettings.dgPassFrontmatter){ 
+            //@ts-ignore
+            publishedFrontMatter.dgPassFrontmatter = this.settings.defaultNoteSettings.dgPassFrontmatter;
+        }
+
 
         return publishedFrontMatter;
     }

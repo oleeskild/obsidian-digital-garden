@@ -5,6 +5,7 @@ import { Octokit } from '@octokit/core';
 import { Base64 } from 'js-base64';
 import { arrayBufferToBase64 } from './utils';
 import DigitalGarden from 'main';
+import DigitalGardenSiteManager from './DigitalGardenSiteManager';
 
 export default class SettingView {
     private app: App;
@@ -45,8 +46,7 @@ export default class SettingView {
 
         new Setting(this.settingsRootElement)
             .setName("Note Settings")
-            .setDesc(`Default settings for each published note. These can be overwritten per note via frontmatter. 
-            Note: After changing any of these settings, you must re-publish notes for it to take effect. They will appear in the "Changed" list in the publication center.`)
+            .setDesc(`Default settings for each published note. These can be overwritten per note via frontmatter.`)
             .addButton(cb => {
                 cb.setButtonText("Edit");
                 cb.onClick(async () => {
@@ -61,7 +61,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgHomeLink)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgHomeLink = val;
-                    this.saveSettings();
+                    this.saveNoteSettingsAndUpdateEnv();
                 })
             })
 
@@ -72,7 +72,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-                    this.saveSettings();
+                    this.saveNoteSettingsAndUpdateEnv();
                 })
             })
 
@@ -83,7 +83,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowBacklinks = val;
-                    this.saveSettings();
+                    this.saveNoteSettingsAndUpdateEnv();
                 })
             })
 
@@ -94,7 +94,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-                    this.saveSettings();
+                    this.saveNoteSettingsAndUpdateEnv();
                 })
             })
 
@@ -105,7 +105,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-                    this.saveSettings();
+                    this.saveNoteSettingsAndUpdateEnv();
                 })
             })
     }
@@ -174,25 +174,58 @@ export default class SettingView {
                 cb.setButtonText("Apply settings to site");
                 cb.onClick(async ev => {
                     const octokit = new Octokit({ auth: this.settings.githubToken });
-                    await this.updateEnv(octokit);
+                    await this.saveThemeAndUpdateEnv();
                     await this.addFavicon(octokit);
                 });
             })
 
 
     }
-    private async updateEnv(octokit: Octokit) {
+
+    private async saveThemeAndUpdateEnv() {
         const theme = JSON.parse(this.settings.theme);
         const baseTheme = this.settings.baseTheme;
         if (theme.modes.indexOf(baseTheme) < 0) {
             new Notice(`The ${theme.name} theme doesn't support ${baseTheme} mode.`)
             return;
         }
+        const gardenManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings)
+        await gardenManager.updateEnv();
+
+        new Notice("Successfully applied theme");
+    }
+
+    private async saveNoteSettingsAndUpdateEnv() {
+        const octokit = new Octokit({ auth: this.settings.githubToken });
+        let updateFailed = false;
+        try {
+            const gardenManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings)
+            await gardenManager.updateEnv();
+        } catch {
+            new Notice("Failed to update settings. Make sure you have an internet connection.")
+            updateFailed = true;
+        }
+
+        if (!updateFailed) {
+            await this.saveSettings();
+        }
+    }
+
+    private async updateEnv(octokit: Octokit) {
+        const theme = JSON.parse(this.settings.theme);
+        const baseTheme = this.settings.baseTheme;
 
         let envSettings = '';
         if (theme.name !== 'default') {
             envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
         }
+
+        const defaultNoteSettings = { ...this.settings.defaultNoteSettings };
+        for (const key of Object.keys(defaultNoteSettings)) {
+            //@ts-ignore
+            envSettings += `\n${key}=${defaultNoteSettings[key]}`;
+        }
+
         const base64Settings = Base64.encode(envSettings);
 
         let fileExists = true;
@@ -212,11 +245,12 @@ export default class SettingView {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
             path: ".env",
-            message: `Update theme`,
+            message: `Update settings`,
             content: base64Settings,
             sha: fileExists ? currentFile.data.sha : null
         });
-        new Notice("Successfully applied theme");
+
+
     }
 
     private async addFavicon(octokit: Octokit) {

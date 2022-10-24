@@ -2,6 +2,7 @@ import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
 import { extractBaseUrl, generateUrlPath } from "./utils";
 import { Octokit } from "@octokit/core";
+import { Base64 } from 'js-base64';
 
 export interface IDigitalGardenSiteManager {
     getNoteUrl(file: TFile): string;
@@ -15,6 +16,47 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         this.settings = settings;
         this.metadataCache = metadataCache;
     }
+
+    async updateEnv() {
+        const octokit = new Octokit({ auth: this.settings.githubToken });
+        const theme = JSON.parse(this.settings.theme);
+        const baseTheme = this.settings.baseTheme;
+
+        let envSettings = '';
+        if (theme.name !== 'default') {
+            envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
+        }
+
+        const defaultNoteSettings = {...this.settings.defaultNoteSettings};
+        for(const key of Object.keys(defaultNoteSettings)) {
+                //@ts-ignore
+                envSettings += `\n${key}=${defaultNoteSettings[key]}`;
+        }
+
+        const base64Settings = Base64.encode(envSettings);
+
+        let fileExists = true;
+        let currentFile = null;
+        try {
+            currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+                path: ".env",
+            });
+        } catch (error) {
+            fileExists = false;
+        }
+
+        //commit
+        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            path: ".env",
+            message: `Update settings`,
+            content: base64Settings,
+            sha: fileExists ? currentFile.data.sha : null
+        });
+    }    
 
     getNoteUrl(file: TFile): string {
         const baseUrl = this.settings.gardenBaseUrl ?

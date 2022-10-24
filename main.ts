@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	baseTheme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: '',
 	showRibbonIcon: true,
+	noteSettingsIsInitialized: false,
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
@@ -50,6 +51,7 @@ export default class DigitalGarden extends Plugin {
 				this.openPublishModal();
 			});
 		}
+
 
 	}
 
@@ -212,6 +214,13 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: DigitalGarden) {
 		super(app, plugin);
 		this.plugin = plugin;
+
+		if(!this.plugin.settings.noteSettingsIsInitialized) {
+			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.plugin.settings);
+			siteManager.updateEnv();
+			this.plugin.settings.noteSettingsIsInitialized = true;
+			this.plugin.saveData(this.plugin.settings);
+		}
 	}
 
 

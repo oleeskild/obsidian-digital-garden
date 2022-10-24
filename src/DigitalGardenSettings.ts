@@ -10,6 +10,7 @@ export default interface DigitalGardenSettings {
 	baseTheme: string;
 	faviconPath: string;
 
+	noteSettingsIsInitialized: boolean;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
