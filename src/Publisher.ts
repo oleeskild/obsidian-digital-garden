@@ -322,6 +322,9 @@ export default class Publisher {
 
                     const textInsideBrackets = linkMatch.substring(linkMatch.indexOf('[') + 2, linkMatch.lastIndexOf(']') - 1);
                     let [linkedFileName, prettyName] = textInsideBrackets.split("|");
+                    if(linkedFileName.endsWith("\\")){
+                        linkedFileName = linkedFileName.substring(0, linkedFileName.length - 1);
+                    }
 
                     prettyName = prettyName || linkedFileName;
                     let headerPath = "";
