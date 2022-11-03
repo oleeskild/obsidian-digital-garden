@@ -20,12 +20,14 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	faviconPath: '',
 	showRibbonIcon: true,
 	noteSettingsIsInitialized: false,
+	siteName: 'Digital Garden',
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
 		dgShowBacklinks: false,
 		dgShowLocalGraph: false,
-		dgShowInlineTitle: false
+		dgShowInlineTitle: false,
+		dgShowFileTree: false
 	}
 }
 

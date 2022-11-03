@@ -21,11 +21,13 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         const octokit = new Octokit({ auth: this.settings.githubToken });
         const theme = JSON.parse(this.settings.theme);
         const baseTheme = this.settings.baseTheme;
+        const siteName = this.settings.siteName;
 
         let envSettings = '';
         if (theme.name !== 'default') {
-            envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
+            envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`;
         }
+        envSettings+=`\nSITE_NAME_HEADER=${siteName}`;
 
         const defaultNoteSettings = {...this.settings.defaultNoteSettings};
         for(const key of Object.keys(defaultNoteSettings)) {
@@ -198,9 +200,14 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "src/site/_includes/components/pageheader.njk",
             "src/site/_includes/components/sidebar.njk",
             "src/site/_includes/components/graphScript.njk",
+            "src/site/_includes/components/filetree.njk",
+            "src/site/_includes/components/filetreeNavbar.njk",
+            "src/site/_includes/components/navbar.njk",
             "src/site/_data/versionednotes.js",
             "src/site/_data/meta.js",
-            "src/site/img/outgoing.svg"
+            "src/site/_data/filetree.js",
+            "src/site/img/outgoing.svg",
+            "src/helpers/constants.js",
         ];
 
         for (const file of filesToModify) {

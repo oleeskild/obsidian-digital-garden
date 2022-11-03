@@ -108,6 +108,16 @@ export default class SettingView {
                     this.saveNoteSettingsAndUpdateEnv();
                 })
             })
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show filetree sidebar (dg-show-file-tree)")
+            .setDesc("When turned on, a filetree will be shown on your site.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowFileTree)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowFileTree = val;
+                    this.saveNoteSettingsAndUpdateEnv();
+                })
+            })
     }
 
 
@@ -118,7 +128,7 @@ export default class SettingView {
 
         new Setting(this.settingsRootElement)
             .setName("Appearance")
-            .setDesc("Manage themes and favicons on your site")
+            .setDesc("Manage themes, sitename and favicons on your site")
             .addButton(cb => {
                 cb.setButtonText("Manage");
                 cb.onClick(async () => {
@@ -157,6 +167,17 @@ export default class SettingView {
             });
 
         new Setting(themeModal.contentEl)
+            .setName('Sitename')
+            .setDesc('The name of your site. This will be displayed as the site header.')
+            .addText(text =>
+                text.setValue(this.settings.siteName)
+                    .onChange(async (value) => {
+                        this.settings.siteName = value;
+                        await this.saveSettings();
+                    })
+            );
+
+        new Setting(themeModal.contentEl)
             .setName("Favicon")
             .setDesc("Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.")
             .addText(tc => {
@@ -193,6 +214,7 @@ export default class SettingView {
         await gardenManager.updateEnv();
 
         new Notice("Successfully applied theme");
+        new Notice("Successfully set sitename");
     }
 
     private async saveNoteSettingsAndUpdateEnv() {
@@ -209,48 +231,6 @@ export default class SettingView {
         if (!updateFailed) {
             await this.saveSettings();
         }
-    }
-
-    private async updateEnv(octokit: Octokit) {
-        const theme = JSON.parse(this.settings.theme);
-        const baseTheme = this.settings.baseTheme;
-
-        let envSettings = '';
-        if (theme.name !== 'default') {
-            envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`
-        }
-
-        const defaultNoteSettings = { ...this.settings.defaultNoteSettings };
-        for (const key of Object.keys(defaultNoteSettings)) {
-            //@ts-ignore
-            envSettings += `\n${key}=${defaultNoteSettings[key]}`;
-        }
-
-        const base64Settings = Base64.encode(envSettings);
-
-        let fileExists = true;
-        let currentFile = null;
-        try {
-            currentFile = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-                owner: this.settings.githubUserName,
-                repo: this.settings.githubRepo,
-                path: ".env",
-            });
-        } catch (error) {
-            fileExists = false;
-        }
-
-        //commit
-        await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-            owner: this.settings.githubUserName,
-            repo: this.settings.githubRepo,
-            path: ".env",
-            message: `Update settings`,
-            content: base64Settings,
-            sha: fileExists ? currentFile.data.sha : null
-        });
-
-
     }
 
     private async addFavicon(octokit: Octokit) {
@@ -299,7 +279,7 @@ export default class SettingView {
                 sha: faviconExists ? currentFaviconOnSite.data.sha : null
             });
 
-            new Notice(`Successfully set new favicon`)
+            new Notice(`Successfully set favicon`)
         }
 
     }
@@ -382,7 +362,7 @@ export default class SettingView {
                         await this.saveSettings();
                     })
             );
-    }
+    } 
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
 
@@ -443,7 +423,7 @@ export default class SettingView {
     renderLoading() {
         this.loading.show();
         const text = "Creating PR. This should take less than 1 minute";
-        const loadingText = this.loading.createEl('h2', { text });
+        const loadingText = this.loading.createEl('h4', { text });
         this.loadingInterval = setInterval(() => {
             if (loadingText.innerText === `${text}`) {
                 loadingText.innerText = `${text}.`;

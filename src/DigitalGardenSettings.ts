@@ -10,6 +10,8 @@ export default interface DigitalGardenSettings {
 	baseTheme: string;
 	faviconPath: string;
 
+	siteName: string;
+
 	noteSettingsIsInitialized: boolean;
 
 	defaultNoteSettings: {
@@ -18,5 +20,6 @@ export default interface DigitalGardenSettings {
 		dgShowBacklinks: boolean;
 		dgShowLocalGraph: boolean;
 		dgShowInlineTitle: boolean;
+		dgShowFileTree: boolean;
 	}
 }
