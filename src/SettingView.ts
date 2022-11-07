@@ -118,6 +118,17 @@ export default class SettingView {
                     this.saveNoteSettingsAndUpdateEnv();
                 })
             })
+
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Enable search (dg-enable-search)")
+            .setDesc("When turned on, users will be able to search through the content of your site.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgEnableSearch)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgEnableSearch = val;
+                    this.saveNoteSettingsAndUpdateEnv();
+                })
+            })
     }
 
 

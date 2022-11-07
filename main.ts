@@ -27,7 +27,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgShowBacklinks: false,
 		dgShowLocalGraph: false,
 		dgShowInlineTitle: false,
-		dgShowFileTree: false
+		dgShowFileTree: false,
+		dgEnableSearch: false
 	}
 }
 

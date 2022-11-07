@@ -181,6 +181,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
     private async modifyFiles(octokit: Octokit, branchName: string) {
         const filesToModify = [
             ".eleventy.js",
+            ".eleventyignore",
             "README.md",
             "netlify.toml",
             "package-lock.json",
@@ -203,11 +204,18 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "src/site/_includes/components/filetree.njk",
             "src/site/_includes/components/filetreeNavbar.njk",
             "src/site/_includes/components/navbar.njk",
+            "src/site/_includes/components/searchButton.njk",
+            "src/site/_includes/components/searchContainer.njk",
+            "src/site/_includes/components/searchScript.njk",
+            "src/site/lunr-index.js",
+            "src/site/lunr.njk",
             "src/site/_data/versionednotes.js",
             "src/site/_data/meta.js",
             "src/site/_data/filetree.js",
             "src/site/img/outgoing.svg",
             "src/helpers/constants.js",
+            "netlify/functions/search/search.js",
+            
         ];
 
         for (const file of filesToModify) {
