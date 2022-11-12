@@ -154,7 +154,7 @@ export default class SettingView {
                 dd.addOption('{"name": "default", "modes": ["dark"]}', "Default")
                 const sortedThemes = themesListResponse.data.sort((a: { name: string; }, b: { name: any; }) => a.name.localeCompare(b.name));
                 sortedThemes.map((x: any) => {
-                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'HEAD'}/obsidian.css` }), x.name);
+                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'HEAD'}/${x.legacy ? 'obsidian.css': 'theme.css'}` }), x.name);
                     dd.setValue(this.settings.theme)
                     dd.onChange(async (val: any) => {
                         this.settings.theme = val;
