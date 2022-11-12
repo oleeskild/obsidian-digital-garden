@@ -204,6 +204,11 @@ It's also worth noting that transclusions *do not need* the dg-publish attribute
 ---
 
 ## Support
+This plugin is developed in my free time. If you've found it useful, it would make my day and boost my motivation to invest more time in it if you to showed your support by buying me a coffee.
+
+Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future. 
+
+
 [<img style="float:left" src="https://user-images.githubusercontent.com/14358394/115450238-f39e8100-a21b-11eb-89d0-fa4b82cdbce8.png" width="200">](https://ko-fi.com/oleeskild)
 
 
