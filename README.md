@@ -2,7 +2,7 @@
 Publish your notes in your own personal digital garden. 
 
 ## Docs
-Documentation and examples can be found [dg-docs.ole.dev](https://dg-docs.ole.dev/).
+Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole.dev/).
 
 ![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
 
