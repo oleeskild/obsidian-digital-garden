@@ -1,10 +1,33 @@
 # 🌱 Obsidian Digital Garden
 Publish your notes in your own personal digital garden. 
-An example can be found [here](https://ole.dev/garden).
+
+## Docs
+Documentation and examples can be found [here](https://dg-docs.ole.dev/).
 
 ![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
 
-## Configuration
+## Features
+The plugin currently supports:
+* Basic Markdown Syntax
+* Links to other notes
+* Dataview queries (currently no support for DataviewJS)
+* Backlinks
+* Obsidian Themes
+* Local graph
+* Filetree navigation
+* Global search
+* Callouts/Admonitions
+* Embedded/Transcluded Excalidraw drawings 
+* Embedded/Transcluded Images
+* Transcluded notes
+* Code Blocks
+* MathJax
+* Highlighted text
+* Footnotes
+* Mermaid diagrams
+* PlantUML diagrams
+
+## Initial Setup
 It's a bit of work to set this all up, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
 Lets get started:
 
@@ -38,17 +61,6 @@ You can now start adding links as you usually would in Obisidan, with double squ
 
 ![new-note-demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/new-note-demo.gif)
 
-## Commands
-
-**Digital Garden: Publish Single Note** command will publish the currently active note, and only this.
-
-**Digital Garden: Publish Multiple Notes** command will publish all notes in your vault that have the dg-publish setting set to true that are unpublished or have changed since last publication. It will also delete any notes that are no longer in your vault.
-Depending on the number of notes, this may take a while. You can watch the progress of publication in the bottom right statusbar. 
-
-**Copy Garden URL**: This command will copy the URL of the currently active note to your clipboard
-
-**Open Publication Center**: This command behaves the same as the ribbon icon. It will open the publication center where you can view a list what files are published, changed, deleted and not yet published.
-
 ## Modifying the template/site
 The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
 future conflict when updating the template. Netlify should automatically update your site when you make changes to the code.
@@ -60,146 +72,6 @@ If you used the "Deploy to Netlify" button, a Netlify bot will build a preview v
 When you are ready you can use the "Merge pull request" button on the pull request page to merge the changes into your main branch and make the changes go live.
 
 In the future you will be notified with a visual cue whenever there is an update ready. For now you will need to manually check. If you have the latest version, you will be told so.
-
-## Content support
-The plugin currently supports rendering of these types of note contents:
-* Basic Markdown Syntax
-* Links to other notes
-* Dataview queries (currently no support for DataviewJS)
-* Backlinks
-* Local graph
-* Callouts/Admonitions
-* Embedded/Transcluded Excalidraw drawings 
-* Embedded/Transcluded Images
-* Transcluded notes
-* Code Blocks
-* MathJax
-* Highlighted text
-* Footnotes
-* Mermaid diagrams
-* PlantUML diagrams
-
-
-## Themes
-This plugin support applying any community obsidian theme to your garden. 
-In the Digital Garden Settings, there is an Appearance setting. Clicking the "Manage" button brings up a modal which lets you select a theme and optionally a favicon. Click the "Apply settings to site" button for them to take effect to your site. 
-
-Choose the "Default" theme if you want the original Digital Garden theme. 
-
-Leave the favicon setting blank if you want to use the default favicon. 
-
-
-## Note settings
-All notes published with Digital Garden supports settings that can be set via frontmatter. This can either be set on a per-note basis, or you can change the default setting for all notes by changing the settings in the "Settings > Digital Garden > Note Settings > Edit". When changing the default setting, any explicit flag in any note will overwrite the default value. 
-
-### Hiding home link
-By default, all notes except the home-note shows a link back to the home-note. If you want this to be hidden in one of your notes (handy if you simply want to share a single note with someone) you can set this property in your frontmatter:
-
-```
----
-dg-home-link: false
----
-```
-
-## Letting through all frontmatter
-By default, only frontmatter recognized by the plugin will be published to GitHub. This is to prevent errors in the template build, if you happen to use a format that the template engine is unfamiliar with. 
-If you for some reason want all the frontmatter to be sent through, you can set the following flag in your notes:
-```
----
-dg-pass-frontmatter: true
----
-```
-
-## Show backlinks
-If you want to show all (published) backlinks to a note you can enable this setting. It will appear in a sidebar on desktop, and the bottom of the page for mobile.
-```
----
-dg-show-backlinks: true
----
-```
-
-## Show local graph
-Enable this if you want to show a local graph similar to the one in Obsidian. It will show both incoming and outgoing links to the current note. It will only be displayed on desktop.
-```
----
-dg-show-local-graph: true
----
-```
-
-## Show inline title
-Enable this if you want to show the title of your note at the top of the page .
-```
----
-dg-show-inline-title: true
----
-```
-
-## Advanced usage
-
-### Permalinks
-This plugin supports setting your own links to a note, if you prefer something else than the default behaviour.
-This is done by adding a dg-permalink attribute to the frontmatter of your file. 
-As an example, the top of your file could look like this:
-
-```
----
-dg-publish: true
-dg-permalink: "mynote"
----
-```
-
-This will make the URL to you note be "{Your-Garden-Name}.netlify.app/mynote/". You can still use normal obsidian links as before to link to it. These will be automatically corrected once you publish a note with the permalink attribute. 
-Same goes for deleting the attribute. Doing so will result in the note using the default URL. All links in other notes should automatically be corrected and still work.  
-
-The permalinks can be an arbitrary level of folders deep, such as:
-
-```
----
-dg-permalink: "category/2022/mynote/"
----
-```
-
-### Publish all notes in a specific folder
-Some people have requested functionality for publishing all notes in a given folder. To do this, you can combine this plugin with the Templater plugin to create folders which will automatically use a template having the dg-publish attribute set. Thanks to [vanadium23](https://github.com/vanadium23) for [sharing this tip.](https://github.com/oleeskild/obsidian-digital-garden/issues/26#issuecomment-1114321275)
-
-### Transclusion
-By default, transclusion of other documents just renders the content as is. If you want to also include a heading on top of the transclusion you can do so by using the pipe character:
-```
-![[Some Other Note|Heading]]
-```
-
-This will add a h1 header with the value "Heading" at the start of your transclusion.
-
-If you want the header to be equal to the title of the transcluded document, you can use this custom syntax:
-```
-![[Some Other Note|{{title}}]]
-```
-This will replace the heading with the title of the transcluded document when the note is published.
-
-You can also use the title syntax inside other text:
-```
-![[Some Other Note|This is a {{title}}]]
-```
-
-#### Specifying heading level
-You may also specify what heading level you want your transclusion to have. If you want the header to be a h2, you can use this syntax:
-```
-![[Some Other Note|##Heading]]
-```
-
-h4 would look like this:
-```
-![[Some Other Note|####Heading]]
-```
-
-#### Default behaviour
-By just using regular translucion, no header will be added:
-```
-![[Some Other Note]]
-```
-
-It's also worth noting that transclusions *do not need* the dg-publish attribute. They behave the same as an image. If you transclude something into a document, and publish that document, everything that is transcluded in it will be published as if it was part of that note. 
-
 
 ---
 
