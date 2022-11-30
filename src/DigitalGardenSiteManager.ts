@@ -188,6 +188,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "package.json",
             "src/site/404.njk",
             "src/site/index.njk",
+            "src/site/sitemap.njk",
             "src/site/index.11tydata.js",
             "src/site/versionednote.njk",
             "src/site/styles/style.scss",
