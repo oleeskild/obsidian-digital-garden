@@ -187,13 +187,25 @@ export default class Publisher {
     }
 
     async removeObsidianComments(text: string): Promise<string> {
-
-        const textToBeProcessed = this.stripAwayCodeFences(text);
         const obsidianCommentsRegex: RegExp = /%%.+?%%/gms;
-        const obsidianCommentsMatches = textToBeProcessed.match(obsidianCommentsRegex);
+        const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
+        const codeBlocks = text.match(this.codeBlockRegex) || [];
+        const codeFences = text.match(this.codeFenceRegex)||[];
+        const excalidraw = text.match(this.excaliDrawRegex)||[];
 
         if (obsidianCommentsMatches) {
             for (const commentMatch of obsidianCommentsMatches) {
+                //If comment is in a code block, code fence, or excalidrawing, leave it in
+                if(codeBlocks.findIndex(x=>x.contains(commentMatch))>-1){
+                    continue;
+                }
+                if(codeFences.findIndex(x=>x.contains(commentMatch))>-1){
+                    continue;
+                }
+
+                if(excalidraw.findIndex(x=>x.contains(commentMatch))>-1){
+                    continue;
+                }
                 text = text.replace(commentMatch, '');
             }
         }
