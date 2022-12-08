@@ -1,5 +1,5 @@
 import DigitalGardenSettings from './DigitalGardenSettings';
-import { ButtonComponent, Modal, Notice, Setting, App, TAbstractFile, TFile } from 'obsidian';
+import { ButtonComponent, Modal, Notice, Setting, App, TFile, debounce, MetadataCache } from 'obsidian';
 import axios from "axios";
 import { Octokit } from '@octokit/core';
 import { Base64 } from 'js-base64';
@@ -15,6 +15,7 @@ export default class SettingView {
     private progressViewTop: HTMLElement;
     private loading: HTMLElement;
     private loadingInterval: any;
+    debouncedSaveAndUpdate = debounce(this.saveSiteSettingsAndUpdateEnv, 500, true);
 
     constructor(app: App, settingsRootElement: HTMLElement, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
         this.app = app;
@@ -61,7 +62,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgHomeLink)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgHomeLink = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
 
@@ -72,7 +73,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
 
@@ -83,7 +84,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowBacklinks = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
 
@@ -94,7 +95,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
 
@@ -105,7 +106,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
         new Setting(noteSettingsModal.contentEl)
@@ -115,7 +116,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgShowFileTree)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgShowFileTree = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
 
@@ -126,7 +127,7 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgEnableSearch)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgEnableSearch = val;
-                    this.saveNoteSettingsAndUpdateEnv();
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
     }
@@ -227,12 +228,12 @@ export default class SettingView {
         new Notice("Successfully applied theme");
         new Notice("Successfully set sitename");
     }
-
-    private async saveNoteSettingsAndUpdateEnv() {
-        const octokit = new Octokit({ auth: this.settings.githubToken });
+    
+    private async saveSiteSettingsAndUpdateEnv(metadataCache:MetadataCache, settings:DigitalGardenSettings, saveSettings: ()=>Promise<void> ) {
+        const octokit = new Octokit({ auth: settings.githubToken });
         let updateFailed = false;
         try {
-            const gardenManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings)
+            const gardenManager = new DigitalGardenSiteManager(metadataCache, settings)
             await gardenManager.updateEnv();
         } catch {
             new Notice("Failed to update settings. Make sure you have an internet connection.")
@@ -240,7 +241,7 @@ export default class SettingView {
         }
 
         if (!updateFailed) {
-            await this.saveSettings();
+            await saveSettings();
         }
     }
 
@@ -346,19 +347,20 @@ export default class SettingView {
 
     }
 
+
+
     private initializeGitHubBaseURLSetting() {
         new Setting(this.settingsRootElement)
             .setName('Base URL')
             .setDesc(`
-            This is used for the "Copy Note URL" command and is optional. 
-            If you leave it blank, the plugin will try to guess it from the repo name.
+            This is optional. It is used for the "Copy Note URL" command, and for generating a sitemap.xml for better SEO. 
             `)
             .addText(text => text
-                .setPlaceholder('my-garden.netlify.app')
+                .setPlaceholder('https://my-garden.netlify.app')
                 .setValue(this.settings.gardenBaseUrl)
                 .onChange(async (value) => {
                     this.settings.gardenBaseUrl = value;
-                    await this.saveSettings();
+                    this.debouncedSaveAndUpdate(this.app.metadataCache, this.settings, this.saveSettings);
                 }));
     }
 

@@ -22,12 +22,20 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         const theme = JSON.parse(this.settings.theme);
         const baseTheme = this.settings.baseTheme;
         const siteName = this.settings.siteName;
+        let gardenBaseUrl = ''
+
+        //check that gardenbaseurl is not an access token wrongly pasted.
+        if (this.settings.gardenBaseUrl && !this.settings.gardenBaseUrl.startsWith("ghp_")
+        && this.settings.gardenBaseUrl.contains(".")) {
+            gardenBaseUrl = this.settings.gardenBaseUrl;
+        }
 
         let envSettings = '';
         if (theme.name !== 'default') {
             envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`;
         }
         envSettings+=`\nSITE_NAME_HEADER=${siteName}`;
+        envSettings+=`\nSITE_BASE_URL=${gardenBaseUrl}`;
 
         const defaultNoteSettings = {...this.settings.defaultNoteSettings};
         for(const key of Object.keys(defaultNoteSettings)) {
