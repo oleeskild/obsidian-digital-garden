@@ -438,6 +438,14 @@ export default class Publisher {
 
     async createSvgEmbeds(text: string, filePath: string): Promise<string> {
 
+        function setWidth(svgText: string, size:string):string {
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+            const svgElement = svgDoc.getElementsByTagName("svg")[0];
+            svgElement.setAttribute("width",size); 
+            const svgSerializer = new XMLSerializer();
+            return svgSerializer.serializeToString(svgDoc); 
+        }
         //![[image.svg]]
         const transcludedSvgRegex = /!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
         const transcludedSvgs = text.match(transcludedSvgRegex);
@@ -450,12 +458,7 @@ export default class Publisher {
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
                     let svgText = await this.vault.read(linkedFile);
                     if (svgText && size) {
-                        const parser = new DOMParser();
-                        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
-                        const svgElement = svgDoc.getElementsByTagName("svg")[0];
-                        svgElement.setAttribute("width",size); 
-                        const svgSerializer = new XMLSerializer();
-                        svgText = svgSerializer.serializeToString(svgDoc);
+                        svgText = setWidth(svgText, size);
                     }
                     text = text.replace(svg, svgText);
                 } catch {
@@ -470,6 +473,7 @@ export default class Publisher {
         if (linkedSvgMatches) {
             for (const svg of linkedSvgMatches) {
                 try {
+                    let [imageName, size] = svg.substring(svg.indexOf('[') + 2, svg.indexOf(']')).split("|");
                     let pathStart = svg.lastIndexOf("(") + 1;
                     let pathEnd = svg.lastIndexOf(")");
                     let imagePath = svg.substring(pathStart, pathEnd);
@@ -478,7 +482,10 @@ export default class Publisher {
                     }
 
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
-                    const svgText = await this.vault.read(linkedFile);
+                    let svgText = await this.vault.read(linkedFile);
+                    if (svgText && size) {
+                        svgText = setWidth(svgText, size);
+                    }
                     text = text.replace(svg, svgText);
                 } catch {
                     continue;
