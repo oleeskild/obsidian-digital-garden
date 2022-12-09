@@ -66,16 +66,7 @@ export default class SettingView {
                 })
             })
 
-        new Setting(noteSettingsModal.contentEl)
-            .setName("Let all frontmatter through (dg-pass-frontmatter)")
-            .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")
-            .addToggle(t => {
-                t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
-                t.onChange((val) => {
-                    this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
-                })
-            })
+       
 
         new Setting(noteSettingsModal.contentEl)
             .setName("Show backlinks for notes (dg-show-backlinks)")
@@ -127,6 +118,17 @@ export default class SettingView {
                 t.setValue(this.settings.defaultNoteSettings.dgEnableSearch)
                 t.onChange((val) => {
                     this.settings.defaultNoteSettings.dgEnableSearch = val;
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                })
+            })
+
+         new Setting(noteSettingsModal.contentEl)
+            .setName("Let all frontmatter through (dg-pass-frontmatter)")
+            .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgPassFrontmatter = val;
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })

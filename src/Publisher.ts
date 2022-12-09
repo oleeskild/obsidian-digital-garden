@@ -448,7 +448,15 @@ export default class Publisher {
                     let [imageName, size] = svg.substring(svg.indexOf('[') + 2, svg.indexOf(']')).split("|");
                     const imagePath = getLinkpath(imageName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
-                    const svgText = await this.vault.read(linkedFile);
+                    let svgText = await this.vault.read(linkedFile);
+                    if (svgText && size) {
+                        const parser = new DOMParser();
+                        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+                        const svgElement = svgDoc.getElementsByTagName("svg")[0];
+                        svgElement.setAttribute("width",size); 
+                        const svgSerializer = new XMLSerializer();
+                        svgText = svgSerializer.serializeToString(svgDoc);
+                    }
                     text = text.replace(svg, svgText);
                 } catch {
                     continue;
