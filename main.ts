@@ -28,7 +28,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgShowLocalGraph: false,
 		dgShowInlineTitle: false,
 		dgShowFileTree: false,
-		dgEnableSearch: false
+		dgEnableSearch: false,
+		dgShowToc: false
 	}
 }
 

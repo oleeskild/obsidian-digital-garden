@@ -67,7 +67,17 @@ export default class SettingView {
             })
 
        
-
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show local graph for notes (dg-show-local-graph)")
+            .setDesc("When turned on, notes will show its local graph on desktop. It will not be shown on mobile devices.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowLocalGraph = val;
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                })
+            })
+       
         new Setting(noteSettingsModal.contentEl)
             .setName("Show backlinks for notes (dg-show-backlinks)")
             .setDesc("When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.")
@@ -80,12 +90,12 @@ export default class SettingView {
             })
 
         new Setting(noteSettingsModal.contentEl)
-            .setName("Show local graph for notes (dg-show-local-graph)")
-            .setDesc("When turned on, notes will show its local graph on desktop. It will not be shown on mobile devices.")
+            .setName("Show a table of content for notes (dg-show-toc)")
+            .setDesc("When turned on, notes will show all headers as a table of content in a sidebar on desktop. It will not be shown on mobile devices.")
             .addToggle(t => {
-                t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
+                t.setValue(this.settings.defaultNoteSettings.dgShowToc)
                 t.onChange((val) => {
-                    this.settings.defaultNoteSettings.dgShowLocalGraph = val;
+                    this.settings.defaultNoteSettings.dgShowToc = val;
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
@@ -100,6 +110,7 @@ export default class SettingView {
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
+            
         new Setting(noteSettingsModal.contentEl)
             .setName("Show filetree sidebar (dg-show-file-tree)")
             .setDesc("When turned on, a filetree will be shown on your site.")
