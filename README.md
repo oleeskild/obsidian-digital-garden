@@ -1,5 +1,6 @@
 # 🏡 Obsidian Digital Garden
 Publish your notes in your own personal digital garden. 
+Publish your notes to the web, for free. In your own personal garden.
 
 ## Docs
 Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole.dev/).
