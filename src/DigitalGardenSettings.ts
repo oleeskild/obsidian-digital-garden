@@ -14,6 +14,8 @@ export default interface DigitalGardenSettings {
 
 	noteSettingsIsInitialized: boolean;
 
+	slugifyEnabled: boolean;
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

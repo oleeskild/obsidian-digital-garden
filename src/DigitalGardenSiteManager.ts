@@ -25,8 +25,10 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         let gardenBaseUrl = ''
 
         //check that gardenbaseurl is not an access token wrongly pasted.
-        if (this.settings.gardenBaseUrl && !this.settings.gardenBaseUrl.startsWith("ghp_")
-        && this.settings.gardenBaseUrl.contains(".")) {
+        if (this.settings.gardenBaseUrl 
+            && !this.settings.gardenBaseUrl.startsWith("ghp_") 
+            && !this.settings.gardenBaseUrl.startsWith("github_pat")
+            && this.settings.gardenBaseUrl.contains(".")) {
             gardenBaseUrl = this.settings.gardenBaseUrl;
         }
 
@@ -74,7 +76,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             : `https://${this.settings.githubRepo}.netlify.app`;
 
 
-        const noteUrlPath = generateUrlPath(file.path);
+        const noteUrlPath = generateUrlPath(file.path, this.settings.slugifyEnabled);
 
         let urlPath = `/${noteUrlPath}`;
 

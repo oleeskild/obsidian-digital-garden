@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	showRibbonIcon: true,
 	noteSettingsIsInitialized: false,
 	siteName: 'Digital Garden',
+	slugifyEnabled: true,
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,

@@ -16,13 +16,17 @@ function extractBaseUrl(url: string) {
 	return url && url.replace("https://", "").replace("http://", "").replace(/\/$/, '')
 }
 
-function generateUrlPath(filePath: string): string {
+function generateUrlPath(filePath: string, slugifyPath: boolean = true): string {
 	if(!filePath){
 		return filePath;
 	}
-	const extensionLess = filePath.substring(0, filePath.lastIndexOf("."));
-	const noteUrlPath = extensionLess.split("/").map(x => slugify(x)).join("/") + "/";
-	return noteUrlPath;
+	const extensionLessPath = filePath.substring(0, filePath.lastIndexOf("."));
+
+	if(!slugifyPath){
+		return extensionLessPath  + "/";
+	}
+
+	return extensionLessPath.split("/").map(x => slugify(x)).join("/") + "/";
 }
 
 function generateBlobHash(content: string){

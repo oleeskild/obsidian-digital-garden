@@ -35,9 +35,10 @@ export default class SettingView {
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
         this.initializeGitHubBaseURLSetting();
-        this.initializeRibbonIconSetting();
         this.initializeDefaultNoteSettings();
         this.initializeThemesSettings();
+        this.initializeSlugifySetting();
+        this.initializeRibbonIconSetting();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
 
@@ -366,7 +367,7 @@ export default class SettingView {
         new Setting(this.settingsRootElement)
             .setName('Base URL')
             .setDesc(`
-            This is optional. It is used for the "Copy Note URL" command, and for generating a sitemap.xml for better SEO. 
+            This is optional. It is used for the "Copy Garden URL" command, and for generating a sitemap.xml for better SEO. 
             `)
             .addText(text => text
                 .setPlaceholder('https://my-garden.netlify.app')
@@ -385,6 +386,19 @@ export default class SettingView {
                 toggle.setValue(this.settings.showRibbonIcon)
                     .onChange(async (value) => {
                         this.settings.showRibbonIcon = value;
+                        await this.saveSettings();
+                    })
+            );
+    } 
+
+    private initializeSlugifySetting() {
+        new Setting(this.settingsRootElement)
+            .setName('Slugify Note URL')
+            .setDesc('Transform the URL from "/My Folder/My Note/" to "/my-folder/my-note". If your note titles contains non-English characters, this should be turned off.')
+            .addToggle(toggle =>
+                toggle.setValue(this.settings.slugifyEnabled)
+                    .onChange(async (value) => {
+                        this.settings.slugifyEnabled= value;
                         await this.saveSettings();
                     })
             );
