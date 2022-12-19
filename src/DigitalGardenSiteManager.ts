@@ -210,6 +210,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "src/site/_includes/layouts/versionednote.njk",
             "src/site/_includes/components/notegrowthhistory.njk",
             "src/site/_includes/components/pageheader.njk",
+            "src/site/_includes/components/linkPreview.njk",
             "src/site/_includes/components/sidebar.njk",
             "src/site/_includes/components/graphScript.njk",
             "src/site/_includes/components/filetree.njk",
