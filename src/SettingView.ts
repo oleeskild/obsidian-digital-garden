@@ -134,6 +134,17 @@ export default class SettingView {
                 })
             })
 
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Enable link preview (dg-link-preview)")
+            .setDesc("When turned on, hovering over links to notes in your garden shows a scrollable preview.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgLinkPreview)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgLinkPreview = val;
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                })
+            })
+
          new Setting(noteSettingsModal.contentEl)
             .setName("Let all frontmatter through (dg-pass-frontmatter)")
             .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")
