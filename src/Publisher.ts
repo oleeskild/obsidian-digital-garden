@@ -120,6 +120,7 @@ export default class Publisher {
         text = await this.convertFrontMatter(text, file.path);
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertDataViews(text, file.path);
+        text = await this.convertInlineDataViews(text, file.path)
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.removeObsidianComments(text);
         text = await this.createSvgEmbeds(text, file.path);
@@ -242,6 +243,24 @@ export default class Publisher {
         }
         return replacedText;
 
+    }
+
+    async convertInlineDataViews(text: string, path: string): Promise<string> {
+        let replacedText = text;
+        const inlineDataViewRegex: RegExp = /`(=.+?)`/sg;
+        const dvApi = getAPI();
+        const matches = text.matchAll(inlineDataViewRegex);
+        if (!matches) return;
+
+        for (const queryBlock of matches) {
+                const block = queryBlock[0];
+                const query = queryBlock[1];
+                const result = await dvApi.evaluate(query);
+                if (result.successful) {
+                    replacedText = replacedText.replace(block, result.value);
+                }
+        }
+        return replacedText;
     }
 
     getProcessedFrontMatter(filePath: string): string {
