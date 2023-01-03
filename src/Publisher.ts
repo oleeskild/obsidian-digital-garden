@@ -403,7 +403,7 @@ export default class Publisher {
 								fileText = fileText
 									.split('\n')
 									.slice(blockInFile.position.start.line, blockInFile.position.end.line + 1)
-									.join('\n');
+									.join('\n').replace(`^${refBlock}`, '');
 							}
 						} else if (tranclusionFileName.includes('#')) { // transcluding header only
 							const metadata = this.metadataCache.getFileCache(linkedFile);
