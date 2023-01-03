@@ -411,9 +411,9 @@ export default class Publisher {
 							const headerInFile = metadata.headings?.find(header => header.heading === refHeader);
 
 							if (headerInFile) {
-								const headerPosition = metadata.headings.indexOf(headerInFile) + 1;
+								const headerPosition = metadata.headings.indexOf(headerInFile);
 								// Embed should copy the content proparly under the given block
-								const cutTo = metadata.headings.slice(headerPosition + 1).find(header => header.level == headerInFile.level);
+								const cutTo = metadata.headings.slice(headerPosition + 1).find(header => header.level <= headerInFile.level);
 								if (cutTo) {
 									const cutToLine = cutTo?.position?.start?.line;
 									fileText = fileText
