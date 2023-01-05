@@ -125,7 +125,6 @@ export default class Publisher {
         text = await this.removeObsidianComments(text);
         text = await this.createSvgEmbeds(text, file.path);
 		text = await this.createBase64Images(text, file.path);
-		console.log(text);
         return text;
 	}
 	
