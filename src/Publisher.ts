@@ -6,6 +6,7 @@ import { arrayBufferToBase64, generateUrlPath, kebabize } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
+import slugify from "@sindresorhus/slugify";
 
 
 export interface IPublisher {
