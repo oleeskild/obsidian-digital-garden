@@ -23,7 +23,7 @@
     },
     "dependencies": {
         "@octokit/core": "^3.5.1",
-        "@sindresorhus/slugify": "^1.1.0",
+        "@sindresorhus/slugify": "^2.1.1",
         "axios": "^0.26.1",
         "crypto-js": "^4.1.1",
         "js-base64": "^3.7.2",
