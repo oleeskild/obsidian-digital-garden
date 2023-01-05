@@ -117,7 +117,8 @@ export default class Publisher {
         }
 
         let text = await this.vault.cachedRead(file);
-        text = await this.convertFrontMatter(text, file.path);
+		text = await this.convertFrontMatter(text, file.path);
+		text = await this.createBlockIDs(text, file.path);
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertDataViews(text, file.path);
         text = await this.convertLinksToFullPath(text, file.path);
@@ -125,7 +126,19 @@ export default class Publisher {
         text = await this.createSvgEmbeds(text, file.path);
         text = await this.createBase64Images(text, file.path);
         return text;
-    }
+	}
+	
+	async createBlockIDs(text, filePath) {
+		const block_pattern = / \^([\w\d-]+)/g;
+		const complex_block_pattern = /(\n?)\^([\w\d-]+)\n/g;
+		text = text.replace(complex_block_pattern, (match: string, $1: string, $2: string) => {
+			return `{ #${$2}}`;
+		});
+		text = text.replace(block_pattern, (match: string, $1: string) => {
+			return `{ #${$1}}`;
+		});
+		return text;
+	}
 
 
     async uploadText(filePath: string, content: string) {
@@ -371,7 +384,7 @@ export default class Publisher {
         if (currentDepth >= 4) {
             return text;
         }
-
+		const published_files = yield this.getFilesMarkedForPublishing();
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.*?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
@@ -383,7 +396,7 @@ export default class Publisher {
                     const [tranclusionFileName, headerName] = transclusionMatch.substring(transclusionMatch.indexOf('[') + 2, transclusionMatch.indexOf(']')).split("|");
                     const tranclusionFilePath = getLinkpath(tranclusionFileName);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(tranclusionFilePath, filePath);
-
+					let sectionID = "";
                     if (linkedFile.name.endsWith(".excalidraw.md")) {
                         const firstDrawing = ++numberOfExcaliDraws === 1;
                         const excaliDrawCode = await this.generateExcalidrawMarkdown(linkedFile, firstDrawing, `${numberOfExcaliDraws}`, false);
@@ -397,6 +410,7 @@ export default class Publisher {
 							// Transclude Block
 							const metadata = this.metadataCache.getFileCache(linkedFile);
 							const refBlock = tranclusionFileName.split('#^')[1];
+							sectionID = `#${slugify(refBlock)}`;
 							const blockInFile = metadata.blocks[refBlock];
 							if (blockInFile) {
 	
@@ -409,7 +423,7 @@ export default class Publisher {
 							const metadata = this.metadataCache.getFileCache(linkedFile);
 							const refHeader = tranclusionFileName.split('#')[1]; 
 							const headerInFile = metadata.headings?.find(header => header.heading === refHeader);
-
+							sectionID = `#${slugify(refHeader)}`;
 							if (headerInFile) {
 								const headerPosition = metadata.headings.indexOf(headerInFile);
 								// Embed should copy the content proparly under the given block
@@ -435,8 +449,11 @@ export default class Publisher {
                         const header = this.generateTransclusionHeader(headerName, linkedFile);
 
                         const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
-
-                        fileText = `\n<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">\n\n${headerSection}\n\n`
+						let embedded_link = "";
+						if (published_files.find((f) => f.path == linkedFile.path)) {
+							embedded_link = `<a class="markdown-embed-link" href="/${generateUrlPath(linkedFile.path)}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+						}
+                        fileText = `\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n`
                             + fileText + '\n\n</div></div>\n'
 
                         if (fileText.match(transcludedRegex)) {
