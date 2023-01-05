@@ -118,24 +118,25 @@ export default class Publisher {
 
         let text = await this.vault.cachedRead(file);
 		text = await this.convertFrontMatter(text, file.path);
-		text = await this.createBlockIDs(text, file.path);
+		text = await this.createBlockIDs(text);
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertDataViews(text, file.path);
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.removeObsidianComments(text);
         text = await this.createSvgEmbeds(text, file.path);
-        text = await this.createBase64Images(text, file.path);
+		text = await this.createBase64Images(text, file.path);
+		console.log(text);
         return text;
 	}
 	
-	async createBlockIDs(text, filePath) {
+	async createBlockIDs(text: string) {
 		const block_pattern = / \^([\w\d-]+)/g;
-		const complex_block_pattern = /(\n?)\^([\w\d-]+)\n/g;
-		text = text.replace(complex_block_pattern, (match: string, $1: string, $2: string) => {
-			return `{ #${$2}}`;
+		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
+		text = text.replace(complex_block_pattern, (match: string, $1: string) => {
+			return `{ #${$1}}\n\n`;
 		});
 		text = text.replace(block_pattern, (match: string, $1: string) => {
-			return `{ #${$1}}`;
+			return `\n{ #${$1}}\n`;
 		});
 		return text;
 	}
@@ -384,7 +385,7 @@ export default class Publisher {
         if (currentDepth >= 4) {
             return text;
         }
-		const published_files = yield this.getFilesMarkedForPublishing();
+		const published_files = await this.getFilesMarkedForPublishing();
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.*?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
