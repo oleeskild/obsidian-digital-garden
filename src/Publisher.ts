@@ -125,7 +125,8 @@ export default class Publisher {
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.removeObsidianComments(text);
         text = await this.createSvgEmbeds(text, file.path);
-		text = await this.createBase64Images(text, file.path);
+        text = await this.createBase64Images(text, file.path);
+        console.log(text);
         return text;
 	}
 	
@@ -385,7 +386,7 @@ export default class Publisher {
         if (currentDepth >= 4) {
             return text;
         }
-		const published_files = await this.getFilesMarkedForPublishing();
+		const publishedFiles = await this.getFilesMarkedForPublishing();
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.*?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
@@ -451,7 +452,7 @@ export default class Publisher {
 
                         const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
 						let embedded_link = "";
-						if (published_files.find((f) => f.path == linkedFile.path)) {
+						if (publishedFiles.find((f) => f.path == linkedFile.path)) {
 							embedded_link = `<a class="markdown-embed-link" href="/${generateUrlPath(linkedFile.path)}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
 						}
                         fileText = `\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n`
