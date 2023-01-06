@@ -265,6 +265,7 @@ export default class Publisher {
         let publishedFrontMatter: any = { "dg-publish": true };
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, filePath);
+		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addHomePageTag(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
 
@@ -273,6 +274,15 @@ export default class Publisher {
 
         return `---\n${frontMatterString}\n---\n`;
     }
+
+	addDefaultPassThrough(baseFrontMatter: any, newFrontMatter: any) {
+		// Eventually we will add other pass-throughs here. e.g. tags.
+		const publishedFrontMatter = { ...newFrontMatter };
+		if (baseFrontMatter && baseFrontMatter["title"]) {
+			publishedFrontMatter["title"] = baseFrontMatter["title"];
+		}
+		return publishedFrontMatter;
+	}
 
     addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
         const publishedFrontMatter = { ...newFrontMatter };
