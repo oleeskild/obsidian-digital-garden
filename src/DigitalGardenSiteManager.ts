@@ -227,6 +227,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             "src/site/img/outgoing.svg",
             "src/helpers/constants.js",
             "src/helpers/utils.js",
+            "src/helpers/linkUtils.js",
             "netlify/functions/search/search.js",
             
         ];
