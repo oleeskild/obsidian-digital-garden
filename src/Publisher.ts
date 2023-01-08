@@ -283,7 +283,7 @@ export default class Publisher {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
 			if ( baseFrontMatter["dg-metatags"]) {
-				publishedFrontMatter["metatags"] = baseFrontMatter["metatags"];
+				publishedFrontMatter["metatags"] = baseFrontMatter["dg-metatags"];
 			}
 		}
 		return publishedFrontMatter;
