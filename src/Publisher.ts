@@ -278,8 +278,13 @@ export default class Publisher {
 	addDefaultPassThrough(baseFrontMatter: any, newFrontMatter: any) {
 		// Eventually we will add other pass-throughs here. e.g. tags.
 		const publishedFrontMatter = { ...newFrontMatter };
-		if (baseFrontMatter && baseFrontMatter["title"]) {
-			publishedFrontMatter["title"] = baseFrontMatter["title"];
+		if (baseFrontMatter) {
+			if ( baseFrontMatter["title"]) {
+				publishedFrontMatter["title"] = baseFrontMatter["title"];
+			}
+			if ( baseFrontMatter["dg-metatags"]) {
+				publishedFrontMatter["metatags"] = baseFrontMatter["dg-metatags"];
+			}
 		}
 		return publishedFrontMatter;
 	}
