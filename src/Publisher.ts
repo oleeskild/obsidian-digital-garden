@@ -266,7 +266,7 @@ export default class Publisher {
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, filePath);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
-        publishedFrontMatter = this.addHomePageTag(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addPageTag(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
 
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
@@ -309,9 +309,9 @@ export default class Publisher {
         return publishedFrontMatter;
     }
 
-    addHomePageTag(baseFrontMatter: any, newFrontMatter: any) {
+    addPageTag(baseFrontMatter: any, newFrontMatter: any) {
         const publishedFrontMatter = { ...newFrontMatter };
-        if (baseFrontMatter && baseFrontMatter["dg-home"]) {
+        if (baseFrontMatter) {
             const tags = baseFrontMatter["tags"];
             if (tags) {
                 if (typeof (tags) === "string") {
