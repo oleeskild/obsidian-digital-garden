@@ -316,7 +316,9 @@ export default class Publisher {
             if (baseFrontMatter["dg-home"]) {
                 tags.push("gardenEntry")
             }
-            publishedFrontMatter["tags"] = tags;
+            if(tags.length > 0){
+                publishedFrontMatter["tags"] = tags;
+            }
         }
         return publishedFrontMatter;
     }
