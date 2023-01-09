@@ -266,7 +266,7 @@ export default class Publisher {
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, filePath);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
-        publishedFrontMatter = this.addPageTag(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
 
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
@@ -309,7 +309,7 @@ export default class Publisher {
         return publishedFrontMatter;
     }
 
-    addPageTag(baseFrontMatter: any, newFrontMatter: any) {
+    addPageTags(baseFrontMatter: any, newFrontMatter: any) {
         const publishedFrontMatter = { ...newFrontMatter };
         if (baseFrontMatter) {
             const tags = (typeof (baseFrontMatter["tags"]) == "string" ? [baseFrontMatter["tags"]] : baseFrontMatter["tags"]) || [];
