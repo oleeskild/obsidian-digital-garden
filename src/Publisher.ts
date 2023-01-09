@@ -312,18 +312,12 @@ export default class Publisher {
     addPageTag(baseFrontMatter: any, newFrontMatter: any) {
         const publishedFrontMatter = { ...newFrontMatter };
         if (baseFrontMatter) {
-            const tags = baseFrontMatter["tags"];
-            if (tags) {
-                if (typeof (tags) === "string") {
-                    publishedFrontMatter["tags"] = [tags, "gardenEntry"];
-                } else {
-                    publishedFrontMatter["tags"] = [...tags, "gardenEntry"];
-                }
-            } else {
-                publishedFrontMatter["tags"] = "gardenEntry";
+            const tags = (typeof (baseFrontMatter["tags"]) == "string" ? [baseFrontMatter["tags"]] : baseFrontMatter["tags"]) || [];
+            if (baseFrontMatter["dg-home"]) {
+                tags.push("gardenEntry")
             }
+            publishedFrontMatter["tags"] = tags;
         }
-
         return publishedFrontMatter;
     }
 
