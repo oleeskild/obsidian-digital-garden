@@ -145,6 +145,17 @@ export default class SettingView {
                 })
             })
 
+        new Setting(noteSettingsModal.contentEl)
+            .setName("Show Tags (dg-show-tags)")
+            .setDesc("When turned on, tags in your frontmatter will be displayed on each note. If search is enabled, clicking on a tag will bring up a search for all notes containing that tag.")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgShowTags)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgShowTags = val;
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                })
+            })
+
          new Setting(noteSettingsModal.contentEl)
             .setName("Let all frontmatter through (dg-pass-frontmatter)")
             .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")

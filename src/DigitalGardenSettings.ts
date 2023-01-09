@@ -26,5 +26,6 @@ export default interface DigitalGardenSettings {
 		dgEnableSearch: boolean;
 		dgShowToc: boolean;
 		dgLinkPreview: boolean;
+		dgShowTags: boolean;
 	}
 }
