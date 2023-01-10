@@ -7,7 +7,7 @@ import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
-
+import LZString from "lz-string";
 
 export interface IPublisher {
     publish(file: TFile): Promise<boolean>;
@@ -639,9 +639,12 @@ export default class Publisher {
         const fileText = await this.vault.cachedRead(file);
         const frontMatter = await this.getProcessedFrontMatter(file.path);
 
-        const start = fileText.indexOf('```json') + "```json".length;
+		const isCompressed = fileText.includes("```compressed-json")
+        const start = fileText.indexOf(isCompressed ? "```compressed-json" : "```json") + (isCompressed ? "```compressed-json" : "```json").length;
         const end = fileText.lastIndexOf('```')
-        const excaliDrawJson = JSON.parse(fileText.slice(start, end));
+        const excaliDrawJson = JSON.parse(
+			isCompressed ? LZString.decompressFromBase64(fileText.slice(start, end).replace(/[\n\r]/g, "")) : fileText.slice(start, end)
+		);
 
         const drawingId = file.name.split(" ").join("_").replace(".", "") + idAppendage;
         let excaliDrawCode = "";

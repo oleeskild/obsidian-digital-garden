@@ -24,9 +24,11 @@
     "dependencies": {
         "@octokit/core": "^3.5.1",
         "@sindresorhus/slugify": "^1.1.0",
+        "@types/lz-string": "^1.3.34",
         "axios": "^0.26.1",
         "crypto-js": "^4.1.1",
         "js-base64": "^3.7.2",
+        "lz-string": "^1.4.4",
         "obsidian-dataview": "^0.5.41"
     }
 }
