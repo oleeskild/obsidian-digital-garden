@@ -70,7 +70,7 @@ export default class SettingView {
        
         new Setting(noteSettingsModal.contentEl)
             .setName("Show local graph for notes (dg-show-local-graph)")
-            .setDesc("When turned on, notes will show its local graph on desktop. It will not be shown on mobile devices.")
+            .setDesc("When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.")
             .addToggle(t => {
                 t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph)
                 t.onChange((val) => {
@@ -484,7 +484,7 @@ export default class SettingView {
 
     renderLoading() {
         this.loading.show();
-        const text = "Creating PR. This should take less than 1 minute";
+        const text = "Creating PR. This should take about 30-60 seconds";
         const loadingText = this.loading.createEl('h4', { text });
         this.loadingInterval = setInterval(() => {
             if (loadingText.innerText === `${text}`) {

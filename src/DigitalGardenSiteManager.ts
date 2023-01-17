@@ -3,6 +3,7 @@ import { MetadataCache, TFile } from "obsidian";
 import { extractBaseUrl, generateUrlPath } from "./utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from 'js-base64';
+import DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
 
 export interface IDigitalGardenSiteManager {
     getNoteUrl(file: TFile): string;
@@ -126,7 +127,8 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         });
 
         const templateVersion = latestRelease.data.tag_name;
-        const branchName = "update-template-to-v" + templateVersion;
+        const uuid = crypto.randomUUID();
+        const branchName = "update-template-to-v" + templateVersion+"-"+uuid;
 
         const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
             owner: this.settings.githubUserName,
@@ -162,9 +164,9 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
     }
     private async deleteFiles(octokit: Octokit, branchName: string) {
-        const filesToDelete = [
-            "src/site/styles/style.css",
-        ];
+        const pluginInfo = await this.getPluginInfo(octokit);
+
+        const filesToDelete  =  pluginInfo.filesToDelete;        
 
         for (const file of filesToDelete) {
             try {
@@ -189,48 +191,8 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
     }
 
     private async modifyFiles(octokit: Octokit, branchName: string) {
-        const filesToModify = [
-            ".eleventy.js",
-            ".eleventyignore",
-            "README.md",
-            "netlify.toml",
-            "package-lock.json",
-            "package.json",
-            "src/site/404.njk",
-            "src/site/index.njk",
-            "src/site/sitemap.njk",
-            "src/site/index.11tydata.js",
-            "src/site/versionednote.njk",
-            "src/site/styles/style.scss",
-            "src/site/styles/digital-garden-base.scss",
-            "src/site/styles/obsidian-base.scss",
-            "src/site/notes/notes.json",
-            "src/site/notes/notes.11tydata.js",
-            "src/site/_includes/layouts/note.njk",
-            "src/site/_includes/layouts/versionednote.njk",
-            "src/site/_includes/components/notegrowthhistory.njk",
-            "src/site/_includes/components/pageheader.njk",
-            "src/site/_includes/components/linkPreview.njk",
-            "src/site/_includes/components/sidebar.njk",
-            "src/site/_includes/components/graphScript.njk",
-            "src/site/_includes/components/filetree.njk",
-            "src/site/_includes/components/filetreeNavbar.njk",
-            "src/site/_includes/components/navbar.njk",
-            "src/site/_includes/components/searchButton.njk",
-            "src/site/_includes/components/searchContainer.njk",
-            "src/site/_includes/components/searchScript.njk",
-            "src/site/lunr-index.js",
-            "src/site/lunr.njk",
-            "src/site/_data/versionednotes.js",
-            "src/site/_data/meta.js",
-            "src/site/_data/filetree.js",
-            "src/site/img/outgoing.svg",
-            "src/helpers/constants.js",
-            "src/helpers/utils.js",
-            "src/helpers/linkUtils.js",
-            "netlify/functions/search/search.js",
-            
-        ];
+        const pluginInfo = await this.getPluginInfo(octokit);
+        const filesToModify =  pluginInfo.filesToModify;
 
         for (const file of filesToModify) {
             //get from my repo
@@ -284,11 +246,9 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
     private async addFilesIfMissing(octokit: Octokit, branchName: string) {
         //Should only be added if it does not exist yet. Otherwise leave it alone
-        const filesToAdd = [
-            "src/site/styles/custom-style.scss",
-            ".env",
-            "src/site/favicon.svg",
-        ]
+
+        const pluginInfo = await this.getPluginInfo(octokit);
+        const filesToAdd =  pluginInfo.filesToAdd;
 
         for (const filePath of filesToAdd) {
 
@@ -317,5 +277,16 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
                 });
             }
         }
+    }
+
+    private async getPluginInfo(octokit: Octokit): Promise<DigitalGardenPluginInfo>{
+        const pluginInfoResponse = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+            owner: "oleeskild",
+            repo: "digitalgarden",
+            path: "plugin-info.json",
+        });        
+
+        const pluginInfo = JSON.parse(Base64.decode(pluginInfoResponse.data.content));
+        return pluginInfo as DigitalGardenPluginInfo;
     }
 }
