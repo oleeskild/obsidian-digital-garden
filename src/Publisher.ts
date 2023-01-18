@@ -595,7 +595,8 @@ export default class Publisher {
                         continue;
                     }
 
-                    const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
+                    const decodedImagePath = decodeURI(imagePath);
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(decodedImagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
                     const imageMarkdown = `![${imageName}](data:image/${getExtension(linkedFile)};base64,${imageBase64})`;
