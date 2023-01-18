@@ -6,6 +6,7 @@ import { Base64 } from 'js-base64';
 import { arrayBufferToBase64 } from './utils';
 import DigitalGarden from 'main';
 import DigitalGardenSiteManager from './DigitalGardenSiteManager';
+import { SvgFileSuggest } from './ui/file-suggest';
 
 export default class SettingView {
     private app: App;
@@ -235,6 +236,7 @@ export default class SettingView {
                     this.settings.faviconPath = val;
                     await this.saveSettings();
                 });
+                new SvgFileSuggest(this.app, tc.inputEl)
             })
 
 

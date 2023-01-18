@@ -45,4 +45,8 @@ function kebabize(str: string){
 	}).join('');
  }
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize};
+ const wrapAround = (value: number, size: number): number => {
+	return ((value % size) + size) % size;
+  };
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround};
