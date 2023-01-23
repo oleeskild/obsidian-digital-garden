@@ -101,7 +101,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         const response = await octokit.request(`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(Math.random() * 1000)}`, {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
-            tree_sha: 'main'
+            tree_sha: 'HEAD'
         });
 
         const files = response.data.tree;
@@ -130,7 +130,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         const uuid = crypto.randomUUID();
         const branchName = "update-template-to-v" + templateVersion+"-"+uuid;
 
-        const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/main', {
+        const latestCommit = await octokit.request('GET /repos/{owner}/{repo}/commits/HEAD', {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
         });
@@ -146,12 +146,19 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
 
     private async createPullRequest(octokit: Octokit, branchName: string, templateVersion: string): Promise<string> {
         try {
+            const repoInfo = await octokit.request('GET /repos/{owner}/{repo}', {
+                owner: this.settings.githubUserName,
+                repo: this.settings.githubRepo,
+            });
+
+            const defaultBranch = repoInfo.data.default_branch;
+            
             const pr = await octokit.request('POST /repos/{owner}/{repo}/pulls', {
                 owner: this.settings.githubUserName,
                 repo: this.settings.githubRepo,
                 title: `Update template to version ${templateVersion}`,
                 head: branchName,
-                base: "main",
+                base: defaultBranch,
                 body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${templateVersion})`
             });
 
