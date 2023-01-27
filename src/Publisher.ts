@@ -191,11 +191,13 @@ export default class Publisher {
 
     }
 
-    stripAwayCodeFences(text: string): string {
+    stripAwayCodeFencesAndFrontmatter(text: string): string {
         let textToBeProcessed = text;
         textToBeProcessed = textToBeProcessed.replace(this.excaliDrawRegex, '');
         textToBeProcessed = textToBeProcessed.replace(this.codeBlockRegex, '');
         textToBeProcessed = textToBeProcessed.replace(this.codeFenceRegex, '');
+        textToBeProcessed = textToBeProcessed.replace(this.frontmatterRegex, '');
+
         return textToBeProcessed;
 
     }
@@ -312,7 +314,7 @@ export default class Publisher {
     addPageTags(baseFrontMatter: any, newFrontMatter: any) {
         const publishedFrontMatter = { ...newFrontMatter };
         if (baseFrontMatter) {
-            const tags = (typeof (baseFrontMatter["tags"]) == "string" ? [baseFrontMatter["tags"]] : baseFrontMatter["tags"]) || [];
+            const tags = (typeof(baseFrontMatter["tags"]) === "string" ? [baseFrontMatter["tags"]] : baseFrontMatter["tags"]) || [];
             if (baseFrontMatter["dg-home"]) {
                 tags.push("gardenEntry")
             }
@@ -341,16 +343,15 @@ export default class Publisher {
             publishedFrontMatter.dgPassFrontmatter = this.settings.defaultNoteSettings.dgPassFrontmatter;
         }
 
-
         return publishedFrontMatter;
     }
 
     async convertLinksToFullPath(text: string, filePath: string): Promise<string> {
         let convertedText = text;
 
-        const textToBeProcessed = this.stripAwayCodeFences(text);
+        const textToBeProcessed = this.stripAwayCodeFencesAndFrontmatter(text);
 
-        const linkedFileRegex = /\[\[(.*?)\]\]/g;
+        const linkedFileRegex = /\[\[(.+?)\]\]/g;
         const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
 
         if (linkedFileMatches) {
@@ -398,7 +399,7 @@ export default class Publisher {
         }
 		const publishedFiles = await this.getFilesMarkedForPublishing();
         let transcludedText = text;
-        const transcludedRegex = /!\[\[(.*?)\]\]/g;
+        const transcludedRegex = /!\[\[(.+?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
         let numberOfExcaliDraws = 0;
         if (transclusionMatches) {
