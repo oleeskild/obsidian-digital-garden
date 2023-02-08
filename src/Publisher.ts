@@ -104,18 +104,21 @@ export default class Publisher {
             return false;
         }
         try {
-            const text = await this.generateMarkdown(file);
+            const [text, assets] = await this.generateMarkdown(file);
             await this.uploadText(file.path, text);
+			await this.uploadAssets(assets);
             return true;
         } catch {
             return false;
         }
     }
 
-    async generateMarkdown(file: TFile): Promise<string> {
+    async generateMarkdown(file: TFile): Promise<[string, any]> {
         if (file.name.endsWith(".excalidraw.md")) {
-            return await this.generateExcalidrawMarkdown(file, true);
+            return [await this.generateExcalidrawMarkdown(file, true), {}];
         }
+
+		const assets: any = {};
 
         let text = await this.vault.cachedRead(file);
 		text = await this.convertFrontMatter(text, file.path);
@@ -125,8 +128,9 @@ export default class Publisher {
         text = await this.convertLinksToFullPath(text, file.path);
         text = await this.removeObsidianComments(text);
         text = await this.createSvgEmbeds(text, file.path);
-        text = await this.createBase64Images(text, file.path);
-        return text;
+        const text_and_images = await this.convertImageLinks(text, file.path);
+		assets.images = text_and_images[1];
+        return [text_and_images[0], assets];
 	}
 	
 	async createBlockIDs(text: string) {
@@ -141,8 +145,7 @@ export default class Publisher {
 		return text;
 	}
 
-
-    async uploadText(filePath: string, content: string) {
+	async uploadToGithub(path: string, content: string) {
         if (!this.settings.githubRepo) {
             new Notice("Config error: You need to define a GitHub repo in the plugin settings");
             throw {};
@@ -160,15 +163,12 @@ export default class Publisher {
         const octokit = new Octokit({ auth: this.settings.githubToken });
 
 
-        const base64Content = Base64.encode(content);
-        const path = `src/site/notes/${filePath}`
-
         const payload = {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
             path,
-            message: `Add note ${filePath}`,
-            content: base64Content,
+            message: `Add content ${path}`,
+            content,
             sha: ''
         };
 
@@ -185,11 +185,30 @@ export default class Publisher {
             console.log(e)
         }
 
-        payload.message = `Update note ${filePath}`;
+        payload.message = `Update content ${path}`;
 
         await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', payload);
 
     }
+
+    async uploadText(filePath: string, content: string) {
+		content = Base64.encode(content);
+        const path = `src/site/notes/${filePath}`
+        await this.uploadToGithub(path, content)
+    }
+
+	async uploadImage(filePath: string, content: string) {
+		const path = `src/site${filePath}`
+        await this.uploadToGithub(path, content)
+	}
+
+	async uploadAssets(assets: any) {
+		for (let idx = 0; idx < assets.images.length; idx++) {
+			const image = assets.images[idx];
+			await this.uploadImage(image.path, image.content);
+			
+		}
+	}
 
     stripAwayCodeFencesAndFrontmatter(text: string): string {
         let textToBeProcessed = text;
@@ -545,14 +564,8 @@ export default class Publisher {
 
         return text;
     }
-    async createBase64Images(text: string, filePath: string): Promise<string> {
-
-        function getExtension(linkedFile: TFile) {
-            //Markdown-it will not recognize jpg images. But putting png as the extension makes it work for some reason.
-            if (linkedFile.extension === 'jpg' || linkedFile.extension === 'jpeg')
-                return 'png'
-            return linkedFile.extension;
-        }
+    async convertImageLinks(text: string, filePath: string): Promise<[string, Array<{path: string, content: string}>]> {
+		const assets = [];
 
         let imageText = text;
         //![[image.png]]
@@ -568,10 +581,13 @@ export default class Publisher {
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
+					
+					const cmsImgPath = `/img/assets/${encodeURI(linkedFile.path)}`
                     const name = size ? `${imageName}|${size}` : imageName;
-                    const imageMarkdown = `![${name}](data:image/${getExtension(linkedFile)};base64,${imageBase64})`;
+                    const imageMarkdown = `![${name}](${cmsImgPath})`;
+					assets.push({path: cmsImgPath, content: imageBase64})
                     imageText = imageText.replace(imageMatch, imageMarkdown);
-                } catch {
+                } catch (e) {
                     continue;
                 }
             }
@@ -599,8 +615,10 @@ export default class Publisher {
                     const decodedImagePath = decodeURI(imagePath);
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(decodedImagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
-                    const imageBase64 = arrayBufferToBase64(image)
-                    const imageMarkdown = `![${imageName}](data:image/${getExtension(linkedFile)};base64,${imageBase64})`;
+                    const imageBase64 = arrayBufferToBase64(image);
+					const cmsImgPath = `/img/assets/${linkedFile.path}`
+                    const imageMarkdown = `![${imageName}](${cmsImgPath})`;
+					assets.push({path: cmsImgPath, content: imageBase64})
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch {
                     continue;
@@ -608,7 +626,7 @@ export default class Publisher {
             }
         }
 
-        return imageText;
+        return [imageText, assets];
     }
 
     generateTransclusionHeader(headerName: string, transcludedFile: TFile) {
