@@ -444,7 +444,6 @@ export default class SettingView {
             .setDesc(`
 				This will create a pull request with the latest template changes, which you'll need to use all plugin features. 
 				It will not publish any changes before you approve them.
-				You can even test the changes first as Netlify will automatically provide you with a test URL.
 			`)
             .addButton(button => button
                 .setButtonText('Create PR')
