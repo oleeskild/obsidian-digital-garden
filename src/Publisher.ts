@@ -114,11 +114,10 @@ export default class Publisher {
     }
 
     async generateMarkdown(file: TFile): Promise<[string, any]> {
+		const assets: any = {images: []};
         if (file.name.endsWith(".excalidraw.md")) {
-            return [await this.generateExcalidrawMarkdown(file, true), {}];
+            return [await this.generateExcalidrawMarkdown(file, true), assets];
         }
-
-		const assets: any = {};
 
         let text = await this.vault.cachedRead(file);
 		text = await this.convertFrontMatter(text, file.path);
