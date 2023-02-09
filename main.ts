@@ -119,7 +119,8 @@ export default class DigitalGarden extends Plugin {
 					const publishStatusManager = new PublishStatusManager(siteManager, publisher);
 
 					const publishStatus = await publishStatusManager.getPublishStatus();
-					const filesToPublish = publishStatus.changedNotes.concat(publishStatus.unpublishedNotes)
+					const filesToPublish = publishStatus.changedNotes.concat(publishStatus.unpublishedNotes);
+					console.log(filesToPublish);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
 					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length + filesToDelete.length);

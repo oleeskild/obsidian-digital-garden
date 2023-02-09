@@ -18,7 +18,7 @@ export interface IPublisher {
     publish(file: TFile): Promise<boolean>;
     delete(vaultFilePath: string): Promise<boolean>;
     getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
-    generateMarkdown(file: TFile): Promise<string>;
+    generateMarkdown(file: TFile): Promise<[string, any]>;
 }
 export default class Publisher {
     vault: Vault;
