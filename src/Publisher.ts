@@ -9,10 +9,15 @@ import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
 import LZString from "lz-string";
 
+export interface MarkedForPublishing {
+	notes: TFile[],
+	images: string[]
+}
 export interface IPublisher {
+	[x: string]: any;
     publish(file: TFile): Promise<boolean>;
     delete(vaultFilePath: string): Promise<boolean>;
-    getFilesMarkedForPublishing(): Promise<TFile[]>;
+    getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
     generateMarkdown(file: TFile): Promise<string>;
 }
 export default class Publisher {
@@ -31,24 +36,40 @@ export default class Publisher {
         this.settings = settings;
     }
 
-    async getFilesMarkedForPublishing(): Promise<TFile[]> {
+    async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
         const files = this.vault.getMarkdownFiles();
-        const filesToPublish = [];
+        const notesToPublish = [];
+		const imagesToPublish: Set<string> = new Set();
         for (const file of files) {
             try {
                 const frontMatter = this.metadataCache.getCache(file.path).frontmatter
                 if (frontMatter && frontMatter["dg-publish"] === true) {
-                    filesToPublish.push(file);
+                    notesToPublish.push(file);
+					let images = await this.extractImageLinks(await this.vault.cachedRead(file), file.path);
+					images.forEach((i) => imagesToPublish.add(i));
                 }
             } catch {
                 //ignore
             }
         }
 
-        return filesToPublish;
+        return {
+			notes: notesToPublish,
+			images: Array.from(imagesToPublish)
+		};
     }
 
-    async delete(vaultFilePath: string): Promise<boolean> {
+	async deleteNote(vaultFilePath: string) {
+		const path = `src/site/notes/${vaultFilePath}`;
+		return await this.delete(path);
+	}
+
+	async deleteImage(vaultFilePath: string) {
+		const path = `src/site/img/user/${encodeURI(vaultFilePath)}`;
+		return await this.delete(path);
+	}
+
+    async delete(path: string): Promise<boolean> {
         if (!this.settings.githubRepo) {
             new Notice("Config error: You need to define a GitHub repo in the plugin settings");
             throw {};
@@ -63,13 +84,13 @@ export default class Publisher {
         }
 
         const octokit = new Octokit({ auth: this.settings.githubToken });
-        const path = `src/site/notes/${vaultFilePath}`;
+
 
         const payload = {
             owner: this.settings.githubUserName,
             repo: this.settings.githubRepo,
             path,
-            message: `Delete note ${vaultFilePath}`,
+            message: `Delete content ${path}`,
             sha: ''
         };
 
@@ -415,7 +436,7 @@ export default class Publisher {
         if (currentDepth >= 4) {
             return text;
         }
-		const publishedFiles = await this.getFilesMarkedForPublishing();
+		const {notes: publishedFiles } = await this.getFilesMarkedForPublishing();
         let transcludedText = text;
         const transcludedRegex = /!\[\[(.+?)\]\]/g;
         const transclusionMatches = text.match(transcludedRegex);
@@ -563,6 +584,58 @@ export default class Publisher {
 
         return text;
     }
+
+	async extractImageLinks(text: string, filePath: string): Promise<string[]> {
+		const assets = [];
+
+        let imageText = text;
+        //![[image.png]]
+        const transcludedImageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+        const transcludedImageMatches = text.match(transcludedImageRegex);
+        if (transcludedImageMatches) {
+            for (let i = 0; i < transcludedImageMatches.length; i++) {
+                try {
+                    const imageMatch = transcludedImageMatches[i];
+
+                    const [imageName, _] = imageMatch.substring(imageMatch.indexOf('[') + 2, imageMatch.indexOf(']')).split("|");
+                    const imagePath = getLinkpath(imageName);
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(imagePath, filePath);
+					assets.push(linkedFile.path)
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+
+        //![](image.png)
+        const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
+        const imageMatches = text.match(imageRegex);
+        if (imageMatches) {
+            for (let i = 0; i < imageMatches.length; i++) {
+                try {
+                    const imageMatch = imageMatches[i];
+
+                    const nameStart = imageMatch.indexOf('[') + 1;
+                    const nameEnd = imageMatch.indexOf(']');
+
+                    const pathStart = imageMatch.lastIndexOf("(") + 1;
+                    const pathEnd = imageMatch.lastIndexOf(")");
+                    const imagePath = imageMatch.substring(pathStart, pathEnd);
+                    if (imagePath.startsWith("http")) {
+                        continue;
+                    }
+
+                    const decodedImagePath = decodeURI(imagePath);
+                    const linkedFile = this.metadataCache.getFirstLinkpathDest(decodedImagePath, filePath);
+					assets.push(linkedFile.path)
+                } catch {
+                    continue;
+                }
+            }
+        }
+        return assets;
+    }
+
     async convertImageLinks(text: string, filePath: string): Promise<[string, Array<{path: string, content: string}>]> {
 		const assets = [];
 
@@ -581,7 +654,7 @@ export default class Publisher {
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
 					
-					const cmsImgPath = `/img/assets/${encodeURI(linkedFile.path)}`
+					const cmsImgPath = `/img/user/${encodeURI(linkedFile.path)}`
                     const name = size ? `${imageName}|${size}` : imageName;
                     const imageMarkdown = `![${name}](${cmsImgPath})`;
 					assets.push({path: cmsImgPath, content: imageBase64})
@@ -615,7 +688,7 @@ export default class Publisher {
                     const linkedFile = this.metadataCache.getFirstLinkpathDest(decodedImagePath, filePath);
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image);
-					const cmsImgPath = `/img/assets/${linkedFile.path}`
+					const cmsImgPath = `/img/user/${linkedFile.path}`
                     const imageMarkdown = `![${imageName}](${cmsImgPath})`;
 					assets.push({path: cmsImgPath, content: imageBase64})
                     imageText = imageText.replace(imageMatch, imageMarkdown);

@@ -8,6 +8,7 @@ import DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
 export interface IDigitalGardenSiteManager {
     getNoteUrl(file: TFile): string;
     getNoteHashes(): Promise<{ [key: string]: string }>;
+	getImageHashes(): Promise<{ [key: string]: string }>;
     createPullRequestWithSiteChanges(): Promise<string>;
 }
 export default class DigitalGardenSiteManager implements IDigitalGardenSiteManager {
@@ -111,6 +112,26 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         for (const note of notes) {
             const vaultPath = note.path.replace("src/site/notes/", "");
             hashes[vaultPath] = note.sha;
+        }
+        return hashes;
+    }
+
+	async getImageHashes(): Promise<{ [key: string]: string }> {
+        const octokit = new Octokit({ auth: this.settings.githubToken });
+        //Force the cache to be updated
+        const response = await octokit.request(`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(Math.random() * 1000)}`, {
+            owner: this.settings.githubUserName,
+            repo: this.settings.githubRepo,
+            tree_sha: 'HEAD'
+        });
+
+        const files = response.data.tree;
+        const images: Array<{ path: string, sha: string }> = files.filter(
+            (x: { path: string; type: string; }) => x.path.startsWith("src/site/img/user/") && x.type === "blob");
+        const hashes: { [key: string]: string } = {};
+        for (const img of images) {
+            const vaultPath = decodeURI(img.path.replace("src/site/img/user/", ""));
+            hashes[vaultPath] = img.sha;
         }
         return hashes;
     }
