@@ -120,7 +120,6 @@ export default class DigitalGarden extends Plugin {
 
 					const publishStatus = await publishStatusManager.getPublishStatus();
 					const filesToPublish = publishStatus.changedNotes.concat(publishStatus.unpublishedNotes);
-					console.log(filesToPublish);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
 					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length + filesToDelete.length);
@@ -136,7 +135,6 @@ export default class DigitalGarden extends Plugin {
 							new Notice(`Unable to publish note ${file.name}, skipping it.`)
 						}
 					}
-					console.log(filesToDelete);
 					for (const filePath of filesToDelete) {
 						try {
 							statusBar.increment();
