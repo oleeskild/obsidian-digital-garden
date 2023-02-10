@@ -49,7 +49,6 @@ export default class PublishStatusManager implements IPublishStatusManager{
 
             const localHash = generateBlobHash(content);
             const remoteHash = remoteNoteHashes[file.path];
-			console.log("local", localHash, "remote", remoteHash);
             if (!remoteHash) {
                 unpublishedNotes.push(file);
             }
