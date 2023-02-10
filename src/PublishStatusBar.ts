@@ -16,11 +16,11 @@ export class PublishStatusBar {
 
     increment() {
 
-        this.status.innerText = `⌛Publishing Notes: ${++this.counter}/${this.numberOfNotesToPublish}`;
+        this.status.innerText = `⌛Publishing files: ${++this.counter}/${this.numberOfNotesToPublish}`;
     }
 
     finish(displayDurationMillisec: number) {
-        this.status.innerText = `✅ Published Notes: ${this.counter}/${this.numberOfNotesToPublish}`;
+        this.status.innerText = `✅ Published files: ${this.counter}/${this.numberOfNotesToPublish}`;
         setTimeout(() => {
             this.statusBarItem.remove();
         }, displayDurationMillisec);

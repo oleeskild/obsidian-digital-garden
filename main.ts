@@ -113,6 +113,8 @@ export default class DigitalGarden extends Plugin {
 			callback: async () => {
 				const statusBarItem = this.addStatusBarItem();
 				try {
+
+					new Notice('Processing files to publish...');
 					const { vault, metadataCache } = this.app;
 					const publisher = new Publisher(vault, metadataCache, this.settings);
 					const siteManager = new DigitalGardenSiteManager(metadataCache, this.settings);
@@ -122,10 +124,12 @@ export default class DigitalGarden extends Plugin {
 					const filesToPublish = publishStatus.changedNotes.concat(publishStatus.unpublishedNotes);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
-					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length + filesToDelete.length);
+					const statusBar = new PublishStatusBar(statusBarItem, filesToPublish.length + filesToDelete.length + imagesToDelete.length);
 
 					let errorFiles = 0;
 					let errorDeleteFiles = 0;
+					let errorDeleteImage = 0;
+					new Notice(`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`, 8000);
 					for (const file of filesToPublish) {
 						try {
 							statusBar.increment();
@@ -150,7 +154,7 @@ export default class DigitalGarden extends Plugin {
 							statusBar.increment();
 							await publisher.deleteImage(filePath);
 						} catch {
-							errorDeleteFiles++;
+							errorDeleteImage++;
 							new Notice(`Unable to delete image ${filePath}, skipping it.`)
 						}
 					}
@@ -159,6 +163,9 @@ export default class DigitalGarden extends Plugin {
 					new Notice(`Successfully published ${filesToPublish.length - errorFiles} notes to your garden.`);
 					if (filesToDelete.length > 0) {
 						new Notice(`Successfully deleted ${filesToDelete.length - errorDeleteFiles} notes from your garden.`);
+					}
+					if(imagesToDelete.length > 0) {
+						new Notice(`Successfully deleted ${imagesToDelete.length - errorDeleteImage} images from your garden.`);
 					}
 
 				} catch (e) {
