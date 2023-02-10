@@ -15,20 +15,24 @@ export default class PublishStatusManager implements IPublishStatusManager{
         
         const remoteNoteHashes = await this.siteManager.getNoteHashes();
         const marked = await this.publisher.getFilesMarkedForPublishing();
-        return this.generateDeletedNotePaths(remoteNoteHashes, marked);
+        return this.generateDeletedContentPaths(remoteNoteHashes, marked.notes.map((f) => f.path));
     }
 
-    private generateDeletedNotePaths(remoteNoteHashes: {[key:string]: string}, marked: TFile[]): Array<string> {
-        const deletedNotePaths: Array<string> = [];
+	async getDeletedImagesPaths(): Promise<Array<string>> {
+		const remoteImageHashes = await this.siteManager.getImageHashes();
+        const marked = await this.publisher.getFilesMarkedForPublishing();
+        return this.generateDeletedContentPaths(remoteImageHashes, marked.images);
+    }
+
+    private generateDeletedContentPaths(remoteNoteHashes: {[key:string]: string}, marked: string[]): Array<string> {
+        const deletedContentPaths: Array<string> = [];
         Object.keys(remoteNoteHashes).forEach(key => {
-            if (!marked.find(f => f.path === key)) {
-                if(!key.endsWith(".js")){
-                    deletedNotePaths.push(key);
-                }
+            if (!key.endsWith(".js") && !marked.find(f => f === key)) {
+                deletedContentPaths.push(key);
             }
         });
 
-        return deletedNotePaths;
+        return deletedContentPaths;
     }
     async getPublishStatus(): Promise<PublishStatus> {
         const unpublishedNotes: Array<TFile> = [];
@@ -37,10 +41,11 @@ export default class PublishStatusManager implements IPublishStatusManager{
 
 
         const remoteNoteHashes = await this.siteManager.getNoteHashes();
+		const remoteImageHashes = await this.siteManager.getImageHashes();
         const marked = await this.publisher.getFilesMarkedForPublishing();
 
-        for (const file of marked) {
-            const content = await this.publisher.generateMarkdown(file);
+        for (const file of marked.notes) {
+            const [content, _] = await this.publisher.generateMarkdown(file);
 
             const localHash = generateBlobHash(content);
             const remoteHash = remoteNoteHashes[file.path];
@@ -55,13 +60,13 @@ export default class PublishStatusManager implements IPublishStatusManager{
             }
         }
 
-        const deletedNotePaths = this.generateDeletedNotePaths(remoteNoteHashes, marked);
-
-        unpublishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
+        const deletedNotePaths = this.generateDeletedContentPaths(remoteNoteHashes, marked.notes.map((f) => f.path));
+		const deletedImagePaths = this.generateDeletedContentPaths(remoteImageHashes, marked.images);
+		unpublishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
         publishedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
         changedNotes.sort((a, b) => a.path > b.path ? 1 : -1);
         deletedNotePaths.sort((a, b) => a > b ? 1 : -1);
-        return { unpublishedNotes, publishedNotes, changedNotes, deletedNotePaths };
+        return { unpublishedNotes, publishedNotes, changedNotes, deletedNotePaths, deletedImagePaths };
     }
 }
 
@@ -70,9 +75,11 @@ export interface PublishStatus{
     publishedNotes: Array<TFile>;
     changedNotes: Array<TFile>;
     deletedNotePaths: Array<string>;
+	deletedImagePaths: Array<string>;
 }
 
 export interface IPublishStatusManager{
     getPublishStatus(): Promise<PublishStatus>; 
     getDeletedNotePaths(): Promise<Array<string>>;
+	getDeletedImagesPaths(): Promise<Array<string>>;
 }

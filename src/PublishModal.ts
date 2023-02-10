@@ -93,7 +93,7 @@ export class PublishModal {
             let counter = 0; 
             for(const note of deletedNotes){
                 this.progressContainer.innerText = `⌛Deleting Notes: ${++counter}/${deletedNotes.length}`;
-                await this.publisher.delete(note);
+                await this.publisher.deleteNote(note);
             }
 
             const deleteDoneText = `✅ Deleted all notes: ${counter}/${deletedNotes.length}`;
