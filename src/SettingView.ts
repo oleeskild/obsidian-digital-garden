@@ -238,6 +238,60 @@ export default class SettingView {
                 });
                 new SvgFileSuggest(this.app, tc.inputEl)
             })
+		
+		themeModal.contentEl.createEl('h2', { text: "Maturity Settings" });
+
+		new Setting(themeModal.contentEl)
+			.setName('Maturity Frontmatter Key')
+			.setDesc('Key to get the maturity value from the frontmatter')
+			.addText(text =>
+				text.setValue(this.settings.maturityKey)
+					.onChange(async (value) => {
+						this.settings.maturityKey = value;
+						await this.saveSettings();
+					})
+		);
+
+		new Setting(themeModal.contentEl)
+			.setName('Default Maturity Value')
+			.setDesc('The default value for maturity if not specified')
+			.addText(text => {
+				text.setValue(this.settings.defaultMaturity)
+					.onChange(async (value) => {
+						this.settings.defaultMaturity = value;
+						await this.saveSettings();
+					})
+				});
+
+		new Setting(themeModal.contentEl)
+			.setName("Show Maturity on Title")
+			.addToggle(t => {
+				t.setValue(this.settings.showMaturityOnTitle)
+					.onChange(async (value) => {
+						this.settings.showMaturityOnTitle = value;
+						await this.saveSettings();
+					})
+			});
+		
+		new Setting(themeModal.contentEl)
+			.setName("Show Maturity in FileTree")
+			.addToggle(t => {
+				t.setValue(this.settings.showMaturityInFileTree)
+					.onChange(async (value) => {
+						this.settings.showMaturityInFileTree = value;
+						await this.saveSettings();
+					})
+			});
+		
+		new Setting(themeModal.contentEl)
+			.setName("Show Maturity on Internal Links")
+			.addToggle(t => {
+				t.setValue(this.settings.showMaturityOnInternalLink)
+					.onChange(async (value) => {
+						this.settings.showMaturityOnInternalLink = value;
+						await this.saveSettings();
+					})
+			});
 
 
         new Setting(themeModal.contentEl)

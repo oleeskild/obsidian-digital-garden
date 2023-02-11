@@ -16,6 +16,12 @@ export default interface DigitalGardenSettings {
 
 	slugifyEnabled: boolean;
 
+	maturityKey: string;
+	defaultMaturity: string;
+	showMaturityOnTitle: boolean;
+	showMaturityInFileTree: boolean;
+	showMaturityOnInternalLink: boolean;
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

@@ -309,7 +309,8 @@ export default class Publisher {
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
-
+		publishedFrontMatter = this.addMaturityFrontMatter(fileFrontMatter, publishedFrontMatter);
+		
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
         const frontMatterString = JSON.stringify(fullFrontMatter);
 
@@ -362,7 +363,21 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
-    }
+	}
+	
+	addMaturityFrontMatter(baseFrontMatter: any, newFrontMatter: any) {
+		if (!baseFrontMatter) {
+            baseFrontMatter = {};
+		}
+		const publishedFrontMatter = { ...newFrontMatter };
+		const maturityKey = this.settings.maturityKey;
+		if (baseFrontMatter[maturityKey] !== undefined) {
+			publishedFrontMatter['maturity'] = baseFrontMatter[maturityKey];
+		} else {
+			publishedFrontMatter['maturity'] = this.settings.defaultMaturity;
+		}
+		return publishedFrontMatter;
+	}
 
     addFrontMatterSettings(baseFrontMatter: {}, newFrontMatter: {}) {
         if (!baseFrontMatter) {
