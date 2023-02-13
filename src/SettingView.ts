@@ -239,56 +239,56 @@ export default class SettingView {
                 new SvgFileSuggest(this.app, tc.inputEl)
             })
 		
-		themeModal.contentEl.createEl('h2', { text: "Maturity Settings" });
+		themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
 
 		new Setting(themeModal.contentEl)
-			.setName('Maturity Frontmatter Key')
-			.setDesc('Key to get the maturity value from the frontmatter')
+			.setName('Note icon Frontmatter Key')
+			.setDesc('Key to get the note icon value from the frontmatter')
 			.addText(text =>
-				text.setValue(this.settings.maturityKey)
+				text.setValue(this.settings.noteIconKey)
 					.onChange(async (value) => {
-						this.settings.maturityKey = value;
+						this.settings.noteIconKey = value;
 						await this.saveSettings();
 					})
 		);
 
 		new Setting(themeModal.contentEl)
-			.setName('Default Maturity Value')
-			.setDesc('The default value for maturity if not specified')
+			.setName('Default note icon Value')
+			.setDesc('The default value for note icon if not specified')
 			.addText(text => {
-				text.setValue(this.settings.defaultMaturity)
+				text.setValue(this.settings.defaultNoteIcon)
 					.onChange(async (value) => {
-						this.settings.defaultMaturity = value;
+						this.settings.defaultNoteIcon = value;
 						await this.saveSettings();
 					})
 				});
 
 		new Setting(themeModal.contentEl)
-			.setName("Show Maturity on Title")
+			.setName("Show note icon on Title")
 			.addToggle(t => {
-				t.setValue(this.settings.showMaturityOnTitle)
+				t.setValue(this.settings.showNoteIconOnTitle)
 					.onChange(async (value) => {
-						this.settings.showMaturityOnTitle = value;
+						this.settings.showNoteIconOnTitle = value;
 						await this.saveSettings();
 					})
 			});
 		
 		new Setting(themeModal.contentEl)
-			.setName("Show Maturity in FileTree")
+			.setName("Show note icon in FileTree")
 			.addToggle(t => {
-				t.setValue(this.settings.showMaturityInFileTree)
+				t.setValue(this.settings.showNoteIconInFileTree)
 					.onChange(async (value) => {
-						this.settings.showMaturityInFileTree = value;
+						this.settings.showNoteIconInFileTree = value;
 						await this.saveSettings();
 					})
 			});
 		
 		new Setting(themeModal.contentEl)
-			.setName("Show Maturity on Internal Links")
+			.setName("Show note icon on Internal Links")
 			.addToggle(t => {
-				t.setValue(this.settings.showMaturityOnInternalLink)
+				t.setValue(this.settings.showNoteIconOnInternalLink)
 					.onChange(async (value) => {
-						this.settings.showMaturityOnInternalLink = value;
+						this.settings.showNoteIconOnInternalLink = value;
 						await this.saveSettings();
 					})
 			});

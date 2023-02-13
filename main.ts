@@ -22,12 +22,12 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	noteSettingsIsInitialized: false,
 	siteName: 'Digital Garden',
 	slugifyEnabled: true,
-	// Maturity Related Settings
-	maturityKey: "dg-maturity",
-	defaultMaturity: '1',
-	showMaturityOnTitle: false,
-	showMaturityInFileTree: false,
-	showMaturityOnInternalLink: false,
+	// Note Icon Related Settings
+	noteIconKey: "dg-note-icon",
+	defaultNoteIcon: '1',
+	showNoteIconOnTitle: false,
+	showNoteIconInFileTree: false,
+	showNoteIconOnInternalLink: false,
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
