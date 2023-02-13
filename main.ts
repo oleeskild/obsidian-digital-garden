@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	slugifyEnabled: true,
 	// Note Icon Related Settings
 	noteIconKey: "dg-note-icon",
-	defaultNoteIcon: '1',
+	defaultNoteIcon: '',
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
 	showNoteIconOnInternalLink: false,
