@@ -16,6 +16,12 @@ export default interface DigitalGardenSettings {
 
 	slugifyEnabled: boolean;
 
+	noteIconKey: string;
+	defaultNoteIcon: string;
+	showNoteIconOnTitle: boolean;
+	showNoteIconInFileTree: boolean;
+	showNoteIconOnInternalLink: boolean;
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

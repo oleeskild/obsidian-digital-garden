@@ -22,6 +22,13 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	noteSettingsIsInitialized: false,
 	siteName: 'Digital Garden',
 	slugifyEnabled: true,
+	// Note Icon Related Settings
+	noteIconKey: "dg-note-icon",
+	defaultNoteIcon: '',
+	showNoteIconOnTitle: false,
+	showNoteIconInFileTree: false,
+	showNoteIconOnInternalLink: false,
+
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,

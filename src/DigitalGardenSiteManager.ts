@@ -39,7 +39,11 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`;
         }
         envSettings+=`\nSITE_NAME_HEADER=${siteName}`;
-        envSettings+=`\nSITE_BASE_URL=${gardenBaseUrl}`;
+		envSettings += `\nSITE_BASE_URL=${gardenBaseUrl}`;
+		envSettings += `\nNOTE_ICON_DEFAULT=${this.settings.defaultNoteIcon}`;
+		envSettings += `\nNOTE_ICON_TITLE=${this.settings.showNoteIconOnTitle}`;
+		envSettings += `\nNOTE_ICON_FILETREE=${this.settings.showNoteIconInFileTree}`;
+		envSettings+=`\nNOTE_ICON_INTERNAL_LINKS=${this.settings.showNoteIconOnInternalLink}`;
 
         const defaultNoteSettings = {...this.settings.defaultNoteSettings};
         for(const key of Object.keys(defaultNoteSettings)) {

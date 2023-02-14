@@ -309,7 +309,8 @@ export default class Publisher {
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
-
+		publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
+		
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
         const frontMatterString = JSON.stringify(fullFrontMatter);
 
@@ -362,7 +363,29 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
-    }
+	}
+	
+	addNoteIconFrontMatter(baseFrontMatter: any, newFrontMatter: any) {
+		if (!baseFrontMatter) {
+            baseFrontMatter = {};
+		}
+
+        //If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
+        if(!this.settings.showNoteIconInFileTree 
+            && !this.settings.showNoteIconOnInternalLink 
+            && !this.settings.showNoteIconOnTitle){
+            return newFrontMatter;
+        }
+
+		const publishedFrontMatter = { ...newFrontMatter };
+		const noteIconKey = this.settings.noteIconKey;
+		if (baseFrontMatter[noteIconKey] !== undefined) {
+			publishedFrontMatter['noteIcon'] = baseFrontMatter[noteIconKey];
+		} else {
+			publishedFrontMatter['noteIcon'] = this.settings.defaultNoteIcon;
+		}
+		return publishedFrontMatter;
+	}
 
     addFrontMatterSettings(baseFrontMatter: {}, newFrontMatter: {}) {
         if (!baseFrontMatter) {
