@@ -241,6 +241,16 @@ export default class SettingView {
 		
 		themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" });
 		new Setting(themeModal.contentEl)
+			.setName('Timestamp format')
+			.setDesc('The format string to render timestamp on the garden. Must be luxon compatible')
+			.addText(text =>
+				text.setValue(this.settings.timestampFormat)
+					.onChange(async (value) => {
+						this.settings.timestampFormat = value;
+						await this.saveSettings();
+					})
+		);
+		new Setting(themeModal.contentEl)
 			.setName("Show created timestamp")
 			.addToggle(t => {
 				t.setValue(this.settings.showCreatedTimestamp)

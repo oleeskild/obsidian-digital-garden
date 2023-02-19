@@ -26,7 +26,9 @@ export default interface DigitalGardenSettings {
 	createdTimestampKey: string
 
 	showUpdatedTimestamp: boolean;
-	updatedTimestampKey: string
+	updatedTimestampKey: string;
+
+	timestampFormat: string;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;

@@ -41,6 +41,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         envSettings+=`\nSITE_NAME_HEADER=${siteName}`;
 		envSettings += `\nSITE_BASE_URL=${gardenBaseUrl}`;
 		envSettings += `\nSHOW_CREATED_TIMESTAMP=${this.settings.showCreatedTimestamp}`;
+		envSettings += `\nTIMESTAMP_FORMAT=${this.settings.timestampFormat}`;
 		envSettings += `\nSHOW_UPDATED_TIMESTAMP=${this.settings.showUpdatedTimestamp}`;
 		envSettings += `\nNOTE_ICON_DEFAULT=${this.settings.defaultNoteIcon}`;
 		envSettings += `\nNOTE_ICON_TITLE=${this.settings.showNoteIconOnTitle}`;
