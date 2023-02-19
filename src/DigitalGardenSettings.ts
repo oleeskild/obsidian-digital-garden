@@ -22,6 +22,12 @@ export default interface DigitalGardenSettings {
 	showNoteIconInFileTree: boolean;
 	showNoteIconOnInternalLink: boolean;
 
+	showCreatedTimestamp: boolean;
+	createdTimestampKey: string
+
+	showUpdatedTimestamp: boolean;
+	updatedTimestampKey: string
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

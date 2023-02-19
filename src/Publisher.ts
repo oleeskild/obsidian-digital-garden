@@ -309,7 +309,8 @@ export default class Publisher {
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
-		publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addTimestampsFrontmatter(fileFrontMatter, publishedFrontMatter);
 		
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
         const frontMatterString = JSON.stringify(fullFrontMatter);
@@ -363,6 +364,33 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
+	}
+
+	addTimestampsFrontmatter(baseFrontMatter: any, newFrontMatter: any) {
+		if (!baseFrontMatter) {
+            baseFrontMatter = {};
+		}
+
+        //If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
+        if(!this.settings.showCreatedTimestamp 
+            && !this.settings.showUpdatedTimestamp){
+            return newFrontMatter;
+        }
+
+		const publishedFrontMatter = { ...newFrontMatter };
+		const createdKey = this.settings.createdTimestampKey;
+		const updatedKey = this.settings.updatedTimestampKey;
+		if (baseFrontMatter[createdKey] !== undefined) {
+			publishedFrontMatter['created'] = baseFrontMatter[createdKey];
+		} else {
+			publishedFrontMatter['created'] = '';
+		}
+		if (baseFrontMatter[updatedKey] !== undefined) {
+			publishedFrontMatter['updated'] = baseFrontMatter[updatedKey];
+		} else {
+			publishedFrontMatter['updated'] = '';
+		}
+		return publishedFrontMatter;
 	}
 	
 	addNoteIconFrontMatter(baseFrontMatter: any, newFrontMatter: any) {

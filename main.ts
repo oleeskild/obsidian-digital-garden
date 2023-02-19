@@ -29,6 +29,12 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	showNoteIconInFileTree: false,
 	showNoteIconOnInternalLink: false,
 
+	// Timestamp related settings
+	showCreatedTimestamp: false,
+	createdTimestampKey: "dg-created",
+	showUpdatedTimestamp: false,
+	updatedTimestampKey: "dg-updated",
+
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
