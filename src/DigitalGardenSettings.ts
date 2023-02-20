@@ -22,6 +22,8 @@ export default interface DigitalGardenSettings {
 	showNoteIconInFileTree: boolean;
 	showNoteIconOnInternalLink: boolean;
 
+	allowGoogleFontsFromCDN: boolean;
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

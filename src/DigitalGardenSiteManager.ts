@@ -40,6 +40,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         }
         envSettings+=`\nSITE_NAME_HEADER=${siteName}`;
 		envSettings += `\nSITE_BASE_URL=${gardenBaseUrl}`;
+		envSettings += `\nALLOW_GOOGLE_FONT=${this.settings.allowGoogleFontsFromCDN}`;
 		envSettings += `\nNOTE_ICON_DEFAULT=${this.settings.defaultNoteIcon}`;
 		envSettings += `\nNOTE_ICON_TITLE=${this.settings.showNoteIconOnTitle}`;
 		envSettings += `\nNOTE_ICON_FILETREE=${this.settings.showNoteIconInFileTree}`;

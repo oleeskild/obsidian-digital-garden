@@ -237,7 +237,18 @@ export default class SettingView {
                     await this.saveSettings();
                 });
                 new SvgFileSuggest(this.app, tc.inputEl)
-            })
+			})
+		
+		new Setting(themeModal.contentEl)
+			.setName("Allow google font from CDN")
+			.setDesc("Turning this off will serve Roboto and (other google fonts shipped with digital garden) from local server instead of CDN, making it GDPR compliant.")
+			.addToggle(t => {
+				t.setValue(this.settings.allowGoogleFontsFromCDN)
+					.onChange(async (value) => {
+						this.settings.allowGoogleFontsFromCDN = value;
+						await this.saveSettings();
+					})
+			});
 		
 		themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
 
