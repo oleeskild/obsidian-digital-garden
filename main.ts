@@ -28,7 +28,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
 	showNoteIconOnInternalLink: false,
-	allowGoogleFontsFromCDN: true,
+	allowGoogleFontsFromCDN: false,
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
