@@ -262,7 +262,7 @@ export default class SettingView {
 		
 		new Setting(themeModal.contentEl)
 			.setName('Created timestamp Frontmatter Key')
-			.setDesc('Key to get the created timestamp from the frontmatter. The value can be any value that luxon Datetime.fromISO can parse.')
+			.setDesc('Key to get the created timestamp from the frontmatter. Keep blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.')
 			.addText(text =>
 				text.setValue(this.settings.createdTimestampKey)
 					.onChange(async (value) => {
@@ -283,7 +283,7 @@ export default class SettingView {
 		
 		new Setting(themeModal.contentEl)
 			.setName('Updated timestamp Frontmatter Key')
-			.setDesc('Key to get the updated timestamp from the frontmatter. The value can be any value that luxon Datetime.fromISO can parse.')
+			.setDesc('Key to get the updated timestamp from the frontmatter. Keep blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.')
 			.addText(text =>
 				text.setValue(this.settings.updatedTimestampKey)
 					.onChange(async (value) => {
