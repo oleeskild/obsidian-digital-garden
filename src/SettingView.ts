@@ -237,7 +237,61 @@ export default class SettingView {
                     await this.saveSettings();
                 });
                 new SvgFileSuggest(this.app, tc.inputEl)
-            })
+			})
+		
+		themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" });
+		new Setting(themeModal.contentEl)
+			.setName('Timestamp format')
+			.setDesc('The format string to render timestamp on the garden. Must be luxon compatible')
+			.addText(text =>
+				text.setValue(this.settings.timestampFormat)
+					.onChange(async (value) => {
+						this.settings.timestampFormat = value;
+						await this.saveSettings();
+					})
+		);
+		new Setting(themeModal.contentEl)
+			.setName("Show created timestamp")
+			.addToggle(t => {
+				t.setValue(this.settings.showCreatedTimestamp)
+					.onChange(async (value) => {
+						this.settings.showCreatedTimestamp = value;
+						await this.saveSettings();
+					})
+			});
+		
+		new Setting(themeModal.contentEl)
+			.setName('Created timestamp Frontmatter Key')
+			.setDesc('Key to get the created timestamp from the frontmatter. Keep blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.')
+			.addText(text =>
+				text.setValue(this.settings.createdTimestampKey)
+					.onChange(async (value) => {
+						this.settings.createdTimestampKey = value;
+						await this.saveSettings();
+					})
+		);
+
+		new Setting(themeModal.contentEl)
+			.setName("Show updated timestamp")
+			.addToggle(t => {
+				t.setValue(this.settings.showUpdatedTimestamp)
+					.onChange(async (value) => {
+						this.settings.showUpdatedTimestamp = value;
+						await this.saveSettings();
+					})
+			});
+		
+		new Setting(themeModal.contentEl)
+			.setName('Updated timestamp Frontmatter Key')
+			.setDesc('Key to get the updated timestamp from the frontmatter. Keep blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.')
+			.addText(text =>
+				text.setValue(this.settings.updatedTimestampKey)
+					.onChange(async (value) => {
+						this.settings.updatedTimestampKey = value;
+						await this.saveSettings();
+					})
+		);
+
 		
 		themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
 

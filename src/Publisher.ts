@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { MetadataCache, TFile, Vault, Notice, getLinkpath } from "obsidian";
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
@@ -45,7 +46,7 @@ export default class Publisher {
                 const frontMatter = this.metadataCache.getCache(file.path).frontmatter
                 if (frontMatter && frontMatter["dg-publish"] === true) {
                     notesToPublish.push(file);
-					let images = await this.extractImageLinks(await this.vault.cachedRead(file), file.path);
+					const images = await this.extractImageLinks(await this.vault.cachedRead(file), file.path);
 					images.forEach((i) => imagesToPublish.add(i));
                 }
             } catch {
@@ -141,7 +142,7 @@ export default class Publisher {
         }
 
         let text = await this.vault.cachedRead(file);
-		text = await this.convertFrontMatter(text, file.path);
+		text = await this.convertFrontMatter(text, file);
 		text = await this.createBlockIDs(text);
         text = await this.createTranscludedText(text, file.path, 0);
         text = await this.convertDataViews(text, file.path);
@@ -268,8 +269,8 @@ export default class Publisher {
         return text;
     }
 
-    async convertFrontMatter(text: string, path: string): Promise<string> {
-        const publishedFrontMatter = this.getProcessedFrontMatter(path);
+    async convertFrontMatter(text: string, file: TFile): Promise<string> {
+        const publishedFrontMatter = this.getProcessedFrontMatter(file);
         const replaced = text.replace(this.frontmatterRegex, (match, p1) => {
             return publishedFrontMatter;
         });
@@ -299,17 +300,18 @@ export default class Publisher {
 
     }
 
-    getProcessedFrontMatter(filePath: string): string {
-        const fileFrontMatter = { ...this.metadataCache.getCache(filePath).frontmatter };
+    getProcessedFrontMatter(file: TFile): string {
+        const fileFrontMatter = { ...this.metadataCache.getCache(file.path).frontmatter };
         delete fileFrontMatter["position"];
 
         let publishedFrontMatter: any = { "dg-publish": true };
 
-        publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, filePath);
+        publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, file.path);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
-		publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
+        publishedFrontMatter = this.addTimestampsFrontmatter(fileFrontMatter, publishedFrontMatter, file);
 		
         const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter ? { ...fileFrontMatter, ...publishedFrontMatter } : publishedFrontMatter;
         const frontMatterString = JSON.stringify(fullFrontMatter);
@@ -363,6 +365,41 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
+	}
+
+	addTimestampsFrontmatter(baseFrontMatter: any, newFrontMatter: any, file: TFile) {
+		if (!baseFrontMatter) {
+            baseFrontMatter = {};
+		}
+
+        //If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
+        if(!this.settings.showCreatedTimestamp 
+            && !this.settings.showUpdatedTimestamp){
+            return newFrontMatter;
+        }
+
+		const publishedFrontMatter = { ...newFrontMatter };
+		const createdKey = this.settings.createdTimestampKey;
+		const updatedKey = this.settings.updatedTimestampKey;
+		if (createdKey.length) {
+			if (typeof baseFrontMatter[createdKey] == "string") {
+				publishedFrontMatter['created'] = baseFrontMatter[createdKey];
+			} else {
+				publishedFrontMatter['created'] = '';
+			}
+		} else {
+			publishedFrontMatter['created'] = DateTime.fromMillis(file.stat.ctime).toISO();
+		}
+		if (updatedKey.length) {
+			if (typeof baseFrontMatter[updatedKey] == "string") {
+				publishedFrontMatter['updated'] = baseFrontMatter[updatedKey];
+			} else {
+				publishedFrontMatter['updated'] = '';
+			}
+		} else {
+			publishedFrontMatter['updated'] = DateTime.fromMillis(file.stat.mtime).toISO();
+		}
+		return publishedFrontMatter;
 	}
 	
 	addNoteIconFrontMatter(baseFrontMatter: any, newFrontMatter: any) {
@@ -611,7 +648,7 @@ export default class Publisher {
 	async extractImageLinks(text: string, filePath: string): Promise<string[]> {
 		const assets = [];
 
-        let imageText = text;
+        const imageText = text;
         //![[image.png]]
         const transcludedImageRegex = /!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
         const transcludedImageMatches = text.match(transcludedImageRegex);
@@ -752,7 +789,7 @@ export default class Publisher {
         if (!file.name.endsWith(".excalidraw.md")) return "";
 
         const fileText = await this.vault.cachedRead(file);
-        const frontMatter = await this.getProcessedFrontMatter(file.path);
+        const frontMatter = await this.getProcessedFrontMatter(file);
 
 		const isCompressed = fileText.includes("```compressed-json")
         const start = fileText.indexOf(isCompressed ? "```compressed-json" : "```json") + (isCompressed ? "```compressed-json" : "```json").length;
