@@ -28,9 +28,9 @@ export default class SettingView {
     async initialize(prModal: Modal) {
         this.settingsRootElement.empty();
         this.settingsRootElement.createEl('h2', { text: 'Settings ' });
-        this.settingsRootElement.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
-        this.settingsRootElement.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
-
+        const linkDiv = this.settingsRootElement.createEl('div', {attr: {style: "margin-bottom: 10px;"}})
+        linkDiv.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
+        linkDiv.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
 
         this.initializeGitHubRepoSetting();
         this.initializeGitHubUserNameSetting();
@@ -294,6 +294,12 @@ export default class SettingView {
 
 		
 		themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
+        themeModal.contentEl
+            .createEl('div', {attr: {style: "margin-bottom: 10px;"}})
+            .createEl('a', {
+                text:"Documentation on note icons", 
+                href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons"
+            });
 
 		new Setting(themeModal.contentEl)
 			.setName('Note icon Frontmatter Key')
