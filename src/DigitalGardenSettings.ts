@@ -21,6 +21,7 @@ export default interface DigitalGardenSettings {
 	showNoteIconOnTitle: boolean;
 	showNoteIconInFileTree: boolean;
 	showNoteIconOnInternalLink: boolean;
+	showNoteIconOnBackLink: boolean;
 
 	showCreatedTimestamp: boolean;
 	createdTimestampKey: string

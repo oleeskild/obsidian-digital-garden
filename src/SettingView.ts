@@ -353,6 +353,16 @@ export default class SettingView {
 					})
 			});
 
+		new Setting(themeModal.contentEl)
+			.setName("Show note icon on Backlinks")
+			.addToggle(t => {
+				t.setValue(this.settings.showNoteIconOnBackLink)
+					.onChange(async (value) => {
+						this.settings.showNoteIconOnBackLink = value;
+						await this.saveSettings();
+					})
+			});
+
 
         new Setting(themeModal.contentEl)
             .addButton(cb => {
@@ -595,7 +605,7 @@ export default class SettingView {
             prUrlElement.textContent = prUrl;
             li.appendChild(prUrlElement);
         });
-    };
+    }
 
     renderLoading() {
         this.loading.show();
