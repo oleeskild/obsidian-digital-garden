@@ -329,6 +329,9 @@ export default class Publisher {
 			if ( baseFrontMatter["dg-metatags"]) {
 				publishedFrontMatter["metatags"] = baseFrontMatter["dg-metatags"];
 			}
+			if ( baseFrontMatter["dg-hide"]) {
+				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
+			}
 		}
 		return publishedFrontMatter;
 	}
