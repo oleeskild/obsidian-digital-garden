@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
 	showNoteIconOnInternalLink: false,
+	showNoteIconOnBackLink: false,
 
 	// Timestamp related settings
 	showCreatedTimestamp: false,
