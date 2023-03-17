@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal, Events } from 'obsidian';
 import Publisher from 'src/Publisher';
 import DigitalGardenSettings from 'src/DigitalGardenSettings';
 import DigitalGardenSiteManager from 'src/DigitalGardenSiteManager';
@@ -58,7 +58,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal: PublishModal;
 
 	async onload() {
-		this.appVersion =  this.manifest.version;
+		this.appVersion = this.manifest.version;
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -68,7 +68,7 @@ export default class DigitalGarden extends Plugin {
 		await this.addCommands();
 
 		addIcon('digital-garden-icon', seedling);
-		if(this.settings.showRibbonIcon){
+		if (this.settings.showRibbonIcon) {
 			this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
 				this.openPublishModal();
 			});
@@ -90,36 +90,37 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async addCommands() {
+
+		this.addCommand({
+			id: 'quick-publish-and-share-note',
+			name: 'Quick Publish And Share Note',
+			callback: async () => {
+				new Notice("Adding publish flag to note and publishing it.")
+				await this.addPublishFlag();
+				const activeFile = this.app.workspace.getActiveFile();
+				let event = this.app.metadataCache.on('changed', async (file, data, cache) => {
+					console.log(`File ${file.path} changed with type ${data}.`)
+					if (file.path === activeFile.path) {
+						const successfullyPublished = await this.publishSingleNote();
+						if(successfullyPublished){
+							await this.copyGardenUrlToClipboard();
+						}
+						this.app.metadataCache.offref(event);
+					}
+				});
+
+				// Remove the event listener after 5 seconds in case the file is not changed.
+				setTimeout(() => {
+					this.app.metadataCache.offref(event);
+				}, 5000);
+
+			}
+		});
+
 		this.addCommand({
 			id: 'publish-note',
 			name: 'Publish Single Note',
-			callback: async () => {
-				try {
-					const { vault, workspace, metadataCache } = this.app;
-
-					const currentFile = workspace.getActiveFile();
-					if (!currentFile) {
-						new Notice("No file is open/active. Please open a file and try again.")
-						return;
-					}
-					if (currentFile.extension !== 'md') {
-						new Notice("The current file is not a markdown file. Please open a markdown file and try again.")
-						return;
-					}
-
-					new Notice("Publishing note...");
-					const publisher = new Publisher(vault, metadataCache, this.settings);
-					const publishSuccessful = await publisher.publish(currentFile);
-
-					if (publishSuccessful) {
-						new Notice(`Successfully published note to your garden.`);
-					}
-
-				} catch (e) {
-					console.error(e)
-					new Notice("Unable to publish note, something went wrong.")
-				}
-			},
+			callback: this.publishSingleNote
 		});
 
 		this.addCommand({
@@ -179,7 +180,7 @@ export default class DigitalGarden extends Plugin {
 					if (filesToDelete.length > 0) {
 						new Notice(`Successfully deleted ${filesToDelete.length - errorDeleteFiles} notes from your garden.`);
 					}
-					if(imagesToDelete.length > 0) {
+					if (imagesToDelete.length > 0) {
 						new Notice(`Successfully deleted ${imagesToDelete.length - errorDeleteImage} images from your garden.`);
 					}
 
@@ -194,44 +195,75 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'copy-garden-url',
 			name: 'Copy Garden URL',
-			callback: async () => {
-				try {
-					const { metadataCache, workspace } = this.app;
-					const currentFile = workspace.getActiveFile();
-					if (!currentFile) {
-						new Notice("No file is open/active. Please open a file and try again.")
-						return;
-					}
-
-					const siteManager = new DigitalGardenSiteManager(metadataCache, this.settings);
-					const fullUrl = siteManager.getNoteUrl(currentFile);
-
-					await navigator.clipboard.writeText(fullUrl);
-					new Notice(`Note URL copied to clipboard`);
-				} catch (e) {
-					console.log(e)
-					new Notice("Unable to copy note URL to clipboard, something went wrong.")
-				}
-			}
+			callback: this.copyGardenUrlToClipboard
 		});
 
 		this.addCommand({
 			id: 'dg-open-publish-modal',
 			name: 'Open Publication Center',
-			callback: async () => {
-				this.openPublishModal();
-			}
+			callback: this.openPublishModal
 		});
 
 		this.addCommand({
 			id: 'dg-mark-note-for-publish',
 			name: 'Add publish flag',
-			callback: async () => {
-				const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, this.app.workspace.getActiveFile());
-				engine.set("dg-publish", true).apply();
-			}
+			callback: this.addPublishFlag
 		});
 
+	}
+
+	async copyGardenUrlToClipboard() {
+		try {
+			const { metadataCache, workspace } = this.app;
+			const currentFile = workspace.getActiveFile();
+			if (!currentFile) {
+				new Notice("No file is open/active. Please open a file and try again.")
+				return;
+			}
+
+			const siteManager = new DigitalGardenSiteManager(metadataCache, this.settings);
+			const fullUrl = siteManager.getNoteUrl(currentFile);
+
+			await navigator.clipboard.writeText(fullUrl);
+			new Notice(`Note URL copied to clipboard`);
+		} catch (e) {
+			console.log(e)
+			new Notice("Unable to copy note URL to clipboard, something went wrong.")
+		}
+	}
+
+	async publishSingleNote() {
+		try {
+			const { vault, workspace, metadataCache } = this.app;
+
+			const currentFile = workspace.getActiveFile();
+			if (!currentFile) {
+				new Notice("No file is open/active. Please open a file and try again.")
+				return;
+			}
+			if (currentFile.extension !== 'md') {
+				new Notice("The current file is not a markdown file. Please open a markdown file and try again.")
+				return;
+			}
+
+			new Notice("Publishing note...");
+			const publisher = new Publisher(vault, metadataCache, this.settings);
+			const publishSuccessful = await publisher.publish(currentFile);
+
+			if (publishSuccessful) {
+				new Notice(`Successfully published note to your garden.`);
+			}
+			return publishSuccessful;
+
+		} catch (e) {
+			console.error(e)
+			new Notice("Unable to publish note, something went wrong.")
+			return false;
+		}
+	}
+	async addPublishFlag() {
+		const engine = new ObsidianFrontMatterEngine(this.app.vault, this.app.metadataCache, this.app.workspace.getActiveFile());
+		engine.set("dg-publish", true).apply();
 	}
 
 	openPublishModal() {
@@ -254,7 +286,7 @@ class DigitalGardenSettingTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 
-		if(!this.plugin.settings.noteSettingsIsInitialized) {
+		if (!this.plugin.settings.noteSettingsIsInitialized) {
 			const siteManager = new DigitalGardenSiteManager(this.app.metadataCache, this.plugin.settings);
 			siteManager.updateEnv();
 			this.plugin.settings.noteSettingsIsInitialized = true;

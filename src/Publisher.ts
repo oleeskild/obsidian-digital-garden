@@ -9,6 +9,7 @@ import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
 import LZString from "lz-string";
+import ObsidianFrontMatterEngine from './ObsidianFrontMatterEngine';
 
 export interface MarkedForPublishing {
 	notes: TFile[],
