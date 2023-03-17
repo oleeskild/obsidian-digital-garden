@@ -31,6 +31,8 @@ export default interface DigitalGardenSettings {
 
 	timestampFormat: string;
 
+	styleSettingsCss: string;
+
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
 		dgPassFrontmatter: boolean;

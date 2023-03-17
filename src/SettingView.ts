@@ -28,7 +28,7 @@ export default class SettingView {
     async initialize(prModal: Modal) {
         this.settingsRootElement.empty();
         this.settingsRootElement.createEl('h2', { text: 'Settings ' });
-        const linkDiv = this.settingsRootElement.createEl('div', {attr: {style: "margin-bottom: 10px;"}})
+        const linkDiv = this.settingsRootElement.createEl('div', { attr: { style: "margin-bottom: 10px;" } })
         linkDiv.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
         linkDiv.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
 
@@ -68,7 +68,7 @@ export default class SettingView {
                 })
             })
 
-       
+
         new Setting(noteSettingsModal.contentEl)
             .setName("Show local graph for notes (dg-show-local-graph)")
             .setDesc("When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.")
@@ -79,7 +79,7 @@ export default class SettingView {
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
-       
+
         new Setting(noteSettingsModal.contentEl)
             .setName("Show backlinks for notes (dg-show-backlinks)")
             .setDesc("When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.")
@@ -112,7 +112,7 @@ export default class SettingView {
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
-            
+
         new Setting(noteSettingsModal.contentEl)
             .setName("Show filetree sidebar (dg-show-file-tree)")
             .setDesc("When turned on, a filetree will be shown on your site.")
@@ -157,7 +157,7 @@ export default class SettingView {
                 })
             })
 
-         new Setting(noteSettingsModal.contentEl)
+        new Setting(noteSettingsModal.contentEl)
             .setName("Let all frontmatter through (dg-pass-frontmatter)")
             .setDesc("Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.")
             .addToggle(t => {
@@ -175,6 +175,8 @@ export default class SettingView {
         const themeModal = new Modal(this.app);
         themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
 
+
+
         new Setting(this.settingsRootElement)
             .setName("Appearance")
             .setDesc("Manage themes, sitename and favicons on your site")
@@ -185,6 +187,37 @@ export default class SettingView {
                 })
             })
 
+        //this.app.plugins is not defined, so we need to use a try catch in case the internal api is changed
+        try {
+            //@ts-ignore
+            if (this.app.plugins && this.app.plugins.plugins['obsidian-style-settings']._loaded) {
+                themeModal.contentEl.createEl('h2', { text: "Style Settings Plugin" });
+                new Setting(themeModal.contentEl)
+                    .setName("Apply current style settings to site")
+                    .setDesc("Click the apply button to use the current style settings from the Style Settings Plugin on your site.")
+                    .addButton(btn => {
+                        btn.setButtonText("Apply");
+                        btn.onClick(async ev => {
+                            new Notice("Applying Style Settings...");
+                            const styleSettingsNode = document.querySelector("#css-settings-manager");
+                            if(!styleSettingsNode){
+                                new Notice("No Style Settings found");
+                                return;
+                            } 
+                            this.settings.styleSettingsCss = styleSettingsNode.innerHTML
+                            if(!this.settings.styleSettingsCss) {
+                                new Notice("No Style Settings found");
+                                return;
+                            }
+                            this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                            new Notice("Style Settings applied to site");
+                        });
+                    });
+            }
+        } catch { }
+
+        themeModal.contentEl.createEl('h2', { text: "Theme Settings" });
+
         const themesListResponse = await axios.get("https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json")
         new Setting(themeModal.contentEl)
             .setName("Theme")
@@ -192,7 +225,7 @@ export default class SettingView {
                 dd.addOption('{"name": "default", "modes": ["dark"]}', "Default")
                 const sortedThemes = themesListResponse.data.sort((a: { name: string; }, b: { name: any; }) => a.name.localeCompare(b.name));
                 sortedThemes.map((x: any) => {
-                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'HEAD'}/${x.legacy ? 'obsidian.css': 'theme.css'}` }), x.name);
+                    dd.addOption(JSON.stringify({ ...x, cssUrl: `https://raw.githubusercontent.com/${x.repo}/${x.branch || 'HEAD'}/${x.legacy ? 'obsidian.css' : 'theme.css'}` }), x.name);
                     dd.setValue(this.settings.theme)
                     dd.onChange(async (val: any) => {
                         this.settings.theme = val;
@@ -214,6 +247,8 @@ export default class SettingView {
                     await this.saveSettings();
                 });
             });
+
+       
 
         new Setting(themeModal.contentEl)
             .setName('Sitename')
@@ -237,131 +272,131 @@ export default class SettingView {
                     await this.saveSettings();
                 });
                 new SvgFileSuggest(this.app, tc.inputEl)
-			})
-		
-		themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" });
-		new Setting(themeModal.contentEl)
-			.setName('Timestamp format')
-			.setDesc('The format string to render timestamp on the garden. Must be luxon compatible')
-			.addText(text =>
-				text.setValue(this.settings.timestampFormat)
-					.onChange(async (value) => {
-						this.settings.timestampFormat = value;
-						await this.saveSettings();
-					})
-		);
-		new Setting(themeModal.contentEl)
-			.setName("Show created timestamp")
-			.addToggle(t => {
-				t.setValue(this.settings.showCreatedTimestamp)
-					.onChange(async (value) => {
-						this.settings.showCreatedTimestamp = value;
-						await this.saveSettings();
-					})
-			});
-		
-		new Setting(themeModal.contentEl)
-			.setName('Created timestamp Frontmatter Key')
-			.setDesc('Key to get the created timestamp from the frontmatter. Keep blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.')
-			.addText(text =>
-				text.setValue(this.settings.createdTimestampKey)
-					.onChange(async (value) => {
-						this.settings.createdTimestampKey = value;
-						await this.saveSettings();
-					})
-		);
+            })
 
-		new Setting(themeModal.contentEl)
-			.setName("Show updated timestamp")
-			.addToggle(t => {
-				t.setValue(this.settings.showUpdatedTimestamp)
-					.onChange(async (value) => {
-						this.settings.showUpdatedTimestamp = value;
-						await this.saveSettings();
-					})
-			});
-		
-		new Setting(themeModal.contentEl)
-			.setName('Updated timestamp Frontmatter Key')
-			.setDesc('Key to get the updated timestamp from the frontmatter. Keep blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.')
-			.addText(text =>
-				text.setValue(this.settings.updatedTimestampKey)
-					.onChange(async (value) => {
-						this.settings.updatedTimestampKey = value;
-						await this.saveSettings();
-					})
-		);
+        themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" });
+        new Setting(themeModal.contentEl)
+            .setName('Timestamp format')
+            .setDesc('The format string to render timestamp on the garden. Must be luxon compatible')
+            .addText(text =>
+                text.setValue(this.settings.timestampFormat)
+                    .onChange(async (value) => {
+                        this.settings.timestampFormat = value;
+                        await this.saveSettings();
+                    })
+            );
+        new Setting(themeModal.contentEl)
+            .setName("Show created timestamp")
+            .addToggle(t => {
+                t.setValue(this.settings.showCreatedTimestamp)
+                    .onChange(async (value) => {
+                        this.settings.showCreatedTimestamp = value;
+                        await this.saveSettings();
+                    })
+            });
 
-		
-		themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
+        new Setting(themeModal.contentEl)
+            .setName('Created timestamp Frontmatter Key')
+            .setDesc('Key to get the created timestamp from the frontmatter. Keep blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.')
+            .addText(text =>
+                text.setValue(this.settings.createdTimestampKey)
+                    .onChange(async (value) => {
+                        this.settings.createdTimestampKey = value;
+                        await this.saveSettings();
+                    })
+            );
+
+        new Setting(themeModal.contentEl)
+            .setName("Show updated timestamp")
+            .addToggle(t => {
+                t.setValue(this.settings.showUpdatedTimestamp)
+                    .onChange(async (value) => {
+                        this.settings.showUpdatedTimestamp = value;
+                        await this.saveSettings();
+                    })
+            });
+
+        new Setting(themeModal.contentEl)
+            .setName('Updated timestamp Frontmatter Key')
+            .setDesc('Key to get the updated timestamp from the frontmatter. Keep blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.')
+            .addText(text =>
+                text.setValue(this.settings.updatedTimestampKey)
+                    .onChange(async (value) => {
+                        this.settings.updatedTimestampKey = value;
+                        await this.saveSettings();
+                    })
+            );
+
+
+        themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
         themeModal.contentEl
-            .createEl('div', {attr: {style: "margin-bottom: 10px;"}})
+            .createEl('div', { attr: { style: "margin-bottom: 10px;" } })
             .createEl('a', {
-                text:"Documentation on note icons", 
+                text: "Documentation on note icons",
                 href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons"
             });
 
-		new Setting(themeModal.contentEl)
-			.setName('Note icon Frontmatter Key')
-			.setDesc('Key to get the note icon value from the frontmatter')
-			.addText(text =>
-				text.setValue(this.settings.noteIconKey)
-					.onChange(async (value) => {
-						this.settings.noteIconKey = value;
-						await this.saveSettings();
-					})
-		);
+        new Setting(themeModal.contentEl)
+            .setName('Note icon Frontmatter Key')
+            .setDesc('Key to get the note icon value from the frontmatter')
+            .addText(text =>
+                text.setValue(this.settings.noteIconKey)
+                    .onChange(async (value) => {
+                        this.settings.noteIconKey = value;
+                        await this.saveSettings();
+                    })
+            );
 
-		new Setting(themeModal.contentEl)
-			.setName('Default note icon Value')
-			.setDesc('The default value for note icon if not specified')
-			.addText(text => {
-				text.setValue(this.settings.defaultNoteIcon)
-					.onChange(async (value) => {
-						this.settings.defaultNoteIcon = value;
-						await this.saveSettings();
-					})
-				});
+        new Setting(themeModal.contentEl)
+            .setName('Default note icon Value')
+            .setDesc('The default value for note icon if not specified')
+            .addText(text => {
+                text.setValue(this.settings.defaultNoteIcon)
+                    .onChange(async (value) => {
+                        this.settings.defaultNoteIcon = value;
+                        await this.saveSettings();
+                    })
+            });
 
-		new Setting(themeModal.contentEl)
-			.setName("Show note icon on Title")
-			.addToggle(t => {
-				t.setValue(this.settings.showNoteIconOnTitle)
-					.onChange(async (value) => {
-						this.settings.showNoteIconOnTitle = value;
-						await this.saveSettings();
-					})
-			});
-		
-		new Setting(themeModal.contentEl)
-			.setName("Show note icon in FileTree")
-			.addToggle(t => {
-				t.setValue(this.settings.showNoteIconInFileTree)
-					.onChange(async (value) => {
-						this.settings.showNoteIconInFileTree = value;
-						await this.saveSettings();
-					})
-			});
-		
-		new Setting(themeModal.contentEl)
-			.setName("Show note icon on Internal Links")
-			.addToggle(t => {
-				t.setValue(this.settings.showNoteIconOnInternalLink)
-					.onChange(async (value) => {
-						this.settings.showNoteIconOnInternalLink = value;
-						await this.saveSettings();
-					})
-			});
+        new Setting(themeModal.contentEl)
+            .setName("Show note icon on Title")
+            .addToggle(t => {
+                t.setValue(this.settings.showNoteIconOnTitle)
+                    .onChange(async (value) => {
+                        this.settings.showNoteIconOnTitle = value;
+                        await this.saveSettings();
+                    })
+            });
 
-		new Setting(themeModal.contentEl)
-			.setName("Show note icon on Backlinks")
-			.addToggle(t => {
-				t.setValue(this.settings.showNoteIconOnBackLink)
-					.onChange(async (value) => {
-						this.settings.showNoteIconOnBackLink = value;
-						await this.saveSettings();
-					})
-			});
+        new Setting(themeModal.contentEl)
+            .setName("Show note icon in FileTree")
+            .addToggle(t => {
+                t.setValue(this.settings.showNoteIconInFileTree)
+                    .onChange(async (value) => {
+                        this.settings.showNoteIconInFileTree = value;
+                        await this.saveSettings();
+                    })
+            });
+
+        new Setting(themeModal.contentEl)
+            .setName("Show note icon on Internal Links")
+            .addToggle(t => {
+                t.setValue(this.settings.showNoteIconOnInternalLink)
+                    .onChange(async (value) => {
+                        this.settings.showNoteIconOnInternalLink = value;
+                        await this.saveSettings();
+                    })
+            });
+
+        new Setting(themeModal.contentEl)
+            .setName("Show note icon on Backlinks")
+            .addToggle(t => {
+                t.setValue(this.settings.showNoteIconOnBackLink)
+                    .onChange(async (value) => {
+                        this.settings.showNoteIconOnBackLink = value;
+                        await this.saveSettings();
+                    })
+            });
 
 
         new Setting(themeModal.contentEl)
@@ -390,8 +425,8 @@ export default class SettingView {
         new Notice("Successfully applied theme");
         new Notice("Successfully set sitename");
     }
-    
-    private async saveSiteSettingsAndUpdateEnv(metadataCache:MetadataCache, settings:DigitalGardenSettings, saveSettings: ()=>Promise<void> ) {
+
+    private async saveSiteSettingsAndUpdateEnv(metadataCache: MetadataCache, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
         const octokit = new Octokit({ auth: settings.githubToken });
         let updateFailed = false;
         try {
@@ -537,7 +572,7 @@ export default class SettingView {
                         await this.saveSettings();
                     })
             );
-    } 
+    }
 
     private initializeSlugifySetting() {
         new Setting(this.settingsRootElement)
@@ -546,11 +581,11 @@ export default class SettingView {
             .addToggle(toggle =>
                 toggle.setValue(this.settings.slugifyEnabled)
                     .onChange(async (value) => {
-                        this.settings.slugifyEnabled= value;
+                        this.settings.slugifyEnabled = value;
                         await this.saveSettings();
                     })
             );
-    } 
+    }
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
 

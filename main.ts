@@ -37,6 +37,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	updatedTimestampKey: "dg-updated",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 
+	styleSettingsCss: '',
+
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
