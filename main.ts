@@ -122,7 +122,9 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'publish-note',
 			name: 'Publish Single Note',
-			callback: this.publishSingleNote
+			callback: async() =>{
+				await this.publishSingleNote();
+			} 
 		});
 
 		this.addCommand({
@@ -197,19 +199,25 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'copy-garden-url',
 			name: 'Copy Garden URL',
-			callback: this.copyGardenUrlToClipboard
+			callback: async() => {
+				this.copyGardenUrlToClipboard();
+			}
 		});
 
 		this.addCommand({
 			id: 'dg-open-publish-modal',
 			name: 'Open Publication Center',
-			callback: this.openPublishModal
+			callback: async() => {
+				this.openPublishModal();
+			}
 		});
 
 		this.addCommand({
 			id: 'dg-mark-note-for-publish',
 			name: 'Add publish flag',
-			callback: this.addPublishFlag
+			callback: async() => {
+				this.addPublishFlag();
+			}
 		});
 
 	}
