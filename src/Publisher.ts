@@ -3,7 +3,7 @@ import { MetadataCache, TFile, Vault, Notice, getLinkpath, Component } from "obs
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64, escapeRegExp, generateUrlPath, kebabize } from "./utils";
+import { arrayBufferToBase64, escapeRegExp, generateUrlPath, getGardenPathForNote, getRewriteRules, kebabize } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
@@ -25,7 +25,8 @@ export interface IPublisher {
 export default class Publisher {
     vault: Vault;
     metadataCache: MetadataCache;
-    settings: DigitalGardenSettings;
+	settings: DigitalGardenSettings;
+	rewriteRules: Array<Array<string>>;
     frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 
     codeFenceRegex = /`(.*?)`/g;
@@ -35,9 +36,13 @@ export default class Publisher {
     constructor(vault: Vault, metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.vault = vault;
         this.metadataCache = metadataCache;
-        this.settings = settings;
-    }
+		this.settings = settings;
+		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
+	}
 
+	
+
+	
     async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
         const files = this.vault.getMarkdownFiles();
         const notesToPublish = [];
@@ -62,7 +67,7 @@ export default class Publisher {
     }
 
 	async deleteNote(vaultFilePath: string) {
-		const path = `src/site/notes/${vaultFilePath}`;
+		const path = `src/site/notes/${getGardenPathForNote(vaultFilePath, this.rewriteRules)}`;
 		return await this.delete(path);
 	}
 
@@ -215,7 +220,8 @@ export default class Publisher {
 
     async uploadText(filePath: string, content: string) {
 		content = Base64.encode(content);
-        const path = `src/site/notes/${filePath}`
+		const remoteFilePath = getGardenPathForNote(filePath, this.rewriteRules);
+        const path = `src/site/notes/${remoteFilePath}`
         await this.uploadToGithub(path, content)
     }
 
@@ -290,11 +296,11 @@ export default class Publisher {
         const dataviewJsMatches = text.matchAll(dataViewJsRegex);
 
         const inlineQueryPrefix = dvApi.settings.inlineQueryPrefix;
-        const inlineDataViewRegex: RegExp = new RegExp("`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`", "gsm");
+        const inlineDataViewRegex = new RegExp("`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`", "gsm");
         const inlineMatches = text.matchAll(inlineDataViewRegex);
 
         const inlineJsQueryPrefix = dvApi.settings.inlineJsQueryPrefix;
-        const inlineJsDataViewRegex: RegExp = new RegExp("`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`", "gsm");
+        const inlineJsDataViewRegex = new RegExp("`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`", "gsm");
         const inlineJsMatches = text.matchAll(inlineJsDataViewRegex);
 
         if(!matches && !inlineMatches && !dataviewJsMatches && !inlineJsMatches)return;
@@ -420,7 +426,7 @@ export default class Publisher {
                 publishedFrontMatter["permalink"] = "/" + publishedFrontMatter["permalink"];
             }
         } else {
-            const noteUrlPath = generateUrlPath(filePath, this.settings.slugifyEnabled);
+            const noteUrlPath = generateUrlPath(getGardenPathForNote(filePath, this.rewriteRules), this.settings.slugifyEnabled);
             publishedFrontMatter["permalink"] = "/" + noteUrlPath;
         }
 
@@ -554,7 +560,7 @@ export default class Publisher {
                     }
                     if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}\\|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${getGardenPathForNote(extensionlessPath, this.rewriteRules)}${headerPath}\\|${prettyName}]]`);
                     }
                 } catch (e) {
                     console.log(e);
@@ -638,7 +644,7 @@ export default class Publisher {
                         const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
 						let embedded_link = "";
 						if (publishedFiles.find((f) => f.path == linkedFile.path)) {
-							embedded_link = `<a class="markdown-embed-link" href="/${generateUrlPath(linkedFile.path)}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+							embedded_link = `<a class="markdown-embed-link" href="/${generateUrlPath(getGardenPathForNote(linkedFile.path, this.rewriteRules))}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
 						}
                         fileText = `\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n`
                             + fileText + '\n\n</div></div>\n'

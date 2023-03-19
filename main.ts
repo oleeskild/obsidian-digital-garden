@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	timestampFormat: "MMM dd, yyyy h:mm a",
 
 	styleSettingsCss: '',
+	pathRewriteRules: '',
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
@@ -100,7 +101,7 @@ export default class DigitalGarden extends Plugin {
 				new Notice("Adding publish flag to note and publishing it.")
 				await this.addPublishFlag();
 				const activeFile = this.app.workspace.getActiveFile();
-				let event = this.app.metadataCache.on('changed', async (file, data, cache) => {
+				const event = this.app.metadataCache.on('changed', async (file, data, cache) => {
 					console.log(`File ${file.path} changed with type ${data}.`)
 					if (file.path === activeFile.path) {
 						const successfullyPublished = await this.publishSingleNote();

@@ -32,6 +32,7 @@ export default interface DigitalGardenSettings {
 	timestampFormat: string;
 
 	styleSettingsCss: string;
+	pathRewriteRules: string;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;

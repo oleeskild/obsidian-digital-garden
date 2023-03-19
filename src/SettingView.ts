@@ -38,7 +38,8 @@ export default class SettingView {
         this.initializeGitHubBaseURLSetting();
         this.initializeDefaultNoteSettings();
         this.initializeThemesSettings();
-        this.initializeSlugifySetting();
+		this.initializeSlugifySetting();
+		this.initializePathRewriteSettings();
         this.initializeRibbonIconSetting();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
@@ -166,7 +167,7 @@ export default class SettingView {
                     this.settings.defaultNoteSettings.dgPassFrontmatter = val;
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
-            })
+			})
     }
 
 
@@ -584,6 +585,25 @@ export default class SettingView {
                         this.settings.slugifyEnabled = value;
                         await this.saveSettings();
                     })
+            );
+	}
+	
+	private initializePathRewriteSettings() {
+		this.settingsRootElement.createEl('h2', { text: "Path Rewrite rules" });
+		this.settingsRootElement.createEl('div', {text: `Define rules to rewrite note paths using following syntax:\n
+			1. One rule-per line\n
+			2. The format is [from_vault_path]:[to_garden_path]\n
+			3. Matching will exit on first match`})
+        new Setting(this.settingsRootElement)
+            .setName('Rules')
+			.addTextArea(field => {
+				field.setPlaceholder('/Personal/Journal:/Journal')
+				field.setValue(this.settings.pathRewriteRules)
+                    .onChange(async (value) => {
+                        this.settings.pathRewriteRules = value;
+                        await this.saveSettings();
+                    })
+			}
             );
     }
 
