@@ -333,6 +333,9 @@ export default class Publisher {
 			if ( baseFrontMatter["dg-hide"]) {
 				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
 			}
+			if ( baseFrontMatter["dg-pinned"]) {
+				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
+			}
 		}
 		return publishedFrontMatter;
 	}
