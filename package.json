@@ -32,6 +32,6 @@
         "js-base64": "^3.7.2",
         "luxon": "^3.2.1",
         "lz-string": "^1.4.4",
-        "obsidian-dataview": "^0.5.41"
+        "obsidian-dataview": "^0.5.55"
     }
 }

@@ -1,9 +1,9 @@
 import { DateTime } from 'luxon';
-import { MetadataCache, TFile, Vault, Notice, getLinkpath } from "obsidian";
+import { MetadataCache, TFile, Vault, Notice, getLinkpath, Component } from "obsidian";
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64, generateUrlPath, kebabize } from "./utils";
+import { arrayBufferToBase64, escapeRegExp, generateUrlPath, kebabize } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
@@ -280,11 +280,25 @@ export default class Publisher {
 
     async convertDataViews(text: string, path:string): Promise<string> {
         let replacedText = text;
-        const dataViewRegex = /```dataview(.+?)```/gsm;
+        const dataViewRegex = /```dataview\s(.+?)```/gsm;
         const dvApi = getAPI();
         const matches = text.matchAll(dataViewRegex);
-        if(!matches)return;
 
+        const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
+        const dataViewJsRegex = new RegExp("```" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```", "gsm");
+        const dataviewJsMatches = text.matchAll(dataViewJsRegex);
+
+        const inlineQueryPrefix = dvApi.settings.inlineQueryPrefix;
+        const inlineDataViewRegex: RegExp = new RegExp("`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`", "gsm");
+        const inlineMatches = text.matchAll(inlineDataViewRegex);
+
+        const inlineJsQueryPrefix = dvApi.settings.inlineJsQueryPrefix;
+        const inlineJsDataViewRegex: RegExp = new RegExp("`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`", "gsm");
+        const inlineJsMatches = text.matchAll(inlineJsDataViewRegex);
+
+        if(!matches && !inlineMatches && !dataviewJsMatches && !inlineJsMatches)return;
+
+        //Code block queries
         for(const queryBlock of matches){
             try{
                 const block = queryBlock[0];
@@ -297,6 +311,61 @@ export default class Publisher {
                 return queryBlock[0];
             }
         }
+
+        for(const queryBlock of dataviewJsMatches){
+            try{
+                const block = queryBlock[0];
+                const query = queryBlock[1];
+
+                const div = createEl('div');
+                const component = new Component();
+                await dvApi.executeJs(query, div, component, path)
+                component.load();
+                
+                replacedText = replacedText.replace(block, div.innerHTML);                
+            }catch(e){
+                console.log(e)
+                new Notice("Unable to render dataviewjs query. Please update the dataview plugin to the latest version.")
+                return queryBlock[0];
+            }
+        }
+
+        //Inline queries
+        for(const inlineQuery of inlineMatches){
+            try{
+                const code = inlineQuery[0];
+                const query = inlineQuery[1];
+                const dataviewResult = dvApi.tryEvaluate(query,{this: dvApi.page(path)});
+                if(dataviewResult) {
+                    replacedText = replacedText.replace(code, dataviewResult.toString());                
+                }
+            }catch(e){
+                console.log(e)
+                new Notice("Unable to render inline dataview query. Please update the dataview plugin to the latest version.")
+                return inlineQuery[0];
+            }
+        }
+
+        for(const inlineJsQuery of inlineJsMatches){
+            try{
+                const code = inlineJsQuery[0];
+                const query = inlineJsQuery[1];
+                
+                const div = createEl('div');
+                const component = new Component();
+                await dvApi.executeJs(query, div, component, path)
+                component.load();
+                
+                replacedText = replacedText.replace(code, div.innerHTML)                
+                
+            }catch(e){
+                console.log(e)
+                new Notice("Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.")
+                return inlineJsQuery[0];
+            }
+        }
+
+       
         return replacedText;
 
     }
