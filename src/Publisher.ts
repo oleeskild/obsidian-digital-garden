@@ -335,7 +335,7 @@ export default class Publisher {
             }
             
             if ( baseFrontMatter["dg-hide-in-graph"]) {
-				publishedFrontMatter["hide-in-graph"] = baseFrontMatter["dg-hide-in-graph"];
+				publishedFrontMatter["hideInGraph"] = baseFrontMatter["dg-hide-in-graph"];
 			}
 		}
 		return publishedFrontMatter;
