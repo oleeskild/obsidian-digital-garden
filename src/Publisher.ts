@@ -282,6 +282,7 @@ export default class Publisher {
         let replacedText = text;
         const dataViewRegex = /```dataview\s(.+?)```/gsm;
         const dvApi = getAPI();
+        if(!dvApi) return replacedText;
         const matches = text.matchAll(dataViewRegex);
 
         const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
