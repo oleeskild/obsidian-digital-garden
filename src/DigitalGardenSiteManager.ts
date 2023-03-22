@@ -122,8 +122,8 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             (x: { path: string; type: string; }) => x.path.startsWith("src/site/notes/") && x.type === "blob" && x.path !== "src/site/notes/notes.json");
         const hashes: { [key: string]: string } = {};
         for (const note of notes) {
-            const remotePath = note.path.replace("src/site/notes/", "");
-            hashes[remotePath] = note.sha;
+            const vaultPath = note.path.replace("src/site/notes/", "");
+            hashes[vaultPath] = note.sha;
         }
         return hashes;
     }
