@@ -789,9 +789,9 @@ export default class Publisher {
                     const image = await this.vault.readBinary(linkedFile);
                     const imageBase64 = arrayBufferToBase64(image)
 					
-					const cmsImgPath = `/img/user/${encodeURI(linkedFile.path)}`
+					const cmsImgPath = `/img/user/${linkedFile.path}`
                     const name = size ? `${imageName}|${size}` : imageName;
-                    const imageMarkdown = `![${name}](${cmsImgPath})`;
+                    const imageMarkdown = `![${name}](${encodeURI(cmsImgPath)})`;
 					assets.push({path: cmsImgPath, content: imageBase64})
                     imageText = imageText.replace(imageMatch, imageMarkdown);
                 } catch (e) {
