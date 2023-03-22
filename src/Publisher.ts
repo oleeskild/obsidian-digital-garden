@@ -67,7 +67,7 @@ export default class Publisher {
     }
 
 	async deleteNote(vaultFilePath: string) {
-		const path = `src/site/notes/${getGardenPathForNote(vaultFilePath, this.rewriteRules)}`;
+		const path = `src/site/notes/${vaultFilePath}`;
 		return await this.delete(path);
 	}
 
@@ -220,8 +220,7 @@ export default class Publisher {
 
     async uploadText(filePath: string, content: string) {
 		content = Base64.encode(content);
-		const remoteFilePath = getGardenPathForNote(filePath, this.rewriteRules);
-        const path = `src/site/notes/${remoteFilePath}`
+        const path = `src/site/notes/${filePath}`
         await this.uploadToGithub(path, content)
     }
 
@@ -414,7 +413,9 @@ export default class Publisher {
 	}
 
     addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
-        const publishedFrontMatter = { ...newFrontMatter };
+		const publishedFrontMatter = { ...newFrontMatter };
+		const gardenPath = (baseFrontMatter && baseFrontMatter['dg-path']) ? baseFrontMatter['dg-path'] : getGardenPathForNote(filePath, this.rewriteRules);
+		publishedFrontMatter['dg-path'] = gardenPath;
 
         if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
             publishedFrontMatter["dg-permalink"] = baseFrontMatter["dg-permalink"];
@@ -425,9 +426,8 @@ export default class Publisher {
             if (!publishedFrontMatter["permalink"].startsWith("/")) {
                 publishedFrontMatter["permalink"] = "/" + publishedFrontMatter["permalink"];
             }
-        } else {
-            const noteUrlPath = generateUrlPath(getGardenPathForNote(filePath, this.rewriteRules), this.settings.slugifyEnabled);
-            publishedFrontMatter["permalink"] = "/" + noteUrlPath;
+		} else {
+            publishedFrontMatter["permalink"] = "/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
         }
 
         return publishedFrontMatter;

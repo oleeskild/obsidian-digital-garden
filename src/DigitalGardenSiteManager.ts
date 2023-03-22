@@ -1,6 +1,6 @@
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
-import { extractBaseUrl, generateUrlPath, getGardenPathForNote, getRewriteRules, getVaultPathForNote } from "./utils";
+import { extractBaseUrl, generateUrlPath, getGardenPathForNote, getRewriteRules } from "./utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from 'js-base64';
 import DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
@@ -123,7 +123,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         const hashes: { [key: string]: string } = {};
         for (const note of notes) {
             const remotePath = note.path.replace("src/site/notes/", "");
-            hashes[getVaultPathForNote(remotePath, this.rewriteRules, this.metadataCache)] = note.sha;
+            hashes[remotePath] = note.sha;
         }
         return hashes;
     }
