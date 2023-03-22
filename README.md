@@ -1,5 +1,4 @@
 # 🏡 Obsidian Digital Garden
-Publish your notes in your own personal digital garden. 
 Publish your notes to the web, for free. In your own personal garden.
 
 ## Docs
@@ -8,12 +7,12 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 ![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
 
 ## Features
-The plugin currently supports:
 * Basic Markdown Syntax
 * Links to other notes
-* Dataview queries (currently no support for DataviewJS)
+* Dataview queries (as codeblocks, inline and dataviewjs)
 * Backlinks
 * Obsidian Themes
+* Style settings
 * Local graph
 * Filetree navigation
 * Global search
