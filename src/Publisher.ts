@@ -560,7 +560,7 @@ export default class Publisher {
                     }
                     if (linkedFile?.extension === "md") {
                         const extensionlessPath = linkedFile.path.substring(0, linkedFile.path.lastIndexOf('.'));
-                        convertedText = convertedText.replace(linkMatch, `[[${getGardenPathForNote(extensionlessPath, this.rewriteRules)}${headerPath}\\|${prettyName}]]`);
+                        convertedText = convertedText.replace(linkMatch, `[[${extensionlessPath}${headerPath}\\|${prettyName}]]`);
                     }
                 } catch (e) {
                     console.log(e);
