@@ -1,6 +1,6 @@
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { MetadataCache, TFile } from "obsidian";
-import { extractBaseUrl, generateUrlPath } from "./utils";
+import { extractBaseUrl, generateUrlPath, getGardenPathForNote, getRewriteRules } from "./utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from 'js-base64';
 import DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
@@ -13,10 +13,12 @@ export interface IDigitalGardenSiteManager {
 }
 export default class DigitalGardenSiteManager implements IDigitalGardenSiteManager {
     settings: DigitalGardenSettings;
-    metadataCache: MetadataCache;
+	metadataCache: MetadataCache;
+	rewriteRules: Array<Array<string>>;
     constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.settings = settings;
-        this.metadataCache = metadataCache;
+		this.metadataCache = metadataCache;
+		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
     }
 
     async updateEnv() {
@@ -87,7 +89,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
             : `https://${this.settings.githubRepo}.netlify.app`;
 
 
-        const noteUrlPath = generateUrlPath(file.path, this.settings.slugifyEnabled);
+        const noteUrlPath = generateUrlPath(getGardenPathForNote(file.path, this.rewriteRules), this.settings.slugifyEnabled);
 
         let urlPath = `/${noteUrlPath}`;
 
@@ -104,6 +106,7 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
         return `${baseUrl}${urlPath}`;
 
     }
+	
 
     async getNoteHashes(): Promise<{ [key: string]: string }> {
         const octokit = new Octokit({ auth: this.settings.githubToken });

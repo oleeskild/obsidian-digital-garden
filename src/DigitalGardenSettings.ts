@@ -3,7 +3,6 @@ export default interface DigitalGardenSettings {
 	githubRepo: string;
 	githubUserName: string;
 	gardenBaseUrl: string;
-	showRibbonIcon: boolean;
 	prHistory: string[];
 
 	theme: string;
@@ -32,6 +31,7 @@ export default interface DigitalGardenSettings {
 	timestampFormat: string;
 
 	styleSettingsCss: string;
+	pathRewriteRules: string;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
