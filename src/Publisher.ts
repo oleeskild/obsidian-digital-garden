@@ -142,6 +142,8 @@ export default class Publisher {
     }
 
     async generateMarkdown(file: TFile): Promise<[string, any]> {
+        this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
+
 		const assets: any = {images: []};
         if (file.name.endsWith(".excalidraw.md")) {
             return [await this.generateExcalidrawMarkdown(file, true), assets];
@@ -415,7 +417,9 @@ export default class Publisher {
     addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
 		const publishedFrontMatter = { ...newFrontMatter };
 		const gardenPath = (baseFrontMatter && baseFrontMatter['dg-path']) ? baseFrontMatter['dg-path'] : getGardenPathForNote(filePath, this.rewriteRules);
-		publishedFrontMatter['dg-path'] = gardenPath;
+        if(gardenPath != filePath){
+            publishedFrontMatter['dg-path'] = gardenPath;
+        }
 
         if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
             publishedFrontMatter["dg-permalink"] = baseFrontMatter["dg-permalink"];

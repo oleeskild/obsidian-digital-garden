@@ -18,7 +18,6 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: '',
-	showRibbonIcon: true,
 	noteSettingsIsInitialized: false,
 	siteName: 'Digital Garden',
 	slugifyEnabled: true,
@@ -71,11 +70,9 @@ export default class DigitalGarden extends Plugin {
 		await this.addCommands();
 
 		addIcon('digital-garden-icon', seedling);
-		if (this.settings.showRibbonIcon) {
-			this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
-				this.openPublishModal();
-			});
-		}
+		this.addRibbonIcon("digital-garden-icon", "Digital Garden Publication Center", async () => {
+			this.openPublishModal();
+		});
 
 
 	}
@@ -102,10 +99,9 @@ export default class DigitalGarden extends Plugin {
 				await this.addPublishFlag();
 				const activeFile = this.app.workspace.getActiveFile();
 				const event = this.app.metadataCache.on('changed', async (file, data, cache) => {
-					console.log(`File ${file.path} changed with type ${data}.`)
 					if (file.path === activeFile.path) {
 						const successfullyPublished = await this.publishSingleNote();
-						if(successfullyPublished){
+						if (successfullyPublished) {
 							await this.copyGardenUrlToClipboard();
 						}
 						this.app.metadataCache.offref(event);
@@ -123,9 +119,9 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'publish-note',
 			name: 'Publish Single Note',
-			callback: async() =>{
+			callback: async () => {
 				await this.publishSingleNote();
-			} 
+			}
 		});
 
 		this.addCommand({
@@ -200,7 +196,7 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'copy-garden-url',
 			name: 'Copy Garden URL',
-			callback: async() => {
+			callback: async () => {
 				this.copyGardenUrlToClipboard();
 			}
 		});
@@ -208,7 +204,7 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'dg-open-publish-modal',
 			name: 'Open Publication Center',
-			callback: async() => {
+			callback: async () => {
 				this.openPublishModal();
 			}
 		});
@@ -216,7 +212,7 @@ export default class DigitalGarden extends Plugin {
 		this.addCommand({
 			id: 'dg-mark-note-for-publish',
 			name: 'Add publish flag',
-			callback: async() => {
+			callback: async () => {
 				this.addPublishFlag();
 			}
 		});

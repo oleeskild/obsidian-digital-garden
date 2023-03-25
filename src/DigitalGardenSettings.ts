@@ -3,7 +3,6 @@ export default interface DigitalGardenSettings {
 	githubRepo: string;
 	githubUserName: string;
 	gardenBaseUrl: string;
-	showRibbonIcon: boolean;
 	prHistory: string[];
 
 	theme: string;

@@ -40,7 +40,6 @@ export default class SettingView {
         this.initializeThemesSettings();
 		this.initializeSlugifySetting();
 		this.initializePathRewriteSettings();
-        this.initializeRibbonIconSetting();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
 
@@ -562,19 +561,6 @@ export default class SettingView {
                 }));
     }
 
-    private initializeRibbonIconSetting() {
-        new Setting(this.settingsRootElement)
-            .setName('Show ribbon icon')
-            .setDesc('Show ribbon icon in the Obsidian sidebar. You need to reload Obsdian for changes to take effect.')
-            .addToggle(toggle =>
-                toggle.setValue(this.settings.showRibbonIcon)
-                    .onChange(async (value) => {
-                        this.settings.showRibbonIcon = value;
-                        await this.saveSettings();
-                    })
-            );
-    }
-
     private initializeSlugifySetting() {
         new Setting(this.settingsRootElement)
             .setName('Slugify Note URL')
@@ -589,15 +575,21 @@ export default class SettingView {
 	}
 	
 	private initializePathRewriteSettings() {
-		this.settingsRootElement.createEl('h2', { text: "Path Rewrite rules" });
-		this.settingsRootElement.createEl('div', {text: `Define rules to rewrite note paths using following syntax:\n
-			1. One rule-per line\n
-			2. The format is [from_vault_path]:[to_garden_path]\n
-			3. Matching will exit on first match`})
-        new Setting(this.settingsRootElement)
+        const rewritesettingContainer = this.settingsRootElement.createEl('div', { attr: { class: "setting-item", style: "align-items:flex-start; flex-direction: column;" } });
+		rewritesettingContainer .createEl('h2', { text: "Path Rewrite rules", attr: { class: "setting-item-name" } });
+		rewritesettingContainer.createEl('div', {text: `Define rules to rewrite note paths, meaning folder structure, using following syntax:`})
+        const list = rewritesettingContainer.createEl('ol');
+        list.createEl("li", {text: `One rule-per line`})
+        list.createEl("li", {text: `The format is [from_vault_path]:[to_garden_path]`})
+        list.createEl("li", {text: `Matching will exit on first match`});
+        rewritesettingContainer.createEl("div", {text: `Example: If you want the vault folder "Personal/Journal" to be shown as only "Journal" in the left file sidebar in the garden, add the line "Personal/Journal:Journal"`, attr: { class: "setting-item-description" }})
+        rewritesettingContainer.createEl("div", {text: `Any affected notes will show up as changed in the publication center`, attr: { class: "setting-item-description" }})
+        new Setting(rewritesettingContainer)
             .setName('Rules')
 			.addTextArea(field => {
-				field.setPlaceholder('/Personal/Journal:/Journal')
+				field.setPlaceholder('Personal/Journal:Journal')
+                field.inputEl.rows = 5;
+                field.inputEl.cols = 75;
 				field.setValue(this.settings.pathRewriteRules)
                     .onChange(async (value) => {
                         this.settings.pathRewriteRules = value;
