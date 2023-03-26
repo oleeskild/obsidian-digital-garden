@@ -410,16 +410,13 @@ export default class Publisher {
 			if ( baseFrontMatter["dg-hide"]) {
 				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
             }
-            
             if ( baseFrontMatter["dg-hide-in-graph"]) {
 				publishedFrontMatter["hideInGraph"] = baseFrontMatter["dg-hide-in-graph"];
 			}
 			if ( baseFrontMatter["dg-pinned"]) {
 				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
 			}
-            if ( baseFrontMatter["dg-hide-in-graph"]) {
-				publishedFrontMatter["hideInGraph"] = baseFrontMatter["dg-hide-in-graph"];
-			}
+           
 		}
 		return publishedFrontMatter;
 	}
