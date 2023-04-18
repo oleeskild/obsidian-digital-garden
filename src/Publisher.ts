@@ -311,8 +311,11 @@ export default class Publisher {
             try{
                 const block = queryBlock[0];
                 const query = queryBlock[1];
-                const markdown = await dvApi.tryQueryMarkdown(query, path);
-                replacedText = replacedText.replace(block, markdown);                
+                const div = createEl('div');
+                const component = new Component();
+                await dvApi.execute(query, div, component, path);
+                component.load();
+                replacedText = replacedText.replace(block, div.innerHTML);                
             }catch(e){
                 console.log(e)
                 new Notice("Unable to render dataview query. Please update the dataview plugin to the latest version.")
