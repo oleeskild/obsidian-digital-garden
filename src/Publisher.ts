@@ -386,7 +386,7 @@ export default class Publisher {
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, file.path);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
-		publishedFrontMatter = this.addBodyClasses(fileFrontMatter, publishedFrontMatter);
+		publishedFrontMatter = this.addContentClasses(fileFrontMatter, publishedFrontMatter);
 		publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
@@ -459,7 +459,7 @@ export default class Publisher {
         return publishedFrontMatter;
 	}
 
-	addBodyClasses(baseFrontMatter: any, newFrontMatter: any) {
+	addContentClasses(baseFrontMatter: any, newFrontMatter: any) {
 		const publishedFrontMatter = { ...newFrontMatter };
 		
 		if (baseFrontMatter) {
