@@ -465,7 +465,6 @@ export default class Publisher {
 		if (baseFrontMatter) {
 			const contentClassesKey = this.settings.contentClassesKey;
 			if (contentClassesKey && baseFrontMatter[contentClassesKey]) {
-				console.log(baseFrontMatter[contentClassesKey]);
 				if (typeof baseFrontMatter[contentClassesKey] == "string") {
 					publishedFrontMatter['contentClasses'] = baseFrontMatter[contentClassesKey];
 				} else if (Array.isArray(baseFrontMatter[contentClassesKey])) { 
