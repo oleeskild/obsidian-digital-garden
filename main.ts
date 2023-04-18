@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsCss: '',
 	pathRewriteRules: '',
 
-	contentClassesKey: 'dg-body-classes',
+	contentClassesKey: 'dg-content-classes',
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
