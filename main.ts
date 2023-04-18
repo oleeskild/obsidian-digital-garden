@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsCss: '',
 	pathRewriteRules: '',
 
+	bodyClassesKey: 'dg-body-classes',
+
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,

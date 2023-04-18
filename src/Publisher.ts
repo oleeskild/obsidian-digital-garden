@@ -386,7 +386,8 @@ export default class Publisher {
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, file.path);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
-        publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
+		publishedFrontMatter = this.addBodyClasses(fileFrontMatter, publishedFrontMatter);
+		publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addTimestampsFrontmatter(fileFrontMatter, publishedFrontMatter, file);
@@ -456,6 +457,26 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
+	}
+
+	addBodyClasses(baseFrontMatter: any, newFrontMatter: any) {
+		const publishedFrontMatter = { ...newFrontMatter };
+		
+		if (baseFrontMatter) {
+			const bodyClassesKey = this.settings.bodyClassesKey;
+			if (bodyClassesKey && baseFrontMatter[bodyClassesKey]) {
+				console.log(baseFrontMatter[bodyClassesKey]);
+				if (typeof baseFrontMatter[bodyClassesKey] == "string") {
+					publishedFrontMatter['bodyClasses'] = baseFrontMatter[bodyClassesKey];
+				} else if (Array.isArray(baseFrontMatter[bodyClassesKey])) { 
+					publishedFrontMatter['bodyClasses'] = baseFrontMatter[bodyClassesKey].join(" ");
+				} else {
+					publishedFrontMatter['bodyClasses'] = "";
+				}
+			}
+		}
+
+		return publishedFrontMatter;
 	}
 
 	addTimestampsFrontmatter(baseFrontMatter: any, newFrontMatter: any, file: TFile) {
