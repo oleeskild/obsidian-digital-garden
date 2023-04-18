@@ -331,9 +331,9 @@ export default class SettingView {
             .setName('Body Classes Key')
             .setDesc('Key to get classes to add in the note body from the frontmatter.')
             .addText(text =>
-                text.setValue(this.settings.bodyClassesKey)
+                text.setValue(this.settings.contentClassesKey)
                     .onChange(async (value) => {
-                        this.settings.bodyClassesKey = value;
+                        this.settings.contentClassesKey = value;
                         await this.saveSettings();
                     })
             );

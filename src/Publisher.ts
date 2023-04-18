@@ -463,15 +463,15 @@ export default class Publisher {
 		const publishedFrontMatter = { ...newFrontMatter };
 		
 		if (baseFrontMatter) {
-			const bodyClassesKey = this.settings.bodyClassesKey;
-			if (bodyClassesKey && baseFrontMatter[bodyClassesKey]) {
-				console.log(baseFrontMatter[bodyClassesKey]);
-				if (typeof baseFrontMatter[bodyClassesKey] == "string") {
-					publishedFrontMatter['bodyClasses'] = baseFrontMatter[bodyClassesKey];
-				} else if (Array.isArray(baseFrontMatter[bodyClassesKey])) { 
-					publishedFrontMatter['bodyClasses'] = baseFrontMatter[bodyClassesKey].join(" ");
+			const contentClassesKey = this.settings.contentClassesKey;
+			if (contentClassesKey && baseFrontMatter[contentClassesKey]) {
+				console.log(baseFrontMatter[contentClassesKey]);
+				if (typeof baseFrontMatter[contentClassesKey] == "string") {
+					publishedFrontMatter['contentClasses'] = baseFrontMatter[contentClassesKey];
+				} else if (Array.isArray(baseFrontMatter[contentClassesKey])) { 
+					publishedFrontMatter['contentClasses'] = baseFrontMatter[contentClassesKey].join(" ");
 				} else {
-					publishedFrontMatter['bodyClasses'] = "";
+					publishedFrontMatter['contentClasses'] = "";
 				}
 			}
 		}
