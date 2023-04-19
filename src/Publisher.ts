@@ -315,6 +315,10 @@ export default class Publisher {
                 const component = new Component();
                 await dvApi.execute(query, div, component, path);
                 component.load();
+                // Make sure the table is loaded.
+                while (!div.querySelector('table')) {
+                    await new Promise(r => setTimeout(r, 200));
+                }
                 replacedText = replacedText.replace(block, div.innerHTML);                
             }catch(e){
                 console.log(e)
@@ -332,7 +336,9 @@ export default class Publisher {
                 const component = new Component();
                 await dvApi.executeJs(query, div, component, path)
                 component.load();
-                
+                while (!div.querySelector('table')) {
+                    await new Promise(r => setTimeout(r, 200));
+                }
                 replacedText = replacedText.replace(block, div.innerHTML);                
             }catch(e){
                 console.log(e)
