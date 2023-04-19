@@ -311,15 +311,8 @@ export default class Publisher {
             try{
                 const block = queryBlock[0];
                 const query = queryBlock[1];
-                const div = createEl('div');
-                const component = new Component();
-                await dvApi.execute(query, div, component, path);
-                component.load();
-                // Make sure the table is loaded.
-                while (!div.querySelector('table')) {
-                    await new Promise(r => setTimeout(r, 200));
-                }
-                replacedText = replacedText.replace(block, div.innerHTML);                
+                const markdown = await dvApi.tryQueryMarkdown(query, path);
+                replacedText = replacedText.replace(block, `${markdown}\n{ .block-language-dataview"}`);            
             }catch(e){
                 console.log(e)
                 new Notice("Unable to render dataview query. Please update the dataview plugin to the latest version.")
@@ -336,9 +329,7 @@ export default class Publisher {
                 const component = new Component();
                 await dvApi.executeJs(query, div, component, path)
                 component.load();
-                while (!div.querySelector('table')) {
-                    await new Promise(r => setTimeout(r, 200));
-                }
+                
                 replacedText = replacedText.replace(block, div.innerHTML);                
             }catch(e){
                 console.log(e)
