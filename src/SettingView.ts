@@ -1,5 +1,5 @@
 import DigitalGardenSettings from './DigitalGardenSettings';
-import { ButtonComponent, Modal, Notice, Setting, App, TFile, debounce, MetadataCache } from 'obsidian';
+import { ButtonComponent, Modal, Notice, Setting, App, TFile, debounce, MetadataCache, getIcon } from 'obsidian';
 import axios from "axios";
 import { Octokit } from '@octokit/core';
 import { Base64 } from 'js-base64';
@@ -21,37 +21,56 @@ export default class SettingView {
     constructor(app: App, settingsRootElement: HTMLElement, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
         this.app = app;
         this.settingsRootElement = settingsRootElement;
+        this.settingsRootElement.classList.add("dg-settings");
         this.settings = settings;
         this.saveSettings = saveSettings;
     }
 
     async initialize(prModal: Modal) {
         this.settingsRootElement.empty();
-        this.settingsRootElement.createEl('h2', { text: 'Settings ' });
+        this.settingsRootElement.createEl('h1', { text: 'Digital Garden Settings' });
         const linkDiv = this.settingsRootElement.createEl('div', { attr: { style: "margin-bottom: 10px;" } })
         linkDiv.createEl('span', { text: 'Remember to read the setup guide if you haven\'t already. It can be found ' });
-        linkDiv.createEl('a', { text: 'here.', href: "https://github.com/oleeskild/Obsidian-Digital-Garden" });
+        linkDiv.createEl('a', { text: 'here.', href: "https://dg-docs.ole.dev/getting-started/01-getting-started/" });
 
+        this.settingsRootElement.createEl('h3', { text: 'GitHub Authentication (required)' }).prepend(getIcon("github"));
         this.initializeGitHubRepoSetting();
         this.initializeGitHubUserNameSetting();
         this.initializeGitHubTokenSetting();
+
+        this.settingsRootElement.createEl('h3', { text: 'URL' }).prepend(getIcon("link"));
         this.initializeGitHubBaseURLSetting();
-        this.initializeDefaultNoteSettings();
-        this.initializeThemesSettings();
 		this.initializeSlugifySetting();
+
+        this.settingsRootElement.createEl('h3', { text: 'Features' }).prepend(getIcon("star"));
+        this.initializeDefaultNoteSettings();
+
+        this.settingsRootElement.createEl('h3', { text: 'Appearance' }).prepend(getIcon("brush"));
+        this.initializeThemesSettings();
+
+        this.settingsRootElement.createEl('h3', { text: 'Advanced' }).prepend(getIcon("cog"));
 		this.initializePathRewriteSettings();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
 
     private async initializeDefaultNoteSettings() {
         const noteSettingsModal = new Modal(this.app);
-        noteSettingsModal.titleEl.createEl("h1", { text: "Note Settings" });
+        noteSettingsModal.titleEl.createEl("h1", { text: "Default Note Settings" });
+        
+                
+        const linkDiv = noteSettingsModal.contentEl.createEl('div', { attr: { style: "margin-bottom: 20px; margin-top: -30px;" } })
+        linkDiv.createEl('span', { text: 'Note Setting Docs is available ' });
+        linkDiv.createEl('a', { text: 'here.', href: "https://dg-docs.ole.dev/getting-started/03-note-settings/" });
+
+        // noteSettingsModal.contentEl.createEl("div", { text: `Toggling these settings will update the global default setting for each note. 
+        // If you want to enable or disable some of these on single notes, use their corresponding key. 
+        // For example will adding 'dg-show-local-graph: false' to the frontmatter of a note, disable the local graph for that particular note. ` });
 
         new Setting(this.settingsRootElement)
-            .setName("Note Settings")
+            .setName("Global Note Settings")
             .setDesc(`Default settings for each published note. These can be overwritten per note via frontmatter.`)
             .addButton(cb => {
-                cb.setButtonText("Edit");
+                cb.setButtonText("Manage note settings");
                 cb.onClick(async () => {
                     noteSettingsModal.open();
                 })
@@ -173,15 +192,14 @@ export default class SettingView {
     private async initializeThemesSettings() {
 
         const themeModal = new Modal(this.app);
+        themeModal.containerEl.addClass("dg-settings");
         themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
-
-
 
         new Setting(this.settingsRootElement)
             .setName("Appearance")
-            .setDesc("Manage themes, sitename and favicons on your site")
+            .setDesc("Manage themes, sitename and styling on your site")
             .addButton(cb => {
-                cb.setButtonText("Manage");
+                cb.setButtonText("Manage appearance");
                 cb.onClick(async () => {
                     themeModal.open();
                 })
@@ -191,7 +209,7 @@ export default class SettingView {
         try {
             //@ts-ignore
             if (this.app.plugins && this.app.plugins.plugins['obsidian-style-settings']._loaded) {
-                themeModal.contentEl.createEl('h2', { text: "Style Settings Plugin" });
+                themeModal.contentEl.createEl('h2', { text: "Style Settings Plugin" }).prepend(getIcon('paintbrush'));
                 new Setting(themeModal.contentEl)
                     .setName("Apply current style settings to site")
                     .setDesc("Click the apply button to use the current style settings from the Style Settings Plugin on your site.")
@@ -216,7 +234,7 @@ export default class SettingView {
             }
         } catch { }
 
-        themeModal.contentEl.createEl('h2', { text: "Theme Settings" });
+        themeModal.contentEl.createEl('h2', { text: "Theme Settings" }).prepend(getIcon('palette'));
 
         const themesListResponse = await axios.get("https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json")
         new Setting(themeModal.contentEl)
@@ -274,7 +292,7 @@ export default class SettingView {
                 new SvgFileSuggest(this.app, tc.inputEl)
             })
 
-        themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" });
+        themeModal.contentEl.createEl('h2', { text: "Timestamps Settings" }).prepend(getIcon('calendar-clock'));
         new Setting(themeModal.contentEl)
             .setName('Timestamp format')
             .setDesc('The format string to render timestamp on the garden. Must be luxon compatible')
@@ -327,9 +345,10 @@ export default class SettingView {
                     })
 		);
 		
+        themeModal.contentEl.createEl('h2', { text: "CSS settings" }).prepend(getIcon('code'));
 		new Setting(themeModal.contentEl)
             .setName('Body Classes Key')
-            .setDesc('Key to get classes to add in the note body from the frontmatter.')
+            .setDesc('Key for setting css-classes to the note body from the frontmatter.')
             .addText(text =>
                 text.setValue(this.settings.contentClassesKey)
                     .onChange(async (value) => {
@@ -339,7 +358,7 @@ export default class SettingView {
             );
 
 
-        themeModal.contentEl.createEl('h2', { text: "Note icons Settings" });
+        themeModal.contentEl.createEl('h2', { text: "Note icons Settings" }).prepend(getIcon('image'));
         themeModal.contentEl
             .createEl('div', { attr: { style: "margin-bottom: 10px;" } })
             .createEl('a', {
@@ -415,7 +434,7 @@ export default class SettingView {
                 cb.setButtonText("Apply settings to site");
                 cb.onClick(async ev => {
                     const octokit = new Octokit({ auth: this.settings.githubToken });
-                    await this.saveThemeAndUpdateEnv();
+                    await this.saveSettingsAndUpdateEnv();
                     await this.addFavicon(octokit);
                 });
             })
@@ -423,7 +442,7 @@ export default class SettingView {
 
     }
 
-    private async saveThemeAndUpdateEnv() {
+    private async saveSettingsAndUpdateEnv() {
         const theme = JSON.parse(this.settings.theme);
         const baseTheme = this.settings.baseTheme;
         if (theme.modes.indexOf(baseTheme) < 0) {
@@ -433,8 +452,7 @@ export default class SettingView {
         const gardenManager = new DigitalGardenSiteManager(this.app.metadataCache, this.settings)
         await gardenManager.updateEnv();
 
-        new Notice("Successfully applied theme");
-        new Notice("Successfully set sitename");
+        new Notice("Successfully applied settings");
     }
 
     private async saveSiteSettingsAndUpdateEnv(metadataCache: MetadataCache, settings: DigitalGardenSettings, saveSettings: () => Promise<void>) {
@@ -499,7 +517,6 @@ export default class SettingView {
                 sha: faviconExists ? currentFaviconOnSite.data.sha : null
             });
 
-            new Notice(`Successfully set favicon`)
         }
 
     }
@@ -561,10 +578,10 @@ export default class SettingView {
         new Setting(this.settingsRootElement)
             .setName('Base URL')
             .setDesc(`
-            This is optional. It is used for the "Copy Garden URL" command, and for generating a sitemap.xml for better SEO. 
+            This is optional. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. 
             `)
             .addText(text => text
-                .setPlaceholder('https://my-garden.netlify.app')
+                .setPlaceholder('https://my-garden.vercel.app')
                 .setValue(this.settings.gardenBaseUrl)
                 .onChange(async (value) => {
                     this.settings.gardenBaseUrl = value;
@@ -575,7 +592,7 @@ export default class SettingView {
     private initializeSlugifySetting() {
         new Setting(this.settingsRootElement)
             .setName('Slugify Note URL')
-            .setDesc('Transform the URL from "/My Folder/My Note/" to "/my-folder/my-note". If your note titles contains non-English characters, this should be turned off.')
+            .setDesc('Transform the URL from "/My Folder/My Note/" to "/my-folder/my-note". If your note titles contains non-English characters, this should be disabled.')
             .addToggle(toggle =>
                 toggle.setValue(this.settings.slugifyEnabled)
                     .onChange(async (value) => {
@@ -586,9 +603,23 @@ export default class SettingView {
 	}
 	
 	private initializePathRewriteSettings() {
-        const rewritesettingContainer = this.settingsRootElement.createEl('div', { attr: { class: "setting-item", style: "align-items:flex-start; flex-direction: column;" } });
-		rewritesettingContainer .createEl('h2', { text: "Path Rewrite rules", attr: { class: "setting-item-name" } });
-		rewritesettingContainer.createEl('div', {text: `Define rules to rewrite note paths, meaning folder structure, using following syntax:`})
+
+        const rewriteRulesModal = new Modal(this.app);
+        rewriteRulesModal.titleEl.createEl("h1", {text: "Path Rewrite Rules"})
+        rewriteRulesModal.modalEl.style.width = "fit-content";
+
+        new Setting(this.settingsRootElement)
+            .setName('Path Rewrite Rules')
+            .setDesc('Define rules to rewrite note folder structure in the garden. See the modal for more information.')
+            .addButton(cb=>{
+                cb.setButtonText("Manage Rewrite Rules")
+                cb.onClick(()=>{
+                    rewriteRulesModal.open();
+                }) 
+            })
+
+        const rewritesettingContainer = rewriteRulesModal.contentEl.createEl('div', { attr: { class: "", style: "align-items:flex-start; flex-direction: column;" } });
+		rewritesettingContainer.createEl('div', {text: `Define rules to rewrite note paths/folder structure, using following syntax:`})
         const list = rewritesettingContainer.createEl('ol');
         list.createEl("li", {text: `One rule-per line`})
         list.createEl("li", {text: `The format is [from_vault_path]:[to_garden_path]`})
@@ -600,7 +631,7 @@ export default class SettingView {
 			.addTextArea(field => {
 				field.setPlaceholder('Personal/Journal:Journal')
                 field.inputEl.rows = 5;
-                field.inputEl.cols = 75;
+                field.inputEl.cols = 100;
 				field.setValue(this.settings.pathRewriteRules)
                     .onChange(async (value) => {
                         this.settings.pathRewriteRules = value;
@@ -612,6 +643,7 @@ export default class SettingView {
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
 
+		this.settingsRootElement.createEl('h3', { text: "Update site" }).prepend(getIcon("sync"));
         new Setting(this.settingsRootElement)
             .setName("Site Template")
             .setDesc("Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.")
@@ -621,6 +653,7 @@ export default class SettingView {
                     modal.open();
                 })
             })
+		modal.titleEl.createEl('h2', { text: "Update site" });
         new Setting(modal.contentEl)
             .setName('Update site to latest template')
             .setDesc(`
@@ -638,6 +671,10 @@ export default class SettingView {
             this.loading = modal.contentEl.createEl('div', {});
             this.loading.hide();
         }
+
+
+        this.settingsRootElement.createEl('h3', { text: "Support" }).prepend(getIcon("heart"));
+        this.settingsRootElement.createDiv({ attr: { style: "display:flex; align-items:center; justify-content:center; margin-top: 20px;" } }).createEl("a", { attr: { href: "https://ko-fi.com/oleeskild", target: "_blank" } }).createEl("img", { attr: { src: "https://cdn.ko-fi.com/cdn/kofi3.png?v=3", width: "200" } })
     }
 
     renderPullRequestHistory(modal: Modal, previousPrUrls: string[]) {

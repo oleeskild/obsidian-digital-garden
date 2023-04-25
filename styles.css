@@ -16,3 +16,11 @@
     cursor: pointer;
     margin-left: 10px;
 }
+
+.dg-settings>h1,h2,h3,h4 {
+    margin-top: 40px;
+}
+
+.dg-settings .svg-icon {
+    margin-right: 10px;
+}

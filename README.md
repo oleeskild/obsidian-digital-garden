@@ -81,6 +81,6 @@ This plugin is developed in my free time. If you've found it useful, it would ma
 Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future. 
 
 
-[<img style="float:left" src="https://user-images.githubusercontent.com/14358394/115450238-f39e8100-a21b-11eb-89d0-fa4b82cdbce8.png" width="200">](https://ko-fi.com/oleeskild)
+[<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
 
 
