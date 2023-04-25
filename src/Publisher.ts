@@ -312,7 +312,7 @@ export default class Publisher {
                 const block = queryBlock[0];
                 const query = queryBlock[1];
                 const markdown = await dvApi.tryQueryMarkdown(query, path);
-                replacedText = replacedText.replace(block, markdown);                
+                replacedText = replacedText.replace(block, `${markdown}\n{ .block-language-dataview}`);            
             }catch(e){
                 console.log(e)
                 new Notice("Unable to render dataview query. Please update the dataview plugin to the latest version.")
