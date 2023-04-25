@@ -32,6 +32,7 @@ export default interface DigitalGardenSettings {
 
 	styleSettingsCss: string;
 	pathRewriteRules: string;
+	contentClassesKey: string;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;

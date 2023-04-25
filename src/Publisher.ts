@@ -386,7 +386,8 @@ export default class Publisher {
 
         publishedFrontMatter = this.addPermalink(fileFrontMatter, publishedFrontMatter, file.path);
 		publishedFrontMatter = this.addDefaultPassThrough(fileFrontMatter, publishedFrontMatter);
-        publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
+		publishedFrontMatter = this.addContentClasses(fileFrontMatter, publishedFrontMatter);
+		publishedFrontMatter = this.addPageTags(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addFrontMatterSettings(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addNoteIconFrontMatter(fileFrontMatter, publishedFrontMatter);
         publishedFrontMatter = this.addTimestampsFrontmatter(fileFrontMatter, publishedFrontMatter, file);
@@ -456,6 +457,25 @@ export default class Publisher {
             }
         }
         return publishedFrontMatter;
+	}
+
+	addContentClasses(baseFrontMatter: any, newFrontMatter: any) {
+		const publishedFrontMatter = { ...newFrontMatter };
+		
+		if (baseFrontMatter) {
+			const contentClassesKey = this.settings.contentClassesKey;
+			if (contentClassesKey && baseFrontMatter[contentClassesKey]) {
+				if (typeof baseFrontMatter[contentClassesKey] == "string") {
+					publishedFrontMatter['contentClasses'] = baseFrontMatter[contentClassesKey];
+				} else if (Array.isArray(baseFrontMatter[contentClassesKey])) { 
+					publishedFrontMatter['contentClasses'] = baseFrontMatter[contentClassesKey].join(" ");
+				} else {
+					publishedFrontMatter['contentClasses'] = "";
+				}
+			}
+		}
+
+		return publishedFrontMatter;
 	}
 
 	addTimestampsFrontmatter(baseFrontMatter: any, newFrontMatter: any, file: TFile) {

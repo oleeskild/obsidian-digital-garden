@@ -325,6 +325,17 @@ export default class SettingView {
                         this.settings.updatedTimestampKey = value;
                         await this.saveSettings();
                     })
+		);
+		
+		new Setting(themeModal.contentEl)
+            .setName('Body Classes Key')
+            .setDesc('Key to get classes to add in the note body from the frontmatter.')
+            .addText(text =>
+                text.setValue(this.settings.contentClassesKey)
+                    .onChange(async (value) => {
+                        this.settings.contentClassesKey = value;
+                        await this.saveSettings();
+                    })
             );
 
 
