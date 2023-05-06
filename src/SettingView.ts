@@ -153,6 +153,18 @@ export default class SettingView {
                     this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
                 })
             })
+		
+		new Setting(noteSettingsModal.contentEl)
+            .setName("Enable offline search (dg-enable-offline-search)")
+            .setDesc("When turned on, users will be able to search through the content of your site offline using lunr.js")
+            .addToggle(t => {
+                t.setValue(this.settings.defaultNoteSettings.dgEnableOfflineSearch)
+                t.onChange((val) => {
+                    this.settings.defaultNoteSettings.dgEnableOfflineSearch = val;
+                    this.saveSiteSettingsAndUpdateEnv(this.app.metadataCache, this.settings, this.saveSettings);
+                })
+            })
+
 
         new Setting(noteSettingsModal.contentEl)
             .setName("Enable link preview (dg-link-preview)")

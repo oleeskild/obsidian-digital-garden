@@ -49,6 +49,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgShowInlineTitle: false,
 		dgShowFileTree: false,
 		dgEnableSearch: false,
+		dgEnableOfflineSearch: false,
 		dgShowToc: false,
 		dgLinkPreview: false,
 		dgShowTags: false

@@ -42,6 +42,7 @@ export default interface DigitalGardenSettings {
 		dgShowInlineTitle: boolean;
 		dgShowFileTree: boolean;
 		dgEnableSearch: boolean;
+		dgEnableOfflineSearch: boolean;
 		dgShowToc: boolean;
 		dgLinkPreview: boolean;
 		dgShowTags: boolean;
