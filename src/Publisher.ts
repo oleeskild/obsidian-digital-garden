@@ -311,7 +311,13 @@ export default class Publisher {
             try{
                 const block = queryBlock[0];
                 const query = queryBlock[1];
-                const markdown = await dvApi.tryQueryMarkdown(query, path);
+                const {isInsideCallout, finalQuery} = this.sanitizeQuery(query)
+                let markdown = await dvApi.tryQueryMarkdown(finalQuery, path);
+
+                if (isInsideCallout) {
+                    const tmp = markdown.split("\n");
+                    markdown = " " + tmp.join("\n> ")
+                }
                 replacedText = replacedText.replace(block, `${markdown}\n{ .block-language-dataview}`);            
             }catch(e){
                 console.log(e)
@@ -324,13 +330,17 @@ export default class Publisher {
             try{
                 const block = queryBlock[0];
                 const query = queryBlock[1];
-
+                const {isInsideCallout, finalQuery} = this.sanitizeQuery(query)
                 const div = createEl('div');
                 const component = new Component();
-                await dvApi.executeJs(query, div, component, path)
+                await dvApi.executeJs(finalQuery, div, component, path)
                 component.load();
-                
-                replacedText = replacedText.replace(block, div.innerHTML);                
+                let replacementString = div.innerHTML
+                if (isInsideCallout) {
+                    const tmp = replacementString.split("\n");
+                    replacementString = " " + tmp.join("\n> ")
+                }
+                replacedText = replacedText.replace(block, replacementString);
             }catch(e){
                 console.log(e)
                 new Notice("Unable to render dataviewjs query. Please update the dataview plugin to the latest version.")
@@ -372,10 +382,34 @@ export default class Publisher {
                 return inlineJsQuery[0];
             }
         }
-
        
         return replacedText;
+    }
 
+    /**
+     * Checks if a query is inside a callout block.
+     * Removes the callout symbols and re-join sanitized parts.
+     * Also returns the boolean that indicates if the query was inside a callout.
+     * @param query 
+     * @returns 
+     */
+    sanitizeQuery(query: string): {isInsideCallout: boolean, finalQuery: string} {
+        let isInsideCallout = false;
+        const parts = query.split("\n");
+        const sanitized = []
+        for (const part of parts) {
+            if (part.startsWith(">")) {
+                isInsideCallout = true
+                sanitized.push(part.substring(1).trim())
+            } else {
+                sanitized.push(part)
+            }
+        }
+        let finalQuery = query
+        if (isInsideCallout) {
+            finalQuery = sanitized.join("\n");
+        }
+        return {isInsideCallout, finalQuery}
     }
 
     getProcessedFrontMatter(file: TFile): string {
