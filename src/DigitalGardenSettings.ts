@@ -32,6 +32,7 @@ export default interface DigitalGardenSettings {
 
 	styleSettingsCss: string;
 	pathRewriteRules: string;
+	customFilters: Array<{pattern: string, flags: string, replace: string}>;
 	contentClassesKey: string;
 
 	defaultNoteSettings: {

@@ -7,6 +7,7 @@ import { arrayBufferToBase64 } from './utils';
 import DigitalGarden from 'main';
 import DigitalGardenSiteManager from './DigitalGardenSiteManager';
 import { SvgFileSuggest } from './ui/file-suggest';
+import { addFilterInput } from './ui/addFilterInput';
 
 export default class SettingView {
     private app: App;
@@ -50,6 +51,7 @@ export default class SettingView {
 
         this.settingsRootElement.createEl('h3', { text: 'Advanced' }).prepend(getIcon("cog"));
 		this.initializePathRewriteSettings();
+		this.initializeCustomFilterSettings();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
 
@@ -639,6 +641,49 @@ export default class SettingView {
                     })
 			}
             );
+    }
+
+    private initializeCustomFilterSettings() {
+
+        const customFilterModal = new Modal(this.app);
+        customFilterModal.titleEl.createEl("h1", {text: "Custom Filters"})
+        customFilterModal.modalEl.style.width = "fit-content";
+
+        new Setting(this.settingsRootElement)
+            .setName('Custom Filters')
+            .setDesc('Define custom rules to replace parts of the note before publishing.')
+            .addButton(cb=>{
+                cb.setButtonText("Manage Custom Filters")
+                cb.onClick(()=>{
+                    customFilterModal.open();
+                }) 
+            })
+
+        const rewritesettingContainer = customFilterModal.contentEl.createEl('div', { attr: { class: "", style: "align-items:flex-start; flex-direction: column; margin: 5px" } });
+		rewritesettingContainer.createEl('div').innerHTML = `Define regex filters to replace note content before publishing.`;
+        rewritesettingContainer.createEl('div', {attr: { class: "setting-item-description" }}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
+        rewritesettingContainer.createEl('div', {attr: { class: "setting-item-description" }}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
+
+        const customFilters = this.settings.customFilters;
+        new Setting(rewritesettingContainer)
+            .setName('Filters')
+            .addButton((button) => {
+                button.setButtonText("Add");
+                button.setTooltip("Add a filter");
+                button.setIcon('plus');
+                button.onClick(async () => {
+                    const customFilters = this.settings.customFilters;
+                    customFilters.push({pattern: '', flags: 'g', replace: ''});
+                    filterList.empty();
+                    for(let i = 0; i < customFilters.length; i++) {
+                        addFilterInput(customFilters[i], filterList, i, this);
+                    }
+                });
+            });
+        const filterList = rewritesettingContainer.createDiv('custom-filter-list');
+        for(let i = 0; i < customFilters.length; i++) {
+            addFilterInput(customFilters[i], filterList, i, this);
+        }
     }
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {
