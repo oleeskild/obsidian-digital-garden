@@ -1,7 +1,6 @@
 import { ButtonComponent, TextComponent } from "obsidian";
 
 function addFilterInput(filter: { pattern: string, flags: string, replace: string }, el: HTMLElement, idx: number, plugin: any) {
-	console.log(typeof(plugin))
 	const item = el.createEl('li', { attr: { style: "list-style-type: none; position: relative; margin: 5px 0; padding-right: 45px" } });
 	const patternField = new TextComponent(el);
 	patternField.setPlaceholder("regex pattern")

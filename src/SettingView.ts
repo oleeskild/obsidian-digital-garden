@@ -659,10 +659,10 @@ export default class SettingView {
                 }) 
             })
 
-        const rewritesettingContainer = customFilterModal.contentEl.createEl('div', { attr: { class: "", style: "align-items:flex-start; flex-direction: column; margin: 5px" } });
+        const rewritesettingContainer = customFilterModal.contentEl.createEl('div', { attr: { class: "", style: "align-items:flex-start; flex-direction: column; margin: 5px;" } });
 		rewritesettingContainer.createEl('div').innerHTML = `Define regex filters to replace note content before publishing.`;
         rewritesettingContainer.createEl('div', {attr: { class: "setting-item-description" }}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
-        rewritesettingContainer.createEl('div', {attr: { class: "setting-item-description" }}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
+        rewritesettingContainer.createEl('div', {attr: { class: "setting-item-description", style:"margin-bottom: 15px" }}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
 
         const customFilters = this.settings.customFilters;
         new Setting(rewritesettingContainer)
