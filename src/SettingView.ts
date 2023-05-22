@@ -580,7 +580,7 @@ export default class SettingView {
         new Setting(this.settingsRootElement)
             .setName('Base URL')
             .setDesc(`
-            This is optional. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. 
+            This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. 
             `)
             .addText(text => text
                 .setPlaceholder('https://my-garden.vercel.app')

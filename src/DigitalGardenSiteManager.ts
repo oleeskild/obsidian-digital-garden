@@ -1,5 +1,5 @@
 import DigitalGardenSettings from "src/DigitalGardenSettings";
-import { MetadataCache, TFile } from "obsidian";
+import { MetadataCache, Notice, TFile } from "obsidian";
 import { extractBaseUrl, generateUrlPath, getGardenPathForNote, getRewriteRules } from "./utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from 'js-base64';
@@ -84,9 +84,11 @@ export default class DigitalGardenSiteManager implements IDigitalGardenSiteManag
     }    
 
     getNoteUrl(file: TFile): string {
-        const baseUrl = this.settings.gardenBaseUrl ?
-            `https://${extractBaseUrl(this.settings.gardenBaseUrl)}`
-            : `https://${this.settings.githubRepo}.netlify.app`;
+        if(!this.settings.gardenBaseUrl){
+            new Notice("Please set the garden base url in the settings")
+            return;
+        }
+        const baseUrl = `https://${extractBaseUrl(this.settings.gardenBaseUrl)}`;
 
 
         const noteUrlPath = generateUrlPath(getGardenPathForNote(file.path, this.rewriteRules), this.settings.slugifyEnabled);
