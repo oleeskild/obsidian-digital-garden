@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	styleSettingsCss: '',
 	pathRewriteRules: '',
+	customFilters: [],
 
 	contentClassesKey: 'dg-content-classes',
 
