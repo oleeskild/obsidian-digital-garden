@@ -315,8 +315,7 @@ export default class Publisher {
                 let markdown = await dvApi.tryQueryMarkdown(finalQuery, path);
 
                 if (isInsideCallout) {
-                    const tmp = markdown.split("\n");
-                    markdown = " " + tmp.join("\n> ")
+                    markdown = this.surroundWithCalloutBlock(markdown)
                 }
                 replacedText = replacedText.replace(block, `${markdown}\n{ .block-language-dataview}`);            
             }catch(e){
@@ -337,8 +336,7 @@ export default class Publisher {
                 component.load();
                 let replacementString = div.innerHTML
                 if (isInsideCallout) {
-                    const tmp = replacementString.split("\n");
-                    replacementString = " " + tmp.join("\n> ")
+                    replacementString = this.surroundWithCalloutBlock(replacementString)
                 }
                 replacedText = replacedText.replace(block, replacementString);
             }catch(e){
@@ -384,6 +382,17 @@ export default class Publisher {
         }
        
         return replacedText;
+    }
+
+    /**
+     * Splits input in lines.
+     * Prepends the callout/quote sign to each line, 
+     * returns all the lines as a single string
+     * 
+     */
+    surroundWithCalloutBlock(input: string): string {
+        const tmp = input.split("\n");
+        return " " + tmp.join("\n> ")
     }
 
     /**
