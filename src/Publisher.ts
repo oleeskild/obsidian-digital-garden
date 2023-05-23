@@ -67,7 +67,7 @@ export default class Publisher {
     }
 
 	async deleteNote(vaultFilePath: string) {
-		const path = `src/site/notes/${vaultFilePath}`;
+		const path = `${this.settings.pathToNotesInRepo}/${vaultFilePath}`;
 		return await this.delete(path);
 	}
 
@@ -222,7 +222,7 @@ export default class Publisher {
 
     async uploadText(filePath: string, content: string) {
 		content = Base64.encode(content);
-        const path = `src/site/notes/${filePath}`
+        const path = `${this.settings.pathToNotesInRepo}/${filePath}`
         await this.uploadToGithub(path, content)
     }
 
@@ -441,6 +441,8 @@ export default class Publisher {
 		} else {
             publishedFrontMatter["permalink"] = "/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
         }
+
+		publishedFrontMatter["permalink"] = publishedFrontMatter["permalink"].replaceAll("//", "/");
 
         return publishedFrontMatter;
     }

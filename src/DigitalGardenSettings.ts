@@ -32,6 +32,7 @@ export default interface DigitalGardenSettings {
 
 	styleSettingsCss: string;
 	pathRewriteRules: string;
+	pathToNotesInRepo: string;
 	contentClassesKey: string;
 
 	defaultNoteSettings: {

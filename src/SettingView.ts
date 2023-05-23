@@ -50,6 +50,7 @@ export default class SettingView {
 
         this.settingsRootElement.createEl('h3', { text: 'Advanced' }).prepend(getIcon("cog"));
 		this.initializePathRewriteSettings();
+		this.initializePathToNotesSettings();
         prModal.titleEl.createEl("h1", "Site template settings");
     }
 
@@ -461,7 +462,8 @@ export default class SettingView {
         try {
             const gardenManager = new DigitalGardenSiteManager(metadataCache, settings)
             await gardenManager.updateEnv();
-        } catch {
+        } catch (error) {
+            console.error(error);
             new Notice("Failed to update settings. Make sure you have an internet connection.")
             updateFailed = true;
         }
@@ -639,6 +641,25 @@ export default class SettingView {
                     })
 			}
             );
+    }
+
+    private initializePathToNotesSettings() {
+        new Setting(this.settingsRootElement)
+            .setName('Root folder for notes in repository')
+            .setDesc(`
+            This change path for uploaded note in garden repository. Use only if you have different template for repository.
+			Last slash will be removed.
+            `)
+            .addText(text => text
+                .setPlaceholder('src/site/notes')
+                .setValue(this.settings.pathToNotesInRepo)
+                .onChange(async (value) => {
+					if (value.endsWith("/")) {
+						value = value.slice(0, -1);
+					}
+                    this.settings.pathToNotesInRepo = value;
+                    this.debouncedSaveAndUpdate(this.app.metadataCache, this.settings, this.saveSettings);
+                }));
     }
 
     renderCreatePr(modal: Modal, handlePR: (button: ButtonComponent) => Promise<void>) {

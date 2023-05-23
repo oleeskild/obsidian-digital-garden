@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	styleSettingsCss: '',
 	pathRewriteRules: '',
+	pathToNotesInRepo: 'src/site/notes',
 
 	contentClassesKey: 'dg-content-classes',
 
