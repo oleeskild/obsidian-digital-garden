@@ -679,6 +679,9 @@ export default class Publisher {
                         //Remove frontmatter from transclusion
                         fileText = fileText.replace(this.frontmatterRegex, "");
 
+                        // Apply custom filters to transclusion
+                        fileText = await this.convertCustomFilters(fileText);
+
                         const header = this.generateTransclusionHeader(headerName, linkedFile);
 
                         const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
