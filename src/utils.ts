@@ -86,5 +86,18 @@ function getVaultPathForNote(gardenPath: string, rules: Array<Array<string>>, me
 	return gardenPath;
 }
 
+function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void{
+	// Insert a comment in the style tags to prevent XMLSerializer from self-closing it during serialization.
+	const styles = svgElement.getElementsByTagName("style");
+	if(styles.length > 0) {
+		for(let i = 0; i< styles.length; i++) {
+			const style = styles[i];
+			if(!style.textContent.trim()){
+				style.textContent = '/**/'
+			}
+		}
+	}
+}
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getVaultPathForNote, getGardenPathForNote, escapeRegExp};
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getVaultPathForNote, getGardenPathForNote, escapeRegExp, fixSvgForXmlSerializer};

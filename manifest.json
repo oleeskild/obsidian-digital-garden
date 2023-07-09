@@ -1,7 +1,7 @@
 {
     "id": "digitalgarden",
     "name": "Digital Garden",
-    "version": "2.45.1",
+    "version": "2.45.2",
     "minAppVersion": "0.12.0",
     "description": "Publish your notes to the web for others to enjoy. For free.",
     "author": "Ole Eskild Steensen",

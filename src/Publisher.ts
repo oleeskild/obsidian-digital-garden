@@ -3,7 +3,7 @@ import { MetadataCache, TFile, Vault, Notice, getLinkpath, Component } from "obs
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64, escapeRegExp, generateUrlPath, getGardenPathForNote, getRewriteRules, kebabize } from "./utils";
+import { arrayBufferToBase64, escapeRegExp, generateUrlPath, getGardenPathForNote, getRewriteRules, kebabize, fixSvgForXmlSerializer } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
@@ -706,8 +706,7 @@ export default class Publisher {
 
         return transcludedText;
 
-    }
-
+    } 
 
     async createSvgEmbeds(text: string, filePath: string): Promise<string> {
 
@@ -716,6 +715,7 @@ export default class Publisher {
             const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
             const svgElement = svgDoc.getElementsByTagName("svg")[0];
             svgElement.setAttribute("width", size);
+            fixSvgForXmlSerializer(svgElement);
             const svgSerializer = new XMLSerializer();
             return svgSerializer.serializeToString(svgDoc);
         }
@@ -933,6 +933,3 @@ export default class Publisher {
         return `${includeFrontMatter ? frontMatter : ''}${excaliDrawCode}`;
     }
 }
-
-
-
