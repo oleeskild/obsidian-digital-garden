@@ -3,7 +3,7 @@ import { MetadataCache, TFile, Vault, Notice, getLinkpath, Component } from "obs
 import DigitalGardenSettings from "src/DigitalGardenSettings";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
-import { arrayBufferToBase64, escapeRegExp, generateUrlPath, getGardenPathForNote, getRewriteRules, kebabize, fixSvgForXmlSerializer } from "./utils";
+import { arrayBufferToBase64, escapeRegExp, generateUrlPath, sanitizePermalink, getGardenPathForNote, getRewriteRules, kebabize, fixSvgForXmlSerializer } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
@@ -429,8 +429,8 @@ export default class Publisher {
 
         }
         return publishedFrontMatter;
-    }
-
+	}
+	
     addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
         const publishedFrontMatter = { ...newFrontMatter };
         const gardenPath = (baseFrontMatter && baseFrontMatter['dg-path']) ? baseFrontMatter['dg-path'] : getGardenPathForNote(filePath, this.rewriteRules);
@@ -440,13 +440,7 @@ export default class Publisher {
 
         if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
             publishedFrontMatter["dg-permalink"] = baseFrontMatter["dg-permalink"];
-            publishedFrontMatter["permalink"] = baseFrontMatter["dg-permalink"];
-            if (!publishedFrontMatter["permalink"].endsWith("/")) {
-                publishedFrontMatter["permalink"] += "/";
-            }
-            if (!publishedFrontMatter["permalink"].startsWith("/")) {
-                publishedFrontMatter["permalink"] = "/" + publishedFrontMatter["permalink"];
-            }
+            publishedFrontMatter["permalink"] = sanitizePermalink(baseFrontMatter["dg-permalink"]);
         } else {
             publishedFrontMatter["permalink"] = "/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
         }
@@ -638,10 +632,10 @@ export default class Publisher {
 
                     } else if (linkedFile.extension === "md") {
 
-                        let fileText = await this.vault.cachedRead(linkedFile);
+						let fileText = await this.vault.cachedRead(linkedFile);
+						const metadata = this.metadataCache.getFileCache(linkedFile);
                         if (tranclusionFileName.includes('#^')) {
                             // Transclude Block
-                            const metadata = this.metadataCache.getFileCache(linkedFile);
                             const refBlock = tranclusionFileName.split('#^')[1];
                             sectionID = `#${slugify(refBlock)}`;
                             const blockInFile = metadata.blocks[refBlock];
@@ -653,7 +647,6 @@ export default class Publisher {
                                     .join('\n').replace(`^${refBlock}`, '');
                             }
                         } else if (tranclusionFileName.includes('#')) { // transcluding header only
-                            const metadata = this.metadataCache.getFileCache(linkedFile);
                             const refHeader = tranclusionFileName.split('#')[1];
                             const headerInFile = metadata.headings?.find(header => header.heading === refHeader);
                             sectionID = `#${slugify(refHeader)}`;
@@ -686,8 +679,9 @@ export default class Publisher {
 
                         const headerSection = header ? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n` : '';
                         let embedded_link = "";
-                        if (publishedFiles.find((f) => f.path == linkedFile.path)) {
-                            embedded_link = `<a class="markdown-embed-link" href="/${generateUrlPath(getGardenPathForNote(linkedFile.path, this.rewriteRules))}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+						if (publishedFiles.find((f) => f.path == linkedFile.path)) {
+							const gardenPath = (metadata.frontmatter["dg-permalink"]) ? sanitizePermalink(metadata.frontmatter["dg-permalink"]) : `/${generateUrlPath(getGardenPathForNote(linkedFile.path, this.rewriteRules))}`;
+                            embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
                         }
                         fileText = `\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n`
                             + fileText + '\n\n</div></div>\n'
