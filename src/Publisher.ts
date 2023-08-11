@@ -457,7 +457,7 @@ export default class Publisher {
     addPageTags(baseFrontMatter: any, newFrontMatter: any) {
         const publishedFrontMatter = { ...newFrontMatter };
         if (baseFrontMatter) {
-            const tags = (typeof (baseFrontMatter["tags"]) === "string" ? [baseFrontMatter["tags"]] : baseFrontMatter["tags"]) || [];
+            const tags = (typeof (baseFrontMatter["tags"]) === "string" ? baseFrontMatter["tags"].split(/,\s*/) : baseFrontMatter["tags"]) || [];
             if (baseFrontMatter["dg-home"]) {
                 tags.push("gardenEntry")
             }
