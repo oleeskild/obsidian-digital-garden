@@ -9,7 +9,7 @@ import { excaliDrawBundle, excalidraw } from "./constants";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
 import LZString from "lz-string";
-import ObsidianFrontMatterEngine from './ObsidianFrontMatterEngine';
+import { PathRewriteRules } from './DigitalGardenSiteManager';
 
 export interface MarkedForPublishing {
     notes: TFile[],
@@ -26,7 +26,7 @@ export default class Publisher {
     vault: Vault;
     metadataCache: MetadataCache;
     settings: DigitalGardenSettings;
-    rewriteRules: Array<Array<string>>;
+	rewriteRules: PathRewriteRules;
     customFilters: Array<Object>;
 	frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 	blockrefRegex = /(\^\w+(\n|$))/g;

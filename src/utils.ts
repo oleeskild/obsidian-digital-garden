@@ -1,7 +1,9 @@
 import { Base64 } from "js-base64";
 import slugify from "@sindresorhus/slugify";
 import sha1 from "crypto-js/sha1";
-import { MetadataCache } from "obsidian";
+import { PathRewriteRules } from "./DigitalGardenSiteManager";
+
+const REWRITE_RULE_DELIMITER = ":"
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -50,41 +52,30 @@ function kebabize(str: string){
 	return ((value % size) + size) % size;
  };
   
-function getRewriteRules(pathRewriteRules: string): Array<Array<string>> {
-	return pathRewriteRules.split('\n').map((line: string) => {
-		return line.split(':');
-	}).filter((rule: string[]) => {
-		return rule.length == 2;
-	});
-} 
-	
-function getGardenPathForNote(vaultPath: string, rules: Array<Array<string>>): string{
-		for (let index = 0; index < rules.length; index++) {
-			const rule = rules[index];
-			if (vaultPath.startsWith(rule[0])) {
-				return rule[1] + vaultPath.slice(rule[0].length)
-			}
+function getRewriteRules(pathRewriteRules: string): PathRewriteRules {
+	return pathRewriteRules
+		.split("\n")
+		.filter((line: string) => line.includes(REWRITE_RULE_DELIMITER))
+		.map((line: string) => {
+			const [searchPath, newPath] = line.split(REWRITE_RULE_DELIMITER);
+
+			return { from: searchPath, to: newPath }
+		})
+}
+
+function getGardenPathForNote(vaultPath: string, rules: PathRewriteRules): string {
+	for (const { from, to } of rules) {
+		if (vaultPath.startsWith(from)) {
+			return vaultPath.replace(from, to)
 		}
-		return vaultPath;
 	}
+	return vaultPath;
+}
 
 function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-function getVaultPathForNote(gardenPath: string, rules: Array<Array<string>>, metadataCache: MetadataCache) {
-	for (let index = 0; index < rules.length; index++) {
-		const rule = rules[index];
-		if (gardenPath.startsWith(rule[1])) {
-			const vaultPath = rule[0] + gardenPath.slice(rule[1].length);
-			const linkedFile = metadataCache.getCache(vaultPath);
-			if (linkedFile) {
-				return vaultPath;
-			}
-		}
-	}
-	return gardenPath;
-}
 
 function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void{
 	// Insert a comment in the style tags to prevent XMLSerializer from self-closing it during serialization.
@@ -110,4 +101,5 @@ function sanitizePermalink(permalink: string): string {
 	}
 
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getVaultPathForNote, getGardenPathForNote, escapeRegExp, fixSvgForXmlSerializer, sanitizePermalink};
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getGardenPathForNote, escapeRegExp, fixSvgForXmlSerializer, sanitizePermalink};
+
