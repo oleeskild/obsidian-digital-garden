@@ -66,7 +66,12 @@ function getRewriteRules(pathRewriteRules: string): PathRewriteRules {
 function getGardenPathForNote(vaultPath: string, rules: PathRewriteRules): string {
 	for (const { from, to } of rules) {
 		if (vaultPath.startsWith(from)) {
-			return vaultPath.replace(from, to)
+			const newPath = vaultPath.replace(from, to)
+			// remote leading slash if to = ""
+			if (newPath.startsWith("/")) {
+				return newPath.replace("/", "")
+			}
+			return newPath
 		}
 	}
 	return vaultPath;

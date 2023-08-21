@@ -120,7 +120,7 @@ export default class Publisher {
 
 
         try {
-            const response = await octokit.request('DELETE /repos/{owner}/{repo}/contents/{path}', payload);
+			await octokit.request('DELETE /repos/{owner}/{repo}/contents/{path}', payload);
         } catch (e) {
             console.log(e)
             return false

@@ -32,8 +32,7 @@ describe("utils", () => {
 			});
 		}
 
-		// https://github.com/oleeskild/obsidian-digital-garden/issues/289
-		it.skip("handles rewrites to base path correctly", () => {
+		it("handles rewrites to base path correctly", () => {
 			const rewriteRules: PathRewriteRules = [{ from: "defaultGardenPath", to: "" }]
 			const gardenPath = "defaultGardenPath/notes/note.md";
 
