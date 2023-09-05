@@ -28,7 +28,8 @@ export default class Publisher {
     settings: DigitalGardenSettings;
     rewriteRules: Array<Array<string>>;
     customFilters: Array<Object>;
-    frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
+	frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
+	blockrefRegex = /(\^\w+(\n|$))/g;
 
     codeFenceRegex = /`(.*?)`/g;
     codeBlockRegex = /```.*?\n[\s\S]+?```/g;
@@ -665,7 +666,7 @@ export default class Publisher {
                                         .split('\n')
                                         .slice(headerInFile.position.start.line)
                                         .join('\n');
-                                }
+								}
 
                             }
                         }
@@ -673,7 +674,10 @@ export default class Publisher {
                         fileText = fileText.replace(this.frontmatterRegex, "");
 
                         // Apply custom filters to transclusion
-                        fileText = await this.convertCustomFilters(fileText);
+						fileText = await this.convertCustomFilters(fileText);
+						
+						// Remove block reference
+						fileText = fileText.replace(this.blockrefRegex, "");
 
                         const header = this.generateTransclusionHeader(headerName, linkedFile);
 
@@ -689,7 +693,7 @@ export default class Publisher {
                         if (fileText.match(transcludedRegex)) {
                             fileText = await this.createTranscludedText(fileText, linkedFile.path, currentDepth + 1);
                         }
-                        //This should be recursive up to a certain depth
+						//This should be recursive up to a certain depth
                         transcludedText = transcludedText.replace(transclusionMatch, fileText);
                     }
                 } catch {
