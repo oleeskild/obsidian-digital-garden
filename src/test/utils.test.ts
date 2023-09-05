@@ -1,18 +1,27 @@
 import assert from "node:assert";
 import { getGardenPathForNote, getRewriteRules, wrapAround } from "../utils";
+import { PathRewriteRules } from "../DigitalGardenSiteManager";
 
 describe("utils", () => {
 	describe("getGardenPathForNote", () => {
 
-		const TESTS = [
+		const TESTS: Array<{ name: string, input: { gardenPath: string, rules: PathRewriteRules }, expected: string }> = [
 			{
 				name: "replaces a path according to rules",
-				input: { gardenPath: "defaultGardenPath/notes/note.md", rules: [["defaultGardenPath", "gardenPath"]] },
+				input: {
+					gardenPath: "defaultGardenPath/notes/note.md", rules: [{ from: "defaultGardenPath", to: "gardenPath" }]
+				},
 				expected: "gardenPath/notes/note.md"
 			},
 			{
 				name: "replaces a path according to the first rule found",
-				input: { gardenPath: "defaultGardenPath/notes/note.md", rules: [["defaultGardenPath", "gardenPath"], ["defaultGardenPath/notes", "gargamel"]] },
+				input: {
+					gardenPath: "defaultGardenPath/notes/note.md", rules: [{
+						from: "defaultGardenPath", to: "gardenPath"
+					}, {
+						from: "defaultGardenPath/notes", to: "gargamel"
+					}]
+				},
 				expected: "gardenPath/notes/note.md"
 			}
 		]
@@ -23,9 +32,8 @@ describe("utils", () => {
 			});
 		}
 
-		// https://github.com/oleeskild/obsidian-digital-garden/issues/289
-		it.skip("handles rewrites to base path correctly", () => {
-			const rewriteRules = [["defaultGardenPath", ""]];
+		it("handles rewrites to base path correctly", () => {
+			const rewriteRules: PathRewriteRules = [{ from: "defaultGardenPath", to: "" }]
 			const gardenPath = "defaultGardenPath/notes/note.md";
 
 			const result = getGardenPathForNote(gardenPath, rewriteRules);
@@ -36,7 +44,7 @@ describe("utils", () => {
 	});
 
 	describe("getRewriteRules", () => {
-		const TESTS = [
+		const TESTS: Array<{ name: string, input: string, expected: PathRewriteRules }> = [
 			{
 				name: "returns an empty array when no rules are provided",
 				input: "",
@@ -45,17 +53,22 @@ describe("utils", () => {
 			{
 				name: "parses a single rewrite rule",
 				input: "defaultGardenPath:gardenPath",
-				expected: [["defaultGardenPath", "gardenPath"]]
+				expected: [{ from: "defaultGardenPath", to: "gardenPath" }]
 			},
 			{
 				name: "parses multiple rewrite rules",
 				input: "defaultGardenPath:gardenPath\ndefaultGardenPath/notes:gargamel",
-				expected: [["defaultGardenPath", "gardenPath"], ["defaultGardenPath/notes", "gargamel"]]
+				expected: [{
+					from: "defaultGardenPath", to: "gardenPath"
+				}, {
+					from: "defaultGardenPath/notes", to: "gargamel"
+				}]
+
 			},
 			{
 				name: "skips lines without a colon",
 				input: "defaultGardenPath:gardenPath\nnoColon",
-				expected: [["defaultGardenPath", "gardenPath"]]
+				expected: [{ from: "defaultGardenPath", to: "gardenPath" }]
 			}
 		]
 

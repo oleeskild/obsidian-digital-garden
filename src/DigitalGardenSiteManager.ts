@@ -11,10 +11,17 @@ export interface IDigitalGardenSiteManager {
 	getImageHashes(): Promise<{ [key: string]: string }>;
     createPullRequestWithSiteChanges(): Promise<string>;
 }
+
+export type PathRewriteRule = {
+	from: string,
+	to: string
+}
+export type PathRewriteRules = Array<PathRewriteRule>;
+
 export default class DigitalGardenSiteManager implements IDigitalGardenSiteManager {
     settings: DigitalGardenSettings;
 	metadataCache: MetadataCache;
-	rewriteRules: Array<Array<string>>;
+	rewriteRules: PathRewriteRules;
     constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
         this.settings = settings;
 		this.metadataCache = metadataCache;

@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal, Events } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, ButtonComponent, addIcon, Modal } from 'obsidian';
 import Publisher from 'src/Publisher';
 import DigitalGardenSettings from 'src/DigitalGardenSettings';
 import DigitalGardenSiteManager from 'src/DigitalGardenSiteManager';
