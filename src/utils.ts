@@ -99,5 +99,15 @@ function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void{
 	}
 }
 
+function sanitizePermalink(permalink: string): string {
+		if (!permalink.endsWith("/")) {
+			permalink += "/";
+		}
+		if (!permalink.startsWith("/")) {
+			permalink = "/" + permalink;
+		}
+		return permalink;
+	}
 
-export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getVaultPathForNote, getGardenPathForNote, escapeRegExp, fixSvgForXmlSerializer};
+
+export { arrayBufferToBase64, extractBaseUrl, generateUrlPath, generateBlobHash, kebabize, wrapAround, getRewriteRules, getVaultPathForNote, getGardenPathForNote, escapeRegExp, fixSvgForXmlSerializer, sanitizePermalink};
