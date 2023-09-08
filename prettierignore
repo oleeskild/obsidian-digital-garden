@@ -1,0 +1,8 @@
+build
+main.js
+
+node_modules
+coverage
+.vscode
+.parcel-cache
+esbuild.config.mjs
