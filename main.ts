@@ -114,7 +114,7 @@ export default class DigitalGarden extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				const event = this.app.metadataCache.on(
 					"changed",
-					async (file, data, cache) => {
+					async (file, _data, _cache) => {
 						if (file.path === activeFile.path) {
 							const successfullyPublished =
 								await this.publishSingleNote();

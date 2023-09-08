@@ -31,19 +31,27 @@ export interface MarkedForPublishing {
 	notes: TFile[];
 	images: string[];
 }
+
+export interface Asset {
+	path: string;
+	content: string;
+}
+export interface Assets {
+	images: Array<Asset>;
+}
 export interface IPublisher {
 	[x: string]: any;
 	publish(file: TFile): Promise<boolean>;
 	delete(vaultFilePath: string): Promise<boolean>;
 	getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
-	generateMarkdown(file: TFile): Promise<[string, any]>;
+	generateMarkdown(file: TFile): Promise<[string, Assets]>;
 }
 export default class Publisher {
 	vault: Vault;
 	metadataCache: MetadataCache;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
-	customFilters: Array<Object>;
+	customFilters: Array<unknown>;
 	frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 	blockrefRegex = /(\^\w+(\n|$))/g;
 
@@ -139,7 +147,9 @@ export default class Publisher {
 					path,
 				},
 			);
+			// @ts-expect-error
 			if (response.status === 200 && response.data.type === "file") {
+				// @ts-expect-error
 				payload.sha = response.data.sha;
 			}
 		} catch (e) {
@@ -177,10 +187,10 @@ export default class Publisher {
 		}
 	}
 
-	async generateMarkdown(file: TFile): Promise<[string, any]> {
+	async generateMarkdown(file: TFile): Promise<[string, Assets]> {
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 
-		const assets: any = { images: [] };
+		const assets: Assets = { images: [] };
 		if (file.name.endsWith(".excalidraw.md")) {
 			return [await this.generateExcalidrawMarkdown(file, true), assets];
 		}
@@ -195,8 +205,7 @@ export default class Publisher {
 		text = await this.removeObsidianComments(text);
 		text = await this.createSvgEmbeds(text, file.path);
 		const text_and_images = await this.convertImageLinks(text, file.path);
-		assets.images = text_and_images[1];
-		return [text_and_images[0], assets];
+		return [text_and_images[0], { images: text_and_images[1] }];
 	}
 
 	async convertCustomFilters(text: string) {
@@ -264,7 +273,9 @@ export default class Publisher {
 					path,
 				},
 			);
+			// @ts-expect-error
 			if (response.status === 200 && response.data.type === "file") {
+				// @ts-expect-error
 				payload.sha = response.data.sha;
 			}
 		} catch (e) {
@@ -345,7 +356,7 @@ export default class Publisher {
 
 	async convertFrontMatter(text: string, file: TFile): Promise<string> {
 		const publishedFrontMatter = this.getProcessedFrontMatter(file);
-		const replaced = text.replace(this.frontmatterRegex, (match, p1) => {
+		const replaced = text.replace(this.frontmatterRegex, (_match, _p1) => {
 			return publishedFrontMatter;
 		});
 		return replaced;
@@ -676,7 +687,10 @@ export default class Publisher {
 		return publishedFrontMatter;
 	}
 
-	addFrontMatterSettings(baseFrontMatter: {}, newFrontMatter: {}) {
+	addFrontMatterSettings(
+		baseFrontMatter: Record<string, unknown>,
+		newFrontMatter: Record<string, unknown>,
+	) {
 		if (!baseFrontMatter) {
 			baseFrontMatter = {};
 		}
@@ -970,7 +984,7 @@ export default class Publisher {
 		if (linkedSvgMatches) {
 			for (const svg of linkedSvgMatches) {
 				try {
-					const [imageName, size] = svg
+					const [_imageName, size] = svg
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
 						.split("|");
 					const pathStart = svg.lastIndexOf("(") + 1;
@@ -1001,7 +1015,6 @@ export default class Publisher {
 	async extractImageLinks(text: string, filePath: string): Promise<string[]> {
 		const assets = [];
 
-		const imageText = text;
 		//![[image.png]]
 		const transcludedImageRegex =
 			/!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
@@ -1037,9 +1050,6 @@ export default class Publisher {
 				try {
 					const imageMatch = imageMatches[i];
 
-					const nameStart = imageMatch.indexOf("[") + 1;
-					const nameEnd = imageMatch.indexOf("]");
-
 					const pathStart = imageMatch.lastIndexOf("(") + 1;
 					const pathEnd = imageMatch.lastIndexOf(")");
 					const imagePath = imageMatch.substring(pathStart, pathEnd);
@@ -1064,7 +1074,7 @@ export default class Publisher {
 	async convertImageLinks(
 		text: string,
 		filePath: string,
-	): Promise<[string, Array<{ path: string; content: string }>]> {
+	): Promise<[string, Array<Asset>]> {
 		const assets = [];
 
 		let imageText = text;

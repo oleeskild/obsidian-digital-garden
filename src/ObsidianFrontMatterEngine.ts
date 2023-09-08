@@ -12,7 +12,7 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 	file: TFile;
 	vault: Vault;
 
-	generatedFrontMatter: object = {};
+	generatedFrontMatter: Record<string, unknown> = {};
 
 	constructor(vault: Vault, metadataCache: MetadataCache, file: TFile) {
 		this.metadataCache = metadataCache;
@@ -24,19 +24,16 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		key: string,
 		value: string | boolean | number,
 	): ObsidianFrontMatterEngine {
-		//@ts-ignore
 		this.generatedFrontMatter[key] = value;
 		return this;
 	}
 
 	remove(key: string): ObsidianFrontMatterEngine {
-		//@ts-ignore
 		this.generatedFrontMatter[key] = undefined;
 		return this;
 	}
 
 	get(key: string): string | boolean | number {
-		//@ts-ignore
 		return this.getFrontMatterSnapshot()[key];
 	}
 
@@ -48,7 +45,7 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		const yaml = this.frontMatterToYaml(newFrontMatter);
 		let newContent = "";
 		if (content.match(frontmatterRegex)) {
-			newContent = content.replace(frontmatterRegex, (match) => {
+			newContent = content.replace(frontmatterRegex, (_match) => {
 				return yaml;
 			});
 		} else {
@@ -58,11 +55,9 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		await this.vault.modify(this.file, newContent);
 	}
 
-	private frontMatterToYaml(frontMatter: {}) {
+	private frontMatterToYaml(frontMatter: Record<string, unknown>) {
 		for (const key of Object.keys(frontMatter)) {
-			//@ts-ignore
 			if (frontMatter[key] === undefined) {
-				//@ts-ignore
 				delete frontMatter[key];
 			}
 		}
@@ -73,7 +68,6 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 
 		let yaml = "---\n";
 		for (const key of Object.keys(frontMatter)) {
-			//@ts-ignore
 			yaml += `${key}: ${frontMatter[key]}\n`;
 		}
 		yaml += "---";
