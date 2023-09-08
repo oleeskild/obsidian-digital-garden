@@ -1,9 +1,19 @@
 import { ButtonComponent, TextComponent } from "obsidian";
 
-function addFilterInput(filter: { pattern: string, flags: string, replace: string }, el: HTMLElement, idx: number, plugin: any) {
-	const item = el.createEl('li', { attr: { style: "list-style-type: none; position: relative; margin: 5px 0; padding-right: 45px" } });
+function addFilterInput(
+	filter: { pattern: string; flags: string; replace: string },
+	el: HTMLElement,
+	idx: number,
+	plugin: any,
+) {
+	const item = el.createEl("li", {
+		attr: {
+			style: "list-style-type: none; position: relative; margin: 5px 0; padding-right: 45px",
+		},
+	});
 	const patternField = new TextComponent(el);
-	patternField.setPlaceholder("regex pattern")
+	patternField
+		.setPlaceholder("regex pattern")
 		.setValue(filter.pattern)
 		.onChange(async (value) => {
 			if (!value) {
@@ -17,7 +27,8 @@ function addFilterInput(filter: { pattern: string, flags: string, replace: strin
 	item.appendChild(patternEl);
 
 	const replaceField = new TextComponent(el);
-	replaceField.setPlaceholder("replacement")
+	replaceField
+		.setPlaceholder("replacement")
 		.setValue(filter.replace)
 		.onChange(async (value) => {
 			if (!value) {
@@ -32,7 +43,8 @@ function addFilterInput(filter: { pattern: string, flags: string, replace: strin
 	item.appendChild(replaceEl);
 
 	const flagField = new TextComponent(el);
-	flagField.setPlaceholder("flags")
+	flagField
+		.setPlaceholder("flags")
 		.setValue(filter.flags)
 		.onChange(async (value) => {
 			if (!value) {
@@ -47,7 +59,7 @@ function addFilterInput(filter: { pattern: string, flags: string, replace: strin
 	item.appendChild(flagEl);
 
 	const removeButton = new ButtonComponent(el);
-	removeButton.setIcon('minus');
+	removeButton.setIcon("minus");
 	removeButton.setTooltip("Remove filter");
 	removeButton.onClick(async () => {
 		plugin.settings.customFilters.splice(idx, 1);
