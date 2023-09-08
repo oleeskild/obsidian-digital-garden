@@ -8,7 +8,8 @@
 		"dev1": "parcel main.ts",
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
-		"prepare": "husky install"
+		"prepare": "husky install",
+		"lint": "eslint . --fix --ext .ts "
 	},
 	"keywords": [],
 	"author": "",
@@ -48,6 +49,9 @@
 		"obsidian-dataview": "^0.5.56"
 	},
 	"lint-staged": {
-		"*.{js,css,md}": "prettier --write"
+		"*.{ts}": [
+			"prettier --write",
+			"eslint --fix ."
+		]
 	}
 }

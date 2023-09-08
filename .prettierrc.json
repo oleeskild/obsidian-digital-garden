@@ -6,7 +6,7 @@
 	"useTabs": true,
 	"overrides": [
 		{
-			"files": ".prettierrc",
+			"files": [".prettierrc", ".eslintrc"],
 			"options": { "parser": "json" }
 		}
 	]
