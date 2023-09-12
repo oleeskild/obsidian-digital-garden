@@ -101,7 +101,7 @@ function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void {
 	if (styles.length > 0) {
 		for (let i = 0; i < styles.length; i++) {
 			const style = styles[i];
-			if (!style.textContent.trim()) {
+			if (!style.textContent?.trim()) {
 				style.textContent = "/**/";
 			}
 		}
