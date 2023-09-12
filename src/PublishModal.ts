@@ -9,16 +9,16 @@ export class PublishModal {
 	publishStatusManager: IPublishStatusManager;
 	publisher: IPublisher;
 
-	publishedContainer: HTMLElement;
-	publishedContainerCount: HTMLElement;
-	changedContainer: HTMLElement;
-	changedContainerCount: HTMLElement;
-	deletedContainer: HTMLElement;
-	deletedContainerCount: HTMLElement;
-	unpublishedContainer: HTMLElement;
-	unpublishedContainerCount: HTMLElement;
+	publishedContainer!: HTMLElement;
+	publishedContainerCount!: HTMLElement;
+	changedContainer!: HTMLElement;
+	changedContainerCount!: HTMLElement;
+	deletedContainer!: HTMLElement;
+	deletedContainerCount!: HTMLElement;
+	unpublishedContainer!: HTMLElement;
+	unpublishedContainerCount!: HTMLElement;
 
-	progressContainer: HTMLElement;
+	progressContainer!: HTMLElement;
 
 	constructor(
 		app: App,

@@ -1081,7 +1081,6 @@ export default class SettingView {
 			? { text: `🎉 Done! Approve your PR to make the changes go live.` }
 			: {
 					text: "You already have the latest template 🎉 No need to create a PR.",
-					attr: {},
 			  };
 		const linkText = { text: `${prUrl}`, href: prUrl };
 		this.progressViewTop.createEl("h2", successmessage);
