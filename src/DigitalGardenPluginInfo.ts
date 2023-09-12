@@ -1,5 +1,5 @@
 export default interface DigitalGardenPluginInfo {
-    filesToDelete: [string];
-    filesToAdd: [string];
-    filesToModify: [string];
+	filesToDelete: [string];
+	filesToAdd: [string];
+	filesToModify: [string];
 }

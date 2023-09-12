@@ -23,7 +23,7 @@ export default interface DigitalGardenSettings {
 	showNoteIconOnBackLink: boolean;
 
 	showCreatedTimestamp: boolean;
-	createdTimestampKey: string
+	createdTimestampKey: string;
 
 	showUpdatedTimestamp: boolean;
 	updatedTimestampKey: string;
@@ -32,7 +32,7 @@ export default interface DigitalGardenSettings {
 
 	styleSettingsCss: string;
 	pathRewriteRules: string;
-	customFilters: Array<{pattern: string, flags: string, replace: string}>;
+	customFilters: Array<{ pattern: string; flags: string; replace: string }>;
 	contentClassesKey: string;
 
 	defaultNoteSettings: {
@@ -46,5 +46,5 @@ export default interface DigitalGardenSettings {
 		dgShowToc: boolean;
 		dgLinkPreview: boolean;
 		dgShowTags: boolean;
-	}
+	};
 }
