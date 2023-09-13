@@ -109,7 +109,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected app: App;
 	protected inputEl: HTMLInputElement;
 
-	private popper: PopperInstance;
+	private popper: PopperInstance | undefined;
 	private scope: Scope;
 	private suggestEl: HTMLElement;
 	private suggest: Suggest<T>;
@@ -183,7 +183,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		(<any>this.app).keymap.popScope(this.scope);
 
 		this.suggest.setSuggestions([]);
-		this.popper.destroy();
+		this.popper?.destroy();
 		this.suggestEl.detach();
 	}
 

@@ -37,9 +37,12 @@ export default class SettingView {
 	private settings: DigitalGardenSettings;
 	private saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
+
+	//  These seem to be part of a Modal class, should they live in something like that?
 	private progressViewTop: HTMLElement | undefined;
 	private loading: HTMLElement | undefined;
 	private loadingInterval: NodeJS.Timeout | undefined;
+
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
 		500,
@@ -327,11 +330,10 @@ export default class SettingView {
 
 		//this.app.plugins is not defined, so we need to use a try catch in case the internal api is changed
 		try {
-			//@ts-ignore
 			if (
-				// @ts-expect-error
+				// @ts-expect-error https://gist.github.com/aidenlx/6067c943fbec8ead230f2b163bfd3bc8 for typing example
 				this.app.plugins &&
-				// @ts-expect-error
+				// @ts-expect-error see above
 				this.app.plugins.plugins["obsidian-style-settings"]._loaded
 			) {
 				themeModal.contentEl
@@ -702,7 +704,7 @@ export default class SettingView {
 				},
 			);
 			faviconsAreIdentical =
-				// @ts-expect-error
+				// @ts-expect-error TODO: abstract octokit response
 				currentFaviconOnSite.data.content
 					.replaceAll("\n", "")
 					.replaceAll(" ", "") === base64SettingsFaviconContent;
@@ -717,7 +719,7 @@ export default class SettingView {
 				path: "src/site/favicon.svg",
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
-				// @ts-expect-error
+				// @ts-expect-error TODO: abstract octokit response
 				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
 			});
 		}
@@ -933,7 +935,7 @@ export default class SettingView {
 				});
 			});
 
-		const rewritesettingContainer = customFilterModal.contentEl.createEl(
+		const rewriteSettingsContainer = customFilterModal.contentEl.createEl(
 			"div",
 			{
 				attr: {
@@ -942,13 +944,13 @@ export default class SettingView {
 				},
 			},
 		);
-		rewritesettingContainer.createEl(
+		rewriteSettingsContainer.createEl(
 			"div",
 		).innerHTML = `Define regex filters to replace note content before publishing.`;
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingsContainer.createEl("div", {
 			attr: { class: "setting-item-description" },
 		}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingsContainer.createEl("div", {
 			attr: {
 				class: "setting-item-description",
 				style: "margin-bottom: 15px",
@@ -956,7 +958,7 @@ export default class SettingView {
 		}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
 
 		const customFilters = this.settings.customFilters;
-		new Setting(rewritesettingContainer)
+		new Setting(rewriteSettingsContainer)
 			.setName("Filters")
 			.addButton((button) => {
 				button.setButtonText("Add");
@@ -976,7 +978,7 @@ export default class SettingView {
 				});
 			});
 		const filterList =
-			rewritesettingContainer.createDiv("custom-filter-list");
+			rewriteSettingsContainer.createDiv("custom-filter-list");
 		for (let i = 0; i < customFilters.length; i++) {
 			addFilterInput(customFilters[i], filterList, i, this);
 		}
@@ -1088,9 +1090,9 @@ export default class SettingView {
 			}
 		}, 400);
 	}
-
+	// TODO: ensure loading / progressViewTop typed correctly / initialized
 	renderSuccess(prUrl: string) {
-		this.loading.remove();
+		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
 		const successmessage = prUrl
@@ -1099,20 +1101,20 @@ export default class SettingView {
 					text: "You already have the latest template 🎉 No need to create a PR.",
 			  };
 		const linkText = { text: `${prUrl}`, href: prUrl };
-		this.progressViewTop.createEl("h2", successmessage);
+		this.progressViewTop?.createEl("h2", successmessage);
 		if (prUrl) {
-			this.progressViewTop.createEl("a", linkText);
+			this.progressViewTop?.createEl("a", linkText);
 		}
-		this.progressViewTop.createEl("br");
+		this.progressViewTop?.createEl("br");
 	}
 
 	renderError() {
-		this.loading.remove();
+		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 		const errorMsg = {
 			text: "❌ Something went wrong. Try deleting the branch in GitHub.",
 			attr: {},
 		};
-		this.progressViewTop.createEl("p", errorMsg);
+		this.progressViewTop?.createEl("p", errorMsg);
 	}
 }

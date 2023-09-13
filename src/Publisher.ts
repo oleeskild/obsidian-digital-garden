@@ -846,16 +846,16 @@ export default class Publisher {
 			for (let i = 0; i < transclusionMatches.length; i++) {
 				try {
 					const transclusionMatch = transclusionMatches[i];
-					const [tranclusionFileName, headerName] = transclusionMatch
+					const [transclusionFileName, headerName] = transclusionMatch
 						.substring(
 							transclusionMatch.indexOf("[") + 2,
 							transclusionMatch.indexOf("]"),
 						)
 						.split("|");
-					const tranclusionFilePath =
-						getLinkpath(tranclusionFileName);
+					const transclusionFilePath =
+						getLinkpath(transclusionFileName);
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						tranclusionFilePath,
+						transclusionFilePath,
 						filePath,
 					);
 					if (!linkedFile) {
@@ -881,9 +881,10 @@ export default class Publisher {
 						const metadata =
 							this.metadataCache.getFileCache(linkedFile);
 
-						if (tranclusionFileName.includes("#^")) {
+						if (transclusionFileName.includes("#^")) {
 							// Transclude Block
-							const refBlock = tranclusionFileName.split("#^")[1];
+							const refBlock =
+								transclusionFileName.split("#^")[1];
 							sectionID = `#${slugify(refBlock)}`;
 							const blockInFile = metadata.blocks[refBlock];
 							if (blockInFile) {
@@ -896,9 +897,10 @@ export default class Publisher {
 									.join("\n")
 									.replace(`^${refBlock}`, "");
 							}
-						} else if (tranclusionFileName.includes("#")) {
+						} else if (transclusionFileName.includes("#")) {
 							// transcluding header only
-							const refHeader = tranclusionFileName.split("#")[1];
+							const refHeader =
+								transclusionFileName.split("#")[1];
 							const headerInFile = metadata.headings?.find(
 								(header) => header.heading === refHeader,
 							);

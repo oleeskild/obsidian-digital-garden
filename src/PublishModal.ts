@@ -1,12 +1,12 @@
 import type DigitalGardenSettings from "src/DigitalGardenSettings";
 import { type App, ButtonComponent, Modal } from "obsidian";
 import Publisher from "./Publisher";
-import { type IPublishStatusManager } from "./PublishStatusManager";
+import PublishStatusManager from "./PublishStatusManager";
 
 export class PublishModal {
 	modal: Modal;
 	settings: DigitalGardenSettings;
-	publishStatusManager: IPublishStatusManager;
+	publishStatusManager: PublishStatusManager;
 	publisher: Publisher;
 
 	publishedContainer!: HTMLElement;
@@ -22,7 +22,7 @@ export class PublishModal {
 
 	constructor(
 		app: App,
-		publishStatusManager: IPublishStatusManager,
+		publishStatusManager: PublishStatusManager,
 		publisher: Publisher,
 		settings: DigitalGardenSettings,
 	) {
