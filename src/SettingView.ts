@@ -30,14 +30,16 @@ interface IObsidianTheme {
 	legacy: boolean;
 }
 
+const OBSIDIAN_THEME_URL =
+	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
 export default class SettingView {
 	private app: App;
 	private settings: DigitalGardenSettings;
 	private saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
-	private progressViewTop: HTMLElement;
-	private loading: HTMLElement;
-	private loadingInterval: any;
+	private progressViewTop: HTMLElement | undefined;
+	private loading: HTMLElement | undefined;
+	private loadingInterval: NodeJS.Timeout | undefined;
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
 		500,
@@ -374,9 +376,9 @@ export default class SettingView {
 			.createEl("h2", { text: "Theme Settings" })
 			.prepend(this.getIcon("palette"));
 
-		const themesListResponse = await axios.get<IObsidianTheme[]>(
-			"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json",
-		);
+		const themesListResponse =
+			await axios.get<IObsidianTheme[]>(OBSIDIAN_THEME_URL);
+
 		new Setting(themeModal.contentEl).setName("Theme").addDropdown((dd) => {
 			dd.addOption('{"name": "default", "modes": ["dark"]}', "Default");
 
@@ -780,9 +782,7 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Base URL")
 			.setDesc(
-				`
-            This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. 
-            `,
+				`This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
 			)
 			.addText((text) =>
 				text
@@ -834,7 +834,7 @@ export default class SettingView {
 				});
 			});
 
-		const rewritesettingContainer = rewriteRulesModal.contentEl.createEl(
+		const rewriteSettingContainer = rewriteRulesModal.contentEl.createEl(
 			"div",
 			{
 				attr: {
@@ -844,30 +844,30 @@ export default class SettingView {
 			},
 		);
 
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Define rules to rewrite note paths/folder structure, using following syntax:`,
 		});
 
-		const list = rewritesettingContainer.createEl("ol");
+		const list = rewriteSettingContainer.createEl("ol");
 		list.createEl("li", { text: `One rule-per line` });
 		list.createEl("li", {
 			text: `The format is [from_vault_path]:[to_garden_path]`,
 		});
 		list.createEl("li", { text: `Matching will exit on first match` });
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Example: If you want the vault folder "Personal/Journal" to be shown as only "Journal" in the left file sidebar in the garden, add the line "Personal/Journal:Journal"`,
 			attr: { class: "setting-item-description" },
 		});
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Note: rewriting a folder to the base path "[from_vault_path]:" is not supported at the moment.`,
 			attr: { class: "setting-item-description" },
 		});
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Any affected notes will show up as changed in the publication center`,
 			attr: { class: "setting-item-description" },
 		});
 
-		new Setting(rewritesettingContainer)
+		new Setting(rewriteSettingContainer)
 			.setName("Rules")
 			.addTextArea((field) => {
 				field.setPlaceholder("Personal/Journal:Journal");
@@ -881,13 +881,13 @@ export default class SettingView {
 					});
 			});
 
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Type a path below to test that your rules are working as expected`,
 			attr: { class: "test-rewrite-rules-description" },
 		});
 
 		const rewriteSettingsPreviewContainer =
-			rewritesettingContainer.createEl("div", {
+			rewriteSettingContainer.createEl("div", {
 				attr: {
 					style: "display: flex; align-items: center; margin-top: 10px;",
 				},

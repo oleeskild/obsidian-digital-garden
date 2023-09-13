@@ -1,6 +1,6 @@
 import { FrontMatterCache, Notice } from "obsidian";
 
-export function vallidatePublishFrontmatter(
+export function validatePublishFrontmatter(
 	frontMatter: FrontMatterCache,
 ): boolean {
 	if (!frontMatter || !frontMatter["dg-publish"]) {

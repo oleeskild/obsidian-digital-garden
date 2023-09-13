@@ -21,7 +21,7 @@ import {
 	kebabize,
 	sanitizePermalink,
 } from "./utils";
-import { vallidatePublishFrontmatter } from "./Validator";
+import { validatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
@@ -71,7 +71,6 @@ export default class Publisher {
 	metadataCache: MetadataCache;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
-	customFilters: Array<unknown>;
 	frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 	blockrefRegex = /(\^\w+(\n|$))/g;
 
@@ -166,9 +165,9 @@ export default class Publisher {
 					path,
 				},
 			);
-			// @ts-expect-error
-			if (response.status === 200 && response.data.type === "file") {
-				// @ts-expect-error
+			// @ts-expect-error TODO: abstract octokit response
+			if (response.status === 200 && response?.data.type === "file") {
+				// @ts-expect-error TODO: abstract octokit response
 				payload.sha = response.data.sha;
 			}
 		} catch (e) {
@@ -190,7 +189,7 @@ export default class Publisher {
 
 	async publish(file: TFile): Promise<boolean> {
 		if (
-			!vallidatePublishFrontmatter(
+			!validatePublishFrontmatter(
 				this.metadataCache.getCache(file.path).frontmatter,
 			)
 		) {
@@ -746,17 +745,17 @@ export default class Publisher {
 		}
 		const publishedFrontMatter = { ...newFrontMatter };
 		for (const key of Object.keys(this.settings.defaultNoteSettings)) {
-			//@ts-ignore
-			if (baseFrontMatter[kebabize(key)] !== undefined) {
-				//@ts-ignore
-				publishedFrontMatter[key] = baseFrontMatter[kebabize(key)];
+			const settingValue = baseFrontMatter[kebabize(key)];
+
+			if (settingValue) {
+				publishedFrontMatter[key] = settingValue;
 			}
 		}
+		const dgPassFrontmatter =
+			this.settings.defaultNoteSettings.dgPassFrontmatter;
 
-		if (this.settings.defaultNoteSettings.dgPassFrontmatter) {
-			//@ts-ignore
-			publishedFrontMatter.dgPassFrontmatter =
-				this.settings.defaultNoteSettings.dgPassFrontmatter;
+		if (dgPassFrontmatter) {
+			publishedFrontMatter.dgPassFrontmatter = dgPassFrontmatter;
 		}
 
 		return publishedFrontMatter;
@@ -859,6 +858,9 @@ export default class Publisher {
 						tranclusionFilePath,
 						filePath,
 					);
+					if (!linkedFile) {
+						continue;
+					}
 					let sectionID = "";
 					if (linkedFile.name.endsWith(".excalidraw.md")) {
 						const firstDrawing = ++numberOfExcaliDraws === 1;
@@ -878,6 +880,7 @@ export default class Publisher {
 						let fileText = await this.vault.cachedRead(linkedFile);
 						const metadata =
 							this.metadataCache.getFileCache(linkedFile);
+
 						if (tranclusionFileName.includes("#^")) {
 							// Transclude Block
 							const refBlock = tranclusionFileName.split("#^")[1];
@@ -1017,6 +1020,11 @@ export default class Publisher {
 						imagePath,
 						filePath,
 					);
+
+					if (!linkedFile) {
+						continue;
+					}
+
 					let svgText = await this.vault.read(linkedFile);
 					if (svgText && size) {
 						svgText = setWidth(svgText, size);
@@ -1048,6 +1056,10 @@ export default class Publisher {
 						imagePath,
 						filePath,
 					);
+					if (!linkedFile) {
+						continue;
+					}
+
 					let svgText = await this.vault.read(linkedFile);
 					if (svgText && size) {
 						svgText = setWidth(svgText, size);
@@ -1085,6 +1097,11 @@ export default class Publisher {
 						imagePath,
 						filePath,
 					);
+
+					if (!linkedFile) {
+						continue;
+					}
+
 					assets.push(linkedFile.path);
 				} catch (e) {
 					continue;
@@ -1112,6 +1129,10 @@ export default class Publisher {
 						decodedImagePath,
 						filePath,
 					);
+					if (!linkedFile) {
+						continue;
+					}
+
 					assets.push(linkedFile.path);
 				} catch {
 					continue;
@@ -1148,6 +1169,9 @@ export default class Publisher {
 						imagePath,
 						filePath,
 					);
+					if (!linkedFile) {
+						continue;
+					}
 					const image = await this.vault.readBinary(linkedFile);
 					const imageBase64 = arrayBufferToBase64(image);
 
@@ -1156,7 +1180,9 @@ export default class Publisher {
 					const imageMarkdown = `![${name}](${encodeURI(
 						cmsImgPath,
 					)})`;
+
 					assets.push({ path: cmsImgPath, content: imageBase64 });
+
 					imageText = imageText.replace(imageMatch, imageMarkdown);
 				} catch (e) {
 					continue;
@@ -1188,6 +1214,9 @@ export default class Publisher {
 						decodedImagePath,
 						filePath,
 					);
+					if (!linkedFile) {
+						continue;
+					}
 					const image = await this.vault.readBinary(linkedFile);
 					const imageBase64 = arrayBufferToBase64(image);
 					const cmsImgPath = `/img/user/${linkedFile.path}`;
