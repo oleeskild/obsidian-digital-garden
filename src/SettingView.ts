@@ -1,13 +1,13 @@
 import DigitalGardenSettings from "./DigitalGardenSettings";
 import {
+	App,
 	ButtonComponent,
+	MetadataCache,
 	Modal,
 	Notice,
 	Setting,
-	App,
 	TFile,
 	debounce,
-	MetadataCache,
 	getIcon,
 } from "obsidian";
 import axios from "axios";
@@ -20,6 +20,15 @@ import {
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { SvgFileSuggest } from "./ui/file-suggest";
 import { addFilterInput } from "./ui/addFilterInput";
+
+interface IObsidianTheme {
+	name: string;
+	author: string;
+	screenshot: string;
+	modes: string[];
+	repo: string;
+	legacy: boolean;
+}
 
 export default class SettingView {
 	private app: App;
@@ -48,6 +57,10 @@ export default class SettingView {
 		this.saveSettings = saveSettings;
 	}
 
+	getIcon(name: string): Node {
+		return getIcon(name) ?? document.createElement("span");
+	}
+
 	async initialize(prModal: Modal) {
 		this.settingsRootElement.empty();
 		this.settingsRootElement.createEl("h1", {
@@ -66,30 +79,30 @@ export default class SettingView {
 
 		this.settingsRootElement
 			.createEl("h3", { text: "GitHub Authentication (required)" })
-			.prepend(getIcon("github"));
+			.prepend(this.getIcon("github"));
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
-			.prepend(getIcon("link"));
+			.prepend(this.getIcon("link"));
 		this.initializeGitHubBaseURLSetting();
 		this.initializeSlugifySetting();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Features" })
-			.prepend(getIcon("star"));
+			.prepend(this.getIcon("star"));
 		this.initializeDefaultNoteSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Appearance" })
-			.prepend(getIcon("brush"));
+			.prepend(this.getIcon("brush"));
 		this.initializeThemesSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
-			.prepend(getIcon("cog"));
+			.prepend(this.getIcon("cog"));
 		this.initializePathRewriteSettings();
 		this.initializeCustomFilterSettings();
 		prModal.titleEl.createEl("h1", "Site template settings");
@@ -321,7 +334,7 @@ export default class SettingView {
 			) {
 				themeModal.contentEl
 					.createEl("h2", { text: "Style Settings Plugin" })
-					.prepend(getIcon("paintbrush"));
+					.prepend(this.getIcon("paintbrush"));
 				new Setting(themeModal.contentEl)
 					.setName("Apply current style settings to site")
 					.setDesc(
@@ -359,29 +372,32 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Theme Settings" })
-			.prepend(getIcon("palette"));
+			.prepend(this.getIcon("palette"));
 
-		const themesListResponse = await axios.get(
+		const themesListResponse = await axios.get<IObsidianTheme[]>(
 			"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json",
 		);
 		new Setting(themeModal.contentEl).setName("Theme").addDropdown((dd) => {
 			dd.addOption('{"name": "default", "modes": ["dark"]}', "Default");
+
 			const sortedThemes = themesListResponse.data.sort(
-				(a: { name: string }, b: { name: any }) =>
+				(a: { name: string }, b: { name: string }) =>
 					a.name.localeCompare(b.name),
 			);
-			sortedThemes.map((x: any) => {
+
+			sortedThemes.map((x) => {
 				dd.addOption(
 					JSON.stringify({
 						...x,
 						cssUrl: `https://raw.githubusercontent.com/${x.repo}/${
+							// the link to themes seems to never have "branch"
 							x.branch || "HEAD"
 						}/${x.legacy ? "obsidian.css" : "theme.css"}`,
 					}),
 					x.name,
 				);
 				dd.setValue(this.settings.theme);
-				dd.onChange(async (val: any) => {
+				dd.onChange(async (val: string) => {
 					this.settings.theme = val;
 					await this.saveSettings();
 				});
@@ -432,7 +448,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Timestamps Settings" })
-			.prepend(getIcon("calendar-clock"));
+			.prepend(this.getIcon("calendar-clock"));
 		new Setting(themeModal.contentEl)
 			.setName("Timestamp format")
 			.setDesc(
@@ -498,7 +514,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "CSS settings" })
-			.prepend(getIcon("code"));
+			.prepend(this.getIcon("code"));
 		new Setting(themeModal.contentEl)
 			.setName("Body Classes Key")
 			.setDesc(
@@ -515,7 +531,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Note icons Settings" })
-			.prepend(getIcon("image"));
+			.prepend(this.getIcon("image"));
 		themeModal.contentEl
 			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
 			.createEl("a", {
@@ -666,7 +682,7 @@ export default class SettingView {
 					path: "src/site/favicon.svg",
 				},
 			);
-			// @ts-expect-error
+			// @ts-expect-error TODO: abstract octokit response
 			base64SettingsFaviconContent = defaultFavicon.data.content;
 		}
 
@@ -736,10 +752,10 @@ export default class SettingView {
 
 	private initializeGitHubTokenSetting() {
 		const desc = document.createDocumentFragment();
-		desc.createEl("span", null, (span) => {
+		desc.createEl("span", undefined, (span) => {
 			span.innerText =
 				"A GitHub token with repo permissions. You can generate it ";
-			span.createEl("a", null, (link) => {
+			span.createEl("a", undefined, (link) => {
 				link.href =
 					"https://github.com/settings/tokens/new?scopes=repo";
 				link.innerText = "here!";
@@ -972,7 +988,7 @@ export default class SettingView {
 	) {
 		this.settingsRootElement
 			.createEl("h3", { text: "Update site" })
-			.prepend(getIcon("sync"));
+			.prepend(getIcon("sync") ?? "");
 		new Setting(this.settingsRootElement)
 			.setName("Site Template")
 			.setDesc(
@@ -1009,7 +1025,7 @@ export default class SettingView {
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Support" })
-			.prepend(getIcon("heart"));
+			.prepend(this.getIcon("heart"));
 		this.settingsRootElement
 			.createDiv({
 				attr: {

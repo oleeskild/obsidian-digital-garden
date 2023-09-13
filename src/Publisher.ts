@@ -1,31 +1,31 @@
 import { DateTime } from "luxon";
 import {
+	Component,
 	MetadataCache,
+	Notice,
 	TFile,
 	Vault,
-	Notice,
 	getLinkpath,
-	Component,
 } from "obsidian";
-import DigitalGardenSettings from "src/DigitalGardenSettings";
+import { getAPI } from "obsidian-dataview";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
+import LZString from "lz-string";
 import {
 	arrayBufferToBase64,
 	escapeRegExp,
+	fixSvgForXmlSerializer,
 	generateUrlPath,
-	sanitizePermalink,
 	getGardenPathForNote,
 	getRewriteRules,
 	kebabize,
-	fixSvgForXmlSerializer,
+	sanitizePermalink,
 } from "./utils";
 import { vallidatePublishFrontmatter } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
-import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
-import LZString from "lz-string";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
+import DigitalGardenSettings from "./DigitalGardenSettings";
 
 export interface MarkedForPublishing {
 	notes: TFile[];
@@ -39,8 +39,28 @@ export interface Asset {
 export interface Assets {
 	images: Array<Asset>;
 }
+
+export type TFrontmatter = Record<string, unknown> & {
+	"dg-path"?: string;
+	"dg-permalink"?: string;
+	"dg-home"?: boolean;
+	"dg-hide-in-graph"?: boolean;
+	"dg-hide"?: boolean;
+	"dg-pinned"?: boolean;
+	"dg-metatags"?: string;
+	tags?: string;
+};
+
+export type TPublishedFrontMatter = Record<string, unknown> & {
+	tags?: string[];
+	metatags?: string;
+	pinned?: boolean;
+	permalink?: string;
+	hide?: boolean;
+};
+
 export interface IPublisher {
-	[x: string]: any;
+	[x: string]: unknown;
 	publish(file: TFile): Promise<boolean>;
 	delete(vaultFilePath: string): Promise<boolean>;
 	getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
@@ -72,13 +92,12 @@ export default class Publisher {
 
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
 		const files = this.vault.getMarkdownFiles();
-		const notesToPublish = [];
+		const notesToPublish: TFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
 		for (const file of files) {
 			try {
-				const frontMatter = this.metadataCache.getCache(
-					file.path,
-				).frontmatter;
+				const frontMatter = this.metadataCache.getCache(file.path)
+					?.frontmatter;
 				if (frontMatter && frontMatter["dg-publish"] === true) {
 					notesToPublish.push(file);
 					const images = await this.extractImageLinks(
@@ -273,9 +292,9 @@ export default class Publisher {
 					path,
 				},
 			);
-			// @ts-expect-error
+			// @ts-expect-error TODO: abstract octokit response
 			if (response.status === 200 && response.data.type === "file") {
-				// @ts-expect-error
+				// @ts-expect-error TODO: abstract octokit response
 				payload.sha = response.data.sha;
 			}
 		} catch (e) {
@@ -301,7 +320,7 @@ export default class Publisher {
 		await this.uploadToGithub(path, content);
 	}
 
-	async uploadAssets(assets: any) {
+	async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
 			await this.uploadImage(image.path, image.content);
@@ -395,8 +414,9 @@ export default class Publisher {
 			!inlineMatches &&
 			!dataviewJsMatches &&
 			!inlineJsMatches
-		)
-			return;
+		) {
+			return text;
+		}
 
 		//Code block queries
 		for (const queryBlock of matches) {
@@ -485,11 +505,13 @@ export default class Publisher {
 
 	getProcessedFrontMatter(file: TFile): string {
 		const fileFrontMatter = {
-			...this.metadataCache.getCache(file.path).frontmatter,
+			...this.metadataCache.getCache(file.path)?.frontmatter,
 		};
 		delete fileFrontMatter["position"];
 
-		let publishedFrontMatter: any = { "dg-publish": true };
+		let publishedFrontMatter: TPublishedFrontMatter = {
+			"dg-publish": true,
+		};
 
 		publishedFrontMatter = this.addPermalink(
 			fileFrontMatter,
@@ -525,42 +547,57 @@ export default class Publisher {
 		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
 			? { ...fileFrontMatter, ...publishedFrontMatter }
 			: publishedFrontMatter;
+
 		const frontMatterString = JSON.stringify(fullFrontMatter);
 
 		return `---\n${frontMatterString}\n---\n`;
 	}
 
-	addDefaultPassThrough(baseFrontMatter: any, newFrontMatter: any) {
+	addDefaultPassThrough(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+	) {
 		// Eventually we will add other pass-throughs here. e.g. tags.
 		const publishedFrontMatter = { ...newFrontMatter };
+
 		if (baseFrontMatter) {
 			if (baseFrontMatter["title"]) {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
+
 			if (baseFrontMatter["dg-metatags"]) {
 				publishedFrontMatter["metatags"] =
 					baseFrontMatter["dg-metatags"];
 			}
+
 			if (baseFrontMatter["dg-hide"]) {
 				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
 			}
+
 			if (baseFrontMatter["dg-hide-in-graph"]) {
 				publishedFrontMatter["hideInGraph"] =
 					baseFrontMatter["dg-hide-in-graph"];
 			}
+
 			if (baseFrontMatter["dg-pinned"]) {
 				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
 			}
 		}
+
 		return publishedFrontMatter;
 	}
 
-	addPermalink(baseFrontMatter: any, newFrontMatter: any, filePath: string) {
+	addPermalink(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+		filePath: string,
+	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 		const gardenPath =
 			baseFrontMatter && baseFrontMatter["dg-path"]
 				? baseFrontMatter["dg-path"]
 				: getGardenPathForNote(filePath, this.rewriteRules);
+
 		if (gardenPath != filePath) {
 			publishedFrontMatter["dg-path"] = gardenPath;
 		}
@@ -579,16 +616,22 @@ export default class Publisher {
 		return publishedFrontMatter;
 	}
 
-	addPageTags(baseFrontMatter: any, newFrontMatter: any) {
-		const publishedFrontMatter = { ...newFrontMatter };
-		if (baseFrontMatter) {
+	addPageTags(
+		fileFrontMatter: TFrontmatter,
+		publishedFrontMatterWithoutTags: TPublishedFrontMatter,
+	) {
+		const publishedFrontMatter = { ...publishedFrontMatterWithoutTags };
+
+		if (fileFrontMatter) {
 			const tags =
-				(typeof baseFrontMatter["tags"] === "string"
-					? baseFrontMatter["tags"].split(/,\s*/)
-					: baseFrontMatter["tags"]) || [];
-			if (baseFrontMatter["dg-home"]) {
+				(typeof fileFrontMatter["tags"] === "string"
+					? fileFrontMatter["tags"].split(/,\s*/)
+					: fileFrontMatter["tags"]) || [];
+
+			if (fileFrontMatter["dg-home"]) {
 				tags.push("gardenEntry");
 			}
+
 			if (tags.length > 0) {
 				publishedFrontMatter["tags"] = tags;
 			}
@@ -596,18 +639,22 @@ export default class Publisher {
 		return publishedFrontMatter;
 	}
 
-	addContentClasses(baseFrontMatter: any, newFrontMatter: any) {
+	addContentClasses(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 
 		if (baseFrontMatter) {
 			const contentClassesKey = this.settings.contentClassesKey;
-			if (contentClassesKey && baseFrontMatter[contentClassesKey]) {
-				if (typeof baseFrontMatter[contentClassesKey] == "string") {
+			const contentClasses = baseFrontMatter[contentClassesKey];
+
+			if (contentClassesKey && contentClasses) {
+				if (typeof contentClasses == "string") {
+					publishedFrontMatter["contentClasses"] = contentClasses;
+				} else if (Array.isArray(contentClasses)) {
 					publishedFrontMatter["contentClasses"] =
-						baseFrontMatter[contentClassesKey];
-				} else if (Array.isArray(baseFrontMatter[contentClassesKey])) {
-					publishedFrontMatter["contentClasses"] =
-						baseFrontMatter[contentClassesKey].join(" ");
+						contentClasses.join(" ");
 				} else {
 					publishedFrontMatter["contentClasses"] = "";
 				}
@@ -618,8 +665,8 @@ export default class Publisher {
 	}
 
 	addTimestampsFrontmatter(
-		baseFrontMatter: any,
-		newFrontMatter: any,
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
 		file: TFile,
 	) {
 		if (!baseFrontMatter) {
@@ -662,7 +709,10 @@ export default class Publisher {
 		return publishedFrontMatter;
 	}
 
-	addNoteIconFrontMatter(baseFrontMatter: any, newFrontMatter: any) {
+	addNoteIconFrontMatter(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+	) {
 		if (!baseFrontMatter) {
 			baseFrontMatter = {};
 		}
@@ -1172,7 +1222,7 @@ export default class Publisher {
 		} else if (headerName) {
 			//Add a space to the start of the header if not already there
 			const headerParts = headerName.split("#");
-			if (!headerParts.last().startsWith(" ")) {
+			if (!headerParts.last()?.startsWith(" ")) {
 				headerName = headerName.replace(
 					headerParts.last(),
 					" " + headerParts.last(),

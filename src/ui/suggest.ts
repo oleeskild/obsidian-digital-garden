@@ -1,5 +1,5 @@
 //https://github.com/liamcain/obsidian-periodic-notes/blob/main/src/ui/suggest.ts
-import { createPopper, type Instance as PopperInstance } from "@popperjs/core";
+import { type Instance as PopperInstance, createPopper } from "@popperjs/core";
 import { App, type ISuggestOwner, Scope } from "obsidian";
 import { wrapAround } from "../utils";
 

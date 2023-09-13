@@ -1,21 +1,21 @@
 import {
 	App,
+	ButtonComponent,
+	Modal,
 	Notice,
 	Plugin,
 	PluginSettingTab,
-	ButtonComponent,
 	addIcon,
-	Modal,
 } from "obsidian";
-import Publisher from "src/Publisher";
-import DigitalGardenSettings from "src/DigitalGardenSettings";
-import DigitalGardenSiteManager from "src/DigitalGardenSiteManager";
-import SettingView from "src/SettingView";
-import { PublishStatusBar } from "src/PublishStatusBar";
-import { seedling } from "src/constants";
-import { PublishModal } from "src/PublishModal";
-import PublishStatusManager from "src/PublishStatusManager";
-import ObsidianFrontMatterEngine from "src/ObsidianFrontMatterEngine";
+import Publisher from "./src/Publisher";
+import DigitalGardenSettings from "./src/DigitalGardenSettings";
+import SettingView from "./src/SettingView";
+import { PublishStatusBar } from "./src/PublishStatusBar";
+import { seedling } from "./src/constants";
+import { PublishModal } from "./src/PublishModal";
+import PublishStatusManager from "./src/PublishStatusManager";
+import ObsidianFrontMatterEngine from "./src/ObsidianFrontMatterEngine";
+import DigitalGardenSiteManager from "./src/DigitalGardenSiteManager";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
