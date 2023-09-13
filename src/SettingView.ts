@@ -34,8 +34,8 @@ const OBSIDIAN_THEME_URL =
 	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
 export default class SettingView {
 	private app: App;
-	private settings: DigitalGardenSettings;
-	private saveSettings: () => Promise<void>;
+	settings: DigitalGardenSettings;
+	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
 
 	//  These seem to be part of a Modal class, should they live in something like that?
