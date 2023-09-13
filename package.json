@@ -12,7 +12,8 @@
 		"lint": "eslint . --ext .ts",
 		"lint-fix": "eslint .  --fix  --ext .ts",
 		"format": "prettier --write .",
-		"check-formatting": "prettier --check ."
+		"check-formatting": "prettier --check .",
+		"typecheck": "tsc"
 	},
 	"keywords": [],
 	"author": "",
