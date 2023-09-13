@@ -1,2 +1,7 @@
 npm node_modules
 build
+main.js
+
+jest.config.js
+
+.eslintrc.js

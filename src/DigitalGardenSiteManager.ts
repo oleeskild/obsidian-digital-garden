@@ -1,5 +1,5 @@
-import DigitalGardenSettings from "src/DigitalGardenSettings";
-import { MetadataCache, Notice, TFile } from "obsidian";
+import type DigitalGardenSettings from "src/DigitalGardenSettings";
+import { type MetadataCache, Notice, type TFile } from "obsidian";
 import {
 	extractBaseUrl,
 	generateUrlPath,
@@ -8,20 +8,20 @@ import {
 } from "./utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
+import type DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
 
 export interface IDigitalGardenSiteManager {
-	getNoteUrl(file: TFile): string;
-	getNoteHashes(): Promise<{ [key: string]: string }>;
-	getImageHashes(): Promise<{ [key: string]: string }>;
-	createPullRequestWithSiteChanges(): Promise<string>;
+	getNoteUrl: (file: TFile) => string;
+	getNoteHashes: () => Promise<Record<string, string>>;
+	getImageHashes: () => Promise<Record<string, string>>;
+	createPullRequestWithSiteChanges: () => Promise<string>;
 }
 
-export type PathRewriteRule = {
+export interface PathRewriteRule {
 	from: string;
 	to: string;
-};
-export type PathRewriteRules = Array<PathRewriteRule>;
+}
+export type PathRewriteRules = PathRewriteRule[];
 
 export default class DigitalGardenSiteManager
 	implements IDigitalGardenSiteManager
@@ -42,7 +42,7 @@ export default class DigitalGardenSiteManager
 		const siteName = this.settings.siteName;
 		let gardenBaseUrl = "";
 
-		//check that gardenbaseurl is not an access token wrongly pasted.
+		// check that gardenbaseurl is not an access token wrongly pasted.
 		if (
 			this.settings.gardenBaseUrl &&
 			!this.settings.gardenBaseUrl.startsWith("ghp_") &&
@@ -66,11 +66,11 @@ export default class DigitalGardenSiteManager
 		envSettings += `\nNOTE_ICON_FILETREE=${this.settings.showNoteIconInFileTree}`;
 		envSettings += `\nNOTE_ICON_INTERNAL_LINKS=${this.settings.showNoteIconOnInternalLink}`;
 		envSettings += `\nNOTE_ICON_BACK_LINKS=${this.settings.showNoteIconOnBackLink}`;
-		envSettings += `\nSTYLE_SETTINGS_CSS=\"${this.settings.styleSettingsCss}\"`;
+		envSettings += `\nSTYLE_SETTINGS_CSS="${this.settings.styleSettingsCss}"`;
 
 		const defaultNoteSettings = { ...this.settings.defaultNoteSettings };
 		for (const key of Object.keys(defaultNoteSettings)) {
-			//@ts-ignore
+			// @ts-expect-error
 			envSettings += `\n${key}=${defaultNoteSettings[key]}`;
 		}
 
@@ -91,13 +91,14 @@ export default class DigitalGardenSiteManager
 			fileExists = false;
 		}
 
-		//commit
+		// commit
 		await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
 			owner: this.settings.githubUserName,
 			repo: this.settings.githubRepo,
 			path: ".env",
-			message: `Update settings`,
+			message: "Update settings",
 			content: base64Settings,
+			// @ts-expect-error data is not yet type-guarded
 			sha: fileExists ? currentFile.data.sha : null,
 		});
 	}
@@ -122,18 +123,18 @@ export default class DigitalGardenSiteManager
 
 		if (frontMatter && frontMatter["dg-home"] === true) {
 			urlPath = "/";
-		} else if (frontMatter && frontMatter.permalink) {
+		} else if (frontMatter?.permalink) {
 			urlPath = `/${frontMatter.permalink}`;
-		} else if (frontMatter && frontMatter["dg-permalink"]) {
+		} else if (frontMatter?.["dg-permalink"]) {
 			urlPath = `/${frontMatter["dg-permalink"]}`;
 		}
 
 		return `${baseUrl}${urlPath}`;
 	}
 
-	async getNoteHashes(): Promise<{ [key: string]: string }> {
+	async getNoteHashes(): Promise<Record<string, string>> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
-		//Force the cache to be updated
+		// Force the cache to be updated
 		const response = await octokit.request(
 			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
 				Math.random() * 1000,
@@ -152,7 +153,7 @@ export default class DigitalGardenSiteManager
 				x.type === "blob" &&
 				x.path !== "src/site/notes/notes.json",
 		);
-		const hashes: { [key: string]: string } = {};
+		const hashes: Record<string, string> = {};
 		for (const note of notes) {
 			const vaultPath = note.path.replace("src/site/notes/", "");
 			hashes[vaultPath] = note.sha;
@@ -160,9 +161,9 @@ export default class DigitalGardenSiteManager
 		return hashes;
 	}
 
-	async getImageHashes(): Promise<{ [key: string]: string }> {
+	async getImageHashes(): Promise<Record<string, string>> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
-		//Force the cache to be updated
+		// Force the cache to be updated
 		const response = await octokit.request(
 			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
 				Math.random() * 1000,
@@ -179,7 +180,7 @@ export default class DigitalGardenSiteManager
 			(x: { path: string; type: string }) =>
 				x.path.startsWith("src/site/img/user/") && x.type === "blob",
 		);
-		const hashes: { [key: string]: string } = {};
+		const hashes: Record<string, string> = {};
 		for (const img of images) {
 			const vaultPath = decodeURI(
 				img.path.replace("src/site/img/user/", ""),
@@ -259,10 +260,11 @@ export default class DigitalGardenSiteManager
 
 			return pr.data.html_url;
 		} catch {
-			//The PR failed, most likely the repo is the latest version
+			// The PR failed, most likely the repo is the latest version
 			return null;
 		}
 	}
+
 	private async deleteFiles(octokit: Octokit, branchName: string) {
 		const pluginInfo = await this.getPluginInfo(octokit);
 
@@ -285,13 +287,14 @@ export default class DigitalGardenSiteManager
 						owner: this.settings.githubUserName,
 						repo: this.settings.githubRepo,
 						path: file,
+						// @ts-expect-error data is not yet type-guarded
 						sha: latestFile.data.sha,
 						message: `Delete ${file}`,
 						branch: branchName,
 					},
 				);
 			} catch (e) {
-				//Ignore if the file doesn't exist
+				// Ignore if the file doesn't exist
 			}
 		}
 	}
@@ -328,9 +331,10 @@ export default class DigitalGardenSiteManager
 			}
 
 			const fileHasChanged =
+				// @ts-expect-error data is not yet type-guarded
 				latestFile.data.sha !== currentFile?.data?.sha;
 			if (!fileExists || fileHasChanged) {
-				//commit
+				// commit
 				await octokit.request(
 					"PUT /repos/{owner}/{repo}/contents/{path}",
 					{
@@ -339,32 +343,35 @@ export default class DigitalGardenSiteManager
 						path: file,
 						branch: branchName,
 						message: `Update file ${file}`,
+						// @ts-expect-error data is not yet type-guarded
 						content: latestFile.data.content,
+						// @ts-expect-error data is not yet type-guarded
 						sha: fileExists ? currentFile.data.sha : null,
 					},
 				);
 			}
 		}
 	}
+
 	private async createNewBranch(
 		octokit: Octokit,
 		branchName: string,
-		sha: any,
+		sha: string,
 	) {
 		try {
 			await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
 				ref: `refs/heads/${branchName}`,
-				sha: sha,
+				sha,
 			});
 		} catch (e) {
-			//Ignore if the branch already exists
+			// Ignore if the branch already exists
 		}
 	}
 
 	private async addFilesIfMissing(octokit: Octokit, branchName: string) {
-		//Should only be added if it does not exist yet. Otherwise leave it alone
+		// Should only be added if it does not exist yet. Otherwise leave it alone
 
 		const pluginInfo = await this.getPluginInfo(octokit);
 		const filesToAdd = pluginInfo.filesToAdd;
@@ -381,7 +388,7 @@ export default class DigitalGardenSiteManager
 					},
 				);
 			} catch {
-				//Doesn't exist
+				// Doesn't exist
 				const initialFile = await octokit.request(
 					"GET /repos/{owner}/{repo}/contents/{path}",
 					{
@@ -399,6 +406,7 @@ export default class DigitalGardenSiteManager
 						path: filePath,
 						branch: branchName,
 						message: "Update template file",
+						// @ts-expect-error data is not yet type-guarded
 						content: initialFile.data.content,
 					},
 				);
@@ -419,6 +427,7 @@ export default class DigitalGardenSiteManager
 		);
 
 		const pluginInfo = JSON.parse(
+			// @ts-expect-error data is not yet type-guarded
 			Base64.decode(pluginInfoResponse.data.content),
 		);
 		return pluginInfo as DigitalGardenPluginInfo;

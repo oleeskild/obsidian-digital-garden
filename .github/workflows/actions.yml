@@ -1,17 +1,33 @@
 name: GitHub Actions
-run-name: Unit testing ${{ github.actor }} changes
-on: [push]
+run-name: PR "${{ github.event.pull_request.title }}" CI Checks
+on:
+  push:
+  pull_request:
+   types: [opened, synchronize]
 jobs:
-    "run-unit-tests":
-        name: "Run unit tests"
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - name: "Use node version"
-              uses: actions/setup-node@v3
-              with:
-                  node-version-file: .nvmrc
-            - name: "Install dependencies"
-              run: npm install
-            - name: Run tests
-              run: npm run test
+  "run-unit-tests":
+    name: "Run unit tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Use node version"
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+      - name: "Install dependencies"
+        run: npm install
+      - name: Run tests
+        run: npm run test
+  "lint":
+    name: "Checking for linting errors"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Use node version"
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+      - name: "Install dependencies"
+        run: npm install
+      - name: Checking linter
+        run: npm run lint

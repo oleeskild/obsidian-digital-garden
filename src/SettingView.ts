@@ -314,7 +314,9 @@ export default class SettingView {
 		try {
 			//@ts-ignore
 			if (
+				// @ts-expect-error
 				this.app.plugins &&
+				// @ts-expect-error
 				this.app.plugins.plugins["obsidian-style-settings"]._loaded
 			) {
 				themeModal.contentEl
@@ -327,7 +329,7 @@ export default class SettingView {
 					)
 					.addButton((btn) => {
 						btn.setButtonText("Apply");
-						btn.onClick(async (ev) => {
+						btn.onClick(async (_ev) => {
 							new Notice("Applying Style Settings...");
 							const styleSettingsNode = document.querySelector(
 								"#css-settings-manager",
@@ -351,7 +353,9 @@ export default class SettingView {
 						});
 					});
 			}
-		} catch {}
+		} catch {
+			console.error("Error loading style settings plugin");
+		}
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Theme Settings" })
@@ -589,7 +593,7 @@ export default class SettingView {
 
 		new Setting(themeModal.contentEl).addButton((cb) => {
 			cb.setButtonText("Apply settings to site");
-			cb.onClick(async (ev) => {
+			cb.onClick(async (_ev) => {
 				const octokit = new Octokit({
 					auth: this.settings.githubToken,
 				});
@@ -622,7 +626,6 @@ export default class SettingView {
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
 	) {
-		const octokit = new Octokit({ auth: settings.githubToken });
 		let updateFailed = false;
 		try {
 			const gardenManager = new DigitalGardenSiteManager(
@@ -663,6 +666,7 @@ export default class SettingView {
 					path: "src/site/favicon.svg",
 				},
 			);
+			// @ts-expect-error
 			base64SettingsFaviconContent = defaultFavicon.data.content;
 		}
 
@@ -680,6 +684,7 @@ export default class SettingView {
 				},
 			);
 			faviconsAreIdentical =
+				// @ts-expect-error
 				currentFaviconOnSite.data.content
 					.replaceAll("\n", "")
 					.replaceAll(" ", "") === base64SettingsFaviconContent;
@@ -694,6 +699,7 @@ export default class SettingView {
 				path: "src/site/favicon.svg",
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
+				// @ts-expect-error
 				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
 			});
 		}
@@ -1075,7 +1081,6 @@ export default class SettingView {
 			? { text: `🎉 Done! Approve your PR to make the changes go live.` }
 			: {
 					text: "You already have the latest template 🎉 No need to create a PR.",
-					attr: {},
 			  };
 		const linkText = { text: `${prUrl}`, href: prUrl };
 		this.progressViewTop.createEl("h2", successmessage);

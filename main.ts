@@ -65,10 +65,10 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 };
 
 export default class DigitalGarden extends Plugin {
-	settings: DigitalGardenSettings;
-	appVersion: string;
+	settings!: DigitalGardenSettings;
+	appVersion!: string;
 
-	publishModal: PublishModal;
+	publishModal!: PublishModal;
 
 	async onload() {
 		this.appVersion = this.manifest.version;
@@ -114,8 +114,8 @@ export default class DigitalGarden extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				const event = this.app.metadataCache.on(
 					"changed",
-					async (file, data, cache) => {
-						if (file.path === activeFile.path) {
+					async (file, _data, _cache) => {
+						if (file.path === activeFile?.path) {
 							const successfullyPublished =
 								await this.publishSingleNote();
 							if (successfullyPublished) {
@@ -338,10 +338,15 @@ export default class DigitalGarden extends Plugin {
 		}
 	}
 	async addPublishFlag() {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (activeFile === null) {
+			new Notice("No active file!");
+			return;
+		}
 		const engine = new ObsidianFrontMatterEngine(
 			this.app.vault,
 			this.app.metadataCache,
-			this.app.workspace.getActiveFile(),
+			activeFile,
 		);
 		engine.set("dg-publish", true).apply();
 	}

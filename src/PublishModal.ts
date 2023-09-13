@@ -1,7 +1,7 @@
-import DigitalGardenSettings from "src/DigitalGardenSettings";
-import { App, ButtonComponent, Modal } from "obsidian";
-import { IPublisher } from "./Publisher";
-import { IPublishStatusManager } from "./PublishStatusManager";
+import type DigitalGardenSettings from "src/DigitalGardenSettings";
+import { type App, ButtonComponent, Modal } from "obsidian";
+import { type IPublisher } from "./Publisher";
+import { type IPublishStatusManager } from "./PublishStatusManager";
 
 export class PublishModal {
 	modal: Modal;
@@ -9,16 +9,16 @@ export class PublishModal {
 	publishStatusManager: IPublishStatusManager;
 	publisher: IPublisher;
 
-	publishedContainer: HTMLElement;
-	publishedContainerCount: HTMLElement;
-	changedContainer: HTMLElement;
-	changedContainerCount: HTMLElement;
-	deletedContainer: HTMLElement;
-	deletedContainerCount: HTMLElement;
-	unpublishedContainer: HTMLElement;
-	unpublishedContainerCount: HTMLElement;
+	publishedContainer!: HTMLElement;
+	publishedContainerCount!: HTMLElement;
+	changedContainer!: HTMLElement;
+	changedContainerCount!: HTMLElement;
+	deletedContainer!: HTMLElement;
+	deletedContainerCount!: HTMLElement;
+	unpublishedContainer!: HTMLElement;
+	unpublishedContainerCount!: HTMLElement;
 
-	progressContainer: HTMLElement;
+	progressContainer!: HTMLElement;
 
 	constructor(
 		app: App,
@@ -38,7 +38,7 @@ export class PublishModal {
 		title: string,
 		buttonText: string,
 		buttonCallback: () => Promise<void>,
-	): Array<HTMLElement> {
+	): HTMLElement[] {
 		const headerContainer = this.modal.contentEl.createEl("div", {
 			attr: {
 				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
@@ -181,8 +181,12 @@ export class PublishModal {
 				},
 			);
 
-		this.modal.onOpen = () => this.refreshView();
-		this.modal.onClose = () => this.clearView();
+		this.modal.onOpen = async () => {
+			await this.refreshView();
+		};
+		this.modal.onClose = async () => {
+			await this.clearView();
+		};
 	}
 
 	async clearView() {
@@ -211,6 +215,7 @@ export class PublishModal {
 			);
 		}
 	}
+
 	async populateWithNotes() {
 		this.progressContainer.innerText = `⌛ Loading publication status`;
 		const publishStatus =

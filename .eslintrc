@@ -1,20 +1,37 @@
 {
 	"root": true,
+	"ignorePatterns": [
+		"**.js"
+	],
 	"parser": "@typescript-eslint/parser",
-	"plugins": ["@typescript-eslint"],
+	"plugins": [
+		"@typescript-eslint",
+		"prettier"
+	],
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/eslint-recommended",
 		"plugin:@typescript-eslint/recommended"
 	],
 	"parserOptions": {
-		"sourceType": "module"
+		"sourceType": "module",
+		"project": "./tsconfig.json"
 	},
 	"rules": {
-		"no-unused-vars": "off",
-		"@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
-		"@typescript-eslint/ban-ts-comment": "off",
-		"no-prototype-builtins": "off",
-		"@typescript-eslint/no-empty-function": "off"
+		"prettier/prettier": "error",
+		"@typescript-eslint/ban-ts-comment": "warn",
+		"@typescript-eslint/no-unused-vars": [
+			"error",
+			{
+				"argsIgnorePattern": "^_",
+				"varsIgnorePattern": "^_",
+				"caughtErrorsIgnorePattern": "^_"
+			}
+		],
+		"@typescript-eslint/no-explicit-any": [
+			"warn"
+		],
+		// allow prettier to use SmartTabs
+		"no-mixed-spaces-and-tabs": "off"
 	}
 }

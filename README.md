@@ -89,3 +89,13 @@ This plugin is developed in my free time. If you've found it useful, it would ma
 Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future.
 
 [<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
+
+## Local development
+
+1. Clone this repository into `.obsidian` of your vault (it is recommended to use a test-vault instead of your own!)
+2. (for best compatability, use node version manager and run `nvm install && nvm use`)
+3. Install dependencies with `npm install`
+4. Run with `npm run dev`
+5. You should now be able to enable the plugin in obsidian
+
+Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
