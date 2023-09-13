@@ -13,10 +13,10 @@ jobs:
                   cache: 'npm'
             - name: "Install dependencies"
               run: npm install
-            - name: "Lint and check formatting"
+            - name: "Linting with ESLint"
               run: npm run lint
             - name: Check formatting with Prettier
-              run: npx prettier . --check 
+              run: npm run check-formatting 
     build:
       runs-on: ubuntu-latest
       steps:
@@ -39,5 +39,7 @@ jobs:
             with:
                 node-version-file: .nvmrc
                 cache: 'npm'
+          - name: "Install dependencies"
+            run: npm install
           - name: Run tests
             run: npm run test
