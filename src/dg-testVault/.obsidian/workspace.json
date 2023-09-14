@@ -57,14 +57,38 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "000 Home.md",
+                "file": "F Folder/F01 Note in folder!.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "fe2e1a9662af068d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "005 Custom filters.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "61cb849ddec9f2c2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "F Folder/F01 Note in folder!.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
         ],
-        "currentTab": 4
+        "currentTab": 5
       }
     ],
     "direction": "vertical"
@@ -130,7 +154,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "000 Home.md",
+                "file": "005 Custom filters.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -147,7 +171,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "000 Home.md",
+                "file": "005 Custom filters.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -170,7 +194,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "000 Home.md"
+                "file": "005 Custom filters.md"
               }
             }
           }
@@ -192,15 +216,18 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "4f525e9b013acb3e",
+  "active": "fe2e1a9662af068d",
   "lastOpenFiles": [
-    "Folder/004 Folder set to root.md",
-    "100 Folder/004 Folder set to root.md",
-    "100 Folder",
+    "F Folder/F01 Note in folder!.md",
+    "005 Custom filters.md",
     "000 Home.md",
-    "Folder",
-    "001 Links.md",
+    "F Folder/004 Folder set to root.md",
+    "004 Publishing this garden.md",
+    "003 Non published page.md",
     "002 Hidden page.md",
-    "003 Non published page.md"
+    "001 Links.md",
+    "Folder/004 Folder set to root.md",
+    "F Folder",
+    "Folder"
   ]
 }

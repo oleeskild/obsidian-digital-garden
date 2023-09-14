@@ -1,3 +1,6 @@
+---
+dg-publish: true
+---
 [[002 Hidden page]]
 
 [[003 Non published page]]
