@@ -1,6 +1,10 @@
 import assert from "node:assert";
-import { getGardenPathForNote, getRewriteRules, wrapAround } from "../utils";
-import { PathRewriteRules } from "../DigitalGardenSiteManager";
+import {
+	getGardenPathForNote,
+	getRewriteRules,
+	wrapAround,
+} from "../utils/utils";
+import { PathRewriteRules } from "../publisher/DigitalGardenSiteManager";
 
 describe("utils", () => {
 	describe("getGardenPathForNote", () => {

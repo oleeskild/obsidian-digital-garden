@@ -1,20 +1,27 @@
-import type DigitalGardenSettings from "src/DigitalGardenSettings";
+import type DigitalGardenSettings from "src/models/settings";
 import { type MetadataCache, Notice, type TFile } from "obsidian";
 import {
 	extractBaseUrl,
 	generateUrlPath,
 	getGardenPathForNote,
 	getRewriteRules,
-} from "./utils";
+} from "../utils/utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import type DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
+import type DigitalGardenPluginInfo from "../models/pluginInfo";
 
 export interface PathRewriteRule {
 	from: string;
 	to: string;
 }
 export type PathRewriteRules = PathRewriteRule[];
+
+/**
+ * Manages the digital garden website by handling various site configurations, files,
+ * and interactions with GitHub via Octokit. Responsible for operations like updating
+ * environment variables, fetching and updating notes & images, and creating pull requests
+ * for site changes.
+ */
 
 export default class DigitalGardenSiteManager {
 	settings: DigitalGardenSettings;

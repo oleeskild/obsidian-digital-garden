@@ -1,7 +1,7 @@
-import type DigitalGardenSettings from "src/DigitalGardenSettings";
 import { type App, ButtonComponent, Modal } from "obsidian";
-import Publisher from "./Publisher";
-import PublishStatusManager from "./PublishStatusManager";
+import Publisher from "../publisher/Publisher";
+import PublishStatusManager from "../publisher/PublishStatusManager";
+import DigitalGardenSettings from "../models/settings";
 
 export class PublishModal {
 	modal: Modal;
