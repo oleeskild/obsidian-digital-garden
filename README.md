@@ -92,13 +92,13 @@ Note that you in no way have to feel any pressure to do this. The plugin is comp
 
 ## Local development
 
-NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development. 
+NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.
 
 1. Clone this repository
 2. (for best compatability, use node version manager and run `nvm install && nvm use`)
 3. Install dependencies with `npm install`
 4. Run with `npm run dev`
-5. Open the vault from  `src/dg-testVault` into obsidian 
+5. Open the vault from `src/dg-testVault` into obsidian
 
 6. (if you want to develop this plugin with another vault, move it into .obsidian/plugins of that vault)
 
