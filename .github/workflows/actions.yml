@@ -1,33 +1,58 @@
-name: GitHub Actions
-run-name: PR "${{ github.event.pull_request.title }}" CI Checks
 on:
-  push:
   pull_request:
-   types: [opened, synchronize]
+    types: [edited, synchronize, opened]
 jobs:
-  "run-unit-tests":
-    name: "Run unit tests"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: "Use node version"
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: .nvmrc
-      - name: "Install dependencies"
-        run: npm install
-      - name: Run tests
-        run: npm run test
-  "lint":
-    name: "Checking for linting errors"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: "Use node version"
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: .nvmrc
-      - name: "Install dependencies"
-        run: npm install
-      - name: Checking linter
-        run: npm run lint
+    lint-and-check-formatting:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: "Use node version"
+              uses: actions/setup-node@v3
+              with:
+                  node-version-file: .nvmrc
+                  cache: 'npm'
+            - name: "Install dependencies"
+              run: npm install
+            - name: "Linting with ESLint"
+              run: npm run lint
+            - name: Check formatting with Prettier
+              run: npm run check-formatting 
+    build:
+      runs-on: ubuntu-latest
+      steps:
+          - uses: actions/checkout@v3
+          - name: "Use node version"
+            uses: actions/setup-node@v3
+            with:
+                node-version-file: .nvmrc
+                cache: 'npm'
+          - name: "Install dependencies"
+            run: npm install
+          - name: "Build"
+            run: npm run build
+    run-tests:
+      runs-on: ubuntu-latest
+      steps:
+          - uses: actions/checkout@v3
+          - name: "Use node version"
+            uses: actions/setup-node@v3
+            with:
+                node-version-file: .nvmrc
+                cache: 'npm'
+          - name: "Install dependencies"
+            run: npm install
+          - name: Run tests
+            run: npm run test
+    run-typecheck:
+      runs-on: ubuntu-latest
+      steps:
+          - uses: actions/checkout@v3
+          - name: "Use node version"
+            uses: actions/setup-node@v3
+            with:
+                node-version-file: .nvmrc
+                cache: 'npm'
+          - name: "Install dependencies"
+            run: npm install
+          - name: Typechecking
+            run: npm run typecheck

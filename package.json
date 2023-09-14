@@ -9,7 +9,10 @@
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
 		"prepare": "husky install",
-		"lint": "eslint . --fix --ext .ts ",
+		"lint": "eslint . --ext .ts",
+		"lint-fix": "eslint .  --fix  --ext .ts",
+		"format": "prettier --write .",
+		"check-formatting": "prettier --check .",
 		"typecheck": "tsc"
 	},
 	"keywords": [],
