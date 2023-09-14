@@ -1,12 +1,12 @@
-import { IDigitalGardenSiteManager } from "./DigitalGardenSiteManager";
+import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { TFile } from "obsidian";
-import { IPublisher } from "./Publisher";
+import Publisher from "./Publisher";
 import { generateBlobHash } from "./utils";
 
 export default class PublishStatusManager implements IPublishStatusManager {
-	siteManager: IDigitalGardenSiteManager;
-	publisher: IPublisher;
-	constructor(siteManager: IDigitalGardenSiteManager, publisher: IPublisher) {
+	siteManager: DigitalGardenSiteManager;
+	publisher: Publisher;
+	constructor(siteManager: DigitalGardenSiteManager, publisher: Publisher) {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
 	}

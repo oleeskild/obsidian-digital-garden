@@ -1,13 +1,13 @@
 import type DigitalGardenSettings from "src/DigitalGardenSettings";
 import { type App, ButtonComponent, Modal } from "obsidian";
-import { type IPublisher } from "./Publisher";
-import { type IPublishStatusManager } from "./PublishStatusManager";
+import Publisher from "./Publisher";
+import PublishStatusManager from "./PublishStatusManager";
 
 export class PublishModal {
 	modal: Modal;
 	settings: DigitalGardenSettings;
-	publishStatusManager: IPublishStatusManager;
-	publisher: IPublisher;
+	publishStatusManager: PublishStatusManager;
+	publisher: Publisher;
 
 	publishedContainer!: HTMLElement;
 	publishedContainerCount!: HTMLElement;
@@ -22,8 +22,8 @@ export class PublishModal {
 
 	constructor(
 		app: App,
-		publishStatusManager: IPublishStatusManager,
-		publisher: IPublisher,
+		publishStatusManager: PublishStatusManager,
+		publisher: Publisher,
 		settings: DigitalGardenSettings,
 	) {
 		this.modal = new Modal(app);
@@ -36,24 +36,28 @@ export class PublishModal {
 
 	createCollapsable(
 		title: string,
-		buttonText: string,
-		buttonCallback: () => Promise<void>,
+		buttonText?: string,
+		buttonCallback?: () => Promise<void>,
 	): HTMLElement[] {
 		const headerContainer = this.modal.contentEl.createEl("div", {
 			attr: {
 				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
 			},
 		});
+
 		const titleContainer = headerContainer.createEl("div", {
 			attr: { style: "display: flex; align-items:center" },
 		});
+
 		const toggleHeader = titleContainer.createEl("h3", {
 			text: `➕️ ${title}`,
 			attr: { class: "collapsable collapsed" },
 		});
+
 		const counter = titleContainer.createEl("span", {
 			attr: { class: "count", style: "margin-left:10px" },
 		});
+
 		if (buttonText && buttonCallback) {
 			const button = new ButtonComponent(headerContainer)
 				.setButtonText(buttonText)
@@ -94,7 +98,7 @@ export class PublishModal {
 		});
 
 		[this.publishedContainerCount, this.publishedContainer] =
-			this.createCollapsable("Published", null, null);
+			this.createCollapsable("Published");
 		[this.changedContainerCount, this.changedContainer] =
 			this.createCollapsable(
 				"Changed",

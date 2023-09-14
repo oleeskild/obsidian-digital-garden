@@ -1,13 +1,13 @@
 import DigitalGardenSettings from "./DigitalGardenSettings";
 import {
+	App,
 	ButtonComponent,
+	MetadataCache,
 	Modal,
 	Notice,
 	Setting,
-	App,
 	TFile,
 	debounce,
-	MetadataCache,
 	getIcon,
 } from "obsidian";
 import axios from "axios";
@@ -21,14 +21,28 @@ import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { SvgFileSuggest } from "./ui/file-suggest";
 import { addFilterInput } from "./ui/addFilterInput";
 
+interface IObsidianTheme {
+	name: string;
+	author: string;
+	screenshot: string;
+	modes: string[];
+	repo: string;
+	legacy: boolean;
+}
+
+const OBSIDIAN_THEME_URL =
+	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
 export default class SettingView {
 	private app: App;
-	private settings: DigitalGardenSettings;
-	private saveSettings: () => Promise<void>;
+	settings: DigitalGardenSettings;
+	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
-	private progressViewTop: HTMLElement;
-	private loading: HTMLElement;
-	private loadingInterval: any;
+
+	//  These seem to be part of a Modal class, should they live in something like that?
+	private progressViewTop: HTMLElement | undefined;
+	private loading: HTMLElement | undefined;
+	private loadingInterval: NodeJS.Timeout | undefined;
+
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
 		500,
@@ -46,6 +60,10 @@ export default class SettingView {
 		this.settingsRootElement.classList.add("dg-settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
+	}
+
+	getIcon(name: string): Node {
+		return getIcon(name) ?? document.createElement("span");
 	}
 
 	async initialize(prModal: Modal) {
@@ -66,30 +84,30 @@ export default class SettingView {
 
 		this.settingsRootElement
 			.createEl("h3", { text: "GitHub Authentication (required)" })
-			.prepend(getIcon("github"));
+			.prepend(this.getIcon("github"));
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
-			.prepend(getIcon("link"));
+			.prepend(this.getIcon("link"));
 		this.initializeGitHubBaseURLSetting();
 		this.initializeSlugifySetting();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Features" })
-			.prepend(getIcon("star"));
+			.prepend(this.getIcon("star"));
 		this.initializeDefaultNoteSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Appearance" })
-			.prepend(getIcon("brush"));
+			.prepend(this.getIcon("brush"));
 		this.initializeThemesSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
-			.prepend(getIcon("cog"));
+			.prepend(this.getIcon("cog"));
 		this.initializePathRewriteSettings();
 		this.initializeCustomFilterSettings();
 		prModal.titleEl.createEl("h1", "Site template settings");
@@ -312,16 +330,15 @@ export default class SettingView {
 
 		//this.app.plugins is not defined, so we need to use a try catch in case the internal api is changed
 		try {
-			//@ts-ignore
 			if (
-				// @ts-expect-error
+				// @ts-expect-error https://gist.github.com/aidenlx/6067c943fbec8ead230f2b163bfd3bc8 for typing example
 				this.app.plugins &&
-				// @ts-expect-error
+				// @ts-expect-error see above
 				this.app.plugins.plugins["obsidian-style-settings"]._loaded
 			) {
 				themeModal.contentEl
 					.createEl("h2", { text: "Style Settings Plugin" })
-					.prepend(getIcon("paintbrush"));
+					.prepend(this.getIcon("paintbrush"));
 				new Setting(themeModal.contentEl)
 					.setName("Apply current style settings to site")
 					.setDesc(
@@ -359,29 +376,32 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Theme Settings" })
-			.prepend(getIcon("palette"));
+			.prepend(this.getIcon("palette"));
 
-		const themesListResponse = await axios.get(
-			"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json",
-		);
+		const themesListResponse =
+			await axios.get<IObsidianTheme[]>(OBSIDIAN_THEME_URL);
+
 		new Setting(themeModal.contentEl).setName("Theme").addDropdown((dd) => {
 			dd.addOption('{"name": "default", "modes": ["dark"]}', "Default");
+
 			const sortedThemes = themesListResponse.data.sort(
-				(a: { name: string }, b: { name: any }) =>
+				(a: { name: string }, b: { name: string }) =>
 					a.name.localeCompare(b.name),
 			);
-			sortedThemes.map((x: any) => {
+
+			sortedThemes.map((x) => {
 				dd.addOption(
 					JSON.stringify({
 						...x,
 						cssUrl: `https://raw.githubusercontent.com/${x.repo}/${
+							// the link to themes seems to never have "branch"
 							x.branch || "HEAD"
 						}/${x.legacy ? "obsidian.css" : "theme.css"}`,
 					}),
 					x.name,
 				);
 				dd.setValue(this.settings.theme);
-				dd.onChange(async (val: any) => {
+				dd.onChange(async (val: string) => {
 					this.settings.theme = val;
 					await this.saveSettings();
 				});
@@ -432,7 +452,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Timestamps Settings" })
-			.prepend(getIcon("calendar-clock"));
+			.prepend(this.getIcon("calendar-clock"));
 		new Setting(themeModal.contentEl)
 			.setName("Timestamp format")
 			.setDesc(
@@ -498,7 +518,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "CSS settings" })
-			.prepend(getIcon("code"));
+			.prepend(this.getIcon("code"));
 		new Setting(themeModal.contentEl)
 			.setName("Body Classes Key")
 			.setDesc(
@@ -515,7 +535,7 @@ export default class SettingView {
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Note icons Settings" })
-			.prepend(getIcon("image"));
+			.prepend(this.getIcon("image"));
 		themeModal.contentEl
 			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
 			.createEl("a", {
@@ -666,7 +686,7 @@ export default class SettingView {
 					path: "src/site/favicon.svg",
 				},
 			);
-			// @ts-expect-error
+			// @ts-expect-error TODO: abstract octokit response
 			base64SettingsFaviconContent = defaultFavicon.data.content;
 		}
 
@@ -684,7 +704,7 @@ export default class SettingView {
 				},
 			);
 			faviconsAreIdentical =
-				// @ts-expect-error
+				// @ts-expect-error TODO: abstract octokit response
 				currentFaviconOnSite.data.content
 					.replaceAll("\n", "")
 					.replaceAll(" ", "") === base64SettingsFaviconContent;
@@ -699,7 +719,7 @@ export default class SettingView {
 				path: "src/site/favicon.svg",
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
-				// @ts-expect-error
+				// @ts-expect-error TODO: abstract octokit response
 				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
 			});
 		}
@@ -736,10 +756,10 @@ export default class SettingView {
 
 	private initializeGitHubTokenSetting() {
 		const desc = document.createDocumentFragment();
-		desc.createEl("span", null, (span) => {
+		desc.createEl("span", undefined, (span) => {
 			span.innerText =
 				"A GitHub token with repo permissions. You can generate it ";
-			span.createEl("a", null, (link) => {
+			span.createEl("a", undefined, (link) => {
 				link.href =
 					"https://github.com/settings/tokens/new?scopes=repo";
 				link.innerText = "here!";
@@ -764,9 +784,7 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Base URL")
 			.setDesc(
-				`
-            This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. 
-            `,
+				`This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
 			)
 			.addText((text) =>
 				text
@@ -818,7 +836,7 @@ export default class SettingView {
 				});
 			});
 
-		const rewritesettingContainer = rewriteRulesModal.contentEl.createEl(
+		const rewriteSettingContainer = rewriteRulesModal.contentEl.createEl(
 			"div",
 			{
 				attr: {
@@ -828,30 +846,30 @@ export default class SettingView {
 			},
 		);
 
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Define rules to rewrite note paths/folder structure, using following syntax:`,
 		});
 
-		const list = rewritesettingContainer.createEl("ol");
+		const list = rewriteSettingContainer.createEl("ol");
 		list.createEl("li", { text: `One rule-per line` });
 		list.createEl("li", {
 			text: `The format is [from_vault_path]:[to_garden_path]`,
 		});
 		list.createEl("li", { text: `Matching will exit on first match` });
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Example: If you want the vault folder "Personal/Journal" to be shown as only "Journal" in the left file sidebar in the garden, add the line "Personal/Journal:Journal"`,
 			attr: { class: "setting-item-description" },
 		});
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Note: rewriting a folder to the base path "[from_vault_path]:" is not supported at the moment.`,
 			attr: { class: "setting-item-description" },
 		});
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Any affected notes will show up as changed in the publication center`,
 			attr: { class: "setting-item-description" },
 		});
 
-		new Setting(rewritesettingContainer)
+		new Setting(rewriteSettingContainer)
 			.setName("Rules")
 			.addTextArea((field) => {
 				field.setPlaceholder("Personal/Journal:Journal");
@@ -865,13 +883,13 @@ export default class SettingView {
 					});
 			});
 
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingContainer.createEl("div", {
 			text: `Type a path below to test that your rules are working as expected`,
 			attr: { class: "test-rewrite-rules-description" },
 		});
 
 		const rewriteSettingsPreviewContainer =
-			rewritesettingContainer.createEl("div", {
+			rewriteSettingContainer.createEl("div", {
 				attr: {
 					style: "display: flex; align-items: center; margin-top: 10px;",
 				},
@@ -917,7 +935,7 @@ export default class SettingView {
 				});
 			});
 
-		const rewritesettingContainer = customFilterModal.contentEl.createEl(
+		const rewriteSettingsContainer = customFilterModal.contentEl.createEl(
 			"div",
 			{
 				attr: {
@@ -926,13 +944,13 @@ export default class SettingView {
 				},
 			},
 		);
-		rewritesettingContainer.createEl(
+		rewriteSettingsContainer.createEl(
 			"div",
 		).innerHTML = `Define regex filters to replace note content before publishing.`;
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingsContainer.createEl("div", {
 			attr: { class: "setting-item-description" },
 		}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
-		rewritesettingContainer.createEl("div", {
+		rewriteSettingsContainer.createEl("div", {
 			attr: {
 				class: "setting-item-description",
 				style: "margin-bottom: 15px",
@@ -940,7 +958,7 @@ export default class SettingView {
 		}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
 
 		const customFilters = this.settings.customFilters;
-		new Setting(rewritesettingContainer)
+		new Setting(rewriteSettingsContainer)
 			.setName("Filters")
 			.addButton((button) => {
 				button.setButtonText("Add");
@@ -960,7 +978,7 @@ export default class SettingView {
 				});
 			});
 		const filterList =
-			rewritesettingContainer.createDiv("custom-filter-list");
+			rewriteSettingsContainer.createDiv("custom-filter-list");
 		for (let i = 0; i < customFilters.length; i++) {
 			addFilterInput(customFilters[i], filterList, i, this);
 		}
@@ -972,7 +990,7 @@ export default class SettingView {
 	) {
 		this.settingsRootElement
 			.createEl("h3", { text: "Update site" })
-			.prepend(getIcon("sync"));
+			.prepend(getIcon("sync") ?? "");
 		new Setting(this.settingsRootElement)
 			.setName("Site Template")
 			.setDesc(
@@ -1009,7 +1027,7 @@ export default class SettingView {
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Support" })
-			.prepend(getIcon("heart"));
+			.prepend(this.getIcon("heart"));
 		this.settingsRootElement
 			.createDiv({
 				attr: {
@@ -1072,9 +1090,9 @@ export default class SettingView {
 			}
 		}, 400);
 	}
-
+	// TODO: ensure loading / progressViewTop typed correctly / initialized
 	renderSuccess(prUrl: string) {
-		this.loading.remove();
+		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
 		const successmessage = prUrl
@@ -1083,20 +1101,20 @@ export default class SettingView {
 					text: "You already have the latest template 🎉 No need to create a PR.",
 			  };
 		const linkText = { text: `${prUrl}`, href: prUrl };
-		this.progressViewTop.createEl("h2", successmessage);
+		this.progressViewTop?.createEl("h2", successmessage);
 		if (prUrl) {
-			this.progressViewTop.createEl("a", linkText);
+			this.progressViewTop?.createEl("a", linkText);
 		}
-		this.progressViewTop.createEl("br");
+		this.progressViewTop?.createEl("br");
 	}
 
 	renderError() {
-		this.loading.remove();
+		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 		const errorMsg = {
 			text: "❌ Something went wrong. Try deleting the branch in GitHub.",
 			attr: {},
 		};
-		this.progressViewTop.createEl("p", errorMsg);
+		this.progressViewTop?.createEl("p", errorMsg);
 	}
 }

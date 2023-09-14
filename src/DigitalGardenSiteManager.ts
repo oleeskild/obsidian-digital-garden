@@ -10,22 +10,13 @@ import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import type DigitalGardenPluginInfo from "./DigitalGardenPluginInfo";
 
-export interface IDigitalGardenSiteManager {
-	getNoteUrl: (file: TFile) => string;
-	getNoteHashes: () => Promise<Record<string, string>>;
-	getImageHashes: () => Promise<Record<string, string>>;
-	createPullRequestWithSiteChanges: () => Promise<string>;
-}
-
 export interface PathRewriteRule {
 	from: string;
 	to: string;
 }
 export type PathRewriteRules = PathRewriteRule[];
 
-export default class DigitalGardenSiteManager
-	implements IDigitalGardenSiteManager
-{
+export default class DigitalGardenSiteManager {
 	settings: DigitalGardenSettings;
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
@@ -69,9 +60,9 @@ export default class DigitalGardenSiteManager
 		envSettings += `\nSTYLE_SETTINGS_CSS="${this.settings.styleSettingsCss}"`;
 
 		const defaultNoteSettings = { ...this.settings.defaultNoteSettings };
-		for (const key of Object.keys(defaultNoteSettings)) {
-			// @ts-expect-error
-			envSettings += `\n${key}=${defaultNoteSettings[key]}`;
+
+		for (const [key, value] of Object.entries(defaultNoteSettings)) {
+			envSettings += `\n${key}=${value}`;
 		}
 
 		const base64Settings = Base64.encode(envSettings);
@@ -106,7 +97,9 @@ export default class DigitalGardenSiteManager
 	getNoteUrl(file: TFile): string {
 		if (!this.settings.gardenBaseUrl) {
 			new Notice("Please set the garden base url in the settings");
-			return;
+
+			// caught in copyUrlToClipboard
+			throw new Error("Garden base url not set");
 		}
 		const baseUrl = `https://${extractBaseUrl(
 			this.settings.gardenBaseUrl,
@@ -261,7 +254,8 @@ export default class DigitalGardenSiteManager
 			return pr.data.html_url;
 		} catch {
 			// The PR failed, most likely the repo is the latest version
-			return null;
+			// probably want to throw here
+			return;
 		}
 	}
 

@@ -1,10 +1,11 @@
 import { ButtonComponent, TextComponent } from "obsidian";
+import SettingView from "../SettingView";
 
 function addFilterInput(
 	filter: { pattern: string; flags: string; replace: string },
 	el: HTMLElement,
 	idx: number,
-	plugin: any,
+	plugin: SettingView,
 ) {
 	const item = el.createEl("li", {
 		attr: {
