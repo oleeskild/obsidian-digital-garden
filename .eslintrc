@@ -1,13 +1,8 @@
 {
 	"root": true,
-	"ignorePatterns": [
-		"**.js"
-	],
+	"ignorePatterns": ["**.js"],
 	"parser": "@typescript-eslint/parser",
-	"plugins": [
-		"@typescript-eslint",
-		"prettier"
-	],
+	"plugins": ["@typescript-eslint", "prettier"],
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/eslint-recommended",
@@ -28,10 +23,8 @@
 				"caughtErrorsIgnorePattern": "^_"
 			}
 		],
-		"@typescript-eslint/no-explicit-any": [
-			"warn"
-		],
+		"@typescript-eslint/no-explicit-any": ["warn"],
 		// allow prettier to use SmartTabs
-		"no-mixed-spaces-and-tabs": "off"
+		"no-mixed-spaces-and-tabs": "off",
 	}
 }

@@ -9,7 +9,8 @@
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
 		"prepare": "husky install",
-		"lint": "eslint . --fix --ext .ts "
+		"lint": "eslint . --fix --ext .ts ",
+		"typecheck": "tsc"
 	},
 	"keywords": [],
 	"author": "",
