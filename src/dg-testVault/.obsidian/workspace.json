@@ -57,7 +57,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Folder/004 Folder set to root.md",
+                "file": "000 Home.md",
                 "mode": "source",
                 "source": false
               }
@@ -130,7 +130,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Folder/004 Folder set to root.md",
+                "file": "000 Home.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -147,7 +147,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Folder/004 Folder set to root.md",
+                "file": "000 Home.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -170,7 +170,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Folder/004 Folder set to root.md"
+                "file": "000 Home.md"
               }
             }
           }
@@ -183,6 +183,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "digitalgarden:Digital Garden Publication Center": false,
       "switcher:Open quick switcher": false,
       "graph:Open graph view": false,
       "canvas:Create new canvas": false,
@@ -191,10 +192,12 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "5bd71e9922b41cea",
+  "active": "4f525e9b013acb3e",
   "lastOpenFiles": [
-    "000 Home.md",
     "Folder/004 Folder set to root.md",
+    "100 Folder/004 Folder set to root.md",
+    "100 Folder",
+    "000 Home.md",
     "Folder",
     "001 Links.md",
     "002 Hidden page.md",
