@@ -88,7 +88,7 @@
             }
           }
         ],
-        "currentTab": 5
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -154,7 +154,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "005 Custom filters.md",
+                "file": "001 Links.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -171,7 +171,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "005 Custom filters.md",
+                "file": "001 Links.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -194,7 +194,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "005 Custom filters.md"
+                "file": "001 Links.md"
               }
             }
           }
@@ -216,15 +216,15 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "fe2e1a9662af068d",
+  "active": "15581449e40a9e45",
   "lastOpenFiles": [
+    "002 Hidden page.md",
     "F Folder/F01 Note in folder!.md",
     "005 Custom filters.md",
     "000 Home.md",
     "F Folder/004 Folder set to root.md",
     "004 Publishing this garden.md",
     "003 Non published page.md",
-    "002 Hidden page.md",
     "001 Links.md",
     "Folder/004 Folder set to root.md",
     "F Folder",
