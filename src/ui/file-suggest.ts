@@ -1,6 +1,5 @@
 //https://github.com/liamcain/obsidian-periodic-notes/blob/main/src/ui/file-suggest.ts
 import { TAbstractFile, TFile, TFolder } from "obsidian";
-
 import { TextInputSuggest } from "./suggest";
 
 export class SvgFileSuggest extends TextInputSuggest<TFile> {

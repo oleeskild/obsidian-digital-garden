@@ -6,7 +6,7 @@ import { wrapAround } from "../utils";
 class Suggest<T> {
 	private owner: ISuggestOwner<T>;
 	private values: T[];
-	private suggestions: HTMLDivElement[];
+	private suggestions: HTMLElement[];
 	private selectedItem: number;
 	private containerEl: HTMLElement;
 
@@ -17,6 +17,9 @@ class Suggest<T> {
 	) {
 		this.owner = owner;
 		this.containerEl = containerEl;
+		this.suggestions = [];
+		this.selectedItem = 0;
+		this.values = [];
 
 		containerEl.on(
 			"click",
@@ -51,7 +54,7 @@ class Suggest<T> {
 		});
 	}
 
-	onSuggestionClick(event: MouseEvent, el: HTMLDivElement): void {
+	onSuggestionClick(event: MouseEvent, el: HTMLElement): void {
 		event.preventDefault();
 
 		const item = this.suggestions.indexOf(el);
@@ -59,7 +62,7 @@ class Suggest<T> {
 		this.useSelectedItem(event);
 	}
 
-	onSuggestionMouseover(_event: MouseEvent, el: HTMLDivElement): void {
+	onSuggestionMouseover(_event: MouseEvent, el: HTMLElement): void {
 		const item = this.suggestions.indexOf(el);
 		this.setSelectedItem(item, false);
 	}
