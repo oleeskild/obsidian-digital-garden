@@ -1,21 +1,13 @@
-import {
-	App,
-	ButtonComponent,
-	Modal,
-	Notice,
-	Plugin,
-	PluginSettingTab,
-	addIcon,
-} from "obsidian";
-import Publisher from "./src/publisher/Publisher";
-import DigitalGardenSettings from "./src/models/settings";
-import SettingView from "./src/ui/SettingsView/SettingView";
-import { PublishStatusBar } from "./src/ui/PublishStatusBar";
-import { seedling } from "./src/ui/suggest/constants";
-import { PublishModal } from "./src/ui/PublishModal";
-import PublishStatusManager from "./src/publisher/PublishStatusManager";
-import ObsidianFrontMatterEngine from "./src/publisher/ObsidianFrontMatterEngine";
-import DigitalGardenSiteManager from "./src/publisher/DigitalGardenSiteManager";
+import { Notice, Plugin, addIcon } from "obsidian";
+import Publisher from "./src/Publisher";
+import DigitalGardenSettings from "./src/DigitalGardenSettings";
+import { PublishStatusBar } from "./src/PublishStatusBar";
+import { seedling } from "./src/constants";
+import { PublishModal } from "./src/PublishModal";
+import PublishStatusManager from "./src/PublishStatusManager";
+import ObsidianFrontMatterEngine from "./src/ObsidianFrontMatterEngine";
+import DigitalGardenSiteManager from "./src/DigitalGardenSiteManager";
+import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
@@ -374,65 +366,5 @@ export default class DigitalGarden extends Plugin {
 			);
 		}
 		this.publishModal.open();
-	}
-}
-
-class DigitalGardenSettingTab extends PluginSettingTab {
-	plugin: DigitalGarden;
-
-	constructor(app: App, plugin: DigitalGarden) {
-		super(app, plugin);
-		this.plugin = plugin;
-
-		if (!this.plugin.settings.noteSettingsIsInitialized) {
-			const siteManager = new DigitalGardenSiteManager(
-				this.app.metadataCache,
-				this.plugin.settings,
-			);
-			siteManager.updateEnv();
-			this.plugin.settings.noteSettingsIsInitialized = true;
-			this.plugin.saveData(this.plugin.settings);
-		}
-	}
-
-	async display(): Promise<void> {
-		const { containerEl } = this;
-		const settingView = new SettingView(
-			this.app,
-			containerEl,
-			this.plugin.settings,
-			async () => await this.plugin.saveData(this.plugin.settings),
-		);
-		const prModal = new Modal(this.app);
-		await settingView.initialize(prModal);
-
-		const handlePR = async (button: ButtonComponent) => {
-			settingView.renderLoading();
-			button.setDisabled(true);
-
-			try {
-				const siteManager = new DigitalGardenSiteManager(
-					this.plugin.app.metadataCache,
-					this.plugin.settings,
-				);
-
-				const prUrl =
-					await siteManager.createPullRequestWithSiteChanges();
-
-				if (prUrl) {
-					this.plugin.settings.prHistory.push(prUrl);
-					await this.plugin.saveSettings();
-				}
-				settingView.renderSuccess(prUrl);
-				button.setDisabled(false);
-			} catch {
-				settingView.renderError();
-			}
-		};
-		settingView.renderCreatePr(prModal, handlePR);
-		settingView.renderPullRequestHistory(
-			prModal,
-			this.plugin.settings.prHistory.reverse().slice(0, 10),
-		);
 	}
 }
