@@ -20,6 +20,7 @@ import {
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { SvgFileSuggest } from "./ui/file-suggest";
 import { addFilterInput } from "./ui/addFilterInput";
+import { UpdateGardenRepositoryModal } from "./ui/SettingsModal";
 
 interface IObsidianTheme {
 	name: string;
@@ -28,20 +29,18 @@ interface IObsidianTheme {
 	modes: string[];
 	repo: string;
 	legacy: boolean;
+	// @deprecated
+	branch?: string;
 }
 
 const OBSIDIAN_THEME_URL =
 	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
+
 export default class SettingView {
 	private app: App;
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
-
-	//  These seem to be part of a Modal class, should they live in something like that?
-	private progressViewTop: HTMLElement | undefined;
-	private loading: HTMLElement | undefined;
-	private loadingInterval: NodeJS.Timeout | undefined;
 
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
@@ -114,7 +113,7 @@ export default class SettingView {
 	}
 
 	private async initializeDefaultNoteSettings() {
-		const noteSettingsModal = new Modal(this.app);
+		const noteSettingsModal = new UpdateGardenRepositoryModal(this.app);
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
 		});
@@ -314,7 +313,7 @@ export default class SettingView {
 	}
 
 	private async initializeThemesSettings() {
-		const themeModal = new Modal(this.app);
+		const themeModal = new UpdateGardenRepositoryModal(this.app);
 		themeModal.containerEl.addClass("dg-settings");
 		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
 
@@ -394,7 +393,6 @@ export default class SettingView {
 					JSON.stringify({
 						...x,
 						cssUrl: `https://raw.githubusercontent.com/${x.repo}/${
-							// the link to themes seems to never have "branch"
 							x.branch || "HEAD"
 						}/${x.legacy ? "obsidian.css" : "theme.css"}`,
 					}),
@@ -985,7 +983,7 @@ export default class SettingView {
 	}
 
 	renderCreatePr(
-		modal: Modal,
+		modal: UpdateGardenRepositoryModal,
 		handlePR: (button: ButtonComponent) => Promise<void>,
 	) {
 		this.settingsRootElement
@@ -1016,14 +1014,6 @@ export default class SettingView {
 					.setButtonText("Create PR")
 					.onClick(() => handlePR(button)),
 			);
-
-		if (!this.progressViewTop) {
-			this.progressViewTop = modal.contentEl.createEl("div", {});
-		}
-		if (!this.loading) {
-			this.loading = modal.contentEl.createEl("div", {});
-			this.loading.hide();
-		}
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Support" })
@@ -1072,49 +1062,5 @@ export default class SettingView {
 			prUrlElement.textContent = prUrl;
 			li.appendChild(prUrlElement);
 		});
-	}
-
-	renderLoading() {
-		this.loading.show();
-		const text = "Creating PR. This should take about 30-60 seconds";
-		const loadingText = this.loading.createEl("h4", { text });
-		this.loadingInterval = setInterval(() => {
-			if (loadingText.innerText === `${text}`) {
-				loadingText.innerText = `${text}.`;
-			} else if (loadingText.innerText === `${text}.`) {
-				loadingText.innerText = `${text}..`;
-			} else if (loadingText.innerText === `${text}..`) {
-				loadingText.innerText = `${text}...`;
-			} else {
-				loadingText.innerText = `${text}`;
-			}
-		}, 400);
-	}
-	// TODO: ensure loading / progressViewTop typed correctly / initialized
-	renderSuccess(prUrl: string) {
-		this.loading?.remove();
-		clearInterval(this.loadingInterval);
-
-		const successmessage = prUrl
-			? { text: `🎉 Done! Approve your PR to make the changes go live.` }
-			: {
-					text: "You already have the latest template 🎉 No need to create a PR.",
-			  };
-		const linkText = { text: `${prUrl}`, href: prUrl };
-		this.progressViewTop?.createEl("h2", successmessage);
-		if (prUrl) {
-			this.progressViewTop?.createEl("a", linkText);
-		}
-		this.progressViewTop?.createEl("br");
-	}
-
-	renderError() {
-		this.loading?.remove();
-		clearInterval(this.loadingInterval);
-		const errorMsg = {
-			text: "❌ Something went wrong. Try deleting the branch in GitHub.",
-			attr: {},
-		};
-		this.progressViewTop?.createEl("p", errorMsg);
 	}
 }
