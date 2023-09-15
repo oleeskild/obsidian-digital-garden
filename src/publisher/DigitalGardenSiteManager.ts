@@ -119,7 +119,7 @@ export default class DigitalGardenSiteManager {
 
 		let urlPath = `/${noteUrlPath}`;
 
-		const frontMatter = this.metadataCache.getCache(file.path).frontmatter;
+		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
 		if (frontMatter && frontMatter["dg-home"] === true) {
 			urlPath = "/";
@@ -260,9 +260,7 @@ export default class DigitalGardenSiteManager {
 
 			return pr.data.html_url;
 		} catch {
-			// The PR failed, most likely the repo is the latest version
-			// probably want to throw here
-			return;
+			throw new Error("Unable to create PR");
 		}
 	}
 
