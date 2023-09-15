@@ -25,6 +25,6 @@
 		],
 		"@typescript-eslint/no-explicit-any": ["warn"],
 		// allow prettier to use SmartTabs
-		"no-mixed-spaces-and-tabs": "off",
+		"no-mixed-spaces-and-tabs": "off"
 	}
 }

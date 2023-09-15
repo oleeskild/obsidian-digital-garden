@@ -21,11 +21,12 @@ import {
 	kebabize,
 	sanitizePermalink,
 } from "./utils";
-import { validatePublishFrontmatter } from "./Validator";
+import { isPublishFrontmatterValid } from "./Validator";
 import { excaliDrawBundle, excalidraw } from "./constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "./DigitalGardenSettings";
+import { fixMarkdownHeaderSyntax } from "./utils/markdown";
 
 export interface MarkedForPublishing {
 	notes: TFile[];
@@ -189,8 +190,8 @@ export default class Publisher {
 
 	async publish(file: TFile): Promise<boolean> {
 		if (
-			!validatePublishFrontmatter(
-				this.metadataCache.getCache(file.path).frontmatter,
+			!isPublishFrontmatterValid(
+				this.metadataCache.getCache(file.path)?.frontmatter,
 			)
 		) {
 			return false;
@@ -462,11 +463,13 @@ export default class Publisher {
 				const code = inlineQuery[0];
 				const query = inlineQuery[1];
 				const dataviewResult = dvApi.tryEvaluate(query, {
+					// @ts-expect-error errors are caught
 					this: dvApi.page(path),
 				});
 				if (dataviewResult) {
 					replacedText = replacedText.replace(
 						code,
+						// @ts-expect-error errors are caught
 						dataviewResult.toString(),
 					);
 				}
@@ -886,7 +889,8 @@ export default class Publisher {
 							const refBlock =
 								transclusionFileName.split("#^")[1];
 							sectionID = `#${slugify(refBlock)}`;
-							const blockInFile = metadata.blocks[refBlock];
+							const blockInFile =
+								metadata?.blocks && metadata.blocks[refBlock];
 							if (blockInFile) {
 								fileText = fileText
 									.split("\n")
@@ -901,11 +905,13 @@ export default class Publisher {
 							// transcluding header only
 							const refHeader =
 								transclusionFileName.split("#")[1];
-							const headerInFile = metadata.headings?.find(
+
+							const headerInFile = metadata?.headings?.find(
 								(header) => header.heading === refHeader,
 							);
+
 							sectionID = `#${slugify(refHeader)}`;
-							if (headerInFile) {
+							if (headerInFile && metadata?.headings) {
 								const headerPosition =
 									metadata.headings.indexOf(headerInFile);
 								// Embed should copy the content proparly under the given block
@@ -951,17 +957,16 @@ export default class Publisher {
 							? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
 							: "";
 						let embedded_link = "";
-						if (
+						const publishedFilesContainsLinkedFile =
 							publishedFiles.find(
 								(f) => f.path == linkedFile.path,
-							)
-						) {
-							const gardenPath = metadata.frontmatter[
-								"dg-permalink"
-							]
-								? sanitizePermalink(
-										metadata.frontmatter["dg-permalink"],
-								  )
+							);
+						if (publishedFilesContainsLinkedFile) {
+							const permalink =
+								metadata?.frontmatter &&
+								metadata.frontmatter["dg-permalink"];
+							const gardenPath = permalink
+								? sanitizePermalink(permalink)
 								: `/${generateUrlPath(
 										getGardenPathForNote(
 											linkedFile.path,
@@ -1234,33 +1239,23 @@ export default class Publisher {
 		return [imageText, assets];
 	}
 
-	generateTransclusionHeader(headerName: string, transcludedFile: TFile) {
+	generateTransclusionHeader(
+		headerName: string | undefined,
+		transcludedFile: TFile,
+	) {
 		if (!headerName) {
 			return headerName;
 		}
 
 		const titleVariable = "{{title}}";
-		if (headerName && headerName.indexOf(titleVariable) > -1) {
+		if (headerName.includes(titleVariable)) {
 			headerName = headerName.replace(
 				titleVariable,
 				transcludedFile.basename,
 			);
 		}
 
-		//Defaults to h1
-		if (headerName && !headerName.startsWith("#")) {
-			headerName = "# " + headerName;
-		} else if (headerName) {
-			//Add a space to the start of the header if not already there
-			const headerParts = headerName.split("#");
-			if (!headerParts.last()?.startsWith(" ")) {
-				headerName = headerName.replace(
-					headerParts.last(),
-					" " + headerParts.last(),
-				);
-			}
-		}
-		return headerName;
+		return fixMarkdownHeaderSyntax(headerName);
 	}
 
 	async generateExcalidrawMarkdown(
