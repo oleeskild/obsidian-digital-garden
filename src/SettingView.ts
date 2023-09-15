@@ -20,7 +20,6 @@ import {
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { SvgFileSuggest } from "./ui/file-suggest";
 import { addFilterInput } from "./ui/addFilterInput";
-import { UpdateGardenRepositoryModal } from "./ui/SettingsModal";
 
 interface IObsidianTheme {
 	name: string;
@@ -113,7 +112,7 @@ export default class SettingView {
 	}
 
 	private async initializeDefaultNoteSettings() {
-		const noteSettingsModal = new UpdateGardenRepositoryModal(this.app);
+		const noteSettingsModal = new Modal(this.app);
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
 		});
@@ -313,7 +312,7 @@ export default class SettingView {
 	}
 
 	private async initializeThemesSettings() {
-		const themeModal = new UpdateGardenRepositoryModal(this.app);
+		const themeModal = new Modal(this.app);
 		themeModal.containerEl.addClass("dg-settings");
 		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
 
@@ -983,7 +982,7 @@ export default class SettingView {
 	}
 
 	renderCreatePr(
-		modal: UpdateGardenRepositoryModal,
+		modal: Modal,
 		handlePR: (button: ButtonComponent) => Promise<void>,
 	) {
 		this.settingsRootElement
