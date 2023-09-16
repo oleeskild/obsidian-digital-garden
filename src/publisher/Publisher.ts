@@ -20,12 +20,12 @@ import {
 	getRewriteRules,
 	kebabize,
 	sanitizePermalink,
-} from "./utils";
+} from "../utils/utils";
 import { validatePublishFrontmatter } from "./Validator";
-import { excaliDrawBundle, excalidraw } from "./constants";
+import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
-import DigitalGardenSettings from "./DigitalGardenSettings";
+import DigitalGardenSettings from "../models/settings";
 
 export interface MarkedForPublishing {
 	notes: TFile[];
@@ -66,6 +66,10 @@ export interface IPublisher {
 	getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
 	generateMarkdown(file: TFile): Promise<[string, Assets]>;
 }
+
+/**
+ * Prepares files to be published and publishes them to Github
+ */
 export default class Publisher {
 	vault: Vault;
 	metadataCache: MetadataCache;

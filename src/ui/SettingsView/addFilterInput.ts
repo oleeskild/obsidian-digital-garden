@@ -1,5 +1,5 @@
 import { ButtonComponent, TextComponent } from "obsidian";
-import SettingView from "../SettingView";
+import SettingView from "./SettingView";
 
 function addFilterInput(
 	filter: { pattern: string; flags: string; replace: string },

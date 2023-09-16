@@ -1,4 +1,4 @@
-import DigitalGardenSettings from "./DigitalGardenSettings";
+import DigitalGardenSettings from "../../models/settings";
 import {
 	App,
 	ButtonComponent,
@@ -16,10 +16,10 @@ import {
 	arrayBufferToBase64,
 	getGardenPathForNote,
 	getRewriteRules,
-} from "./utils";
-import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
-import { SvgFileSuggest } from "./ui/file-suggest";
-import { addFilterInput } from "./ui/addFilterInput";
+} from "../../utils/utils";
+import DigitalGardenSiteManager from "../../publisher/DigitalGardenSiteManager";
+import { SvgFileSuggest } from "../suggest/file-suggest";
+import { addFilterInput } from "./addFilterInput";
 
 interface IObsidianTheme {
 	name: string;

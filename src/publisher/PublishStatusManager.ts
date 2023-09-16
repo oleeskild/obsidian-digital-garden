@@ -1,8 +1,11 @@
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import { TFile } from "obsidian";
 import Publisher from "./Publisher";
-import { generateBlobHash } from "./utils";
+import { generateBlobHash } from "../utils/utils";
 
+/**
+ *  Manages the publishing status of notes and images for a digital garden.
+ */
 export default class PublishStatusManager implements IPublishStatusManager {
 	siteManager: DigitalGardenSiteManager;
 	publisher: Publisher;

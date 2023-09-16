@@ -1,7 +1,7 @@
 //https://github.com/liamcain/obsidian-periodic-notes/blob/main/src/ui/suggest.ts
 import { type Instance as PopperInstance, createPopper } from "@popperjs/core";
 import { App, type ISuggestOwner, Scope } from "obsidian";
-import { wrapAround } from "../utils";
+import { wrapAround } from "../../utils/utils";
 
 class Suggest<T> {
 	private owner: ISuggestOwner<T>;
