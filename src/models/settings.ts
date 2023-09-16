@@ -1,3 +1,4 @@
+/** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;

@@ -20,6 +20,7 @@ import {
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { SvgFileSuggest } from "../suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
+import { GithubSettings } from "./GithubSettings";
 
 interface IObsidianTheme {
 	name: string;
@@ -80,12 +81,11 @@ export default class SettingView {
 			href: "https://dg-docs.ole.dev/getting-started/01-getting-started/",
 		});
 
-		this.settingsRootElement
-			.createEl("h3", { text: "GitHub Authentication (required)" })
-			.prepend(this.getIcon("github"));
-		this.initializeGitHubRepoSetting();
-		this.initializeGitHubUserNameSetting();
-		this.initializeGitHubTokenSetting();
+		const githubSettings = this.settingsRootElement.createEl("div", {
+			cls: "connection-status",
+		});
+
+		new GithubSettings(this, githubSettings);
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
@@ -720,61 +720,6 @@ export default class SettingView {
 				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
 			});
 		}
-	}
-	private initializeGitHubRepoSetting() {
-		new Setting(this.settingsRootElement)
-			.setName("GitHub repo name")
-			.setDesc("The name of the GitHub repository")
-			.addText((text) =>
-				text
-					.setPlaceholder("mydigitalgarden")
-					.setValue(this.settings.githubRepo)
-					.onChange(async (value) => {
-						this.settings.githubRepo = value;
-						await this.saveSettings();
-					}),
-			);
-	}
-
-	private initializeGitHubUserNameSetting() {
-		new Setting(this.settingsRootElement)
-			.setName("GitHub Username")
-			.setDesc("Your GitHub Username")
-			.addText((text) =>
-				text
-					.setPlaceholder("myusername")
-					.setValue(this.settings.githubUserName)
-					.onChange(async (value) => {
-						this.settings.githubUserName = value;
-						await this.saveSettings();
-					}),
-			);
-	}
-
-	private initializeGitHubTokenSetting() {
-		const desc = document.createDocumentFragment();
-		desc.createEl("span", undefined, (span) => {
-			span.innerText =
-				"A GitHub token with repo permissions. You can generate it ";
-			span.createEl("a", undefined, (link) => {
-				link.href =
-					"https://github.com/settings/tokens/new?scopes=repo";
-				link.innerText = "here!";
-			});
-		});
-
-		new Setting(this.settingsRootElement)
-			.setName("GitHub token")
-			.setDesc(desc)
-			.addText((text) =>
-				text
-					.setPlaceholder("Secret Token")
-					.setValue(this.settings.githubToken)
-					.onChange(async (value) => {
-						this.settings.githubToken = value;
-						await this.saveSettings();
-					}),
-			);
 	}
 
 	private initializeGitHubBaseURLSetting() {
