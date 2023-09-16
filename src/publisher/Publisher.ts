@@ -20,22 +20,13 @@ import {
 	getRewriteRules,
 	kebabize,
 	sanitizePermalink,
-<<<<<<< main:src/publisher/Publisher.ts
 } from "../utils/utils";
-import { validatePublishFrontmatter } from "./Validator";
-import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
-import slugify from "@sindresorhus/slugify";
-import { PathRewriteRules } from "./DigitalGardenSiteManager";
-import DigitalGardenSettings from "../models/settings";
-=======
-} from "./utils";
 import { isPublishFrontmatterValid } from "./Validator";
-import { excaliDrawBundle, excalidraw } from "./constants";
+import { excaliDrawBundle, excalidraw } from "src/ui/suggest/constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
-import DigitalGardenSettings from "./DigitalGardenSettings";
-import { fixMarkdownHeaderSyntax } from "./utils/markdown";
->>>>>>> refactor: test and fix final type errors:src/Publisher.ts
+import DigitalGardenSettings from "src/models/settings";
+import { fixMarkdownHeaderSyntax } from "src/utils/markdown";
 
 export interface MarkedForPublishing {
 	notes: TFile[];

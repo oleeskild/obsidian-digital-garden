@@ -16,21 +16,10 @@ import {
 	arrayBufferToBase64,
 	getGardenPathForNote,
 	getRewriteRules,
-<<<<<<< main:src/ui/SettingsView/SettingView.ts
 } from "../../utils/utils";
-import DigitalGardenSiteManager from "../../publisher/DigitalGardenSiteManager";
+import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { SvgFileSuggest } from "../suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
-=======
-} from "./utils";
-import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
-import { SvgFileSuggest } from "./ui/file-suggest";
-import { addFilterInput } from "./ui/addFilterInput";
-<<<<<<< main:src/ui/SettingsView/SettingView.ts
-import { UpdateGardenRepositoryModal } from "./ui/SettingsModal";
->>>>>>> refactor: move prModal to class:src/SettingView.ts
-=======
->>>>>>> chore: fix typo:src/SettingView.ts
 
 interface IObsidianTheme {
 	name: string;

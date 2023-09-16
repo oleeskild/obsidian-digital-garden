@@ -1,7 +1,7 @@
 import { PluginSettingTab, App, ButtonComponent } from "obsidian";
 import DigitalGarden from "../../main";
-import DigitalGardenSiteManager from "../DigitalGardenSiteManager";
-import SettingView from "../SettingView";
+import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
+import SettingView from "./SettingsView/SettingView";
 import { UpdateGardenRepositoryModal } from "./SettingsModal";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {

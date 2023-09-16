@@ -1,12 +1,12 @@
 import { Notice, Plugin, addIcon } from "obsidian";
-import Publisher from "./src/Publisher";
-import DigitalGardenSettings from "./src/DigitalGardenSettings";
-import { PublishStatusBar } from "./src/PublishStatusBar";
-import { seedling } from "./src/constants";
-import { PublishModal } from "./src/PublishModal";
-import PublishStatusManager from "./src/PublishStatusManager";
-import ObsidianFrontMatterEngine from "./src/ObsidianFrontMatterEngine";
-import DigitalGardenSiteManager from "./src/DigitalGardenSiteManager";
+import Publisher from "./src/publisher/Publisher";
+import DigitalGardenSettings from "./src/models/settings";
+import { PublishStatusBar } from "./src/ui/PublishStatusBar";
+import { seedling } from "src/ui/suggest/constants";
+import { PublishModal } from "src/ui/PublishModal";
+import PublishStatusManager from "src/publisher/PublishStatusManager";
+import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
+import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
