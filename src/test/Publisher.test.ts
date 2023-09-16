@@ -1,3 +1,4 @@
+import { MetadataCache, TFile, Vault } from "obsidian";
 import DigitalGardenSettings from "../DigitalGardenSettings";
 import Publisher from "../Publisher";
 jest.mock("obsidian");
@@ -6,8 +7,8 @@ describe("Publisher", () => {
 	describe("generateTransclusionHeader", () => {
 		const getTestPublisher = (settings: Partial<DigitalGardenSettings>) => {
 			return new Publisher(
-				{} as any,
-				{} as any,
+				{} as unknown as Vault,
+				{} as unknown as MetadataCache,
 				{ pathRewriteRules: "", ...settings } as DigitalGardenSettings,
 			);
 		};
@@ -16,8 +17,8 @@ describe("Publisher", () => {
 			const testPublisher = getTestPublisher({});
 			const EXPECTED_TITLE = "expected";
 			const result = testPublisher.generateTransclusionHeader(
-				"# {{header}}",
-				{ basename: EXPECTED_TITLE } as any,
+				"# {{title}}",
+				{ basename: EXPECTED_TITLE } as TFile,
 			);
 
 			expect(result).toBe(`# ${EXPECTED_TITLE}`);
@@ -26,7 +27,7 @@ describe("Publisher", () => {
 			const testPublisher = getTestPublisher({});
 			const result = testPublisher.generateTransclusionHeader(
 				"header",
-				{} as any,
+				{} as TFile,
 			);
 
 			expect(result).toBe(`# header`);
@@ -35,7 +36,7 @@ describe("Publisher", () => {
 			const testPublisher = getTestPublisher({});
 			const result = testPublisher.generateTransclusionHeader(
 				"###header",
-				{} as any,
+				{} as TFile,
 			);
 
 			expect(result).toBe(`### header`);
@@ -44,7 +45,7 @@ describe("Publisher", () => {
 			const testPublisher = getTestPublisher({});
 			const result = testPublisher.generateTransclusionHeader(
 				undefined,
-				{} as any,
+				{} as TFile,
 			);
 
 			expect(result).toBe(undefined);
