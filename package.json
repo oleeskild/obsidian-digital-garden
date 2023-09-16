@@ -5,6 +5,7 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
+		"postdev": "copyfiles main.js manifest.json styles.css src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/",
 		"dev1": "parcel main.ts",
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
@@ -29,6 +30,7 @@
 		"builtin-modules": "^3.3.0",
 		"esbuild": "^0.19.2",
 		"esbuild-svelte": "^0.8.0",
+		"eslint": "^8.49.0",
 		"eslint-plugin-prettier": "^5.0.0",
 		"husky": "^8.0.3",
 		"jest": "^29.7.0",
@@ -39,14 +41,13 @@
 		"svelte-preprocess": "^5.0.4",
 		"ts-jest": "^29.1.1",
 		"tslib": "^2.6.2",
-		"eslint": "^8.49.0",
-		"typescript": "^5.2.2"
+		"typescript": "^5.2.2",
+		"copyfiles": "^2.4.1"
 	},
 	"dependencies": {
 		"@octokit/core": "^5.0.0",
 		"@popperjs/core": "^2.11.8",
 		"@sindresorhus/slugify": "^1.1.2",
-		"@types/lz-string": "^1.5.0",
 		"axios": "^1.5.0",
 		"crypto-js": "^4.1.1",
 		"js-base64": "^3.7.5",

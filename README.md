@@ -58,7 +58,7 @@ dg-publish: true
 
 -   The dg-publish setting tells the plugin that this note should be published to your digital garden. Notes without this setting will not be published. (In other terms: Every note you publish will need this setting.)
 
-7. Open your command pallete by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
+7. Open your command palette by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
 8. Go to your site's URL which you should find on [Vercel](https://vercel.com/dashboard). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge!
@@ -92,10 +92,14 @@ Note that you in no way have to feel any pressure to do this. The plugin is comp
 
 ## Local development
 
-1. Clone this repository into `.obsidian` of your vault (it is recommended to use a test-vault instead of your own!)
+NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.
+
+1. Clone this repository
 2. (for best compatability, use node version manager and run `nvm install && nvm use`)
 3. Install dependencies with `npm install`
 4. Run with `npm run dev`
-5. You should now be able to enable the plugin in obsidian
+5. Open the vault from `src/dg-testVault` into obsidian
+
+6. (if you want to develop this plugin with another vault, move it into .obsidian/plugins of that vault)
 
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.

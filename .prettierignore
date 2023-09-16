@@ -9,3 +9,4 @@ coverage
 .parcel-cache
 
 *.yml
+src/dg-testVault/*
