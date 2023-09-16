@@ -10,6 +10,7 @@ import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import type DigitalGardenPluginInfo from "../models/pluginInfo";
 import { IMAGE_PATH_BASE, NOTE_PATH_BASE } from "./Publisher";
+import { RepositoryConnection } from "./RepositoryConnection";
 
 export interface PathRewriteRule {
 	from: string;
@@ -28,14 +29,27 @@ export default class DigitalGardenSiteManager {
 	settings: DigitalGardenSettings;
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
+	baseGardenConnection: RepositoryConnection;
+	userGardenConnection: RepositoryConnection;
 	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
+
+		this.baseGardenConnection = new RepositoryConnection({
+			githubToken: settings.githubToken,
+			githubUserName: "oleeskild",
+			gardenRepository: "digitalgarden",
+		});
+
+		this.userGardenConnection = new RepositoryConnection({
+			githubToken: settings.githubToken,
+			githubUserName: settings.githubUserName,
+			gardenRepository: settings.githubRepo,
+		});
 	}
 
 	async updateEnv() {
-		const octokit = new Octokit({ auth: this.settings.githubToken });
 		const theme = JSON.parse(this.settings.theme);
 		const baseTheme = this.settings.baseTheme;
 		const siteName = this.settings.siteName;
@@ -81,43 +95,21 @@ export default class DigitalGardenSiteManager {
 
 		const base64Settings = Base64.encode(envSettings);
 
-		let fileExists = true;
-		let currentFile = null;
+		const currentFile = await this.userGardenConnection.getFile(".env");
 
-		try {
-			currentFile = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-					path: ".env",
-				},
-			);
-		} catch (error) {
-			fileExists = false;
-		}
+		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
-		const decoded = Base64.decode(
-			// hacky before we can abstract this bad boy
-			(currentFile?.data as { content?: string })?.content ?? "",
-		);
-
-		if (fileExists && decoded === envSettings) {
-			console.info("No changes to update!");
-			new Notification("No changes to update!");
+		if (decodedCurrentFile === envSettings) {
+			new Notice("Settings already up to date!");
 
 			return;
 		}
 
-		// commit
-		await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
+		await this.userGardenConnection.updateFile({
 			path: ".env",
-			message: "Update settings",
 			content: base64Settings,
-			// @ts-expect-error data is not yet type-guarded
-			sha: fileExists ? currentFile.data.sha : null,
+			message: "Update settings",
+			sha: currentFile?.sha,
 		});
 	}
 
@@ -245,32 +237,31 @@ export default class DigitalGardenSiteManager {
 	async createPullRequestWithSiteChanges(): Promise<string> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		const latestRelease = await octokit.request(
-			"GET /repos/{owner}/{repo}/releases/latest",
-			{
-				owner: "oleeskild",
-				repo: "digitalgarden",
-			},
-		);
+		const latestRelease =
+			await this.baseGardenConnection.getLatestRelease();
 
-		const templateVersion = latestRelease.data.tag_name;
+		if (!latestRelease) {
+			throw new Error(
+				"Unable to get latest release from oleeskid repository",
+			);
+		}
+
+		const templateVersion = latestRelease.tag_name;
 		const uuid = crypto.randomUUID();
 
 		const branchName =
 			"update-template-to-v" + templateVersion + "-" + uuid;
 
-		const latestCommit = await octokit.request(
-			"GET /repos/{owner}/{repo}/commits/HEAD",
-			{
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-			},
-		);
+		const latestCommit = await this.userGardenConnection.getLatestCommit();
 
-		await this.createNewBranch(octokit, branchName, latestCommit.data.sha);
-		await this.deleteFiles(octokit, branchName);
-		await this.addFilesIfMissing(octokit, branchName);
-		await this.modifyFiles(octokit, branchName);
+		if (!latestCommit) {
+			throw new Error("Unable to get latest commit");
+		}
+
+		await this.createNewBranch(octokit, branchName, latestCommit.sha);
+		await this.deleteFiles(this.userGardenConnection, branchName);
+		await this.addFilesIfMissing(this.userGardenConnection, branchName);
+		await this.modifyFiles(this.userGardenConnection, branchName);
 
 		const prUrl = await this.createPullRequest(
 			octokit,
@@ -286,6 +277,8 @@ export default class DigitalGardenSiteManager {
 		branchName: string,
 		templateVersion: string,
 	): Promise<string> {
+		console.info("Creating PR");
+
 		try {
 			const repoInfo = await octokit.request(
 				"GET /repos/{owner}/{repo}",
@@ -315,93 +308,58 @@ export default class DigitalGardenSiteManager {
 		}
 	}
 
-	private async deleteFiles(octokit: Octokit, branchName: string) {
-		const pluginInfo = await this.getPluginInfo(octokit);
+	private async deleteFiles(
+		userGardenConnection: RepositoryConnection,
+		branchName: string,
+	) {
+		console.info("Deleting files");
+		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 
 		const filesToDelete = pluginInfo.filesToDelete;
 
 		for (const file of filesToDelete) {
-			try {
-				const latestFile = await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: file,
-						ref: branchName,
-					},
-				);
-
-				await octokit.request(
-					"DELETE /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: file,
-						// @ts-expect-error data is not yet type-guarded
-						sha: latestFile.data.sha,
-						message: `Delete ${file}`,
-						branch: branchName,
-					},
-				);
-			} catch (e) {
-				// Ignore if the file doesn't exist
-			}
+			await userGardenConnection.deleteFile(file, branchName);
 		}
 	}
 
-	private async modifyFiles(octokit: Octokit, branchName: string) {
-		const pluginInfo = await this.getPluginInfo(octokit);
+	private async modifyFiles(
+		userGardenConnection: RepositoryConnection,
+		branchName: string,
+	) {
+		console.info("Modifying changed files");
+
+		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 		const filesToModify = pluginInfo.filesToModify;
 
 		for (const file of filesToModify) {
-			// is there a reason why we're always requesting oleeskild repo?
-			const latestFile = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: "oleeskild",
-					repo: "digitalgarden",
-					path: file,
-				},
-			);
+			const latestFile = await this.baseGardenConnection.getFile(file);
 
-			let currentFile = {};
-			let fileExists = true;
-
-			try {
-				currentFile = await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: file,
-						ref: branchName,
-					},
-				);
-			} catch (error) {
-				fileExists = false;
+			if (!latestFile) {
+				throw new Error(`Unable to get file ${file} from base garden`);
 			}
 
-			const fileHasChanged =
-				// @ts-expect-error data is not yet type-guarded
-				latestFile.data.sha !== currentFile?.data?.sha;
+			const fileFromRepository = await userGardenConnection.getFile(
+				file,
+				branchName,
+			);
 
-			if (!fileExists || fileHasChanged) {
-				// commit
-				await octokit.request(
-					"PUT /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: file,
-						branch: branchName,
-						message: `Update file ${file}`,
-						// @ts-expect-error data is not yet type-guarded
-						content: latestFile.data.content,
-						// @ts-expect-error data is not yet type-guarded
-						sha: fileExists ? currentFile.data.sha : null,
-					},
+			const fileHasChanged = latestFile.sha !== fileFromRepository?.sha;
+
+			if (!fileFromRepository || fileHasChanged) {
+				console.info(
+					`updating file ${file} because ${
+						fileHasChanged
+							? "it has changed"
+							: "it does not exist yet"
+					}}}`,
 				);
+
+				userGardenConnection.updateFile({
+					path: file,
+					content: latestFile.content,
+					branch: branchName,
+					sha: fileFromRepository?.sha,
+				});
 			}
 		}
 	}
@@ -411,6 +369,8 @@ export default class DigitalGardenSiteManager {
 		branchName: string,
 		sha: string,
 	) {
+		console.info(`Creating new branch: ${branchName} to update template`);
+
 		try {
 			await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
 				owner: this.settings.githubUserName,
@@ -419,71 +379,52 @@ export default class DigitalGardenSiteManager {
 				sha,
 			});
 		} catch (e) {
-			// Ignore if the branch already exists
+			console.info(`branch already exists!`);
 		}
 	}
 
-	private async addFilesIfMissing(octokit: Octokit, branchName: string) {
+	private async addFilesIfMissing(
+		userGardenConnection: RepositoryConnection,
+		branchName: string,
+	) {
+		console.info("Adding missing files");
 		// Should only be added if it does not exist yet. Otherwise leave it alone
-
-		const pluginInfo = await this.getPluginInfo(octokit);
+		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 		const filesToAdd = pluginInfo.filesToAdd;
 
 		for (const filePath of filesToAdd) {
-			try {
-				await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: filePath,
-						ref: branchName,
-					},
-				);
-			} catch {
-				// Doesn't exist
-				const initialFile = await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: "oleeskild",
-						repo: "digitalgarden",
-						path: filePath,
-					},
-				);
+			const userFile = userGardenConnection.getFile(filePath, branchName);
 
-				await octokit.request(
-					"PUT /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
-						path: filePath,
-						branch: branchName,
-						message: "Update template file",
-						// @ts-expect-error data is not yet type-guarded
-						content: initialFile.data.content,
-					},
-				);
+			if (!userFile) {
+				// Create from baseGarden
+				const initialFile =
+					await this.baseGardenConnection.getFile(filePath);
+
+				if (!initialFile) {
+					throw new Error(
+						`Unable to get file ${filePath} from base garden`,
+					);
+				}
+
+				await userGardenConnection.updateFile({
+					path: filePath,
+					content: initialFile.content,
+					branch: branchName,
+				});
 			}
 		}
 	}
 
 	private async getPluginInfo(
-		octokit: Octokit,
+		baseGardenConnection: RepositoryConnection,
 	): Promise<DigitalGardenPluginInfo> {
-		const pluginInfoResponse = await octokit.request(
-			"GET /repos/{owner}/{repo}/contents/{path}",
-			{
-				owner: "oleeskild",
-				repo: "digitalgarden",
-				path: "plugin-info.json",
-			},
-		);
+		const pluginInfoResponse =
+			await baseGardenConnection.getFile("plugin-info.json");
 
-		const pluginInfo = JSON.parse(
-			// @ts-expect-error data is not yet type-guarded
-			Base64.decode(pluginInfoResponse.data.content),
-		);
+		if (!pluginInfoResponse) {
+			throw new Error("Unable to get plugin info");
+		}
 
-		return pluginInfo as DigitalGardenPluginInfo;
+		return JSON.parse(Base64.decode(pluginInfoResponse.content));
 	}
 }
