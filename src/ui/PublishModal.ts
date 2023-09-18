@@ -1,7 +1,52 @@
-import { type App, ButtonComponent, Modal } from "obsidian";
+import { type App, ButtonComponent, Modal, TFile } from "obsidian";
 import Publisher from "../publisher/Publisher";
-import PublishStatusManager from "../publisher/PublishStatusManager";
+import PublishStatusManager, {
+	PublishStatus,
+} from "../publisher/PublishStatusManager";
 import DigitalGardenSettings from "../models/settings";
+
+const MODAL_PARTS: {
+	name: string;
+	getNotes: (publishStatus: PublishStatus) => TFile[] | string[];
+	getSection: (publishModal: PublishModal) => HTMLElement;
+	getCountSection: (publishModal: PublishModal) => HTMLElement;
+}[] = [
+	{
+		name: "published",
+		getNotes: (publishStatus: PublishStatus) =>
+			publishStatus.publishedNotes,
+		getSection: (publishModal: PublishModal) =>
+			publishModal.publishedContainer,
+		getCountSection: (publishModal: PublishModal) =>
+			publishModal.publishedContainerCount,
+	},
+	{
+		name: "changed",
+		getNotes: (publishStatus: PublishStatus) => publishStatus.changedNotes,
+		getSection: (publishModal: PublishModal) =>
+			publishModal.changedContainer,
+		getCountSection: (publishModal: PublishModal) =>
+			publishModal.changedContainerCount,
+	},
+	{
+		name: "deleted",
+		getNotes: (publishStatus: PublishStatus) =>
+			publishStatus.deletedNotePaths,
+		getSection: (publishModal: PublishModal) =>
+			publishModal.deletedContainer,
+		getCountSection: (publishModal: PublishModal) =>
+			publishModal.deletedContainerCount,
+	},
+	{
+		name: "unpublished",
+		getNotes: (publishStatus: PublishStatus) =>
+			publishStatus.unpublishedNotes,
+		getSection: (publishModal: PublishModal) =>
+			publishModal.unpublishedContainer,
+		getCountSection: (publishModal: PublishModal) =>
+			publishModal.unpublishedContainerCount,
+	},
+];
 
 export class PublishModal {
 	modal: Modal;
@@ -194,29 +239,11 @@ export class PublishModal {
 	}
 
 	async clearView() {
-		this.publishedContainerCount.textContent = ``;
-		this.changedContainerCount.textContent = ``;
-		this.deletedContainerCount.textContent = ``;
-		this.unpublishedContainerCount.textContent = ``;
-		while (this.publishedContainer.lastElementChild) {
-			this.publishedContainer.removeChild(
-				this.publishedContainer.lastElementChild,
-			);
-		}
-		while (this.changedContainer.lastElementChild) {
-			this.changedContainer.removeChild(
-				this.changedContainer.lastElementChild,
-			);
-		}
-		while (this.deletedContainer.lastElementChild) {
-			this.deletedContainer.removeChild(
-				this.deletedContainer.lastElementChild,
-			);
-		}
-		while (this.unpublishedContainer.lastElementChild) {
-			this.unpublishedContainer.removeChild(
-				this.unpublishedContainer.lastElementChild,
-			);
+		for (const part of MODAL_PARTS) {
+			const section = part.getSection(this);
+			const countSection = part.getCountSection(this);
+			section.empty();
+			countSection.textContent = "";
 		}
 	}
 
@@ -225,22 +252,18 @@ export class PublishModal {
 		const publishStatus =
 			await this.publishStatusManager.getPublishStatus();
 		this.progressContainer.innerText = ``;
-		publishStatus.publishedNotes.map((file) =>
-			this.publishedContainer.createEl("li", { text: file.path }),
-		);
-		this.publishedContainerCount.textContent = `(${publishStatus.publishedNotes.length} notes)`;
-		publishStatus.unpublishedNotes.map((file) =>
-			this.unpublishedContainer.createEl("li", { text: file.path }),
-		);
-		this.unpublishedContainerCount.textContent = `(${publishStatus.unpublishedNotes.length} notes)`;
-		publishStatus.changedNotes.map((file) =>
-			this.changedContainer.createEl("li", { text: file.path }),
-		);
-		this.changedContainerCount.textContent = `(${publishStatus.changedNotes.length} notes)`;
-		publishStatus.deletedNotePaths.map((path) =>
-			this.deletedContainer.createEl("li", { text: path }),
-		);
-		this.deletedContainerCount.textContent = `(${publishStatus.deletedNotePaths.length} notes)`;
+
+		for (const part of MODAL_PARTS) {
+			const notes = part.getNotes(publishStatus);
+			const section = part.getSection(this);
+			const countSection = part.getCountSection(this);
+			notes.map((file) =>
+				section.createEl("li", {
+					text: (file as TFile)?.path || (file as string),
+				}),
+			);
+			countSection.textContent = `(${notes.length} notes)`;
+		}
 	}
 
 	private async refreshView() {
