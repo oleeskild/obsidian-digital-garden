@@ -22,10 +22,10 @@ import {
 	sanitizePermalink,
 } from "../utils/utils";
 import { isPublishFrontmatterValid } from "./Validator";
+import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
-import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 
 export interface MarkedForPublishing {
