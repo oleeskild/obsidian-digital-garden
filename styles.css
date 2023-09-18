@@ -2,7 +2,6 @@
 
 button:disabled {
 	cursor: not-allowed;
-	color: "#111111";
 }
 
 /* PUBLISH STATUS VIEW */
@@ -15,7 +14,8 @@ button:disabled {
 .digital-garden-publish-status-view ul {
 	list-style-type: none;
 	position: relative;
-	margin-left: 5px;
+	margin-left: 10px;
+	padding: 0;
 	margin-top: 0;
 	overflow: auto;
 }
@@ -30,11 +30,13 @@ button:disabled {
 	margin-left: 10px;
 }
 
-.publish-modal-header-button {
+.publish-modal-header {
 	display: flex;
 	justify-content: space-between;
 	margin-bottom: 10px;
-	align-items: center;
+	line-height: 0px;
+	align-items: baseline;
+	gap: 5px;
 }
 
 .publish-modal-header-content {
@@ -42,13 +44,34 @@ button:disabled {
 	flex-direction: row;
 	align-items: baseline;
 	justify-content: center;
+
+	> h3 {
+		margin-top: 10px;
+		margin-bottom: 5px;
+	}
+}
+
+@media screen and (max-width: 600px) {
+	.publish-modal-header {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+
+		> h3 {
+			margin-top: 10px;
+			margin-bottom: 5px;
+		}
+	}
+
+	.publish-modal-cta-button {
+		margin-left: 20px;
+	}
 }
 
 .publish-modal-change-count {
 	margin-left: 10px;
 }
-
-.dg-settings > h1,
+.setting-item + h1,
 h2,
 h3,
 h4 {

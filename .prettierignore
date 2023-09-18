@@ -2,6 +2,7 @@ build
 main.js
 
 esbuild.config.mjs
+package-lock.json
 
 node_modules
 coverage

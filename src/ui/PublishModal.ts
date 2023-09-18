@@ -43,7 +43,7 @@ export class PublishModal {
 	): HTMLElement[] {
 		const headerContainer = this.modal.contentEl.createEl("div", {
 			attr: {
-				class: "publish-modal-header-button",
+				class: "publish-modal-header",
 			},
 		});
 
@@ -137,7 +137,7 @@ export class PublishModal {
 				},
 			});
 		[this.deletedContainerCount, this.deletedContainer] =
-			this.createCollapsable("Deleted from vault", {
+			this.createCollapsable("Deleted", {
 				buttonText: "Delete notes from garden",
 				buttonCallback: async () => {
 					const deletedNotes =
