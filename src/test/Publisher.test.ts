@@ -1,6 +1,6 @@
 import { MetadataCache, TFile, Vault } from "obsidian";
-import DigitalGardenSettings from "../DigitalGardenSettings";
-import Publisher from "../Publisher";
+import Publisher from "../publisher/Publisher";
+import DigitalGardenSettings from "src/models/settings";
 jest.mock("obsidian");
 
 describe("Publisher", () => {

@@ -22,11 +22,11 @@ import {
 	sanitizePermalink,
 } from "../utils/utils";
 import { isPublishFrontmatterValid } from "./Validator";
-import { excaliDrawBundle, excalidraw } from "src/ui/suggest/constants";
+import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
 import slugify from "@sindresorhus/slugify";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
-import DigitalGardenSettings from "src/models/settings";
-import { fixMarkdownHeaderSyntax } from "src/utils/markdown";
+import DigitalGardenSettings from "../models/settings";
+import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 
 export interface MarkedForPublishing {
 	notes: TFile[];
