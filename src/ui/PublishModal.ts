@@ -36,17 +36,19 @@ export class PublishModal {
 
 	createCollapsable(
 		title: string,
-		buttonText?: string,
-		buttonCallback?: () => Promise<void>,
+		button?: {
+			buttonText: string;
+			buttonCallback: () => Promise<void>;
+		},
 	): HTMLElement[] {
 		const headerContainer = this.modal.contentEl.createEl("div", {
 			attr: {
-				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
+				class: "publish-modal-header-button",
 			},
 		});
 
 		const titleContainer = headerContainer.createEl("div", {
-			attr: { style: "display: flex; align-items:center" },
+			attr: { class: "publish-modal-header-content" },
 		});
 
 		const toggleHeader = titleContainer.createEl("h3", {
@@ -55,23 +57,29 @@ export class PublishModal {
 		});
 
 		const counter = titleContainer.createEl("span", {
-			attr: { class: "count", style: "margin-left:10px" },
+			attr: {
+				class: "publish-modal-change-count",
+			},
 		});
-
-		if (buttonText && buttonCallback) {
-			const button = new ButtonComponent(headerContainer)
-				.setButtonText(buttonText)
-				.onClick(async () => {
-					button.setDisabled(true);
-					await buttonCallback();
-					button.setDisabled(false);
-				});
-		}
 
 		const toggledList = this.modal.contentEl.createEl("ul");
 		toggledList.hide();
 
+		if (button) {
+			const buttonComponent = new ButtonComponent(headerContainer)
+				.setClass("publish-modal-cta-button")
+				.setButtonText(button.buttonText)
+				.onClick(async () => {
+					buttonComponent.setDisabled(true);
+					await button.buttonCallback();
+					buttonComponent.setDisabled(false);
+				});
+		}
+
 		headerContainer.onClickEvent(() => {
+			if (toggledList.children.length === 0) {
+				return;
+			}
 			if (toggledList.isShown()) {
 				toggleHeader.textContent = `➕️ ${title}`;
 				toggledList.hide();
@@ -99,11 +107,11 @@ export class PublishModal {
 
 		[this.publishedContainerCount, this.publishedContainer] =
 			this.createCollapsable("Published");
+
 		[this.changedContainerCount, this.changedContainer] =
-			this.createCollapsable(
-				"Changed",
-				"Update changed files",
-				async () => {
+			this.createCollapsable("Changed", {
+				buttonText: "Update changed files",
+				buttonCallback: async () => {
 					const publishStatus =
 						await this.publishStatusManager.getPublishStatus();
 					const changed = publishStatus.changedNotes;
@@ -127,13 +135,11 @@ export class PublishModal {
 
 					await this.refreshView();
 				},
-			);
-
+			});
 		[this.deletedContainerCount, this.deletedContainer] =
-			this.createCollapsable(
-				"Deleted from vault",
-				"Delete notes from garden",
-				async () => {
+			this.createCollapsable("Deleted from vault", {
+				buttonText: "Delete notes from garden",
+				buttonCallback: async () => {
 					const deletedNotes =
 						await this.publishStatusManager.getDeletedNotePaths();
 					let counter = 0;
@@ -156,12 +162,12 @@ export class PublishModal {
 
 					await this.refreshView();
 				},
-			);
+			});
+
 		[this.unpublishedContainerCount, this.unpublishedContainer] =
-			this.createCollapsable(
-				"Unpublished",
-				"Publish unpublished notes",
-				async () => {
+			this.createCollapsable("Unpublished", {
+				buttonText: "Publish unpublished notes",
+				buttonCallback: async () => {
 					const publishStatus =
 						await this.publishStatusManager.getPublishStatus();
 					const unpublished = publishStatus.unpublishedNotes;
@@ -183,7 +189,7 @@ export class PublishModal {
 					}, 5000);
 					await this.refreshView();
 				},
-			);
+			});
 
 		this.modal.onOpen = async () => {
 			await this.refreshView();
@@ -224,22 +230,28 @@ export class PublishModal {
 		this.progressContainer.innerText = `⌛ Loading publication status`;
 		const publishStatus =
 			await this.publishStatusManager.getPublishStatus();
+
 		this.progressContainer.innerText = ``;
+
 		publishStatus.publishedNotes.map((file) =>
 			this.publishedContainer.createEl("li", { text: file.path }),
 		);
+
 		this.publishedContainerCount.textContent = `(${publishStatus.publishedNotes.length} notes)`;
 		publishStatus.unpublishedNotes.map((file) =>
 			this.unpublishedContainer.createEl("li", { text: file.path }),
 		);
+
 		this.unpublishedContainerCount.textContent = `(${publishStatus.unpublishedNotes.length} notes)`;
 		publishStatus.changedNotes.map((file) =>
 			this.changedContainer.createEl("li", { text: file.path }),
 		);
+
 		this.changedContainerCount.textContent = `(${publishStatus.changedNotes.length} notes)`;
 		publishStatus.deletedNotePaths.map((path) =>
 			this.deletedContainer.createEl("li", { text: path }),
 		);
+
 		this.deletedContainerCount.textContent = `(${publishStatus.deletedNotePaths.length} notes)`;
 	}
 
