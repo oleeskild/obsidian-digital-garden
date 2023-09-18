@@ -1,64 +1,65 @@
 {
-  "name": "obsidian-garden",
-  "version": "1.0.0",
-  "description": "A plugin used for publishing notes to a digital garden",
-  "main": "main.js",
-  "scripts": {
-    "dev": "node esbuild.config.mjs",
-    "postdev": "copyfiles main.js manifest.json styles.css src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/",
-    "dev1": "parcel main.ts",
-    "build": "node esbuild.config.mjs production",
-    "test": "jest",
-    "prepare": "husky install",
-    "lint": "eslint . --ext .ts",
-    "lint-fix": "eslint .  --fix  --ext .ts",
-    "format": "prettier --write .",
-    "check-formatting": "prettier --check .",
-    "typecheck": "tsc"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@tsconfig/svelte": "^5.0.2",
-    "@types/crypto-js": "^4.1.2",
-    "@types/jest": "^29.5.4",
-    "@types/luxon": "^3.3.2",
-    "@types/node": "^20.6.0",
-    "@typescript-eslint/eslint-plugin": "^6.7.0",
-    "@typescript-eslint/parser": "^6.7.0",
-    "builtin-modules": "^3.3.0",
-    "esbuild": "^0.19.2",
-    "esbuild-svelte": "^0.8.0",
-    "eslint": "^8.49.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "husky": "^8.0.3",
-    "jest": "^29.7.0",
-    "lint-staged": "^14.0.1",
-    "obsidian": "^1.4.11",
-    "prettier": "3.0.3",
-    "svelte": "^4.2.0",
-    "svelte-preprocess": "^5.0.4",
-    "ts-jest": "^29.1.1",
-    "tslib": "^2.6.2",
-    "typescript": "^5.2.2",
-    "copyfiles": "^2.4.1"
-  },
-  "dependencies": {
-    "@octokit/core": "^5.0.0",
-    "@popperjs/core": "^2.11.8",
-    "@sindresorhus/slugify": "^1.1.2",
-    "axios": "^1.5.0",
-    "crypto-js": "^4.1.1",
-    "js-base64": "^3.7.5",
-    "luxon": "^3.4.3",
-    "lz-string": "^1.5.0",
-    "obsidian-dataview": "^0.5.56"
-  },
-  "lint-staged": {
-    "*.{ts}": [
-      "prettier --write",
-      "eslint --fix ."
-    ]
-  }
+	"name": "obsidian-garden",
+	"version": "1.0.0",
+	"description": "A plugin used for publishing notes to a digital garden",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"postdev": "node scripts/generateGardenSettings.mjs",
+		"dev1": "parcel main.ts",
+		"build": "node esbuild.config.mjs production",
+		"test": "jest",
+		"prepare": "husky install",
+		"lint": "eslint . --ext .ts",
+		"lint-fix": "eslint .  --fix  --ext .ts",
+		"format": "prettier --write .",
+		"check-formatting": "prettier --check .",
+		"typecheck": "tsc"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@tsconfig/svelte": "^5.0.2",
+		"@types/crypto-js": "^4.1.2",
+		"@types/jest": "^29.5.4",
+		"@types/luxon": "^3.3.2",
+		"@types/node": "^20.6.0",
+		"@typescript-eslint/eslint-plugin": "^6.7.0",
+		"@typescript-eslint/parser": "^6.7.0",
+		"builtin-modules": "^3.3.0",
+		"copyfiles": "^2.4.1",
+		"dotenv": "^16.3.1",
+		"esbuild": "^0.19.2",
+		"esbuild-svelte": "^0.8.0",
+		"eslint": "^8.49.0",
+		"eslint-plugin-prettier": "^5.0.0",
+		"husky": "^8.0.3",
+		"jest": "^29.7.0",
+		"lint-staged": "^14.0.1",
+		"obsidian": "^1.4.11",
+		"prettier": "3.0.3",
+		"svelte": "^4.2.0",
+		"svelte-preprocess": "^5.0.4",
+		"ts-jest": "^29.1.1",
+		"tslib": "^2.6.2",
+		"typescript": "^5.2.2"
+	},
+	"dependencies": {
+		"@octokit/core": "^5.0.0",
+		"@popperjs/core": "^2.11.8",
+		"@sindresorhus/slugify": "^1.1.2",
+		"axios": "^1.5.0",
+		"crypto-js": "^4.1.1",
+		"js-base64": "^3.7.5",
+		"luxon": "^3.4.3",
+		"lz-string": "^1.5.0",
+		"obsidian-dataview": "^0.5.56"
+	},
+	"lint-staged": {
+		"*.{ts}": [
+			"prettier --write",
+			"eslint --fix ."
+		]
+	}
 }
