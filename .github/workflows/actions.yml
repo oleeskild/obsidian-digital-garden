@@ -1,6 +1,8 @@
 on:
   pull_request:
     types: [edited, synchronize, opened]
+  push: 
+    branches: [master]
 jobs:
     lint-and-check-formatting:
         runs-on: ubuntu-latest
