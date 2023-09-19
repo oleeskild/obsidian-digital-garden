@@ -1,129 +1,16 @@
-import { type App, ButtonComponent, Modal, TFile } from "obsidian";
-import Publisher from "../publisher/Publisher";
+import { type App, Modal } from "obsidian";
+import Publisher from "../../publisher/Publisher";
 import PublishStatusManager, {
 	PublishStatus,
-} from "../publisher/PublishStatusManager";
-import DigitalGardenSettings from "../models/settings";
-
-class PublishModalItem {
-	private button: ButtonComponent | undefined;
-	private countElement: HTMLElement;
-
-	constructor(
-		parent: HTMLElement,
-		title: string,
-		buttonProps?: {
-			cta: string;
-			callback: (modalItem: PublishModalItem) => Promise<void>;
-		},
-	) {
-		const headerContainer = parent.createEl("div", {
-			attr: {
-				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
-			},
-		});
-
-		const titleContainer = headerContainer.createEl("div", {
-			attr: { style: "display: flex; align-items:center" },
-		});
-
-		const toggleHeader = titleContainer.createEl("h3", {
-			text: `➕️ ${title}`,
-			attr: { class: "collapsable collapsed" },
-		});
-
-		const counter = titleContainer.createEl("span", {
-			attr: { class: "count", style: "margin-left:10px" },
-		});
-
-		if (buttonProps) {
-			const button = new ButtonComponent(headerContainer)
-				.setButtonText(buttonProps.cta)
-				.onClick(async () => {
-					button.setDisabled(true);
-					await buttonProps.callback(this);
-					button.setDisabled(false);
-				});
-			this.button = button;
-		}
-
-		const toggledList = parent.createEl("ul");
-		toggledList.hide();
-
-		headerContainer.onClickEvent(() => {
-			if (toggledList.isShown()) {
-				toggleHeader.textContent = `➕️ ${title}`;
-				toggledList.hide();
-				toggleHeader.removeClass("open");
-				toggleHeader.addClass("collapsed");
-			} else {
-				toggleHeader.textContent = `➖ ${title}`;
-				toggledList.show();
-				toggleHeader.removeClass("collapsed");
-				toggleHeader.addClass("open");
-			}
-		});
-		this.countElement = counter;
-	}
-}
-
-const MODAL_PARTS: {
-	name: string;
-	getNotes: (publishStatus: PublishStatus) => TFile[] | string[];
-	getSection: (publishModal: PublishModal) => HTMLElement;
-	getCountSection: (publishModal: PublishModal) => HTMLElement;
-}[] = [
-	{
-		name: "published",
-		getNotes: (publishStatus: PublishStatus) =>
-			publishStatus.publishedNotes,
-		getSection: (publishModal: PublishModal) =>
-			publishModal.publishedContainer,
-		getCountSection: (publishModal: PublishModal) =>
-			publishModal.publishedContainerCount,
-	},
-	{
-		name: "changed",
-		getNotes: (publishStatus: PublishStatus) => publishStatus.changedNotes,
-		getSection: (publishModal: PublishModal) =>
-			publishModal.changedContainer,
-		getCountSection: (publishModal: PublishModal) =>
-			publishModal.changedContainerCount,
-	},
-	{
-		name: "deleted",
-		getNotes: (publishStatus: PublishStatus) =>
-			publishStatus.deletedNotePaths,
-		getSection: (publishModal: PublishModal) =>
-			publishModal.deletedContainer,
-		getCountSection: (publishModal: PublishModal) =>
-			publishModal.deletedContainerCount,
-	},
-	{
-		name: "unpublished",
-		getNotes: (publishStatus: PublishStatus) =>
-			publishStatus.unpublishedNotes,
-		getSection: (publishModal: PublishModal) =>
-			publishModal.unpublishedContainer,
-		getCountSection: (publishModal: PublishModal) =>
-			publishModal.unpublishedContainerCount,
-	},
-];
+} from "../../publisher/PublishStatusManager";
+import DigitalGardenSettings from "../../models/settings";
+import { PublishModalItem } from "./PublishModalItem";
 
 export class PublishModal {
 	modal: Modal;
 	settings: DigitalGardenSettings;
 	publishStatusManager: PublishStatusManager;
 	publisher: Publisher;
-
-	publishedContainer!: HTMLElement;
-	publishedContainerCount!: HTMLElement;
-	changedContainer!: HTMLElement;
-	changedContainerCount!: HTMLElement;
-	deletedContainer!: HTMLElement;
-	deletedContainerCount!: HTMLElement;
-	unpublishedContainer!: HTMLElement;
-	unpublishedContainerCount!: HTMLElement;
 
 	progressContainer!: HTMLElement;
 
@@ -153,19 +40,24 @@ export class PublishModal {
 			attr: { style: "height: 30px;" },
 		});
 
+		const publishStatus =
+			await this.publishStatusManager.getPublishStatus();
+
 		const publishModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Published",
+			(publishStatus: PublishStatus) =>
+				publishStatus.publishedNotes.map((note) => note.path),
 		);
 
 		const changedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Changed",
+			(publishStatus: PublishStatus) =>
+				publishStatus.changedNotes.map((note) => note.path),
 			{
 				cta: "Publish changed notes",
 				callback: async () => {
-					const publishStatus =
-						await this.publishStatusManager.getPublishStatus();
 					const changed = publishStatus.changedNotes;
 					let counter = 0;
 					for (const note of changed) {
@@ -191,6 +83,8 @@ export class PublishModal {
 		const deletedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Deleted from vault",
+			(publishStatus: PublishStatus) =>
+				publishStatus.deletedNotePaths.map((note) => note),
 			{
 				cta: "Delete notes from garden",
 				callback: async () => {
@@ -216,9 +110,12 @@ export class PublishModal {
 				},
 			},
 		);
+
 		const unpublishedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Unpublished",
+			(publishStatus: PublishStatus) =>
+				publishStatus.unpublishedNotes.map((note) => note.path),
 			{
 				cta: "Publish unpublished notes",
 				callback: async () => {
@@ -262,11 +159,8 @@ export class PublishModal {
 	}
 
 	async clearView() {
-		for (const part of MODAL_PARTS) {
-			const section = part.getSection(this);
-			const countSection = part.getCountSection(this);
-			section.empty();
-			countSection.textContent = "";
+		for (const item of this.items) {
+			item.clear();
 		}
 	}
 
@@ -276,16 +170,8 @@ export class PublishModal {
 			await this.publishStatusManager.getPublishStatus();
 		this.progressContainer.innerText = ``;
 
-		for (const part of MODAL_PARTS) {
-			const notes = part.getNotes(publishStatus);
-			const section = part.getSection(this);
-			const countSection = part.getCountSection(this);
-			notes.map((file) =>
-				section.createEl("li", {
-					text: (file as TFile)?.path || (file as string),
-				}),
-			);
-			countSection.textContent = `(${notes.length} notes)`;
+		for (const item of this.items) {
+			item.populateNotes(publishStatus);
 		}
 	}
 
