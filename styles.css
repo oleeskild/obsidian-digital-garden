@@ -1,7 +1,6 @@
 button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
-
 }
 
 .digital-garden-publish-status-view ul {
@@ -18,7 +17,7 @@ button:disabled {
 	margin-bottom: 5px;
 }
 
-.digital-garden-publish-status-view{
+.digital-garden-publish-status-view {
 	height: 500px;
 }
 

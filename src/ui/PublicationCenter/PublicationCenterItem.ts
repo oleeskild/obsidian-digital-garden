@@ -1,12 +1,12 @@
 import { ButtonComponent } from "obsidian";
 import { PublishStatus } from "../../publisher/PublishStatusManager";
 
-export interface IModalItemButton {
+export interface IPublicationCenterCta {
 	cta: string;
 	callback: () => Promise<void>;
 }
 
-export class PublishModalItem {
+export class PublicationCenterItem {
 	private button: ButtonComponent | undefined;
 	private countElement: HTMLElement;
 	private toggledList: HTMLUListElement;
@@ -16,7 +16,7 @@ export class PublishModalItem {
 		parent: HTMLElement,
 		title: string,
 		getItems: (publishStatus: PublishStatus) => string[],
-		buttonProps?: IModalItemButton,
+		buttonProps?: IPublicationCenterCta,
 	) {
 		this.getItems = getItems;
 

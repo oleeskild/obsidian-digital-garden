@@ -3,7 +3,7 @@ import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/ui/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
-import { PublishModal } from "src/ui/PublishModal/PublishModal";
+import { PublicationCenterModal } from "src/ui/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
@@ -60,7 +60,7 @@ export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
 
-	publishModal!: PublishModal;
+	publicationCenter!: PublicationCenterModal;
 
 	async onload() {
 		this.appVersion = this.manifest.version;
@@ -77,7 +77,7 @@ export default class DigitalGarden extends Plugin {
 			"digital-garden-icon",
 			"Digital Garden Publication Center",
 			async () => {
-				this.openPublishModal();
+				this.openPublicationCenter();
 			},
 		);
 	}
@@ -253,7 +253,7 @@ export default class DigitalGarden extends Plugin {
 			id: "dg-open-publish-modal",
 			name: "Open Publication Center",
 			callback: async () => {
-				this.openPublishModal();
+				this.openPublicationCenter();
 			},
 		});
 
@@ -343,8 +343,8 @@ export default class DigitalGarden extends Plugin {
 		engine.set("dg-publish", true).apply();
 	}
 
-	openPublishModal() {
-		if (!this.publishModal) {
+	openPublicationCenter() {
+		if (!this.publicationCenter) {
 			const siteManager = new DigitalGardenSiteManager(
 				this.app.metadataCache,
 				this.settings,
@@ -358,13 +358,13 @@ export default class DigitalGarden extends Plugin {
 				siteManager,
 				publisher,
 			);
-			this.publishModal = new PublishModal(
+			this.publicationCenter = new PublicationCenterModal(
 				this.app,
 				publishStatusManager,
 				publisher,
 				this.settings,
 			);
 		}
-		this.publishModal.open();
+		this.publicationCenter.open();
 	}
 }

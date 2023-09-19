@@ -2,9 +2,14 @@ import { type App, Modal, TFile } from "obsidian";
 import Publisher from "../../publisher/Publisher";
 import PublishStatusManager from "../../publisher/PublishStatusManager";
 import DigitalGardenSettings from "../../models/settings";
-import { PublishModalItem } from "./PublishModalItem";
+import { PublicationCenterItem } from "./PublicationCenterItem";
 
-export class PublishModal {
+/**
+ * Modal which displays amount of notes that are not in sync with garden
+ * and allows user to publish/remove/update them.
+ * Opened from sidebar or command palette via PublicationCenter
+ */
+export class PublicationCenterModal {
 	modal: Modal;
 	settings: DigitalGardenSettings;
 	publishStatusManager: PublishStatusManager;
@@ -12,7 +17,7 @@ export class PublishModal {
 
 	progressContainer: HTMLElement;
 
-	items: PublishModalItem[] = [];
+	items: PublicationCenterItem[] = [];
 
 	constructor(
 		app: App,
@@ -38,14 +43,14 @@ export class PublishModal {
 		this.modal.contentEl.addClass("digital-garden-publish-status-view");
 		this.modal.contentEl.createEl("h2", { text: "Publication Status" });
 
-		const publishModal = new PublishModalItem(
+		const publishModal = new PublicationCenterItem(
 			this.modal.contentEl,
 			"Published",
 			(publishStatus) =>
 				publishStatus.publishedNotes.map((note) => note.path),
 		);
 
-		const changedModal = new PublishModalItem(
+		const changedModal = new PublicationCenterItem(
 			this.modal.contentEl,
 			"Changed",
 			(publishStatus) =>
@@ -72,7 +77,7 @@ export class PublishModal {
 			},
 		);
 
-		const deletedModal = new PublishModalItem(
+		const deletedModal = new PublicationCenterItem(
 			this.modal.contentEl,
 			"Deleted from vault",
 			(publishStatus) =>
@@ -97,7 +102,7 @@ export class PublishModal {
 			},
 		);
 
-		const unpublishedModal = new PublishModalItem(
+		const unpublishedModal = new PublicationCenterItem(
 			this.modal.contentEl,
 			"Unpublished",
 			(publishStatus) =>
