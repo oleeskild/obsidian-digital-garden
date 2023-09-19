@@ -83,6 +83,13 @@ export class PublishModalItem {
 			}),
 		);
 		this.countElement.textContent = `(${notes.length} notes)`;
-		this.button?.setDisabled(notes.length === 0);
+
+		if (this.button) {
+			if (notes.length === 0) {
+				this.button.setDisabled(true);
+			} else {
+				this.button.setDisabled(false);
+			}
+		}
 	}
 }
