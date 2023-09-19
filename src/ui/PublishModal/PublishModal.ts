@@ -58,11 +58,12 @@ export class PublishModal {
 
 					const changed = publishStatus.changedNotes;
 
-					this.runWithProgress(
+					await this.runWithProgress(
 						"Publishing changed notes",
 						(file: TFile) => this.publisher.publish(file),
 						changed,
 					);
+					this.refreshView();
 					this.setProgressSuccess(
 						// NOTE: copies always indicate total success, but we could add partial success here
 						`Published all changed notes: ${changed.length}/${changed.length}`,
@@ -82,12 +83,13 @@ export class PublishModal {
 					const deletedNotes =
 						await this.publishStatusManager.getDeletedNotePaths();
 
-					this.runWithProgress(
+					await this.runWithProgress(
 						"Deleting Notes",
 						(path: string) => this.publisher.deleteNote(path),
 						deletedNotes,
 					);
 
+					this.refreshView();
 					this.setProgressSuccess(
 						`Deleted all notes: ${deletedNotes.length}/${deletedNotes.length}`,
 					);
@@ -107,17 +109,16 @@ export class PublishModal {
 						await this.publishStatusManager.getPublishStatus();
 					const unpublished = publishStatus.unpublishedNotes;
 
-					this.runWithProgress(
+					await this.runWithProgress(
 						"Publishing unpublished notes",
 						(file: TFile) => this.publisher.publish(file),
 						unpublished,
 					);
 
+					await this.refreshView();
 					this.setProgressSuccess(
 						`Published all unpublished notes: ${unpublished.length}/${unpublished.length}`,
 					);
-
-					await this.refreshView();
 				},
 			},
 		);
@@ -164,7 +165,9 @@ export class PublishModal {
 	private setProgressSuccess(text: string) {
 		this.progressContainer.innerText = `✅ ${text}`;
 		setTimeout(() => {
-			this.progressContainer.innerText = "";
+			if (this.progressContainer.innerText === `✅ ${text}`) {
+				this.progressContainer.innerText = ``;
+			}
 		}, 5000);
 	}
 
