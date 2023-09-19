@@ -1,8 +1,6 @@
-import { type App, Modal } from "obsidian";
+import { type App, Modal, TFile } from "obsidian";
 import Publisher from "../../publisher/Publisher";
-import PublishStatusManager, {
-	PublishStatus,
-} from "../../publisher/PublishStatusManager";
+import PublishStatusManager from "../../publisher/PublishStatusManager";
 import DigitalGardenSettings from "../../models/settings";
 import { PublishModalItem } from "./PublishModalItem";
 
@@ -12,7 +10,7 @@ export class PublishModal {
 	publishStatusManager: PublishStatusManager;
 	publisher: Publisher;
 
-	progressContainer!: HTMLElement;
+	progressContainer: HTMLElement;
 
 	items: PublishModalItem[] = [];
 
@@ -27,6 +25,10 @@ export class PublishModal {
 		this.publishStatusManager = publishStatusManager;
 		this.publisher = publisher;
 
+		this.progressContainer = this.modal.contentEl.createEl("div", {
+			attr: { style: "height: 30px;" },
+		});
+
 		this.initialize();
 	}
 
@@ -36,46 +38,35 @@ export class PublishModal {
 		this.modal.contentEl.addClass("digital-garden-publish-status-view");
 		this.modal.contentEl.createEl("h2", { text: "Publication Status" });
 
-		this.progressContainer = this.modal.contentEl.createEl("div", {
-			attr: { style: "height: 30px;" },
-		});
-
-		const publishStatus =
-			await this.publishStatusManager.getPublishStatus();
-
 		const publishModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Published",
-			(publishStatus: PublishStatus) =>
+			(publishStatus) =>
 				publishStatus.publishedNotes.map((note) => note.path),
 		);
 
 		const changedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Changed",
-			(publishStatus: PublishStatus) =>
+			(publishStatus) =>
 				publishStatus.changedNotes.map((note) => note.path),
 			{
 				cta: "Publish changed notes",
 				callback: async () => {
-					const changed = publishStatus.changedNotes;
-					let counter = 0;
-					for (const note of changed) {
-						this.progressContainer.innerText = `⌛ Publishing changed notes: ${++counter}/${
-							changed.length
-						}`;
-						await this.publisher.publish(note);
-					}
+					const publishStatus =
+						await this.publishStatusManager.getPublishStatus();
 
-					const publishedText = `✅ Published all changed notes: ${counter}/${changed.length}`;
-					this.progressContainer.innerText = publishedText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === publishedText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
+					const changed = publishStatus.changedNotes;
+
+					this.runWithProgress(
+						"Publishing changed notes",
+						(file: TFile) => this.publisher.publish(file),
+						changed,
+					);
+					this.setProgressSuccess(
+						// NOTE: copies always indicate total success, but we could add partial success here
+						`Published all changed notes: ${changed.length}/${changed.length}`,
+					);
 				},
 			},
 		);
@@ -83,30 +74,23 @@ export class PublishModal {
 		const deletedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Deleted from vault",
-			(publishStatus: PublishStatus) =>
+			(publishStatus) =>
 				publishStatus.deletedNotePaths.map((note) => note),
 			{
 				cta: "Delete notes from garden",
 				callback: async () => {
 					const deletedNotes =
 						await this.publishStatusManager.getDeletedNotePaths();
-					let counter = 0;
-					for (const note of deletedNotes) {
-						this.progressContainer.innerText = `⌛ Deleting Notes: ${++counter}/${
-							deletedNotes.length
-						}`;
-						await this.publisher.deleteNote(note);
-					}
 
-					const deleteDoneText = `✅ Deleted all notes: ${counter}/${deletedNotes.length}`;
-					this.progressContainer.innerText = deleteDoneText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === deleteDoneText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
+					this.runWithProgress(
+						"Deleting Notes",
+						(path: string) => this.publisher.deleteNote(path),
+						deletedNotes,
+					);
+
+					this.setProgressSuccess(
+						`Deleted all notes: ${deletedNotes.length}/${deletedNotes.length}`,
+					);
 				},
 			},
 		);
@@ -114,7 +98,7 @@ export class PublishModal {
 		const unpublishedModal = new PublishModalItem(
 			this.modal.contentEl,
 			"Unpublished",
-			(publishStatus: PublishStatus) =>
+			(publishStatus) =>
 				publishStatus.unpublishedNotes.map((note) => note.path),
 			{
 				cta: "Publish unpublished notes",
@@ -122,22 +106,17 @@ export class PublishModal {
 					const publishStatus =
 						await this.publishStatusManager.getPublishStatus();
 					const unpublished = publishStatus.unpublishedNotes;
-					let counter = 0;
-					for (const note of unpublished) {
-						this.progressContainer.innerText = `⌛ Publishing unpublished notes: ${++counter}/${
-							unpublished.length
-						}`;
-						await this.publisher.publish(note);
-					}
-					const publishDoneText = `✅ Published all unpublished notes: ${counter}/${unpublished.length}`;
-					this.progressContainer.innerText = publishDoneText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === publishDoneText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
+
+					this.runWithProgress(
+						"Publishing unpublished notes",
+						(file: TFile) => this.publisher.publish(file),
+						unpublished,
+					);
+
+					this.setProgressSuccess(
+						`Published all unpublished notes: ${unpublished.length}/${unpublished.length}`,
+					);
+
 					await this.refreshView();
 				},
 			},
@@ -149,6 +128,8 @@ export class PublishModal {
 			deletedModal,
 			unpublishedModal,
 		];
+
+		this.refreshView();
 
 		this.modal.onOpen = async () => {
 			await this.refreshView();
@@ -178,6 +159,26 @@ export class PublishModal {
 	private async refreshView() {
 		this.clearView();
 		await this.populateWithNotes();
+	}
+
+	private setProgressSuccess(text: string) {
+		this.progressContainer.innerText = `✅ ${text}`;
+		setTimeout(() => {
+			this.progressContainer.innerText = "";
+		}, 5000);
+	}
+
+	private async runWithProgress<TItemType>(
+		text: string,
+		callback: (item: TItemType) => Promise<unknown>,
+		items: TItemType[],
+	) {
+		for (const index in items) {
+			const item = items[index];
+			this.progressContainer.innerText = `⌛ ${text}: ${index}/${items.length}`;
+			// to set partial success, or inform the user of failures, try/catch here and set a different copy
+			await callback(item);
+		}
 	}
 
 	open() {
