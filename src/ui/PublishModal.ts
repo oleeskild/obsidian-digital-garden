@@ -5,6 +5,68 @@ import PublishStatusManager, {
 } from "../publisher/PublishStatusManager";
 import DigitalGardenSettings from "../models/settings";
 
+class PublishModalItem {
+	private button: ButtonComponent | undefined;
+	private countElement: HTMLElement;
+
+	constructor(
+		parent: HTMLElement,
+		title: string,
+		buttonProps?: {
+			cta: string;
+			callback: (modalItem: PublishModalItem) => Promise<void>;
+		},
+	) {
+		const headerContainer = parent.createEl("div", {
+			attr: {
+				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
+			},
+		});
+
+		const titleContainer = headerContainer.createEl("div", {
+			attr: { style: "display: flex; align-items:center" },
+		});
+
+		const toggleHeader = titleContainer.createEl("h3", {
+			text: `➕️ ${title}`,
+			attr: { class: "collapsable collapsed" },
+		});
+
+		const counter = titleContainer.createEl("span", {
+			attr: { class: "count", style: "margin-left:10px" },
+		});
+
+		if (buttonProps) {
+			const button = new ButtonComponent(headerContainer)
+				.setButtonText(buttonProps.cta)
+				.onClick(async () => {
+					button.setDisabled(true);
+					await buttonProps.callback(this);
+					button.setDisabled(false);
+				});
+			this.button = button;
+		}
+
+		const toggledList = parent.createEl("ul");
+		toggledList.hide();
+
+		headerContainer.onClickEvent(() => {
+			if (toggledList.isShown()) {
+				toggleHeader.textContent = `➕️ ${title}`;
+				toggledList.hide();
+				toggleHeader.removeClass("open");
+				toggleHeader.addClass("collapsed");
+			} else {
+				toggleHeader.textContent = `➖ ${title}`;
+				toggledList.show();
+				toggleHeader.removeClass("collapsed");
+				toggleHeader.addClass("open");
+			}
+		});
+		this.countElement = counter;
+	}
+}
+
 const MODAL_PARTS: {
 	name: string;
 	getNotes: (publishStatus: PublishStatus) => TFile[] | string[];
@@ -65,6 +127,8 @@ export class PublishModal {
 
 	progressContainer!: HTMLElement;
 
+	items: PublishModalItem[] = [];
+
 	constructor(
 		app: App,
 		publishStatusManager: PublishStatusManager,
@@ -79,59 +143,6 @@ export class PublishModal {
 		this.initialize();
 	}
 
-	createCollapsable(
-		title: string,
-		buttonText?: string,
-		buttonCallback?: () => Promise<void>,
-	): HTMLElement[] {
-		const headerContainer = this.modal.contentEl.createEl("div", {
-			attr: {
-				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
-			},
-		});
-
-		const titleContainer = headerContainer.createEl("div", {
-			attr: { style: "display: flex; align-items:center" },
-		});
-
-		const toggleHeader = titleContainer.createEl("h3", {
-			text: `➕️ ${title}`,
-			attr: { class: "collapsable collapsed" },
-		});
-
-		const counter = titleContainer.createEl("span", {
-			attr: { class: "count", style: "margin-left:10px" },
-		});
-
-		if (buttonText && buttonCallback) {
-			const button = new ButtonComponent(headerContainer)
-				.setButtonText(buttonText)
-				.onClick(async () => {
-					button.setDisabled(true);
-					await buttonCallback();
-					button.setDisabled(false);
-				});
-		}
-
-		const toggledList = this.modal.contentEl.createEl("ul");
-		toggledList.hide();
-
-		headerContainer.onClickEvent(() => {
-			if (toggledList.isShown()) {
-				toggleHeader.textContent = `➕️ ${title}`;
-				toggledList.hide();
-				toggleHeader.removeClass("open");
-				toggleHeader.addClass("collapsed");
-			} else {
-				toggleHeader.textContent = `➖ ${title}`;
-				toggledList.show();
-				toggleHeader.removeClass("collapsed");
-				toggleHeader.addClass("open");
-			}
-		});
-		return [counter, toggledList];
-	}
-
 	async initialize() {
 		this.modal.titleEl.innerText = "🌱 Digital Garden";
 
@@ -142,13 +153,17 @@ export class PublishModal {
 			attr: { style: "height: 30px;" },
 		});
 
-		[this.publishedContainerCount, this.publishedContainer] =
-			this.createCollapsable("Published");
-		[this.changedContainerCount, this.changedContainer] =
-			this.createCollapsable(
-				"Changed",
-				"Update changed files",
-				async () => {
+		const publishModal = new PublishModalItem(
+			this.modal.contentEl,
+			"Published",
+		);
+
+		const changedModal = new PublishModalItem(
+			this.modal.contentEl,
+			"Changed",
+			{
+				cta: "Publish changed notes",
+				callback: async () => {
 					const publishStatus =
 						await this.publishStatusManager.getPublishStatus();
 					const changed = publishStatus.changedNotes;
@@ -169,16 +184,16 @@ export class PublishModal {
 							this.progressContainer.innerText = "";
 						}
 					}, 5000);
-
-					await this.refreshView();
 				},
-			);
+			},
+		);
 
-		[this.deletedContainerCount, this.deletedContainer] =
-			this.createCollapsable(
-				"Deleted from vault",
-				"Delete notes from garden",
-				async () => {
+		const deletedModal = new PublishModalItem(
+			this.modal.contentEl,
+			"Deleted from vault",
+			{
+				cta: "Delete notes from garden",
+				callback: async () => {
 					const deletedNotes =
 						await this.publishStatusManager.getDeletedNotePaths();
 					let counter = 0;
@@ -198,15 +213,15 @@ export class PublishModal {
 							this.progressContainer.innerText = "";
 						}
 					}, 5000);
-
-					await this.refreshView();
 				},
-			);
-		[this.unpublishedContainerCount, this.unpublishedContainer] =
-			this.createCollapsable(
-				"Unpublished",
-				"Publish unpublished notes",
-				async () => {
+			},
+		);
+		const unpublishedModal = new PublishModalItem(
+			this.modal.contentEl,
+			"Unpublished",
+			{
+				cta: "Publish unpublished notes",
+				callback: async () => {
 					const publishStatus =
 						await this.publishStatusManager.getPublishStatus();
 					const unpublished = publishStatus.unpublishedNotes;
@@ -228,7 +243,15 @@ export class PublishModal {
 					}, 5000);
 					await this.refreshView();
 				},
-			);
+			},
+		);
+
+		this.items = [
+			publishModal,
+			changedModal,
+			deletedModal,
+			unpublishedModal,
+		];
 
 		this.modal.onOpen = async () => {
 			await this.refreshView();
