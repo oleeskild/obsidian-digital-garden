@@ -362,6 +362,7 @@ export default class DigitalGarden extends Plugin {
 				this.app,
 				publishStatusManager,
 				publisher,
+				siteManager,
 				this.settings,
 			);
 		}
