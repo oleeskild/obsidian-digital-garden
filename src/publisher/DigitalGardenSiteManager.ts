@@ -132,6 +132,25 @@ export default class DigitalGardenSiteManager {
 		return `${baseUrl}${urlPath}`;
 	}
 
+	async getNoteContent(path: string): Promise<string> {
+		if (path.startsWith("/")) {
+			path = path.substring(1);
+		}
+		const octokit = new Octokit({ auth: this.settings.githubToken });
+		const response = await octokit.request(
+			`GET /repos/{owner}/{repo}/contents/{path}`,
+			{
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				path: "src/site/notes/" + path,
+			},
+		);
+
+		// @ts-expect-error data is not yet type-guarded
+		const content = Base64.decode(response.data.content);
+		return content;
+	}
+
 	async getNoteHashes(): Promise<Record<string, string>> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 		// Force the cache to be updated
