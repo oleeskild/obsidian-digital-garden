@@ -102,4 +102,13 @@ NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recom
 
 6. (if you want to develop this plugin with another vault, move it into .obsidian/plugins of that vault)
 
+To use the test vault with github, add your test repository values to a .env file with:
+
+```
+GITHUB_REPO=
+GITHUB_TOKEN=
+GITHUB_USERNAME=
+
+```
+
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.

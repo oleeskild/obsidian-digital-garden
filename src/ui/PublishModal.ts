@@ -1,13 +1,21 @@
-import { type App, ButtonComponent, Modal } from "obsidian";
+import { type App, Modal, getIcon, Vault, TFile } from "obsidian";
 import Publisher from "../publisher/Publisher";
 import PublishStatusManager from "../publisher/PublishStatusManager";
 import DigitalGardenSettings from "../models/settings";
+import PublicationCenter from "./PublicationCenter.svelte";
+import DiffView from "./DiffView.svelte";
+import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
+import * as Diff from "diff";
 
 export class PublishModal {
 	modal: Modal;
 	settings: DigitalGardenSettings;
 	publishStatusManager: PublishStatusManager;
 	publisher: Publisher;
+	siteManager: DigitalGardenSiteManager;
+	vault: Vault;
+
+	publicationCenterUi!: PublicationCenter;
 
 	publishedContainer!: HTMLElement;
 	publishedContainerCount!: HTMLElement;
@@ -24,231 +32,83 @@ export class PublishModal {
 		app: App,
 		publishStatusManager: PublishStatusManager,
 		publisher: Publisher,
+		siteManager: DigitalGardenSiteManager,
 		settings: DigitalGardenSettings,
 	) {
 		this.modal = new Modal(app);
 		this.settings = settings;
 		this.publishStatusManager = publishStatusManager;
 		this.publisher = publisher;
+		this.siteManager = siteManager;
+		this.vault = app.vault;
 
-		this.initialize();
+		this.modal.titleEl
+			.createEl("span", { text: "Publication Center" })
+			.prepend(this.getIcon("book-up"));
 	}
 
-	createCollapsable(
-		title: string,
-		buttonText?: string,
-		buttonCallback?: () => Promise<void>,
-	): HTMLElement[] {
-		const headerContainer = this.modal.contentEl.createEl("div", {
-			attr: {
-				style: "display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center",
-			},
-		});
-
-		const titleContainer = headerContainer.createEl("div", {
-			attr: { style: "display: flex; align-items:center" },
-		});
-
-		const toggleHeader = titleContainer.createEl("h3", {
-			text: `➕️ ${title}`,
-			attr: { class: "collapsable collapsed" },
-		});
-
-		const counter = titleContainer.createEl("span", {
-			attr: { class: "count", style: "margin-left:10px" },
-		});
-
-		if (buttonText && buttonCallback) {
-			const button = new ButtonComponent(headerContainer)
-				.setButtonText(buttonText)
-				.onClick(async () => {
-					button.setDisabled(true);
-					await buttonCallback();
-					button.setDisabled(false);
-				});
+	getIcon(name: string): Node {
+		const icon = getIcon(name) ?? document.createElement("span");
+		if (icon instanceof SVGSVGElement) {
+			icon.style.marginRight = "4px";
 		}
+		return icon;
+	}
 
-		const toggledList = this.modal.contentEl.createEl("ul");
-		toggledList.hide();
+	private showDiff = async (notePath: string) => {
+		try {
+			const remoteContent =
+				await this.siteManager.getNoteContent(notePath);
+			const localFile = this.vault.getAbstractFileByPath(notePath);
+			console.log(localFile);
+			if (localFile instanceof TFile) {
+				const [localContent, _] =
+					await this.publisher.generateMarkdown(localFile);
+				const diff = Diff.diffLines(remoteContent, localContent);
+				let diffView: DiffView | undefined;
+				const diffModal = new Modal(this.modal.app);
+				diffModal.titleEl
+					.createEl("span", { text: `${localFile.basename}` })
+					.prepend(this.getIcon("file-diff"));
 
-		headerContainer.onClickEvent(() => {
-			if (toggledList.isShown()) {
-				toggleHeader.textContent = `➕️ ${title}`;
-				toggledList.hide();
-				toggleHeader.removeClass("open");
-				toggleHeader.addClass("collapsed");
-			} else {
-				toggleHeader.textContent = `➖ ${title}`;
-				toggledList.show();
-				toggleHeader.removeClass("collapsed");
-				toggleHeader.addClass("open");
+				diffModal.onOpen = () => {
+					diffView = new DiffView({
+						target: diffModal.contentEl,
+						props: { diff: diff },
+					});
+				};
+				this.modal.onClose = () => {
+					if (diffView) {
+						diffView.$destroy();
+					}
+				};
+
+				diffModal.open();
 			}
-		});
-		return [counter, toggledList];
-	}
-
-	async initialize() {
-		this.modal.titleEl.innerText = "🌱 Digital Garden";
-
-		this.modal.contentEl.addClass("digital-garden-publish-status-view");
-		this.modal.contentEl.createEl("h2", { text: "Publication Status" });
-
-		this.progressContainer = this.modal.contentEl.createEl("div", {
-			attr: { style: "height: 30px;" },
-		});
-
-		[this.publishedContainerCount, this.publishedContainer] =
-			this.createCollapsable("Published");
-		[this.changedContainerCount, this.changedContainer] =
-			this.createCollapsable(
-				"Changed",
-				"Update changed files",
-				async () => {
-					const publishStatus =
-						await this.publishStatusManager.getPublishStatus();
-					const changed = publishStatus.changedNotes;
-					let counter = 0;
-					for (const note of changed) {
-						this.progressContainer.innerText = `⌛ Publishing changed notes: ${++counter}/${
-							changed.length
-						}`;
-						await this.publisher.publish(note);
-					}
-
-					const publishedText = `✅ Published all changed notes: ${counter}/${changed.length}`;
-					this.progressContainer.innerText = publishedText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === publishedText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
-
-					await this.refreshView();
-				},
-			);
-
-		[this.deletedContainerCount, this.deletedContainer] =
-			this.createCollapsable(
-				"Deleted from vault",
-				"Delete notes from garden",
-				async () => {
-					const deletedNotes =
-						await this.publishStatusManager.getDeletedNotePaths();
-					let counter = 0;
-					for (const note of deletedNotes) {
-						this.progressContainer.innerText = `⌛ Deleting Notes: ${++counter}/${
-							deletedNotes.length
-						}`;
-						await this.publisher.deleteNote(note);
-					}
-
-					const deleteDoneText = `✅ Deleted all notes: ${counter}/${deletedNotes.length}`;
-					this.progressContainer.innerText = deleteDoneText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === deleteDoneText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
-
-					await this.refreshView();
-				},
-			);
-		[this.unpublishedContainerCount, this.unpublishedContainer] =
-			this.createCollapsable(
-				"Unpublished",
-				"Publish unpublished notes",
-				async () => {
-					const publishStatus =
-						await this.publishStatusManager.getPublishStatus();
-					const unpublished = publishStatus.unpublishedNotes;
-					let counter = 0;
-					for (const note of unpublished) {
-						this.progressContainer.innerText = `⌛ Publishing unpublished notes: ${++counter}/${
-							unpublished.length
-						}`;
-						await this.publisher.publish(note);
-					}
-					const publishDoneText = `✅ Published all unpublished notes: ${counter}/${unpublished.length}`;
-					this.progressContainer.innerText = publishDoneText;
-					setTimeout(() => {
-						if (
-							this.progressContainer.innerText === publishDoneText
-						) {
-							this.progressContainer.innerText = "";
-						}
-					}, 5000);
-					await this.refreshView();
-				},
-			);
-
-		this.modal.onOpen = async () => {
-			await this.refreshView();
+		} catch (e) {
+			console.error(e);
+		}
+	};
+	open = () => {
+		this.modal.onClose = () => {
+			this.publicationCenterUi.$destroy();
 		};
-		this.modal.onClose = async () => {
-			await this.clearView();
+
+		this.modal.onOpen = () => {
+			this.modal.contentEl.empty();
+			this.publicationCenterUi = new PublicationCenter({
+				target: this.modal.contentEl,
+				props: {
+					publishStatusManager: this.publishStatusManager,
+					publisher: this.publisher,
+					showDiff: this.showDiff,
+					close: () => {
+						this.modal.close();
+					},
+				},
+			});
 		};
-	}
 
-	async clearView() {
-		this.publishedContainerCount.textContent = ``;
-		this.changedContainerCount.textContent = ``;
-		this.deletedContainerCount.textContent = ``;
-		this.unpublishedContainerCount.textContent = ``;
-		while (this.publishedContainer.lastElementChild) {
-			this.publishedContainer.removeChild(
-				this.publishedContainer.lastElementChild,
-			);
-		}
-		while (this.changedContainer.lastElementChild) {
-			this.changedContainer.removeChild(
-				this.changedContainer.lastElementChild,
-			);
-		}
-		while (this.deletedContainer.lastElementChild) {
-			this.deletedContainer.removeChild(
-				this.deletedContainer.lastElementChild,
-			);
-		}
-		while (this.unpublishedContainer.lastElementChild) {
-			this.unpublishedContainer.removeChild(
-				this.unpublishedContainer.lastElementChild,
-			);
-		}
-	}
-
-	async populateWithNotes() {
-		this.progressContainer.innerText = `⌛ Loading publication status`;
-		const publishStatus =
-			await this.publishStatusManager.getPublishStatus();
-		this.progressContainer.innerText = ``;
-		publishStatus.publishedNotes.map((file) =>
-			this.publishedContainer.createEl("li", { text: file.path }),
-		);
-		this.publishedContainerCount.textContent = `(${publishStatus.publishedNotes.length} notes)`;
-		publishStatus.unpublishedNotes.map((file) =>
-			this.unpublishedContainer.createEl("li", { text: file.path }),
-		);
-		this.unpublishedContainerCount.textContent = `(${publishStatus.unpublishedNotes.length} notes)`;
-		publishStatus.changedNotes.map((file) =>
-			this.changedContainer.createEl("li", { text: file.path }),
-		);
-		this.changedContainerCount.textContent = `(${publishStatus.changedNotes.length} notes)`;
-		publishStatus.deletedNotePaths.map((path) =>
-			this.deletedContainer.createEl("li", { text: path }),
-		);
-		this.deletedContainerCount.textContent = `(${publishStatus.deletedNotePaths.length} notes)`;
-	}
-
-	private async refreshView() {
-		this.clearView();
-		await this.populateWithNotes();
-	}
-
-	open() {
 		this.modal.open();
-	}
+	};
 }

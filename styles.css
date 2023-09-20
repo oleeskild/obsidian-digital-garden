@@ -27,3 +27,17 @@ h4 {
 .dg-settings .svg-icon {
 	margin-right: 10px;
 }
+
+@keyframes dg-rotate {
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+.dg-rotate {
+	animation: dg-rotate 4s linear infinite;
+}

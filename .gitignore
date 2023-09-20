@@ -23,3 +23,5 @@ deploy.sh
 # mac
 .DS_Store
 yarn.lock
+
+.env
