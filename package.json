@@ -13,7 +13,7 @@
 		"lint": "eslint . --ext .ts",
 		"lint-fix": "eslint .  --fix  --ext .ts",
 		"format": "prettier --write .",
-		"check-formatting": "prettier --check .",
+		"check-formatting": "prettier --check . *.ts",
 		"typecheck": "tsc"
 	},
 	"keywords": [],
@@ -22,6 +22,7 @@
 	"devDependencies": {
 		"@tsconfig/svelte": "^5.0.2",
 		"@types/crypto-js": "^4.1.2",
+
 		"@types/diff": "^5.0.4",
 		"@types/jest": "^29.5.4",
 		"@types/luxon": "^3.3.2",
