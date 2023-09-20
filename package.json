@@ -22,6 +22,7 @@
 	"devDependencies": {
 		"@tsconfig/svelte": "^5.0.2",
 		"@types/crypto-js": "^4.1.2",
+		"@types/diff": "^5.0.4",
 		"@types/jest": "^29.5.4",
 		"@types/luxon": "^3.3.2",
 		"@types/node": "^20.6.0",
@@ -51,6 +52,7 @@
 		"@sindresorhus/slugify": "^1.1.2",
 		"axios": "^1.5.0",
 		"crypto-js": "^4.1.1",
+		"diff": "^5.1.0",
 		"js-base64": "^3.7.5",
 		"luxon": "^3.4.3",
 		"lz-string": "^1.5.0",
