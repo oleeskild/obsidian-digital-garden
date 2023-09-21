@@ -8,6 +8,7 @@ import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
+import { FRONTMATTER_KEYS } from "./src/models/frontMatter";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
@@ -264,6 +265,14 @@ export default class DigitalGarden extends Plugin {
 				this.addPublishFlag();
 			},
 		});
+
+		this.addCommand({
+			id: "dg-mark-toggle-publish-status",
+			name: "Toggle publication status",
+			callback: async () => {
+				this.togglePublishFlag();
+			},
+		});
 	}
 
 	async copyGardenUrlToClipboard() {
@@ -341,6 +350,24 @@ export default class DigitalGarden extends Plugin {
 			activeFile,
 		);
 		engine.set("dg-publish", true).apply();
+	}
+	async togglePublishFlag() {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (activeFile === null) {
+			new Notice("No active file!");
+			return;
+		}
+		const engine = new ObsidianFrontMatterEngine(
+			this.app.vault,
+			this.app.metadataCache,
+			activeFile,
+		);
+		engine
+			.set(
+				FRONTMATTER_KEYS.PUBLISH,
+				!engine.get(FRONTMATTER_KEYS.PUBLISH),
+			)
+			.apply();
 	}
 
 	openPublishModal() {
