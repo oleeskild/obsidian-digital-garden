@@ -1,4 +1,4 @@
-import { Notice, Plugin, addIcon } from "obsidian";
+import { Notice, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/ui/PublishStatusBar";
@@ -103,7 +103,7 @@ export default class DigitalGarden extends Plugin {
 			name: "Quick Publish And Share Note",
 			callback: async () => {
 				new Notice("Adding publish flag to note and publishing it.");
-				await this.addPublishFlag();
+				await this.setPublishFlagValue(true);
 				const activeFile = this.app.workspace.getActiveFile();
 				const event = this.app.metadataCache.on(
 					"changed",
@@ -262,7 +262,15 @@ export default class DigitalGarden extends Plugin {
 			id: "dg-mark-note-for-publish",
 			name: "Add publish flag",
 			callback: async () => {
-				this.addPublishFlag();
+				this.setPublishFlagValue(true);
+			},
+		});
+
+		this.addCommand({
+			id: "dg-unmark-note-for-publish",
+			name: "Remove publish flag",
+			callback: async () => {
+				this.setPublishFlagValue(true);
 			},
 		});
 
@@ -275,14 +283,23 @@ export default class DigitalGarden extends Plugin {
 		});
 	}
 
+	private getActiveFile(workspace: Workspace) {
+		const activeFile = workspace.getActiveFile();
+		if (!activeFile) {
+			new Notice(
+				"No file is open/active. Please open a file and try again.",
+			);
+			return null;
+		}
+		return activeFile;
+	}
+
 	async copyGardenUrlToClipboard() {
 		try {
 			const { metadataCache, workspace } = this.app;
-			const currentFile = workspace.getActiveFile();
-			if (!currentFile) {
-				new Notice(
-					"No file is open/active. Please open a file and try again.",
-				);
+			const activeFile = this.getActiveFile(workspace);
+
+			if (!activeFile) {
 				return;
 			}
 
@@ -290,7 +307,7 @@ export default class DigitalGarden extends Plugin {
 				metadataCache,
 				this.settings,
 			);
-			const fullUrl = siteManager.getNoteUrl(currentFile);
+			const fullUrl = siteManager.getNoteUrl(activeFile);
 
 			await navigator.clipboard.writeText(fullUrl);
 			new Notice(`Note URL copied to clipboard`);
@@ -306,14 +323,12 @@ export default class DigitalGarden extends Plugin {
 		try {
 			const { vault, workspace, metadataCache } = this.app;
 
-			const currentFile = workspace.getActiveFile();
-			if (!currentFile) {
-				new Notice(
-					"No file is open/active. Please open a file and try again.",
-				);
+			const activeFile = this.getActiveFile(workspace);
+
+			if (!activeFile) {
 				return;
 			}
-			if (currentFile.extension !== "md") {
+			if (activeFile.extension !== "md") {
 				new Notice(
 					"The current file is not a markdown file. Please open a markdown file and try again.",
 				);
@@ -326,7 +341,7 @@ export default class DigitalGarden extends Plugin {
 				metadataCache,
 				this.settings,
 			);
-			const publishSuccessful = await publisher.publish(currentFile);
+			const publishSuccessful = await publisher.publish(activeFile);
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
@@ -338,10 +353,10 @@ export default class DigitalGarden extends Plugin {
 			return false;
 		}
 	}
-	async addPublishFlag() {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (activeFile === null) {
-			new Notice("No active file!");
+	async setPublishFlagValue(value: boolean) {
+		const activeFile = this.getActiveFile(this.app.workspace);
+
+		if (!activeFile) {
 			return;
 		}
 		const engine = new ObsidianFrontMatterEngine(
@@ -349,14 +364,15 @@ export default class DigitalGarden extends Plugin {
 			this.app.metadataCache,
 			activeFile,
 		);
-		engine.set("dg-publish", true).apply();
+		engine.set(FRONTMATTER_KEYS.PUBLISH, value).apply();
 	}
 	async togglePublishFlag() {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (activeFile === null) {
-			new Notice("No active file!");
+		const activeFile = this.getActiveFile(this.app.workspace);
+
+		if (!activeFile) {
 			return;
 		}
+
 		const engine = new ObsidianFrontMatterEngine(
 			this.app.vault,
 			this.app.metadataCache,
