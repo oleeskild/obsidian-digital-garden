@@ -14,6 +14,7 @@ export class GithubSettings {
 		this.settingsRootElement.id = "github-settings";
 		this.settingsRootElement.classList.add("settings-tab-content");
 		this.connectionStatus = "loading";
+
 		this.connectionStatusElement = this.settingsRootElement.createEl(
 			"span",
 			{ cls: "connection-status" },
@@ -27,6 +28,7 @@ export class GithubSettings {
 	initializeHeader = () => {
 		this.connectionStatusElement.style.cssText = "margin-left: 10px;";
 		this.checkConnectionAndSaveSettings();
+
 		const githubSettingsHeader = createEl("h3", {
 			text: "GitHub Authentication (required)",
 		});
@@ -54,6 +56,7 @@ export class GithubSettings {
 					repo: this.settings.settings.githubRepo,
 				},
 			);
+
 			// If other permissions are needed, add them here and indicate to user on insufficient permissions
 			// Github now advocates for hyper-specific tokens
 			if (response.data.permissions?.admin) {
@@ -69,9 +72,11 @@ export class GithubSettings {
 		if (this.connectionStatus === "loading") {
 			this.connectionStatusElement.innerText = "⏳";
 		}
+
 		if (this.connectionStatus === "connected") {
 			this.connectionStatusElement.innerText = "✅";
 		}
+
 		if (this.connectionStatus === "error") {
 			this.connectionStatusElement.innerText = "❌";
 		}
@@ -109,9 +114,11 @@ export class GithubSettings {
 
 	private initializeGitHubTokenSetting() {
 		const desc = document.createDocumentFragment();
+
 		desc.createEl("span", undefined, (span) => {
 			span.innerText =
 				"A GitHub token with repo permissions. You can generate it ";
+
 			span.createEl("a", undefined, (link) => {
 				link.href =
 					"https://github.com/settings/tokens/new?scopes=repo";

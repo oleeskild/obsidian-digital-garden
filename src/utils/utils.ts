@@ -9,9 +9,11 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
 	const bytes = new Uint8Array(buffer);
 	const len = bytes.byteLength;
+
 	for (let i = 0; i < len; i++) {
 		binary += String.fromCharCode(bytes[i]);
 	}
+
 	return Base64.btoa(binary);
 }
 
@@ -81,13 +83,16 @@ function getGardenPathForNote(
 	for (const { from, to } of rules) {
 		if (vaultPath.startsWith(from)) {
 			const newPath = vaultPath.replace(from, to);
+
 			// remote leading slash if to = ""
 			if (newPath.startsWith("/")) {
 				return newPath.replace("/", "");
 			}
+
 			return newPath;
 		}
 	}
+
 	return vaultPath;
 }
 
@@ -98,9 +103,11 @@ function escapeRegExp(string: string) {
 function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void {
 	// Insert a comment in the style tags to prevent XMLSerializer from self-closing it during serialization.
 	const styles = svgElement.getElementsByTagName("style");
+
 	if (styles.length > 0) {
 		for (let i = 0; i < styles.length; i++) {
 			const style = styles[i];
+
 			if (!style.textContent?.trim()) {
 				style.textContent = "/**/";
 			}
@@ -112,9 +119,11 @@ function sanitizePermalink(permalink: string): string {
 	if (!permalink.endsWith("/")) {
 		permalink += "/";
 	}
+
 	if (!permalink.startsWith("/")) {
 		permalink = "/" + permalink;
 	}
+
 	return permalink;
 }
 

@@ -25,11 +25,13 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		value: string | boolean | number,
 	): ObsidianFrontMatterEngine {
 		this.generatedFrontMatter[key] = value;
+
 		return this;
 	}
 
 	remove(key: string): ObsidianFrontMatterEngine {
 		this.generatedFrontMatter[key] = undefined;
+
 		return this;
 	}
 
@@ -44,6 +46,7 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		const frontmatterRegex = /^\s*?---\n([\s\S]*?)\n---/g;
 		const yaml = this.frontMatterToYaml(newFrontMatter);
 		let newContent = "";
+
 		if (content.match(frontmatterRegex)) {
 			newContent = content.replace(frontmatterRegex, (_match) => {
 				return yaml;
@@ -67,10 +70,12 @@ export default class ObsidianFrontMatterEngine implements IFrontMatterEngine {
 		}
 
 		let yaml = "---\n";
+
 		for (const key of Object.keys(frontMatter)) {
 			yaml += `${key}: ${frontMatter[key]}\n`;
 		}
 		yaml += "---";
+
 		return yaml;
 	}
 

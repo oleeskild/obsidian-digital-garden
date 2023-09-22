@@ -31,7 +31,15 @@
 			{
 				"blankLine": "always",
 				"prev": "*",
-				"next": ["return", "if", "multiline-const", "function", "multiline-expression", "multiline-let", "block-like"]
+				"next": [
+					"return",
+					"if",
+					"multiline-const",
+					"function",
+					"multiline-expression",
+					"multiline-let",
+					"block-like"
+				]
 			},
 			{
 				"blankLine": "always",

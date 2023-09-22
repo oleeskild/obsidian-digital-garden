@@ -67,15 +67,19 @@ export default class SettingView {
 
 	async initialize(prModal: Modal) {
 		this.settingsRootElement.empty();
+
 		this.settingsRootElement.createEl("h1", {
 			text: "Digital Garden Settings",
 		});
+
 		const linkDiv = this.settingsRootElement.createEl("div", {
 			attr: { style: "margin-bottom: 10px;" },
 		});
+
 		linkDiv.createEl("span", {
 			text: "Remember to read the setup guide if you haven't already. It can be found ",
 		});
+
 		linkDiv.createEl("a", {
 			text: "here.",
 			href: "https://dg-docs.ole.dev/getting-started/01-getting-started/",
@@ -113,6 +117,7 @@ export default class SettingView {
 
 	private async initializeDefaultNoteSettings() {
 		const noteSettingsModal = new Modal(this.app);
+
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
 		});
@@ -121,6 +126,7 @@ export default class SettingView {
 			attr: { style: "margin-bottom: 20px; margin-top: -30px;" },
 		});
 		linkDiv.createEl("span", { text: "Note Setting Docs is available " });
+
 		linkDiv.createEl("a", {
 			text: "here.",
 			href: "https://dg-docs.ole.dev/getting-started/03-note-settings/",
@@ -137,6 +143,7 @@ export default class SettingView {
 			)
 			.addButton((cb) => {
 				cb.setButtonText("Manage note settings");
+
 				cb.onClick(async () => {
 					noteSettingsModal.open();
 				});
@@ -149,8 +156,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgHomeLink);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgHomeLink = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -166,8 +175,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -183,8 +194,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowBacklinks = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -200,8 +213,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowToc);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowToc = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -217,8 +232,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -232,8 +249,10 @@ export default class SettingView {
 			.setDesc("When turned on, a filetree will be shown on your site.")
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowFileTree);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowFileTree = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -249,8 +268,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgEnableSearch);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgEnableSearch = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -266,8 +287,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgLinkPreview);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgLinkPreview = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -283,8 +306,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowTags);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowTags = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -300,8 +325,10 @@ export default class SettingView {
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter);
+
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
+
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
 						this.settings,
@@ -321,6 +348,7 @@ export default class SettingView {
 			.setDesc("Manage themes, sitename and styling on your site")
 			.addButton((cb) => {
 				cb.setButtonText("Manage appearance");
+
 				cb.onClick(async () => {
 					themeModal.open();
 				});
@@ -337,6 +365,7 @@ export default class SettingView {
 				themeModal.contentEl
 					.createEl("h2", { text: "Style Settings Plugin" })
 					.prepend(this.getIcon("paintbrush"));
+
 				new Setting(themeModal.contentEl)
 					.setName("Apply current style settings to site")
 					.setDesc(
@@ -344,21 +373,29 @@ export default class SettingView {
 					)
 					.addButton((btn) => {
 						btn.setButtonText("Apply");
+
 						btn.onClick(async (_ev) => {
 							new Notice("Applying Style Settings...");
+
 							const styleSettingsNode = document.querySelector(
 								"#css-settings-manager",
 							);
+
 							if (!styleSettingsNode) {
 								new Notice("No Style Settings found");
+
 								return;
 							}
+
 							this.settings.styleSettingsCss =
 								styleSettingsNode.innerHTML;
+
 							if (!this.settings.styleSettingsCss) {
 								new Notice("No Style Settings found");
+
 								return;
 							}
+
 							this.saveSiteSettingsAndUpdateEnv(
 								this.app.metadataCache,
 								this.settings,
@@ -398,6 +435,7 @@ export default class SettingView {
 					x.name,
 				);
 				dd.setValue(this.settings.theme);
+
 				dd.onChange(async (val: string) => {
 					this.settings.theme = val;
 					await this.saveSettings();
@@ -412,6 +450,7 @@ export default class SettingView {
 				dd.addOption("dark", "Dark");
 				dd.addOption("light", "Light");
 				dd.setValue(this.settings.baseTheme);
+
 				dd.onChange(async (val: string) => {
 					this.settings.baseTheme = val;
 					await this.saveSettings();
@@ -440,6 +479,7 @@ export default class SettingView {
 			.addText((tc) => {
 				tc.setPlaceholder("myfavicon.svg");
 				tc.setValue(this.settings.faviconPath);
+
 				tc.onChange(async (val) => {
 					this.settings.faviconPath = val;
 					await this.saveSettings();
@@ -450,6 +490,7 @@ export default class SettingView {
 		themeModal.contentEl
 			.createEl("h2", { text: "Timestamps Settings" })
 			.prepend(this.getIcon("calendar-clock"));
+
 		new Setting(themeModal.contentEl)
 			.setName("Timestamp format")
 			.setDesc(
@@ -463,6 +504,7 @@ export default class SettingView {
 						await this.saveSettings();
 					}),
 			);
+
 		new Setting(themeModal.contentEl)
 			.setName("Show created timestamp")
 			.addToggle((t) => {
@@ -516,6 +558,7 @@ export default class SettingView {
 		themeModal.contentEl
 			.createEl("h2", { text: "CSS settings" })
 			.prepend(this.getIcon("code"));
+
 		new Setting(themeModal.contentEl)
 			.setName("Body Classes Key")
 			.setDesc(
@@ -533,6 +576,7 @@ export default class SettingView {
 		themeModal.contentEl
 			.createEl("h2", { text: "Note icons Settings" })
 			.prepend(this.getIcon("image"));
+
 		themeModal.contentEl
 			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
 			.createEl("a", {
@@ -610,6 +654,7 @@ export default class SettingView {
 
 		new Setting(themeModal.contentEl).addButton((cb) => {
 			cb.setButtonText("Apply settings to site");
+
 			cb.onClick(async (_ev) => {
 				const octokit = new Octokit({
 					auth: this.settings.githubToken,
@@ -623,12 +668,15 @@ export default class SettingView {
 	private async saveSettingsAndUpdateEnv() {
 		const theme = JSON.parse(this.settings.theme);
 		const baseTheme = this.settings.baseTheme;
+
 		if (theme.modes.indexOf(baseTheme) < 0) {
 			new Notice(
 				`The ${theme.name} theme doesn't support ${baseTheme} mode.`,
 			);
+
 			return;
 		}
+
 		const gardenManager = new DigitalGardenSiteManager(
 			this.app.metadataCache,
 			this.settings,
@@ -644,6 +692,7 @@ export default class SettingView {
 		saveSettings: () => Promise<void>,
 	) {
 		let updateFailed = false;
+
 		try {
 			const gardenManager = new DigitalGardenSiteManager(
 				metadataCache,
@@ -664,12 +713,15 @@ export default class SettingView {
 
 	private async addFavicon(octokit: Octokit) {
 		let base64SettingsFaviconContent = "";
+
 		if (this.settings.faviconPath) {
 			const faviconFile = this.app.vault.getAbstractFileByPath(
 				this.settings.faviconPath,
 			);
+
 			if (!(faviconFile instanceof TFile)) {
 				new Notice(`${this.settings.faviconPath} is not a valid file.`);
+
 				return;
 			}
 			const faviconContent = await this.app.vault.readBinary(faviconFile);
@@ -691,6 +743,7 @@ export default class SettingView {
 		let faviconExists = true;
 		let faviconsAreIdentical = false;
 		let currentFaviconOnSite = null;
+
 		try {
 			currentFaviconOnSite = await octokit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
@@ -700,6 +753,7 @@ export default class SettingView {
 					path: "src/site/favicon.svg",
 				},
 			);
+
 			faviconsAreIdentical =
 				// @ts-expect-error TODO: abstract octokit response
 				currentFaviconOnSite.data.content
@@ -734,6 +788,7 @@ export default class SettingView {
 					.setValue(this.settings.gardenBaseUrl)
 					.onChange(async (value) => {
 						this.settings.gardenBaseUrl = value;
+
 						this.debouncedSaveAndUpdate(
 							this.app.metadataCache,
 							this.settings,
@@ -761,6 +816,7 @@ export default class SettingView {
 
 	private initializePathRewriteSettings() {
 		const rewriteRulesModal = new Modal(this.app);
+
 		rewriteRulesModal.titleEl.createEl("h1", {
 			text: "Path Rewrite Rules",
 		});
@@ -773,6 +829,7 @@ export default class SettingView {
 			)
 			.addButton((cb) => {
 				cb.setButtonText("Manage Rewrite Rules");
+
 				cb.onClick(() => {
 					rewriteRulesModal.open();
 				});
@@ -794,18 +851,22 @@ export default class SettingView {
 
 		const list = rewriteSettingContainer.createEl("ol");
 		list.createEl("li", { text: `One rule-per line` });
+
 		list.createEl("li", {
 			text: `The format is [from_vault_path]:[to_garden_path]`,
 		});
 		list.createEl("li", { text: `Matching will exit on first match` });
+
 		rewriteSettingContainer.createEl("div", {
 			text: `Example: If you want the vault folder "Personal/Journal" to be shown as only "Journal" in the left file sidebar in the garden, add the line "Personal/Journal:Journal"`,
 			attr: { class: "setting-item-description" },
 		});
+
 		rewriteSettingContainer.createEl("div", {
 			text: `Note: rewriting a folder to the base path "[from_vault_path]:" is not supported at the moment.`,
 			attr: { class: "setting-item-description" },
 		});
+
 		rewriteSettingContainer.createEl("div", {
 			text: `Any affected notes will show up as changed in the publication center`,
 			attr: { class: "setting-item-description" },
@@ -817,6 +878,7 @@ export default class SettingView {
 				field.setPlaceholder("Personal/Journal:Journal");
 				field.inputEl.rows = 5;
 				field.inputEl.cols = 100;
+
 				field
 					.setValue(this.settings.pathRewriteRules)
 					.onChange(async (value) => {
@@ -847,6 +909,7 @@ export default class SettingView {
 
 		previewInput.addEventListener("input", () => {
 			const testPath = previewInput.value;
+
 			const rewriteTestResult = getGardenPathForNote(
 				testPath,
 				getRewriteRules(this.settings.pathRewriteRules),
@@ -872,6 +935,7 @@ export default class SettingView {
 			)
 			.addButton((cb) => {
 				cb.setButtonText("Manage Custom Filters");
+
 				cb.onClick(() => {
 					customFilterModal.open();
 				});
@@ -886,12 +950,15 @@ export default class SettingView {
 				},
 			},
 		);
+
 		rewriteSettingsContainer.createEl(
 			"div",
 		).innerHTML = `Define regex filters to replace note content before publishing.`;
+
 		rewriteSettingsContainer.createEl("div", {
 			attr: { class: "setting-item-description" },
 		}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
+
 		rewriteSettingsContainer.createEl("div", {
 			attr: {
 				class: "setting-item-description",
@@ -900,27 +967,33 @@ export default class SettingView {
 		}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
 
 		const customFilters = this.settings.customFilters;
+
 		new Setting(rewriteSettingsContainer)
 			.setName("Filters")
 			.addButton((button) => {
 				button.setButtonText("Add");
 				button.setTooltip("Add a filter");
 				button.setIcon("plus");
+
 				button.onClick(async () => {
 					const customFilters = this.settings.customFilters;
+
 					customFilters.push({
 						pattern: "",
 						flags: "g",
 						replace: "",
 					});
 					filterList.empty();
+
 					for (let i = 0; i < customFilters.length; i++) {
 						addFilterInput(customFilters[i], filterList, i, this);
 					}
 				});
 			});
+
 		const filterList =
 			rewriteSettingsContainer.createDiv("custom-filter-list");
+
 		for (let i = 0; i < customFilters.length; i++) {
 			addFilterInput(customFilters[i], filterList, i, this);
 		}
@@ -933,6 +1006,7 @@ export default class SettingView {
 		this.settingsRootElement
 			.createEl("h3", { text: "Update site" })
 			.prepend(getIcon("sync") ?? "");
+
 		new Setting(this.settingsRootElement)
 			.setName("Site Template")
 			.setDesc(
@@ -940,11 +1014,13 @@ export default class SettingView {
 			)
 			.addButton((button) => {
 				button.setButtonText("Manage site template");
+
 				button.onClick(() => {
 					modal.open();
 				});
 			});
 		modal.titleEl.createEl("h2", { text: "Update site" });
+
 		new Setting(modal.contentEl)
 			.setName("Update site to latest template")
 			.setDesc(
@@ -962,6 +1038,7 @@ export default class SettingView {
 		this.settingsRootElement
 			.createEl("h3", { text: "Support" })
 			.prepend(this.getIcon("heart"));
+
 		this.settingsRootElement
 			.createDiv({
 				attr: {
@@ -983,11 +1060,13 @@ export default class SettingView {
 		if (previousPrUrls.length === 0) {
 			return;
 		}
+
 		const header = modal.contentEl.createEl("h2", {
 			text: "➕ Recent Pull Request History",
 		});
 		const prsContainer = modal.contentEl.createEl("ul", {});
 		prsContainer.hide();
+
 		header.onClickEvent(() => {
 			if (prsContainer.isShown()) {
 				prsContainer.hide();
@@ -997,6 +1076,7 @@ export default class SettingView {
 				header.textContent = "➖ Recent Pull Request History";
 			}
 		});
+
 		previousPrUrls.map((prUrl) => {
 			const li = prsContainer.createEl("li", {
 				attr: { style: "margin-bottom: 10px" },

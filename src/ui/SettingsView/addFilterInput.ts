@@ -13,6 +13,7 @@ function addFilterInput(
 		},
 	});
 	const patternField = new TextComponent(el);
+
 	patternField
 		.setPlaceholder("regex pattern")
 		.setValue(filter.pattern)
@@ -28,6 +29,7 @@ function addFilterInput(
 	item.appendChild(patternEl);
 
 	const replaceField = new TextComponent(el);
+
 	replaceField
 		.setPlaceholder("replacement")
 		.setValue(filter.replace)
@@ -44,6 +46,7 @@ function addFilterInput(
 	item.appendChild(replaceEl);
 
 	const flagField = new TextComponent(el);
+
 	flagField
 		.setPlaceholder("flags")
 		.setValue(filter.flags)
@@ -62,9 +65,11 @@ function addFilterInput(
 	const removeButton = new ButtonComponent(el);
 	removeButton.setIcon("minus");
 	removeButton.setTooltip("Remove filter");
+
 	removeButton.onClick(async () => {
 		plugin.settings.customFilters.splice(idx, 1);
 		el.empty();
+
 		for (let i = 0; i < plugin.settings.customFilters.length; i++) {
 			addFilterInput(plugin.settings.customFilters[i], el, i, plugin);
 		}

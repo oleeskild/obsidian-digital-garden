@@ -73,6 +73,7 @@ export default class DigitalGarden extends Plugin {
 		await this.addCommands();
 
 		addIcon("digital-garden-icon", seedling);
+
 		this.addRibbonIcon(
 			"digital-garden-icon",
 			"Digital Garden Publication Center",
@@ -104,12 +105,14 @@ export default class DigitalGarden extends Plugin {
 				new Notice("Adding publish flag to note and publishing it.");
 				await this.addPublishFlag();
 				const activeFile = this.app.workspace.getActiveFile();
+
 				const event = this.app.metadataCache.on(
 					"changed",
 					async (file, _data, _cache) => {
 						if (file.path === activeFile?.path) {
 							const successfullyPublished =
 								await this.publishSingleNote();
+
 							if (successfullyPublished) {
 								await this.copyGardenUrlToClipboard();
 							}
@@ -138,18 +141,22 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish Multiple Notes",
 			callback: async () => {
 				const statusBarItem = this.addStatusBarItem();
+
 				try {
 					new Notice("Processing files to publish...");
 					const { vault, metadataCache } = this.app;
+
 					const publisher = new Publisher(
 						vault,
 						metadataCache,
 						this.settings,
 					);
+
 					const siteManager = new DigitalGardenSiteManager(
 						metadataCache,
 						this.settings,
 					);
+
 					const publishStatusManager = new PublishStatusManager(
 						siteManager,
 						publisher,
@@ -157,11 +164,13 @@ export default class DigitalGarden extends Plugin {
 
 					const publishStatus =
 						await publishStatusManager.getPublishStatus();
+
 					const filesToPublish = publishStatus.changedNotes.concat(
 						publishStatus.unpublishedNotes,
 					);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
+
 					const statusBar = new PublishStatusBar(
 						statusBarItem,
 						filesToPublish.length +
@@ -172,27 +181,32 @@ export default class DigitalGarden extends Plugin {
 					let errorFiles = 0;
 					let errorDeleteFiles = 0;
 					let errorDeleteImage = 0;
+
 					new Notice(
 						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`,
 						8000,
 					);
+
 					for (const file of filesToPublish) {
 						try {
 							statusBar.increment();
 							await publisher.publish(file);
 						} catch {
 							errorFiles++;
+
 							new Notice(
 								`Unable to publish note ${file.name}, skipping it.`,
 							);
 						}
 					}
+
 					for (const filePath of filesToDelete) {
 						try {
 							statusBar.increment();
 							await publisher.deleteNote(filePath);
 						} catch {
 							errorDeleteFiles++;
+
 							new Notice(
 								`Unable to delete note ${filePath}, skipping it.`,
 							);
@@ -205,6 +219,7 @@ export default class DigitalGarden extends Plugin {
 							await publisher.deleteImage(filePath);
 						} catch {
 							errorDeleteImage++;
+
 							new Notice(
 								`Unable to delete image ${filePath}, skipping it.`,
 							);
@@ -212,11 +227,13 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					statusBar.finish(8000);
+
 					new Notice(
 						`Successfully published ${
 							filesToPublish.length - errorFiles
 						} notes to your garden.`,
 					);
+
 					if (filesToDelete.length > 0) {
 						new Notice(
 							`Successfully deleted ${
@@ -224,6 +241,7 @@ export default class DigitalGarden extends Plugin {
 							} notes from your garden.`,
 						);
 					}
+
 					if (imagesToDelete.length > 0) {
 						new Notice(
 							`Successfully deleted ${
@@ -234,6 +252,7 @@ export default class DigitalGarden extends Plugin {
 				} catch (e) {
 					statusBarItem.remove();
 					console.error(e);
+
 					new Notice(
 						"Unable to publish multiple notes, something went wrong.",
 					);
@@ -270,10 +289,12 @@ export default class DigitalGarden extends Plugin {
 		try {
 			const { metadataCache, workspace } = this.app;
 			const currentFile = workspace.getActiveFile();
+
 			if (!currentFile) {
 				new Notice(
 					"No file is open/active. Please open a file and try again.",
 				);
+
 				return;
 			}
 
@@ -287,6 +308,7 @@ export default class DigitalGarden extends Plugin {
 			new Notice(`Note URL copied to clipboard`);
 		} catch (e) {
 			console.log(e);
+
 			new Notice(
 				"Unable to copy note URL to clipboard, something went wrong.",
 			);
@@ -298,20 +320,25 @@ export default class DigitalGarden extends Plugin {
 			const { vault, workspace, metadataCache } = this.app;
 
 			const currentFile = workspace.getActiveFile();
+
 			if (!currentFile) {
 				new Notice(
 					"No file is open/active. Please open a file and try again.",
 				);
+
 				return;
 			}
+
 			if (currentFile.extension !== "md") {
 				new Notice(
 					"The current file is not a markdown file. Please open a markdown file and try again.",
 				);
+
 				return;
 			}
 
 			new Notice("Publishing note...");
+
 			const publisher = new Publisher(
 				vault,
 				metadataCache,
@@ -322,19 +349,24 @@ export default class DigitalGarden extends Plugin {
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
 			}
+
 			return publishSuccessful;
 		} catch (e) {
 			console.error(e);
 			new Notice("Unable to publish note, something went wrong.");
+
 			return false;
 		}
 	}
 	async addPublishFlag() {
 		const activeFile = this.app.workspace.getActiveFile();
+
 		if (activeFile === null) {
 			new Notice("No active file!");
+
 			return;
 		}
+
 		const engine = new ObsidianFrontMatterEngine(
 			this.app.vault,
 			this.app.metadataCache,
@@ -349,15 +381,18 @@ export default class DigitalGarden extends Plugin {
 				this.app.metadataCache,
 				this.settings,
 			);
+
 			const publisher = new Publisher(
 				this.app.vault,
 				this.app.metadataCache,
 				this.settings,
 			);
+
 			const publishStatusManager = new PublishStatusManager(
 				siteManager,
 				publisher,
 			);
+
 			this.publishModal = new PublishModal(
 				this.app,
 				publishStatusManager,
