@@ -10,10 +10,10 @@
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
 		"prepare": "husky install",
-		"lint": "eslint . --ext .ts,.svelte",
-		"lint-fix": "eslint .  --fix  --ext .ts,.svelte",
+		"lint": "eslint . --ext .ts --ext .svelte",
+		"lint-fix": "eslint .  --fix  --ext .ts --ext .svelte",
 		"format": "prettier --write .",
-		"check-formatting": "prettier --check . *.ts,*.svelte",
+		"check-formatting": "prettier --check .",
 		"typecheck": "tsc"
 	},
 	"keywords": [],
