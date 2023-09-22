@@ -40,10 +40,12 @@
 		dispatch("toggle", { node: e.detail.node });
 	};
 
-	const setIndeterminate = (node: HTMLInputElement, params: { indeterminate: boolean }) => {
+	const setIndeterminate = (
+		node: HTMLInputElement,
+		params: { indeterminate: boolean },
+	) => {
 		node.indeterminate = params.indeterminate;
-	}
-
+	};
 
 	const showDiff = (e: MouseEvent) => {
 		e.stopPropagation();
@@ -71,7 +73,9 @@
 							type="checkbox"
 							data-label={tree.name}
 							checked={tree.checked}
-							use:setIndeterminate={{ indeterminate: tree.indeterminate }}
+							use:setIndeterminate={{
+								indeterminate: tree.indeterminate,
+							}}
 							on:click={toggleCheck}
 						/>
 					{/if}
@@ -82,7 +86,9 @@
 							type="checkbox"
 							data-label={tree.name}
 							checked={tree.checked}
-							use:setIndeterminate={{ indeterminate: tree.indeterminate }}
+							use:setIndeterminate={{
+								indeterminate: tree.indeterminate,
+							}}
 							on:click={toggleCheck}
 						/>
 					{/if}
@@ -111,7 +117,9 @@
 						type="checkbox"
 						data-label={tree.name}
 						checked={tree.checked}
-						use:setIndeterminate={{ indeterminate: tree.indeterminate }}
+						use:setIndeterminate={{
+							indeterminate: tree.indeterminate,
+						}}
 						on:click={toggleCheck}
 					/>
 				{/if}
