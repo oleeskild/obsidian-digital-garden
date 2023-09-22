@@ -10,10 +10,10 @@
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",
 		"prepare": "husky install",
-		"lint": "eslint . --ext .ts",
-		"lint-fix": "eslint .  --fix  --ext .ts",
+		"lint": "eslint . --ext .ts,.svelte",
+		"lint-fix": "eslint .  --fix  --ext .ts,.svelte",
 		"format": "prettier --write .",
-		"check-formatting": "prettier --check . *.ts",
+		"check-formatting": "prettier --check . *.ts,*.svelte",
 		"typecheck": "tsc"
 	},
 	"keywords": [],
@@ -58,8 +58,7 @@
 		"js-base64": "^3.7.5",
 		"luxon": "^3.4.3",
 		"lz-string": "^1.5.0",
-		"obsidian-dataview": "^0.5.56",
-		"svelte-check": "^3.5.2"
+		"obsidian-dataview": "^0.5.56"
 	},
 	"lint-staged": {
 		"*.{ts}": [

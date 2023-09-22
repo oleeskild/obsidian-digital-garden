@@ -32,7 +32,7 @@
 			}
 
 			let childNode = currentNode.children.find(
-				(child) => child.name === part
+				(child) => child.name === part,
 			);
 
 			if (!childNode) {
@@ -52,7 +52,7 @@
 
 	function filePathsToTree(
 		filePaths: string[],
-		rootName: string = "root"
+		rootName: string = "root",
 	): TreeNode {
 		const root: TreeNode = {
 			name: rootName,
@@ -67,7 +67,6 @@
 		}
 		return root;
 	}
-
 
 	const rotatingCog = () => {
 		let cog = getIcon("cog");
@@ -87,14 +86,14 @@
 	$: publishedNotesTree = publishStatus
 		? filePathsToTree(
 				publishStatus.publishedNotes.map((note) => note.path),
-				"Published Notes"
+				"Published Notes",
 		  )
 		: null;
 
 	$: changedNotesTree = publishStatus
 		? filePathsToTree(
 				publishStatus.changedNotes.map((note) => note.path),
-				"Changed Notes"
+				"Changed Notes",
 		  )
 		: null;
 
@@ -105,11 +104,16 @@
 	$: unpublishedNoteTree = publishStatus
 		? filePathsToTree(
 				publishStatus.unpublishedNotes.map((note) => note.path),
-				"Unpublished Notes"
+				"Unpublished Notes",
 		  )
 		: null;
 
-	$: publishProgress = ((publishedPaths.length + failedPublish.length)/(unpublishedToPublish.length + changedToPublish.length + pathsToDelete.length))*100;
+	$: publishProgress =
+		((publishedPaths.length + failedPublish.length) /
+			(unpublishedToPublish.length +
+				changedToPublish.length +
+				pathsToDelete.length)) *
+		100;
 	const traverseTree = (tree: TreeNode): Array<string> => {
 		const paths: Array<string> = [];
 		if (tree.children) {
@@ -142,12 +146,12 @@
 
 		unpublishedToPublish =
 			publishStatus?.unpublishedNotes.filter((note) =>
-				unpublishedPaths.includes(note.path)
+				unpublishedPaths.includes(note.path),
 			) ?? [];
 
 		changedToPublish =
 			publishStatus?.changedNotes.filter((note) =>
-				changedPaths.includes(note.path)
+				changedPaths.includes(note.path),
 			) ?? [];
 
 		showPublishingView = true;
@@ -156,24 +160,22 @@
 			processingPaths.push(note.path);
 			let isPublished = await publisher.publish(note);
 			processingPaths = processingPaths.filter(
-				(path) => path !== note.path
+				(path) => path !== note.path,
 			);
-			if(isPublished){
+			if (isPublished) {
 				publishedPaths = [...publishedPaths, note.path];
-			}else{
+			} else {
 				failedPublish = [...failedPublish, note.path];
 			}
-
 		}
 
 		for (const path of pathsToDelete) {
 			processingPaths.push(path);
 			let isDeleted = await publisher.deleteNote(path);
 			processingPaths = processingPaths.filter((p) => p !== path);
-			if(isDeleted){
+			if (isDeleted) {
 				publishedPaths = [...publishedPaths, path];
-			}
-			else{
+			} else {
 				failedPublish = [...failedPublish, path];
 			}
 		}
@@ -215,27 +217,30 @@
 		<hr class="footer-separator" />
 
 		<div class="footer">
-			<button on:click={publishMarkedNotes}
-				>PUBLISH SELECTED</button
-			>
+			<button on:click={publishMarkedNotes}>PUBLISH SELECTED</button>
 		</div>
 	{:else}
 		<div>
 			<div class="callout">
-				<div class="callout-title-inner">
-					Publishing Notes
-				</div>
+				<div class="callout-title-inner">Publishing Notes</div>
 				<div>
-					{`${publishedPaths.length} of ${unpublishedToPublish.length + changedToPublish.length + pathsToDelete.length} notes published`} 
+					{`${publishedPaths.length} of ${
+						unpublishedToPublish.length +
+						changedToPublish.length +
+						pathsToDelete.length
+					} notes published`}
 				</div>
-				
+
 				{#if failedPublish.length > 0}
-				 <div>
-					{`(${failedPublish.length} failed)`}
-				 </div>
+					<div>
+						{`(${failedPublish.length} failed)`}
+					</div>
 				{/if}
 				<div class="loading-container">
-					<div class="loading-bar" style="width: {publishProgress}%"></div>	
+					<div
+						class="loading-bar"
+						style="width: {publishProgress}%"
+					></div>
 				</div>
 			</div>
 
@@ -277,9 +282,7 @@
 			<hr class="footer-separator" />
 
 			<div class="footer">
-				<button on:click={close}
-					>DONE</button
-				>
+				<button on:click={close}>DONE</button>
 			</div>
 		</div>
 	{/if}
@@ -311,7 +314,7 @@
 		background-color: var(--interactive-accent);
 		color: var(--text-on-accent);
 		cursor: pointer;
-		font-weight: bold;;
+		font-weight: bold;
 	}
 	.loading-container {
 		width: 100%;
@@ -319,15 +322,15 @@
 		margin-top: 10px;
 	}
 
-	.loading-bar{
+	.loading-bar {
 		background-color: var(--interactive-accent);
 		height: 100%;
 		transition: all 0.5s ease-in-out;
 	}
-	.published{
+	.published {
 		color: #8bff8b;
 	}
-	.deleted{
+	.deleted {
 		color: #ff5757;
 	}
 </style>
