@@ -17,6 +17,8 @@ node_modules
 
 # obsidian
 data.json
+!src/dg-testVault/.obsidian/plugins/obsidian-excalidraw-plugin/data.json
+!src/dg-testVault/.obsidian/plugins/dataview/data.json
 deploy.ps1
 deploy.sh
 

@@ -1,7 +1,7 @@
 ---
 dg-publish: true
 ---
-This garden is not yet publishable. Need some sort of secret management first. 
+To use this test garden, add a test garden token / username / repo to `.env` (see README.md)
 
-Optimally this would be the meta-staging area of the plugin itself. WILD! 
+Next step is some sort of snapshot testing! 
 
