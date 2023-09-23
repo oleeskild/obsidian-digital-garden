@@ -4,9 +4,9 @@ dg-publish: true
 With the rewrite rules: 
 
 ```
-F Folder:
+Path Rewriting:
 Subfolder:subfolder-rewritten
-F Folder/Subfolder:this-will-never-hit
+Path Rewriting/Subfolder:this-will-never-hit
 ```
 
 Will this file be in folder `subfolder-rewritten` or in `Subfolder`?

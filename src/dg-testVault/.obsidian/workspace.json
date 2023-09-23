@@ -81,7 +81,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "008 Pinned note.md",
+                "file": "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
                 "mode": "source",
                 "source": false
               }
@@ -178,7 +178,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "008 Pinned note.md",
+                "file": "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -195,7 +195,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "008 Pinned note.md",
+                "file": "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -218,7 +218,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "008 Pinned note.md"
+                "file": "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md"
               }
             }
           }
@@ -243,18 +243,18 @@
   },
   "active": "4b6a141c3f114ab9",
   "lastOpenFiles": [
-    "007 Custom permalink.md",
+    "Path Rewriting/Subfolder2/More specific path rewriting.md",
+    "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
+    "Path Rewriting/004 Folder set to root.md",
     "008 Pinned note.md",
+    "007 Custom permalink.md",
     "006 Custom title.md",
     "001 Links.md",
     "002 Hidden page.md",
     "003 Non published page.md",
     "004 Publishing this garden.md",
     "000 Home.md",
-    "Path Rewriting/Subfolder2/More specific path rewriting.md",
-    "Path Rewriting/004 Folder set to root.md",
     "Path Rewriting/F01 Note in folder!.md",
-    "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
     "Path Rewriting/Subfolder2",
     "P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md",
     "Path Rewriting/Subfolder",

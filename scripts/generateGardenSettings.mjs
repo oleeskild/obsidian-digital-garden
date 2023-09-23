@@ -31,7 +31,11 @@ const gardenSettings = {
 	updatedTimestampKey: "dg-updated",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 	styleSettingsCss: "",
-	pathRewriteRules: "F Folder:",
+	pathRewriteRules: `
+Path Rewriting/Subfolder2:fun-folder
+Path Rewriting:
+Subfolder:subfolder-rewritten
+Path Rewriting/Subfolder:this-will-never-hit`,
 	customFilters: [
 		{
 			pattern: "❄️",
@@ -52,6 +56,7 @@ const gardenSettings = {
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
+	ENABLE_DEVELOPER_TOOLS: true
 };
 
 const TEST_VAULT_PATH =

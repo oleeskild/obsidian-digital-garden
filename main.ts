@@ -8,6 +8,10 @@ import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
+import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
+
+import dotenv from "dotenv";
+dotenv.config();
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
@@ -133,6 +137,21 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
+		if (this.settings["ENABLE_DEVELOPER_TOOLS"]) {
+			this.addCommand({
+				id: "generate-garden-snapshot",
+				name: "Generate Garden Snapshot",
+				callback: async () => {
+					const publisher = new Publisher(
+						this.app.vault,
+						this.app.metadataCache,
+						this.settings,
+					);
+					await generateGardenSnapshot(publisher);
+				},
+			});
+		}
+
 		this.addCommand({
 			id: "publish-multiple-notes",
 			name: "Publish Multiple Notes",
@@ -146,6 +165,7 @@ export default class DigitalGarden extends Plugin {
 						metadataCache,
 						this.settings,
 					);
+
 					const siteManager = new DigitalGardenSiteManager(
 						metadataCache,
 						this.settings,
@@ -354,6 +374,7 @@ export default class DigitalGarden extends Plugin {
 				this.app.metadataCache,
 				this.settings,
 			);
+
 			const publishStatusManager = new PublishStatusManager(
 				siteManager,
 				publisher,
