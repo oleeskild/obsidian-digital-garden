@@ -138,16 +138,16 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		if (this.settings["ENABLE_DEVELOPER_TOOLS"]) {
+			const publisher = new Publisher(
+				this.app.vault,
+				this.app.metadataCache,
+				this.settings,
+			);
 			this.addCommand({
 				id: "generate-garden-snapshot",
 				name: "Generate Garden Snapshot",
 				callback: async () => {
-					const publisher = new Publisher(
-						this.app.vault,
-						this.app.metadataCache,
-						this.settings,
-					);
-					await generateGardenSnapshot(publisher);
+					await generateGardenSnapshot(this.settings, publisher);
 				},
 			});
 		}

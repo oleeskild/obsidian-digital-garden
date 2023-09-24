@@ -15,6 +15,15 @@ Hopefully in the future it can be part of automated testing too! Say, snapshot t
 
 > [!info] See README for instructions on adding info to .env for testing
 
+
+## Snapshot tests
+
+This test vault enables snapshot testing of the garden compilation! To generate the snapshot: 
+
+- run `Generate Garden Snapshot` from the command palette
+- Snapshot generation is also run on plugin load. 
+
+Ideally this would be 
 ## Plugins 
 
 This garden should have the following plugins 

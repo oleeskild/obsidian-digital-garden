@@ -72,6 +72,19 @@ Hello! I'm a pinned note (should be at the top yeah!)
 [Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ---
+{"dg-publish":true,"permalink":"/001-links/"}
+---
+
+[[002 Hidden page\|002 Hidden page]]
+
+[[003 Non published page\|003 Non published page]]
+
+[[000 Home\| Aliased link to home]]
+
+[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
+
+
+---
 {"dg-publish":true,"permalink":"/005-custom-filters/"}
 ---
 
@@ -88,7 +101,6 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 To use this test garden, add a test garden token / username / repo to `.env` (see README.md)
 
-Next step is some sort of snapshot testing! 
 
 
 ---
@@ -96,19 +108,6 @@ Next step is some sort of snapshot testing!
 ---
 
 This page is hidden from the folder tree!
----
-{"dg-publish":true,"permalink":"/001-links/"}
----
-
-[[002 Hidden page\|002 Hidden page]]
-
-[[003 Non published page\|003 Non published page]]
-
-[[000 Home\| Aliased link to home]]
-
-[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
-
-
 ---
 {"dg-publish":true,"permalink":"/000-home/","tags":["gardenEntry"]}
 ---
@@ -126,6 +125,15 @@ Hopefully in the future it can be part of automated testing too! Say, snapshot t
 
 > [!info] See README for instructions on adding info to .env for testing
 
+
+## Snapshot tests
+
+This test vault enables snapshot testing of the garden compilation! To generate the snapshot: 
+
+- run `Generate Garden Snapshot` from the command palette
+- Snapshot generation is also run on plugin load. 
+
+Ideally this would be 
 ## Plugins 
 
 This garden should have the following plugins 

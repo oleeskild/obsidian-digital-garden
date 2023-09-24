@@ -49,4 +49,5 @@ export default interface DigitalGardenSettings {
 		dgShowTags: boolean;
 	};
 	ENABLE_DEVELOPER_TOOLS?: boolean;
+	devPluginPath?: string;
 }

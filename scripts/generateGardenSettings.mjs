@@ -56,11 +56,13 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
-	ENABLE_DEVELOPER_TOOLS: true
+	ENABLE_DEVELOPER_TOOLS: true,
+	devPluginPath: `${process.cwd()}`,
 };
-
+console.log(gardenSettings.devPluginPath)
 const TEST_VAULT_PATH =
 	"src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/";
+
 console.log("Creating test vault data.json");
 // write garden settings to test vault
 fs.writeFile(
