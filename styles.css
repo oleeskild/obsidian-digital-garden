@@ -1,3 +1,8 @@
+button:disabled {
+	pointer-events: none;
+	opacity: 0.4;
+}
+
 .digital-garden-publish-status-view ul {
 	list-style-type: none;
 	position: relative;
