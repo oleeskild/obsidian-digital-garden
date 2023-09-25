@@ -13,9 +13,6 @@ import { FRONTMATTER_KEYS } from "./src/models/frontMatter";
 import dotenv from "dotenv";
 dotenv.config();
 
-
-
-
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
 	githubToken: "",
@@ -149,6 +146,7 @@ export default class DigitalGarden extends Plugin {
 				this.app.metadataCache,
 				this.settings,
 			);
+
 			this.addCommand({
 				id: "generate-garden-snapshot",
 				name: "Generate Garden Snapshot",
@@ -325,12 +323,15 @@ export default class DigitalGarden extends Plugin {
 
 	private getActiveFile(workspace: Workspace) {
 		const activeFile = workspace.getActiveFile();
+
 		if (!activeFile) {
 			new Notice(
 				"No file is open/active. Please open a file and try again.",
 			);
+
 			return null;
 		}
+
 		return activeFile;
 	}
 
@@ -365,12 +366,12 @@ export default class DigitalGarden extends Plugin {
 		try {
 			const { vault, workspace, metadataCache } = this.app;
 
-
 			const activeFile = this.getActiveFile(workspace);
 
 			if (!activeFile) {
 				return;
 			}
+
 			if (activeFile.extension !== "md") {
 				new Notice(
 					"The current file is not a markdown file. Please open a markdown file and try again.",
@@ -407,6 +408,7 @@ export default class DigitalGarden extends Plugin {
 		if (!activeFile) {
 			return;
 		}
+
 		const engine = new ObsidianFrontMatterEngine(
 			this.app.vault,
 			this.app.metadataCache,
@@ -426,6 +428,7 @@ export default class DigitalGarden extends Plugin {
 			this.app.metadataCache,
 			activeFile,
 		);
+
 		engine
 			.set(
 				FRONTMATTER_KEYS.PUBLISH,

@@ -117,6 +117,7 @@ export default class SettingView {
 			)
 			.addButton((cb) => {
 				cb.setButtonText("Manage Rewrite Rules");
+
 				cb.onClick(() => {
 					this.openPathRewriteRulesModal();
 				});
@@ -832,6 +833,7 @@ export default class SettingView {
 		);
 		const rewriteRulesModal = new Modal(this.app);
 		rewriteRulesModal.open();
+
 		const modalContent: RewriteSettings = new RewriteSettings({
 			target: rewriteRulesModal.contentEl,
 			props: {

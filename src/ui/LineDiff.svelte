@@ -1,5 +1,6 @@
 <script lang="ts">
-	export let diff: any[];
+	import * as Diff from "diff";
+	export let diff: Diff.Change[];
 </script>
 
 <div>

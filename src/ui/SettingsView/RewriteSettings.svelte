@@ -21,8 +21,9 @@
 
 		const paths = await getPathsForRewriteRules(
 			newPathRewriteRules,
-			settings.pathRewriteRules
+			settings.pathRewriteRules,
 		);
+
 		diff = paths
 			.map((path) => diffLines(path.oldPath, path.newPath))
 			// filter non-changed
@@ -31,16 +32,18 @@
 
 	const getPathsForRewriteRules = async (
 		newRules: string,
-		oldRules: string
+		oldRules: string,
 	) => {
 		const newRewriteRules = getRewriteRules(newRules);
 		const oldRewriteRules = getRewriteRules(oldRules);
 		const files = await publisher.getFilesMarkedForPublishing();
+
 		const paths = files.notes.map((note) => ({
 			id: note.path,
 			newPath: getGardenPathForNote(note.path, newRewriteRules),
 			oldPath: getGardenPathForNote(note.path, oldRewriteRules),
 		}));
+
 		return paths;
 	};
 </script>
