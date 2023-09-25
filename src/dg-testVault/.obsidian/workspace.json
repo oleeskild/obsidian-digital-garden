@@ -167,6 +167,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+
                 "file": "000 Home.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true

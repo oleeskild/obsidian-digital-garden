@@ -1,26 +1,25 @@
-import DigitalGardenSettings from "../../models/settings";
+import { Octokit } from "@octokit/core";
+import axios from "axios";
 import {
 	App,
 	ButtonComponent,
+	debounce,
+	getIcon,
 	MetadataCache,
 	Modal,
 	Notice,
 	Setting,
 	TFile,
-	debounce,
-	getIcon,
 } from "obsidian";
-import axios from "axios";
-import { Octokit } from "@octokit/core";
-import {
-	arrayBufferToBase64,
-	getGardenPathForNote,
-	getRewriteRules,
-} from "../../utils/utils";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
+
+import DigitalGardenSettings from "../../models/settings";
+import Publisher from "../../publisher/Publisher";
+import { arrayBufferToBase64 } from "../../utils/utils";
 import { SvgFileSuggest } from "../suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
+import RewriteSettings from "./RewriteSettings.svelte";
 
 interface IObsidianTheme {
 	name: string;
@@ -110,7 +109,18 @@ export default class SettingView {
 		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
 			.prepend(this.getIcon("cog"));
-		this.initializePathRewriteSettings();
+
+		new Setting(this.settingsRootElement)
+			.setName("Path Rewrite Rules")
+			.setDesc(
+				"Define rules to rewrite note folder structure in the garden. See the modal for more information.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Manage Rewrite Rules");
+				cb.onClick(() => {
+					this.openPathRewriteRulesModal();
+				});
+			});
 		this.initializeCustomFilterSettings();
 		prModal.titleEl.createEl("h1", "Site template settings");
 	}
@@ -814,113 +824,26 @@ export default class SettingView {
 			);
 	}
 
-	private initializePathRewriteSettings() {
-		const rewriteRulesModal = new Modal(this.app);
-
-		rewriteRulesModal.titleEl.createEl("h1", {
-			text: "Path Rewrite Rules",
-		});
-		rewriteRulesModal.modalEl.style.width = "fit-content";
-
-		new Setting(this.settingsRootElement)
-			.setName("Path Rewrite Rules")
-			.setDesc(
-				"Define rules to rewrite note folder structure in the garden. See the modal for more information.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage Rewrite Rules");
-
-				cb.onClick(() => {
-					rewriteRulesModal.open();
-				});
-			});
-
-		const rewriteSettingContainer = rewriteRulesModal.contentEl.createEl(
-			"div",
-			{
-				attr: {
-					class: "",
-					style: "align-items:flex-start; flex-direction: column;",
-				},
-			},
+	private openPathRewriteRulesModal() {
+		const publisher = new Publisher(
+			this.app.vault,
+			this.app.metadataCache,
+			this.settings,
 		);
-
-		rewriteSettingContainer.createEl("div", {
-			text: `Define rules to rewrite note paths/folder structure, using following syntax:`,
-		});
-
-		const list = rewriteSettingContainer.createEl("ol");
-		list.createEl("li", { text: `One rule-per line` });
-
-		list.createEl("li", {
-			text: `The format is [from_vault_path]:[to_garden_path]`,
-		});
-		list.createEl("li", { text: `Matching will exit on first match` });
-
-		rewriteSettingContainer.createEl("div", {
-			text: `Example: If you want the vault folder "Personal/Journal" to be shown as only "Journal" in the left file sidebar in the garden, add the line "Personal/Journal:Journal"`,
-			attr: { class: "setting-item-description" },
-		});
-
-		rewriteSettingContainer.createEl("div", {
-			text: `Note: rewriting a folder to the base path "[from_vault_path]:" is not supported at the moment.`,
-			attr: { class: "setting-item-description" },
-		});
-
-		rewriteSettingContainer.createEl("div", {
-			text: `Any affected notes will show up as changed in the publication center`,
-			attr: { class: "setting-item-description" },
-		});
-
-		new Setting(rewriteSettingContainer)
-			.setName("Rules")
-			.addTextArea((field) => {
-				field.setPlaceholder("Personal/Journal:Journal");
-				field.inputEl.rows = 5;
-				field.inputEl.cols = 100;
-
-				field
-					.setValue(this.settings.pathRewriteRules)
-					.onChange(async (value) => {
-						this.settings.pathRewriteRules = value;
-						await this.saveSettings();
-					});
-			});
-
-		rewriteSettingContainer.createEl("div", {
-			text: `Type a path below to test that your rules are working as expected`,
-			attr: { class: "test-rewrite-rules-description" },
-		});
-
-		const rewriteSettingsPreviewContainer =
-			rewriteSettingContainer.createEl("div", {
-				attr: {
-					style: "display: flex; align-items: center; margin-top: 10px;",
-				},
-			});
-
-		const previewInput = rewriteSettingsPreviewContainer.createEl("input", {
-			attr: {
-				type: "text",
-				placeholder: "type a vault path",
-				style: "margin-right: 10px;",
+		const rewriteRulesModal = new Modal(this.app);
+		rewriteRulesModal.open();
+		const modalContent: RewriteSettings = new RewriteSettings({
+			target: rewriteRulesModal.contentEl,
+			props: {
+				publisher,
+				settings: this.settings,
+				closeModal: () => rewriteRulesModal.close(),
 			},
 		});
 
-		previewInput.addEventListener("input", () => {
-			const testPath = previewInput.value;
-
-			const rewriteTestResult = getGardenPathForNote(
-				testPath,
-				getRewriteRules(this.settings.pathRewriteRules),
-			);
-			testResultDiv.innerHTML = `Garden path: "${rewriteTestResult}"`;
-		});
-
-		const testResultDiv = rewriteSettingsPreviewContainer.createEl("div", {
-			text: `Garden path: ""`,
-			attr: { class: "test-rewrite-rules-new-path" },
-		});
+		rewriteRulesModal.onClose = () => {
+			modalContent.$destroy();
+		};
 	}
 
 	private initializeCustomFilterSettings() {
