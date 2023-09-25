@@ -31,7 +31,11 @@ const gardenSettings = {
 	updatedTimestampKey: "dg-updated",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 	styleSettingsCss: "",
-	pathRewriteRules: "F Folder:",
+	pathRewriteRules: `
+Path Rewriting/Subfolder2:fun-folder
+Path Rewriting:
+Subfolder:subfolder-rewritten
+Path Rewriting/Subfolder:this-will-never-hit`,
 	customFilters: [
 		{
 			pattern: "❄️",
@@ -52,10 +56,13 @@ const gardenSettings = {
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
+	ENABLE_DEVELOPER_TOOLS: true,
+	devPluginPath: `${process.cwd()}`,
 };
-
+console.log(gardenSettings.devPluginPath)
 const TEST_VAULT_PATH =
 	"src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/";
+
 console.log("Creating test vault data.json");
 // write garden settings to test vault
 fs.writeFile(

@@ -75,8 +75,12 @@
             "id": "aaee9d4c117794c3",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {}
+              "type": "markdown",
+              "state": {
+                "file": "000 Home.md",
+                "mode": "source",
+                "source": false
+              }
             }
           }
         ],
@@ -146,6 +150,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "000 Home.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -162,6 +167,8 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+
+                "file": "000 Home.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -183,7 +190,9 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {}
+              "state": {
+                "file": "000 Home.md"
+              }
             }
           }
         ]
@@ -207,33 +216,33 @@
   },
   "active": "aaee9d4c117794c3",
   "lastOpenFiles": [
-    "F Folder/F01 Note in folder!.md",
-    "F Folder/004 Folder set to root.md",
-    "F Folder",
-    "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
-    "Path Rewriting/Subfolder2/More specific path rewriting.md",
-    "Path Rewriting/004 Folder set to root.md",
-    "008 Pinned note.md",
-    "007 Custom permalink.md",
-    "006 Custom title.md",
-    "001 Links.md",
-    "002 Hidden page.md",
-    "003 Non published page.md",
     "004 Publishing this garden.md",
+    "003 Non published page.md",
     "000 Home.md",
-    "Path Rewriting/F01 Note in folder!.md",
+    "Path Rewriting/Subfolder2/More specific path rewriting.md",
+    "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
     "Path Rewriting/Subfolder2",
-    "P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md",
     "Path Rewriting/Subfolder",
+    "Path Rewriting/004 Folder set to root.md",
+    "Path Rewriting",
+    "P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md",
     "P Plugins/PD Dataview/PD1 Dataview.md",
-    "Excalidraw/Drawing 2023-09-23 22.41.09.excalidraw.md",
-    "Excalidraw",
     "P Plugins/PE Excalidraw",
     "P Plugins/PD Dataview",
     "P Plugins",
+    "Excalidraw/Drawing 2023-09-23 22.41.09.excalidraw.md",
+    "Excalidraw",
+    "008 Pinned note.md",
+    "007 Custom permalink.md",
+    "006 Custom title.md",
+    "F Folder/F01 Note in folder!.md",
+    "F Folder/004 Folder set to root.md",
+    "F Folder",
+    "001 Links.md",
+    "002 Hidden page.md",
+    "Path Rewriting/F01 Note in folder!.md",
     "005 Custom filters.md",
     "Folder/004 Folder set to root.md",
-    "Path Rewriting",
     "Folder"
   ]
 }

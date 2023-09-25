@@ -1,24 +1,23 @@
 <script lang="ts">
 	import Node from "./TreeNode.svelte";
 	import TreeNode from "src/models/TreeNode";
-	
+
 	export let tree: TreeNode;
 	export let readOnly: boolean = false;
 	export let enableShowDiff: boolean = false;
 	export let showDiff: (path: string) => void;
 
-
 	const treeMap: Record<string, TreeNode> = {
 		/* child label: parent node */
 	};
-	function initTreeMap(tree:TreeNode) {
+	function initTreeMap(tree: TreeNode) {
 		if (tree.children) {
 			for (const child of tree.children) {
 				treeMap[child.path] = tree;
 				initTreeMap(child);
 			}
 		}
-	};
+	}
 	initTreeMap(tree);
 
 	function rebuildChildren(node: TreeNode, checkAsParent = true) {
@@ -29,11 +28,15 @@
 			}
 			node.indeterminate =
 				node.children.some((c) => c.indeterminate) ||
-				(node.children.some((c) => !!c.checked) && node.children.some((c) => !c.checked));
+				(node.children.some((c) => !!c.checked) &&
+					node.children.some((c) => !c.checked));
 		}
-	};
+	}
 
-	function rebuildTree (e: {detail:{node: TreeNode}}, checkAsParent = true) {
+	function rebuildTree(
+		e: { detail: { node: TreeNode } },
+		checkAsParent = true,
+	) {
 		const node = e.detail.node;
 		let parent = treeMap[node.path];
 		rebuildChildren(node, checkAsParent);
@@ -44,7 +47,7 @@
 				parent.checked = true;
 			} else {
 				const haveCheckedOrIndetermine = parent?.children?.some(
-					(c) => !!c.checked || c.indeterminate
+					(c) => !!c.checked || c.indeterminate,
 				);
 				if (haveCheckedOrIndetermine) {
 					parent.indeterminate = true;
@@ -59,16 +62,17 @@
 		tree = tree;
 	}
 	// init the tree state
-	rebuildTree({detail: { node: tree }}, false);
+	rebuildTree({ detail: { node: tree } }, false);
 </script>
 
 <div>
-	<Node 
-	{tree} 
-	{readOnly} 
-	{enableShowDiff}
-	on:toggle={rebuildTree} 
-	on:showDiff={(e)=> showDiff(e.detail.node.path)} />
+	<Node
+		{tree}
+		{readOnly}
+		{enableShowDiff}
+		on:toggle={rebuildTree}
+		on:showDiff={(e) => showDiff(e.detail.node.path)}
+	/>
 </div>
 
 <style>

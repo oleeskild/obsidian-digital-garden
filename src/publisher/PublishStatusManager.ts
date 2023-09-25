@@ -17,6 +17,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 	async getDeletedNotePaths(): Promise<Array<string>> {
 		const remoteNoteHashes = await this.siteManager.getNoteHashes();
 		const marked = await this.publisher.getFilesMarkedForPublishing();
+
 		return this.generateDeletedContentPaths(
 			remoteNoteHashes,
 			marked.notes.map((f) => f.path),
@@ -26,6 +27,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 	async getDeletedImagesPaths(): Promise<Array<string>> {
 		const remoteImageHashes = await this.siteManager.getImageHashes();
 		const marked = await this.publisher.getFilesMarkedForPublishing();
+
 		return this.generateDeletedContentPaths(
 			remoteImageHashes,
 			marked.images,
@@ -37,6 +39,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		marked: string[],
 	): Array<string> {
 		const deletedContentPaths: Array<string> = [];
+
 		Object.keys(remoteNoteHashes).forEach((key) => {
 			if (!key.endsWith(".js") && !marked.find((f) => f === key)) {
 				deletedContentPaths.push(key);
@@ -53,11 +56,13 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const remoteNoteHashes = await this.siteManager.getNoteHashes();
 		const remoteImageHashes = await this.siteManager.getImageHashes();
 		const marked = await this.publisher.getFilesMarkedForPublishing();
+
 		for (const file of marked.notes) {
 			const [content, _] = await this.publisher.generateMarkdown(file);
 
 			const localHash = generateBlobHash(content);
 			const remoteHash = remoteNoteHashes[file.path];
+
 			if (!remoteHash) {
 				unpublishedNotes.push(file);
 			} else if (remoteHash === localHash) {
@@ -71,6 +76,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			remoteNoteHashes,
 			marked.notes.map((f) => f.path),
 		);
+
 		const deletedImagePaths = this.generateDeletedContentPaths(
 			remoteImageHashes,
 			marked.images,
@@ -79,6 +85,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		publishedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
 		changedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
 		deletedNotePaths.sort((a, b) => (a > b ? 1 : -1));
+
 		return {
 			unpublishedNotes,
 			publishedNotes,

@@ -49,9 +49,11 @@ export class PublishModal {
 
 	getIcon(name: string): Node {
 		const icon = getIcon(name) ?? document.createElement("span");
+
 		if (icon instanceof SVGSVGElement) {
 			icon.style.marginRight = "4px";
 		}
+
 		return icon;
 	}
 
@@ -61,12 +63,14 @@ export class PublishModal {
 				await this.siteManager.getNoteContent(notePath);
 			const localFile = this.vault.getAbstractFileByPath(notePath);
 			console.log(localFile);
+
 			if (localFile instanceof TFile) {
 				const [localContent, _] =
 					await this.publisher.generateMarkdown(localFile);
 				const diff = Diff.diffLines(remoteContent, localContent);
 				let diffView: DiffView | undefined;
 				const diffModal = new Modal(this.modal.app);
+
 				diffModal.titleEl
 					.createEl("span", { text: `${localFile.basename}` })
 					.prepend(this.getIcon("file-diff"));
@@ -77,6 +81,7 @@ export class PublishModal {
 						props: { diff: diff },
 					});
 				};
+
 				this.modal.onClose = () => {
 					if (diffView) {
 						diffView.$destroy();
@@ -96,6 +101,7 @@ export class PublishModal {
 
 		this.modal.onOpen = () => {
 			this.modal.contentEl.empty();
+
 			this.publicationCenterUi = new PublicationCenter({
 				target: this.modal.contentEl,
 				props: {

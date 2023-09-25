@@ -51,6 +51,7 @@ export default class DigitalGardenSiteManager {
 		}
 
 		let envSettings = "";
+
 		if (theme.name !== "default") {
 			envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`;
 		}
@@ -76,6 +77,7 @@ export default class DigitalGardenSiteManager {
 
 		let fileExists = true;
 		let currentFile = null;
+
 		try {
 			currentFile = await octokit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
@@ -108,6 +110,7 @@ export default class DigitalGardenSiteManager {
 			// caught in copyUrlToClipboard
 			throw new Error("Garden base url not set");
 		}
+
 		const baseUrl = `https://${extractBaseUrl(
 			this.settings.gardenBaseUrl,
 		)}`;
@@ -137,6 +140,7 @@ export default class DigitalGardenSiteManager {
 			path = path.substring(1);
 		}
 		const octokit = new Octokit({ auth: this.settings.githubToken });
+
 		const response = await octokit.request(
 			`GET /repos/{owner}/{repo}/contents/{path}`,
 			{
@@ -148,11 +152,13 @@ export default class DigitalGardenSiteManager {
 
 		// @ts-expect-error data is not yet type-guarded
 		const content = Base64.decode(response.data.content);
+
 		return content;
 	}
 
 	async getNoteHashes(): Promise<Record<string, string>> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
+
 		// Force the cache to be updated
 		const response = await octokit.request(
 			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
@@ -166,6 +172,7 @@ export default class DigitalGardenSiteManager {
 		);
 
 		const files = response.data.tree;
+
 		const notes: Array<{ path: string; sha: string }> = files.filter(
 			(x: { path: string; type: string }) =>
 				x.path.startsWith("src/site/notes/") &&
@@ -173,15 +180,18 @@ export default class DigitalGardenSiteManager {
 				x.path !== "src/site/notes/notes.json",
 		);
 		const hashes: Record<string, string> = {};
+
 		for (const note of notes) {
 			const vaultPath = note.path.replace("src/site/notes/", "");
 			hashes[vaultPath] = note.sha;
 		}
+
 		return hashes;
 	}
 
 	async getImageHashes(): Promise<Record<string, string>> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
+
 		// Force the cache to be updated
 		const response = await octokit.request(
 			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
@@ -195,17 +205,20 @@ export default class DigitalGardenSiteManager {
 		);
 
 		const files = response.data.tree;
+
 		const images: Array<{ path: string; sha: string }> = files.filter(
 			(x: { path: string; type: string }) =>
 				x.path.startsWith("src/site/img/user/") && x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
+
 		for (const img of images) {
 			const vaultPath = decodeURI(
 				img.path.replace("src/site/img/user/", ""),
 			);
 			hashes[vaultPath] = img.sha;
 		}
+
 		return hashes;
 	}
 
@@ -215,6 +228,7 @@ export default class DigitalGardenSiteManager {
 	 */
 	async createPullRequestWithSiteChanges(): Promise<string> {
 		const octokit = new Octokit({ auth: this.settings.githubToken });
+
 		const latestRelease = await octokit.request(
 			"GET /repos/{owner}/{repo}/releases/latest",
 			{
@@ -225,6 +239,7 @@ export default class DigitalGardenSiteManager {
 
 		const templateVersion = latestRelease.data.tag_name;
 		const uuid = crypto.randomUUID();
+
 		const branchName =
 			"update-template-to-v" + templateVersion + "-" + uuid;
 
@@ -246,6 +261,7 @@ export default class DigitalGardenSiteManager {
 			branchName,
 			templateVersion,
 		);
+
 		return prUrl;
 	}
 
@@ -299,6 +315,7 @@ export default class DigitalGardenSiteManager {
 						ref: branchName,
 					},
 				);
+
 				await octokit.request(
 					"DELETE /repos/{owner}/{repo}/contents/{path}",
 					{
@@ -334,6 +351,7 @@ export default class DigitalGardenSiteManager {
 
 			let currentFile = {};
 			let fileExists = true;
+
 			try {
 				currentFile = await octokit.request(
 					"GET /repos/{owner}/{repo}/contents/{path}",
@@ -351,6 +369,7 @@ export default class DigitalGardenSiteManager {
 			const fileHasChanged =
 				// @ts-expect-error data is not yet type-guarded
 				latestFile.data.sha !== currentFile?.data?.sha;
+
 			if (!fileExists || fileHasChanged) {
 				// commit
 				await octokit.request(
@@ -448,6 +467,7 @@ export default class DigitalGardenSiteManager {
 			// @ts-expect-error data is not yet type-guarded
 			Base64.decode(pluginInfoResponse.data.content),
 		);
+
 		return pluginInfo as DigitalGardenPluginInfo;
 	}
 }

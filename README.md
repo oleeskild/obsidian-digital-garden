@@ -82,13 +82,6 @@ In the future you will be notified with a visual cue whenever there is an update
 
 ---
 
-## Support
-
-This plugin is developed in my free time. If you've found it useful, it would make my day and boost my motivation to invest more time in it if you to showed your support by buying me a coffee.
-
-Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future.
-
-[<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
 
 ## Local development
 
@@ -112,3 +105,27 @@ GITHUB_USERNAME=
 ```
 
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
+
+
+## Join the Community
+
+Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/Z46n2RNX8e). 
+
+## Code Contributers
+
+Huge thanks to all the contributors who helped in making this
+
+<a href="https://github.com/oleeskild/obsidian-digital-garden/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=oleeskild/obsidian-digital-garden" />
+</a>
+
+---
+
+## Support
+
+This plugin is developed in my free time. If you've found it useful, it would make my day and boost my motivation to invest more time in it if you to showed your support by buying me a coffee.
+
+Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future.
+
+[<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
+

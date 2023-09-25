@@ -1,0 +1,417 @@
+.App {
+    font-family: sans-serif;
+    text-align: center;
+  }
+    
+  .excalidraw-wrapper {
+    height: 100%;
+    margin: 0px;
+    background-color: white;
+  }
+  
+  .context-menu-option__shortcut {
+      background-color: transparent !important;
+  }
+
+.block-language-excalidraw {
+  text-align:center;
+}
+
+.excalidraw .github-corner {
+  display: none;
+}
+
+.excalidraw-embedded-img {
+  width: 100%;
+}
+
+.excalidraw-svg-right-wrap {
+  float: right;
+  margin: 0px 0px 20px 20px;
+  width: 100%;
+}
+
+.excalidraw-svg-left-wrap {
+  float: left;
+  margin: 0px 35px 20px 0px;
+  width: 100%;
+}
+
+.excalidraw-svg-right {
+  float: right;
+}
+
+.excalidraw-svg-center {
+  text-align: center;
+  margin: auto;
+  width: 100%;
+}
+
+.excalidraw-svg-left {
+  float: left;
+}
+
+div.excalidraw-svg-right,
+div.excalidraw-svg-left {
+  display: table;
+  width: 100%;
+}
+
+button.ToolIcon_type_button[title="Export"] {
+  display:none;
+}
+
+.excalidraw-prompt-div {
+  display: flex;
+  max-width: 800px;
+}
+
+.excalidraw-prompt-form {
+  display: flex;
+  flex-grow: 1;
+}
+
+.excalidraw-prompt-input {
+  flex-grow: 1;
+}
+
+.excalidraw-prompt-button {
+  width: 9em;
+}
+
+.excalidraw-prompt-buttons-div {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: space-evenly;
+}
+
+li[data-testid] {
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+.excalidraw .context-menu-option-separator {
+  margin: 4px !important;
+}
+
+.excalidraw .popover {
+  padding: 0 !important;
+  border-color: transparent !important;
+  border: 0 !important;
+  box-shadow: 0 !important;
+  background-color: transparent !important;
+} 
+
+.excalidraw .popover {
+  position: fixed !important;
+}
+
+.disable-zen-mode--visible {
+  color: var(--text-primary-color);
+}
+
+.disable-zen-mode {
+  width: 9em !important;
+}
+
+.ex-coffee-div {
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.excalidraw-scriptengine-install td>img {
+  width: 100%;
+  max-width:800px;
+}
+
+.excalidraw-scriptengine-install img.coffee {
+  width: 130px;
+}
+
+.excalidraw-scriptengine-install tr {
+  vertical-align: top;
+}
+
+.excalidraw-scriptengine-install table {
+  max-width: 130ch;
+}
+
+.excalidraw-scriptengine-install td.label {
+  min-width: 11ch;
+  font-weight: bold;
+  padding-right: 5px;
+}
+
+.excalidraw-scriptengine-install td.data {
+  width: 100%;
+}
+
+.excalidraw-scriptengine-install .modal-content {
+  max-width: 130ch;
+  user-select: text;
+}
+
+.excalidraw-scriptengine-install .modal {
+  max-height:90%;
+  width: auto;
+}
+
+.excalidraw-prompt-center {
+  text-align: center !important;
+}
+
+.excalidraw-prompt-center button {
+  margin: 0 10px;
+}
+
+.excalidraw-prompt-center.filepath {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 2em;
+}
+
+.excalidraw-dirty {
+  color: red;
+}
+
+.workspace-leaf-content .excalidraw-view {
+  padding: 0px 1px; /*1px so on ipad swipe in from left and right still works*/
+  overflow: hidden;
+}
+
+.excalidraw-videoWrapper {
+  max-width:600px
+}
+.excalidraw-videoWrapper div {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  margin: 0 auto;
+}
+
+.excalidraw-videoWrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.excalidraw-release .modal-content{
+  padding-right: 5px;
+  margin-right: -5px;
+  user-select: text;
+}
+
+.excalidraw-release .modal {
+  max-height: 80%;
+  max-width: 42em;
+}
+
+.excalidraw .Island .scrollbar {
+  --scrollbar-thumb-bg: silver;
+}
+
+.excalidraw .ToolIcon__icon img{
+  height: 1em;
+}
+
+.excalidraw-scriptengine-install tbody>tr>td>div>img {
+  height:20px;
+  background-color: silver;
+  padding: 2px;
+}
+
+.excalidraw-scriptengine-install tbody>tr>td>div {
+  width: 50px;
+  display: inline-block;
+}
+
+.excalidraw-release p>a>img {
+  width: 100%
+}
+
+.excalidraw .context-menu-option {
+  box-shadow: none;
+}
+
+textarea.excalidraw-wysiwyg {
+  border: none;
+  outline: none;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  border-radius: 0;  
+}
+
+.is-tablet .excalidraw button,
+.is-mobile .excalidraw button {
+  padding: initial;
+  height: 1.8rem;
+}
+
+.excalidraw button,
+.ToolIcon button {
+  box-shadow: none;
+  justify-content: initial;
+}
+
+.excalidraw {
+  --default-button-size: 2rem !important;
+  --default-icon-size: 1rem !important;
+  --lg-button-size: 1.8rem !important;
+  --lg-icon-size: 1rem !important;
+}
+
+.excalidraw .tray-zoom {
+  pointer-events: initial;
+  padding-bottom: 0.05rem;
+  padding-top: 0.05rem;
+}
+
+.excalidraw-container.theme--dark {
+  background-color: #121212;
+  color: #fff;
+}
+
+/* https://discordapp.com/channels/686053708261228577/989603365606531104/1041266507256184863 */
+/*.workspace-leaf {
+	contain: none !important;
+}*/
+
+.color-picker-content {
+  overflow-y: auto;
+  max-height: 10rem;
+}
+
+.excalidraw .FixedSideContainer_side_top {
+  top: 0.3rem;
+}
+
+.excalidraw .ToolIcon__keybinding {
+  font-size: 0.45rem !important;
+}
+
+.Island > .Stack > .Stack {
+  padding:0.2rem;
+}
+
+label.color-input-container > input {
+  max-width: 5rem;
+}
+
+.excalidraw .FixedSideContainer_side_top {
+  left: 10px !important;
+  top: 10px !important;
+  right: 10px !important;
+  bottom: 10px !important;
+}
+
+.excalidraw-hidden {
+  display: none !important;
+}
+
+.excalidraw .panelColumn .buttonList {
+  max-width: 13rem;
+}
+
+.excalidraw button {
+  width: initial;
+}
+
+.excalidraw input[type="color"] {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.excalidraw input[type="color"]::-webkit-color-swatch {
+    height: 1.65rem;
+}
+
+
+.excalidraw input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.excalidraw-settings input {
+  min-width: 10em;
+}
+
+div.excalidraw-draginfo {
+  position: absolute;
+  z-index: 1000;
+  color: var(--text-normal);
+  padding: 3px;
+  background: var(--color-base-40);
+  display: block;
+  border-radius: 5px;
+}
+
+.excalidraw [data-radix-popper-content-wrapper] {
+  position: absolute !important;
+}
+
+.excalidraw__embeddable-container .view-header {
+  display: none !important;
+}
+
+.excalidraw__embeddable-container input {
+  background: initial;
+}
+
+.excalidraw .HelpDialog__key {
+  background-color: var(--color-gray-80) !important;
+}
+
+.excalidraw .embeddable-menu {
+    width: fit-content;
+    height: fit-content;
+    position: absolute;
+    display: block;
+    z-index: var(--zIndex-layerUI);
+}
+
+.excalidraw .welcome-screen-center__logo svg {
+  width: 5rem !important;
+}
+
+.excalidraw-image-wrapper {
+  text-align: center;
+}
+
+.excalidraw-image-wrapper img {
+  margin: auto;
+}
+
+.modal-content.excalidraw-scriptengine-install .search-bar-wrapper {
+  position: sticky;
+  top: 1em;
+  margin-right: 1em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  z-index: 10;
+  background: var(--background-secondary);
+  padding: 0.5em;
+  border-bottom: 1px solid var(--background-modifier-border);
+  float: right;
+  max-width: 28em;
+}
+
+.modal-content.excalidraw-scriptengine-install .hit-count {
+  margin-left: 0.5em;
+  white-space: nowrap;
+}
+
+.modal-content.excalidraw-scriptengine-install .active-highlight {
+  border: 2px solid var(--color-accent-2);
+  background-color: var(--color-accent);
+}
+
+.excalidraw-svg svg a {
+  text-decoration: none;
+}
