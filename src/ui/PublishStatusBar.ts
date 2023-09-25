@@ -10,6 +10,7 @@ export class PublishStatusBar {
 		this.numberOfNotesToPublish = numberOfNotesToPublish;
 
 		this.statusBarItem.createEl("span", { text: "Digital Garden: " });
+
 		this.status = this.statusBarItem.createEl("span", {
 			text: `${this.numberOfNotesToPublish} files marked for publishing`,
 		});
@@ -23,6 +24,7 @@ export class PublishStatusBar {
 
 	finish(displayDurationMillisec: number) {
 		this.status.innerText = `✅ Published files: ${this.counter}/${this.numberOfNotesToPublish}`;
+
 		setTimeout(() => {
 			this.statusBarItem.remove();
 		}, displayDurationMillisec);

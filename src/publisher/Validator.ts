@@ -7,7 +7,9 @@ export function isPublishFrontmatterValid(
 		new Notice(
 			"Note does not have the dg-publish: true set. Please add this and try again.",
 		);
+
 		return false;
 	}
+
 	return true;
 }

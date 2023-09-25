@@ -6,11 +6,13 @@ const seperateHashesFromHeader = (
 
 	if (matches?.groups) {
 		const { hashes, _space, title } = matches.groups;
+
 		return {
 			hashes,
 			title,
 		};
 	}
+
 	// always return one hash for valid md heading
 	return { hashes: "#", title: rawHeading.trim() };
 };

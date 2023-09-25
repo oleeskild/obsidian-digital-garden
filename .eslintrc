@@ -37,6 +37,27 @@
 		"@typescript-eslint/no-explicit-any": ["error"],
 		// allow prettier to use SmartTabs
 		"no-mixed-spaces-and-tabs": "off",
+		"padding-line-between-statements": [
+			"warn",
+			{
+				"blankLine": "always",
+				"prev": "*",
+				"next": [
+					"return",
+					"if",
+					"multiline-const",
+					"function",
+					"multiline-expression",
+					"multiline-let",
+					"block-like"
+				]
+			},
+			{
+				"blankLine": "always",
+				"prev": ["function"],
+				"next": "*"
+			}
+		],
 		"svelte/no-at-html-tags": "off"
 	}
 }
