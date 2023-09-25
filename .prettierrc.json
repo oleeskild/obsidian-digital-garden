@@ -4,6 +4,7 @@
 	"singleQuote": false,
 	"bracketSpacing": true,
 	"useTabs": true,
+	"plugins": ["prettier-plugin-svelte"],
 	"overrides": [
 		{
 			"files": [".prettierrc", ".eslintrc"],

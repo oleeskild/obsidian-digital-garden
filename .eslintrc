@@ -6,12 +6,23 @@
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/eslint-recommended",
-		"plugin:@typescript-eslint/recommended"
+		"plugin:@typescript-eslint/recommended",
+		"plugin:svelte/recommended"
 	],
 	"parserOptions": {
 		"sourceType": "module",
-		"project": "./tsconfig.json"
+		"project": "./tsconfig.json",
+		"extraFileExtensions": [".svelte"]
 	},
+	"overrides": [
+		{
+			"files": ["*.svelte"],
+			"parser": "svelte-eslint-parser",
+			"parserOptions": {
+				"parser": "@typescript-eslint/parser"
+			}
+		}
+	],
 	"rules": {
 		"prettier/prettier": "error",
 		"@typescript-eslint/ban-ts-comment": "warn",
@@ -46,6 +57,7 @@
 				"prev": ["function"],
 				"next": "*"
 			}
-		]
+		],
+		"svelte/no-at-html-tags": "off"
 	}
 }
