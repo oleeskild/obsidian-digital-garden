@@ -98,12 +98,15 @@ export default class Publisher {
 		const files = this.vault.getMarkdownFiles();
 		const notesToPublish: TFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
+
 		for (const file of files) {
 			try {
 				const frontMatter = this.metadataCache.getCache(file.path)
 					?.frontmatter;
+
 				if (frontMatter && frontMatter["dg-publish"] === true) {
 					notesToPublish.push(file);
+
 					const images = await this.extractImageLinks(
 						await this.vault.cachedRead(file),
 						file.path,
@@ -123,11 +126,13 @@ export default class Publisher {
 
 	async deleteNote(vaultFilePath: string) {
 		const path = `src/site/notes/${vaultFilePath}`;
+
 		return await this.delete(path);
 	}
 
 	async deleteImage(vaultFilePath: string) {
 		const path = `src/site/img/user/${encodeURI(vaultFilePath)}`;
+
 		return await this.delete(path);
 	}
 
@@ -138,12 +143,14 @@ export default class Publisher {
 			);
 			throw {};
 		}
+
 		if (!this.settings.githubUserName) {
 			new Notice(
 				"Config error: You need to define a GitHub Username in the plugin settings",
 			);
 			throw {};
 		}
+
 		if (!this.settings.githubToken) {
 			new Notice(
 				"Config error: You need to define a GitHub Token in the plugin settings",
@@ -170,6 +177,7 @@ export default class Publisher {
 					path,
 				},
 			);
+
 			// @ts-expect-error TODO: abstract octokit response
 			if (response.status === 200 && response?.data.type === "file") {
 				// @ts-expect-error TODO: abstract octokit response
@@ -177,6 +185,7 @@ export default class Publisher {
 			}
 		} catch (e) {
 			console.log(e);
+
 			return false;
 		}
 
@@ -187,8 +196,10 @@ export default class Publisher {
 			);
 		} catch (e) {
 			console.log(e);
+
 			return false;
 		}
+
 		return true;
 	}
 
@@ -200,10 +211,12 @@ export default class Publisher {
 		) {
 			return false;
 		}
+
 		try {
 			const [text, assets] = await this.generateMarkdown(file);
 			await this.uploadText(file.path, text);
 			await this.uploadAssets(assets);
+
 			return true;
 		} catch {
 			return false;
@@ -214,6 +227,7 @@ export default class Publisher {
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 
 		const assets: Assets = { images: [] };
+
 		if (file.name.endsWith(".excalidraw.md")) {
 			return [await this.generateExcalidrawMarkdown(file, true), assets];
 		}
@@ -228,6 +242,7 @@ export default class Publisher {
 		text = await this.removeObsidianComments(text);
 		text = await this.createSvgEmbeds(text, file.path);
 		const text_and_images = await this.convertImageLinks(text, file.path);
+
 		return [text_and_images[0], { images: text_and_images[1] }];
 	}
 
@@ -238,21 +253,25 @@ export default class Publisher {
 				filter.replace,
 			);
 		}
+
 		return text;
 	}
 
 	async createBlockIDs(text: string) {
 		const block_pattern = / \^([\w\d-]+)/g;
 		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
+
 		text = text.replace(
 			complex_block_pattern,
 			(match: string, $1: string) => {
 				return `{ #${$1}}\n\n`;
 			},
 		);
+
 		text = text.replace(block_pattern, (match: string, $1: string) => {
 			return `\n{ #${$1}}\n`;
 		});
+
 		return text;
 	}
 
@@ -263,12 +282,14 @@ export default class Publisher {
 			);
 			throw {};
 		}
+
 		if (!this.settings.githubUserName) {
 			new Notice(
 				"Config error: You need to define a GitHub Username in the plugin settings",
 			);
 			throw {};
 		}
+
 		if (!this.settings.githubToken) {
 			new Notice(
 				"Config error: You need to define a GitHub Token in the plugin settings",
@@ -296,6 +317,7 @@ export default class Publisher {
 					path,
 				},
 			);
+
 			// @ts-expect-error TODO: abstract octokit response
 			if (response.status === 200 && response.data.type === "file") {
 				// @ts-expect-error TODO: abstract octokit response
@@ -336,6 +358,7 @@ export default class Publisher {
 		textToBeProcessed = textToBeProcessed.replace(this.excaliDrawRegex, "");
 		textToBeProcessed = textToBeProcessed.replace(this.codeBlockRegex, "");
 		textToBeProcessed = textToBeProcessed.replace(this.codeFenceRegex, "");
+
 		textToBeProcessed = textToBeProcessed.replace(
 			this.frontmatterRegex,
 			"",
@@ -359,6 +382,7 @@ export default class Publisher {
 				) {
 					continue;
 				}
+
 				if (
 					codeFences.findIndex((x) => x.contains(commentMatch)) > -1
 				) {
@@ -379,9 +403,11 @@ export default class Publisher {
 
 	async convertFrontMatter(text: string, file: TFile): Promise<string> {
 		const publishedFrontMatter = this.getProcessedFrontMatter(file);
+
 		const replaced = text.replace(this.frontmatterRegex, (_match, _p1) => {
 			return publishedFrontMatter;
 		});
+
 		return replaced;
 	}
 
@@ -389,10 +415,12 @@ export default class Publisher {
 		let replacedText = text;
 		const dataViewRegex = /```dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
+
 		if (!dvApi) return replacedText;
 		const matches = text.matchAll(dataViewRegex);
 
 		const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
+
 		const dataViewJsRegex = new RegExp(
 			"```" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```",
 			"gsm",
@@ -400,6 +428,7 @@ export default class Publisher {
 		const dataviewJsMatches = text.matchAll(dataViewJsRegex);
 
 		const inlineQueryPrefix = dvApi.settings.inlineQueryPrefix;
+
 		const inlineDataViewRegex = new RegExp(
 			"`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`",
 			"gsm",
@@ -407,6 +436,7 @@ export default class Publisher {
 		const inlineMatches = text.matchAll(inlineDataViewRegex);
 
 		const inlineJsQueryPrefix = dvApi.settings.inlineJsQueryPrefix;
+
 		const inlineJsDataViewRegex = new RegExp(
 			"`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`",
 			"gsm",
@@ -428,15 +458,18 @@ export default class Publisher {
 				const block = queryBlock[0];
 				const query = queryBlock[1];
 				const markdown = await dvApi.tryQueryMarkdown(query, path);
+
 				replacedText = replacedText.replace(
 					block,
 					`${markdown}\n{ .block-language-dataview}`,
 				);
 			} catch (e) {
 				console.log(e);
+
 				new Notice(
 					"Unable to render dataview query. Please update the dataview plugin to the latest version.",
 				);
+
 				return queryBlock[0];
 			}
 		}
@@ -454,9 +487,11 @@ export default class Publisher {
 				replacedText = replacedText.replace(block, div.innerHTML);
 			} catch (e) {
 				console.log(e);
+
 				new Notice(
 					"Unable to render dataviewjs query. Please update the dataview plugin to the latest version.",
 				);
+
 				return queryBlock[0];
 			}
 		}
@@ -466,10 +501,12 @@ export default class Publisher {
 			try {
 				const code = inlineQuery[0];
 				const query = inlineQuery[1];
+
 				const dataviewResult = dvApi.tryEvaluate(query, {
 					// @ts-expect-error errors are caught
 					this: dvApi.page(path),
 				});
+
 				if (dataviewResult) {
 					replacedText = replacedText.replace(
 						code,
@@ -479,9 +516,11 @@ export default class Publisher {
 				}
 			} catch (e) {
 				console.log(e);
+
 				new Notice(
 					"Unable to render inline dataview query. Please update the dataview plugin to the latest version.",
 				);
+
 				return inlineQuery[0];
 			}
 		}
@@ -499,9 +538,11 @@ export default class Publisher {
 				replacedText = replacedText.replace(code, div.innerHTML);
 			} catch (e) {
 				console.log(e);
+
 				new Notice(
 					"Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.",
 				);
+
 				return inlineJsQuery[0];
 			}
 		}
@@ -524,26 +565,32 @@ export default class Publisher {
 			publishedFrontMatter,
 			file.path,
 		);
+
 		publishedFrontMatter = this.addDefaultPassThrough(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
+
 		publishedFrontMatter = this.addContentClasses(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
+
 		publishedFrontMatter = this.addPageTags(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
+
 		publishedFrontMatter = this.addFrontMatterSettings(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
+
 		publishedFrontMatter = this.addNoteIconFrontMatter(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
+
 		publishedFrontMatter = this.addTimestampsFrontmatter(
 			fileFrontMatter,
 			publishedFrontMatter,
@@ -599,6 +646,7 @@ export default class Publisher {
 		filePath: string,
 	) {
 		const publishedFrontMatter = { ...newFrontMatter };
+
 		const gardenPath =
 			baseFrontMatter && baseFrontMatter["dg-path"]
 				? baseFrontMatter["dg-path"]
@@ -611,6 +659,7 @@ export default class Publisher {
 		if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
 			publishedFrontMatter["dg-permalink"] =
 				baseFrontMatter["dg-permalink"];
+
 			publishedFrontMatter["permalink"] = sanitizePermalink(
 				baseFrontMatter["dg-permalink"],
 			);
@@ -642,6 +691,7 @@ export default class Publisher {
 				publishedFrontMatter["tags"] = tags;
 			}
 		}
+
 		return publishedFrontMatter;
 	}
 
@@ -690,6 +740,7 @@ export default class Publisher {
 		const publishedFrontMatter = { ...newFrontMatter };
 		const createdKey = this.settings.createdTimestampKey;
 		const updatedKey = this.settings.updatedTimestampKey;
+
 		if (createdKey.length) {
 			if (typeof baseFrontMatter[createdKey] == "string") {
 				publishedFrontMatter["created"] = baseFrontMatter[createdKey];
@@ -701,6 +752,7 @@ export default class Publisher {
 				file.stat.ctime,
 			).toISO();
 		}
+
 		if (updatedKey.length) {
 			if (typeof baseFrontMatter[updatedKey] == "string") {
 				publishedFrontMatter["updated"] = baseFrontMatter[updatedKey];
@@ -712,6 +764,7 @@ export default class Publisher {
 				file.stat.mtime,
 			).toISO();
 		}
+
 		return publishedFrontMatter;
 	}
 
@@ -735,11 +788,13 @@ export default class Publisher {
 
 		const publishedFrontMatter = { ...newFrontMatter };
 		const noteIconKey = this.settings.noteIconKey;
+
 		if (baseFrontMatter[noteIconKey] !== undefined) {
 			publishedFrontMatter["noteIcon"] = baseFrontMatter[noteIconKey];
 		} else {
 			publishedFrontMatter["noteIcon"] = this.settings.defaultNoteIcon;
 		}
+
 		return publishedFrontMatter;
 	}
 
@@ -751,6 +806,7 @@ export default class Publisher {
 			baseFrontMatter = {};
 		}
 		const publishedFrontMatter = { ...newFrontMatter };
+
 		for (const key of Object.keys(this.settings.defaultNoteSettings)) {
 			const settingValue = baseFrontMatter[kebabize(key)];
 
@@ -758,6 +814,7 @@ export default class Publisher {
 				publishedFrontMatter[key] = settingValue;
 			}
 		}
+
 		const dgPassFrontmatter =
 			this.settings.defaultNoteSettings.dgPassFrontmatter;
 
@@ -786,8 +843,10 @@ export default class Publisher {
 						linkMatch.indexOf("[") + 2,
 						linkMatch.lastIndexOf("]") - 1,
 					);
+
 					let [linkedFileName, prettyName] =
 						textInsideBrackets.split("|");
+
 					if (linkedFileName.endsWith("\\")) {
 						linkedFileName = linkedFileName.substring(
 							0,
@@ -797,29 +856,35 @@ export default class Publisher {
 
 					prettyName = prettyName || linkedFileName;
 					let headerPath = "";
+
 					if (linkedFileName.includes("#")) {
 						const headerSplit = linkedFileName.split("#");
 						linkedFileName = headerSplit[0];
+
 						//currently no support for linking to nested heading with multiple #s
 						headerPath =
 							headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
 					}
 					const fullLinkedFilePath = getLinkpath(linkedFileName);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						fullLinkedFilePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						convertedText = convertedText.replace(
 							linkMatch,
 							`[[${linkedFileName}${headerPath}\\|${prettyName}]]`,
 						);
 					}
+
 					if (linkedFile?.extension === "md") {
 						const extensionlessPath = linkedFile.path.substring(
 							0,
 							linkedFile.path.lastIndexOf("."),
 						);
+
 						convertedText = convertedText.replace(
 							linkMatch,
 							`[[${extensionlessPath}${headerPath}\\|${prettyName}]]`,
@@ -843,34 +908,42 @@ export default class Publisher {
 		if (currentDepth >= 4) {
 			return text;
 		}
+
 		const { notes: publishedFiles } =
 			await this.getFilesMarkedForPublishing();
 		let transcludedText = text;
 		const transcludedRegex = /!\[\[(.+?)\]\]/g;
 		const transclusionMatches = text.match(transcludedRegex);
 		let numberOfExcaliDraws = 0;
+
 		if (transclusionMatches) {
 			for (let i = 0; i < transclusionMatches.length; i++) {
 				try {
 					const transclusionMatch = transclusionMatches[i];
+
 					const [transclusionFileName, headerName] = transclusionMatch
 						.substring(
 							transclusionMatch.indexOf("[") + 2,
 							transclusionMatch.indexOf("]"),
 						)
 						.split("|");
+
 					const transclusionFilePath =
 						getLinkpath(transclusionFileName);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						transclusionFilePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						continue;
 					}
 					let sectionID = "";
+
 					if (linkedFile.name.endsWith(".excalidraw.md")) {
 						const firstDrawing = ++numberOfExcaliDraws === 1;
+
 						const excaliDrawCode =
 							await this.generateExcalidrawMarkdown(
 								linkedFile,
@@ -885,6 +958,7 @@ export default class Publisher {
 						);
 					} else if (linkedFile.extension === "md") {
 						let fileText = await this.vault.cachedRead(linkedFile);
+
 						const metadata =
 							this.metadataCache.getFileCache(linkedFile);
 
@@ -893,8 +967,10 @@ export default class Publisher {
 							const refBlock =
 								transclusionFileName.split("#^")[1];
 							sectionID = `#${slugify(refBlock)}`;
+
 							const blockInFile =
 								metadata?.blocks && metadata.blocks[refBlock];
+
 							if (blockInFile) {
 								fileText = fileText
 									.split("\n")
@@ -915,9 +991,11 @@ export default class Publisher {
 							);
 
 							sectionID = `#${slugify(refHeader)}`;
+
 							if (headerInFile && metadata?.headings) {
 								const headerPosition =
 									metadata.headings.indexOf(headerInFile);
+
 								// Embed should copy the content proparly under the given block
 								const cutTo = metadata.headings
 									.slice(headerPosition + 1)
@@ -925,9 +1003,11 @@ export default class Publisher {
 										(header) =>
 											header.level <= headerInFile.level,
 									);
+
 								if (cutTo) {
 									const cutToLine =
 										cutTo?.position?.start?.line;
+
 									fileText = fileText
 										.split("\n")
 										.slice(
@@ -961,14 +1041,17 @@ export default class Publisher {
 							? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
 							: "";
 						let embedded_link = "";
+
 						const publishedFilesContainsLinkedFile =
 							publishedFiles.find(
 								(f) => f.path == linkedFile.path,
 							);
+
 						if (publishedFilesContainsLinkedFile) {
 							const permalink =
 								metadata?.frontmatter &&
 								metadata.frontmatter["dg-permalink"];
+
 							const gardenPath = permalink
 								? sanitizePermalink(permalink)
 								: `/${generateUrlPath(
@@ -979,6 +1062,7 @@ export default class Publisher {
 								  )}`;
 							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
 						}
+
 						fileText =
 							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
 							fileText +
@@ -991,6 +1075,7 @@ export default class Publisher {
 								currentDepth + 1,
 							);
 						}
+
 						//This should be recursive up to a certain depth
 						transcludedText = transcludedText.replace(
 							transclusionMatch,
@@ -1014,12 +1099,15 @@ export default class Publisher {
 			svgElement.setAttribute("width", size);
 			fixSvgForXmlSerializer(svgElement);
 			const svgSerializer = new XMLSerializer();
+
 			return svgSerializer.serializeToString(svgDoc);
 		}
+
 		//![[image.svg]]
 		const transcludedSvgRegex =
 			/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
 		const transcludedSvgs = text.match(transcludedSvgRegex);
+
 		if (transcludedSvgs) {
 			for (const svg of transcludedSvgs) {
 				try {
@@ -1027,6 +1115,7 @@ export default class Publisher {
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
 						.split("|");
 					const imagePath = getLinkpath(imageName);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						filePath,
@@ -1037,6 +1126,7 @@ export default class Publisher {
 					}
 
 					let svgText = await this.vault.read(linkedFile);
+
 					if (svgText && size) {
 						svgText = setWidth(svgText, size);
 					}
@@ -1050,6 +1140,7 @@ export default class Publisher {
 		//!()[image.svg]
 		const linkedSvgRegex = /!\[(.*?)\]\((.*?)(\.(svg))\)/g;
 		const linkedSvgMatches = text.match(linkedSvgRegex);
+
 		if (linkedSvgMatches) {
 			for (const svg of linkedSvgMatches) {
 				try {
@@ -1059,6 +1150,7 @@ export default class Publisher {
 					const pathStart = svg.lastIndexOf("(") + 1;
 					const pathEnd = svg.lastIndexOf(")");
 					const imagePath = svg.substring(pathStart, pathEnd);
+
 					if (imagePath.startsWith("http")) {
 						continue;
 					}
@@ -1067,11 +1159,13 @@ export default class Publisher {
 						imagePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						continue;
 					}
 
 					let svgText = await this.vault.read(linkedFile);
+
 					if (svgText && size) {
 						svgText = setWidth(svgText, size);
 					}
@@ -1092,6 +1186,7 @@ export default class Publisher {
 		const transcludedImageRegex =
 			/!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
+
 		if (transcludedImageMatches) {
 			for (let i = 0; i < transcludedImageMatches.length; i++) {
 				try {
@@ -1104,6 +1199,7 @@ export default class Publisher {
 						)
 						.split("|");
 					const imagePath = getLinkpath(imageName);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						filePath,
@@ -1123,6 +1219,7 @@ export default class Publisher {
 		//![](image.png)
 		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
 		const imageMatches = text.match(imageRegex);
+
 		if (imageMatches) {
 			for (let i = 0; i < imageMatches.length; i++) {
 				try {
@@ -1131,15 +1228,18 @@ export default class Publisher {
 					const pathStart = imageMatch.lastIndexOf("(") + 1;
 					const pathEnd = imageMatch.lastIndexOf(")");
 					const imagePath = imageMatch.substring(pathStart, pathEnd);
+
 					if (imagePath.startsWith("http")) {
 						continue;
 					}
 
 					const decodedImagePath = decodeURI(imagePath);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						continue;
 					}
@@ -1150,6 +1250,7 @@ export default class Publisher {
 				}
 			}
 		}
+
 		return assets;
 	}
 
@@ -1160,10 +1261,12 @@ export default class Publisher {
 		const assets = [];
 
 		let imageText = text;
+
 		//![[image.png]]
 		const transcludedImageRegex =
 			/!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
+
 		if (transcludedImageMatches) {
 			for (let i = 0; i < transcludedImageMatches.length; i++) {
 				try {
@@ -1176,10 +1279,12 @@ export default class Publisher {
 						)
 						.split("|");
 					const imagePath = getLinkpath(imageName);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						continue;
 					}
@@ -1188,6 +1293,7 @@ export default class Publisher {
 
 					const cmsImgPath = `/img/user/${linkedFile.path}`;
 					const name = size ? `${imageName}|${size}` : imageName;
+
 					const imageMarkdown = `![${name}](${encodeURI(
 						cmsImgPath,
 					)})`;
@@ -1204,6 +1310,7 @@ export default class Publisher {
 		//![](image.png)
 		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
 		const imageMatches = text.match(imageRegex);
+
 		if (imageMatches) {
 			for (let i = 0; i < imageMatches.length; i++) {
 				try {
@@ -1216,15 +1323,18 @@ export default class Publisher {
 					const pathStart = imageMatch.lastIndexOf("(") + 1;
 					const pathEnd = imageMatch.lastIndexOf(")");
 					const imagePath = imageMatch.substring(pathStart, pathEnd);
+
 					if (imagePath.startsWith("http")) {
 						continue;
 					}
 
 					const decodedImagePath = decodeURI(imagePath);
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
 						filePath,
 					);
+
 					if (!linkedFile) {
 						continue;
 					}
@@ -1252,6 +1362,7 @@ export default class Publisher {
 		}
 
 		const titleVariable = "{{title}}";
+
 		if (headerName.includes(titleVariable)) {
 			headerName = headerName.replace(
 				titleVariable,
@@ -1274,10 +1385,12 @@ export default class Publisher {
 		const frontMatter = await this.getProcessedFrontMatter(file);
 
 		const isCompressed = fileText.includes("```compressed-json");
+
 		const start =
 			fileText.indexOf(isCompressed ? "```compressed-json" : "```json") +
 			(isCompressed ? "```compressed-json" : "```json").length;
 		const end = fileText.lastIndexOf("```");
+
 		const excaliDrawJson = JSON.parse(
 			isCompressed
 				? LZString.decompressFromBase64(
@@ -1289,6 +1402,7 @@ export default class Publisher {
 		const drawingId =
 			file.name.split(" ").join("_").replace(".", "") + idAppendage;
 		let excaliDrawCode = "";
+
 		if (includeExcaliDrawJs) {
 			excaliDrawCode += excaliDrawBundle;
 		}

@@ -24,6 +24,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 
 	async display(): Promise<void> {
 		const { containerEl } = this;
+
 		const settingView = new SettingView(
 			this.app,
 			containerEl,
@@ -57,6 +58,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			}
 		};
 		settingView.renderCreatePr(prModal, handlePR);
+
 		settingView.renderPullRequestHistory(
 			prModal,
 			this.plugin.settings.prHistory.reverse().slice(0, 10),

@@ -16,6 +16,7 @@ export class UpdateGardenRepositoryModal extends Modal {
 		const text = "Creating PR. This should take about 30-60 seconds";
 
 		const loadingText = this.loading?.createEl("h5", { text });
+
 		this.loadingInterval = setInterval(() => {
 			if (loadingText.innerText === `${text}`) {
 				loadingText.innerText = `${text}.`;
@@ -40,6 +41,7 @@ export class UpdateGardenRepositoryModal extends Modal {
 			  };
 		const linkText = { text: `${prUrl}`, href: prUrl };
 		this.progressViewTop.createEl("h2", successmessage);
+
 		if (prUrl) {
 			this.progressViewTop.createEl("a", linkText);
 		}
@@ -49,6 +51,7 @@ export class UpdateGardenRepositoryModal extends Modal {
 	renderError() {
 		this.loading?.remove();
 		clearInterval(this.loadingInterval);
+
 		const errorMsg = {
 			text: "❌ Something went wrong. Try deleting the branch in GitHub.",
 			attr: {},
