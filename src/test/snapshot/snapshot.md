@@ -72,19 +72,6 @@ Hello! I'm a pinned note (should be at the top yeah!)
 [Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ---
-{"dg-publish":true,"permalink":"/001-links/"}
----
-
-[[002 Hidden page\|002 Hidden page]]
-
-[[003 Non published page\|003 Non published page]]
-
-[[000 Home\| Aliased link to home]]
-
-[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
-
-
----
 {"dg-publish":true,"permalink":"/005-custom-filters/"}
 ---
 
@@ -108,6 +95,19 @@ To use this test garden, add a test garden token / username / repo to `.env` (se
 ---
 
 This page is hidden from the folder tree!
+---
+{"dg-publish":true,"permalink":"/001-links/"}
+---
+
+[[002 Hidden page\|002 Hidden page]]
+
+[[003 Non published page\|003 Non published page]]
+
+[[000 Home\| Aliased link to home]]
+
+[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
+
+
 ---
 {"dg-publish":true,"permalink":"/000-home/","tags":["gardenEntry"]}
 ---
