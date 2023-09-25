@@ -48,4 +48,6 @@ export default interface DigitalGardenSettings {
 		dgLinkPreview: boolean;
 		dgShowTags: boolean;
 	};
+	ENABLE_DEVELOPER_TOOLS?: boolean;
+	devPluginPath?: string;
 }

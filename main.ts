@@ -8,7 +8,13 @@ import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
+import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
 import { FRONTMATTER_KEYS } from "./src/models/frontMatter";
+import dotenv from "dotenv";
+dotenv.config();
+
+
+
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
@@ -136,6 +142,21 @@ export default class DigitalGarden extends Plugin {
 				await this.publishSingleNote();
 			},
 		});
+
+		if (this.settings["ENABLE_DEVELOPER_TOOLS"]) {
+			const publisher = new Publisher(
+				this.app.vault,
+				this.app.metadataCache,
+				this.settings,
+			);
+			this.addCommand({
+				id: "generate-garden-snapshot",
+				name: "Generate Garden Snapshot",
+				callback: async () => {
+					await generateGardenSnapshot(this.settings, publisher);
+				},
+			});
+		}
 
 		this.addCommand({
 			id: "publish-multiple-notes",
