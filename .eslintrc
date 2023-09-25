@@ -6,12 +6,23 @@
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/eslint-recommended",
-		"plugin:@typescript-eslint/recommended"
+		"plugin:@typescript-eslint/recommended",
+		"plugin:svelte/recommended"
 	],
 	"parserOptions": {
 		"sourceType": "module",
-		"project": "./tsconfig.json"
+		"project": "./tsconfig.json",
+		"extraFileExtensions": [".svelte"]
 	},
+	"overrides": [
+		{
+			"files": ["*.svelte"],
+			"parser": "svelte-eslint-parser",
+			"parserOptions": {
+				"parser": "@typescript-eslint/parser"
+			}
+		}
+	],
 	"rules": {
 		"prettier/prettier": "error",
 		"@typescript-eslint/ban-ts-comment": "warn",
@@ -25,6 +36,7 @@
 		],
 		"@typescript-eslint/no-explicit-any": ["error"],
 		// allow prettier to use SmartTabs
-		"no-mixed-spaces-and-tabs": "off"
+		"no-mixed-spaces-and-tabs": "off",
+		"svelte/no-at-html-tags": "off"
 	}
 }
