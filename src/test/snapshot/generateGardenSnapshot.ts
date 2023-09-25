@@ -13,14 +13,17 @@ export const generateGardenSnapshot = async (
 
 	if (!devPluginPath) {
 		new Notice("devPluginPath missing, run generateGardenSettings.mjs");
+
 		return;
 	}
 
 	const marked = await publisher.getFilesMarkedForPublishing();
 	let fileString = "---\n";
+
 	const notesSortedByCreationDate = marked.notes.sort(
 		(note) => note.stat.ctime,
 	);
+
 	for (const file of notesSortedByCreationDate) {
 		const [content, _] = await publisher.generateMarkdown(file);
 		// TODO: add assets

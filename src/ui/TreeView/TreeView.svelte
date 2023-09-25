@@ -26,6 +26,7 @@
 				if (checkAsParent) child.checked = !!node.checked;
 				rebuildChildren(child, checkAsParent);
 			}
+
 			node.indeterminate =
 				node.children.some((c) => c.indeterminate) ||
 				(node.children.some((c) => !!c.checked) &&
@@ -40,8 +41,10 @@
 		const node = e.detail.node;
 		let parent = treeMap[node.path];
 		rebuildChildren(node, checkAsParent);
+
 		while (parent) {
 			const allCheck = parent?.children?.every((c) => !!c.checked);
+
 			if (allCheck) {
 				parent.indeterminate = false;
 				parent.checked = true;
@@ -49,6 +52,7 @@
 				const haveCheckedOrIndetermine = parent?.children?.some(
 					(c) => !!c.checked || c.indeterminate,
 				);
+
 				if (haveCheckedOrIndetermine) {
 					parent.indeterminate = true;
 				} else {

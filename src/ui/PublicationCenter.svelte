@@ -25,8 +25,10 @@
 
 	function insertIntoTree(tree: TreeNode, pathComponents: string[]): void {
 		let currentNode = tree;
+
 		for (let i = 0; i < pathComponents.length; i++) {
 			const part = pathComponents[i];
+
 			if (!currentNode.children) {
 				currentNode.children = [];
 			}
@@ -61,10 +63,12 @@
 			indeterminate: false,
 			checked: false,
 		};
+
 		for (const filePath of filePaths) {
 			const pathComponents = filePath.split("/");
 			insertIntoTree(root, pathComponents);
 		}
+
 		return root;
 	}
 
@@ -72,6 +76,7 @@
 		let cog = getIcon("cog");
 		cog?.classList.add("dg-rotate");
 		cog?.style.setProperty("margin-right", "3px");
+
 		return cog;
 	};
 	const bigRotatingCog = () => {
@@ -80,6 +85,7 @@
 		cog?.style.setProperty("margin-right", "3px");
 		cog?.style.setProperty("width", "40px");
 		cog?.style.setProperty("height", "40px");
+
 		return cog;
 	};
 
@@ -116,6 +122,7 @@
 		100;
 	const traverseTree = (tree: TreeNode): Array<string> => {
 		const paths: Array<string> = [];
+
 		if (tree.children) {
 			for (const child of tree.children) {
 				paths.push(...traverseTree(child));
@@ -125,6 +132,7 @@
 				paths.push(tree.path);
 			}
 		}
+
 		return paths;
 	};
 
@@ -159,9 +167,11 @@
 		for (const note of changedToPublish.concat(unpublishedToPublish)) {
 			processingPaths.push(note.path);
 			let isPublished = await publisher.publish(note);
+
 			processingPaths = processingPaths.filter(
 				(path) => path !== note.path,
 			);
+
 			if (isPublished) {
 				publishedPaths = [...publishedPaths, note.path];
 			} else {
@@ -173,6 +183,7 @@
 			processingPaths.push(path);
 			let isDeleted = await publisher.deleteNote(path);
 			processingPaths = processingPaths.filter((p) => p !== path);
+
 			if (isDeleted) {
 				publishedPaths = [...publishedPaths, path];
 			} else {
