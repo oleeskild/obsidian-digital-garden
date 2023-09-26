@@ -40,6 +40,8 @@ export interface Assets {
 	images: Array<Asset>;
 }
 
+export type TCompiledFile = [string, Assets];
+
 export class GardenPageCompiler {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
@@ -60,12 +62,12 @@ export class GardenPageCompiler {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
-		this.frontMatterCompiler = new FrontmatterCompiler(vault, settings);
+		this.frontMatterCompiler = new FrontmatterCompiler(settings);
 		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 	}
 
-	async generateMarkdown(file: TFile): Promise<[string, Assets]> {
+	async generateMarkdown(file: TFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
 		const processedFrontmatter =
@@ -568,7 +570,7 @@ export class GardenPageCompiler {
 
 						const publishedFilesContainsLinkedFile =
 							publishedFiles.find(
-								(f) => f.path == linkedFile.path,
+								(f) => f.getPath() == linkedFile.path,
 							);
 
 						if (publishedFilesContainsLinkedFile) {

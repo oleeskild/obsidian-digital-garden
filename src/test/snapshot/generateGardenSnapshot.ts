@@ -21,18 +21,19 @@ export const generateGardenSnapshot = async (
 	let fileString = "---\n";
 
 	const notesSortedByCreationDate = marked.notes.sort(
-		(note) => note.stat.ctime,
+		(note) => note.file.stat.ctime,
 	);
 
 	const assetPaths = new Set<string>();
 
 	for (const file of notesSortedByCreationDate) {
 		fileString += "==========\n";
-		fileString += `${file.path}\n`;
+		fileString += `${file.getPath()}\n`;
 		fileString += "==========\n";
 
-		const [content, assets] =
-			await publisher.compiler.generateMarkdown(file);
+		const [content, assets] = await publisher.compiler.generateMarkdown(
+			file.file,
+		);
 		assets.images.map((image) => assetPaths.add(image.path));
 
 		fileString += `${content}\n`;

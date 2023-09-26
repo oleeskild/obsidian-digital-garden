@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TFile, getIcon } from "obsidian";
+	import { getIcon } from "obsidian";
 	import TreeNode from "../models/TreeNode";
 	import {
 		IPublishStatusManager,
@@ -9,7 +9,7 @@
 	import { onMount } from "svelte";
 	import Publisher from "src/publisher/Publisher";
 	import Icon from "./Icon.svelte";
-
+	import { CompiledPublishFile } from "src/publisher/PublishFile";
 	export let publishStatusManager: IPublishStatusManager;
 	export let publisher: Publisher;
 	export let showDiff: (path: string) => void;
@@ -93,14 +93,14 @@
 	$: publishedNotesTree =
 		publishStatus &&
 		filePathsToTree(
-			publishStatus.publishedNotes.map((note) => note.path),
+			publishStatus.publishedNotes.map((note) => note.getPath()),
 			"Published Notes",
 		);
 
 	$: changedNotesTree =
 		publishStatus &&
 		filePathsToTree(
-			publishStatus.changedNotes.map((note) => note.path),
+			publishStatus.changedNotes.map((note) => note.getPath()),
 			"Changed Notes",
 		);
 
@@ -117,7 +117,7 @@
 	$: unpublishedNoteTree =
 		publishStatus &&
 		filePathsToTree(
-			publishStatus.unpublishedNotes.map((note) => note.path),
+			publishStatus.unpublishedNotes.map((note) => note.getPath()),
 			"Unpublished Notes",
 		);
 
@@ -144,8 +144,8 @@
 		return paths;
 	};
 
-	let unpublishedToPublish: Array<TFile> = [];
-	let changedToPublish: Array<TFile> = [];
+	let unpublishedToPublish: Array<CompiledPublishFile> = [];
+	let changedToPublish: Array<CompiledPublishFile> = [];
 	let pathsToDelete: Array<string> = [];
 
 	let processingPaths: Array<string> = [];
@@ -174,28 +174,28 @@
 
 		unpublishedToPublish =
 			publishStatus.unpublishedNotes.filter((note) =>
-				unpublishedPaths.includes(note.path),
+				unpublishedPaths.includes(note.getPath()),
 			) ?? [];
 
 		changedToPublish =
 			publishStatus?.changedNotes.filter((note) =>
-				changedPaths.includes(note.path),
+				changedPaths.includes(note.getPath()),
 			) ?? [];
 
 		showPublishingView = true;
 
 		for (const note of changedToPublish.concat(unpublishedToPublish)) {
-			processingPaths.push(note.path);
+			processingPaths.push(note.getPath());
 			let isPublished = await publisher.publish(note);
 
 			processingPaths = processingPaths.filter(
-				(path) => path !== note.path,
+				(path) => path !== note.getPath(),
 			);
 
 			if (isPublished) {
-				publishedPaths = [...publishedPaths, note.path];
+				publishedPaths = [...publishedPaths, note.getPath()];
 			} else {
-				failedPublish = [...failedPublish, note.path];
+				failedPublish = [...failedPublish, note.getPath()];
 			}
 		}
 
@@ -285,17 +285,17 @@
 
 			{#each unpublishedToPublish.concat(changedToPublish) as note}
 				<div class="note-list">
-					{#if processingPaths.includes(note.path)}
+					{#if processingPaths.includes(note.getPath())}
 						{@html rotatingCog()?.outerHTML}
-					{:else if publishedPaths.includes(note.path)}
-						<Icon name="check" />
-					{:else if failedPublish.includes(note.path)}
-						<Icon name="cross" />
+					{:else if publishedPaths.includes(note.getPath())}
+						{@html getIcon("check")?.outerHTML}
+					{:else if failedPublish.includes(note.getPath())}
+						{@html getIcon("cross")?.outerHTML}
 					{:else}
 						<Icon name="clock" />
 					{/if}
-					{note.name}
-					{#if publishedPaths.includes(note.path)}
+					{note.file.name}
+					{#if publishedPaths.includes(note.getPath())}
 						<span class="published"> - PUBLISHED</span>
 					{/if}
 				</div>

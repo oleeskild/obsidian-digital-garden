@@ -1,7 +1,7 @@
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
-import { TFile } from "obsidian";
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
+import { CompiledPublishFile } from "./PublishFile";
 
 /**
  *  Manages the publishing status of notes and images for a digital garden.
@@ -20,7 +20,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		return this.generateDeletedContentPaths(
 			remoteNoteHashes,
-			marked.notes.map((f) => f.path),
+			marked.notes.map((f) => f.getPath()),
 		);
 	}
 
@@ -50,9 +50,9 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		return deletedImagePaths;
 	}
 	async getPublishStatus(): Promise<PublishStatus> {
-		const unpublishedNotes: Array<TFile> = [];
-		const publishedNotes: Array<TFile> = [];
-		const changedNotes: Array<TFile> = [];
+		const unpublishedNotes: Array<CompiledPublishFile> = [];
+		const publishedNotes: Array<CompiledPublishFile> = [];
+		const changedNotes: Array<CompiledPublishFile> = [];
 
 		const remoteNoteHashes = await this.siteManager.getNoteHashes();
 		const remoteImageHashes = await this.siteManager.getImageHashes();
@@ -60,34 +60,33 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
 		for (const file of marked.notes) {
-			const [content, _] =
-				await this.publisher.compiler.generateMarkdown(file);
+			const compiledFile = await file.compile();
+			const [content, _] = await compiledFile.getCompiledFile();
 
 			const localHash = generateBlobHash(content);
-			const remoteHash = remoteNoteHashes[file.path];
+			const remoteHash = remoteNoteHashes[file.getPath()];
 
 			if (!remoteHash) {
-				unpublishedNotes.push(file);
+				unpublishedNotes.push(compiledFile);
 			} else if (remoteHash === localHash) {
-				publishedNotes.push(file);
+				publishedNotes.push(compiledFile);
 			} else {
-				changedNotes.push(file);
+				changedNotes.push(compiledFile);
 			}
 		}
 
 		const deletedNotePaths = this.generateDeletedContentPaths(
 			remoteNoteHashes,
-			marked.notes.map((f) => f.path),
+			marked.notes.map((f) => f.getPath()),
 		);
 
 		const deletedImagePaths = this.generateDeletedContentPaths(
 			remoteImageHashes,
 			marked.images,
 		);
-
-		unpublishedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
-		publishedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
-		changedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
+		unpublishedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
+		publishedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
+		changedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
 		deletedNotePaths.sort((a, b) => (a > b ? 1 : -1));
 
 		return {
@@ -101,9 +100,9 @@ export default class PublishStatusManager implements IPublishStatusManager {
 }
 
 export interface PublishStatus {
-	unpublishedNotes: Array<TFile>;
-	publishedNotes: Array<TFile>;
-	changedNotes: Array<TFile>;
+	unpublishedNotes: Array<CompiledPublishFile>;
+	publishedNotes: Array<CompiledPublishFile>;
+	changedNotes: Array<CompiledPublishFile>;
 	deletedNotePaths: Array<string>;
 	deletedImagePaths: Array<string>;
 }

@@ -6,9 +6,10 @@ import { isPublishFrontmatterValid } from "./Validator";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
+import { CompiledPublishFile, PublishFile } from "./PublishFile";
 
 export interface MarkedForPublishing {
-	notes: TFile[];
+	notes: PublishFile[];
 	images: string[];
 }
 
@@ -43,23 +44,32 @@ export default class Publisher {
 		);
 	}
 
+	shouldPublish(file: TFile): boolean {
+		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
+
+		return isPublishFrontmatterValid(frontMatter);
+	}
+
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
 		const files = this.vault.getMarkdownFiles();
-		const notesToPublish: TFile[] = [];
+		const notesToPublish: PublishFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
 
 		for (const file of files) {
 			try {
-				const frontMatter = this.metadataCache.getCache(file.path)
-					?.frontmatter;
+				if (this.shouldPublish(file)) {
+					const publishFile = new PublishFile({
+						file,
+						vault: this.vault,
+						compiler: this.compiler,
+						metadataCache: this.metadataCache,
+						settings: this.settings,
+					});
 
-				if (frontMatter && frontMatter["dg-publish"] === true) {
-					notesToPublish.push(file);
+					notesToPublish.push(publishFile);
 
-					const images = await this.compiler.extractImageLinks(
-						await this.vault.cachedRead(file),
-						file.path,
-					);
+					const images = await publishFile.getImageLinks();
+
 					images.forEach((i) => imagesToPublish.add(i));
 				}
 			} catch {
@@ -132,18 +142,14 @@ export default class Publisher {
 		return true;
 	}
 
-	async publish(file: TFile): Promise<boolean> {
-		if (
-			!isPublishFrontmatterValid(
-				this.metadataCache.getCache(file.path)?.frontmatter,
-			)
-		) {
+	async publish(file: CompiledPublishFile): Promise<boolean> {
+		if (file.shouldPublish()) {
 			return false;
 		}
 
 		try {
-			const [text, assets] = await this.compiler.generateMarkdown(file);
-			await this.uploadText(file.path, text);
+			const [text, assets] = await file.compiledFile;
+			await this.uploadText(file.getPath(), text);
 			await this.uploadAssets(assets);
 
 			return true;
