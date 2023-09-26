@@ -1,24 +1,29 @@
 import { MetadataCache, TFile, Vault } from "obsidian";
 import DigitalGardenSettings from "../models/settings";
-import Publisher from "../publisher/Publisher";
+import { GardenPageCompiler } from "../compiler/GardenPageCompiler";
 
 jest.mock("obsidian");
 
-describe("Publisher", () => {
+describe("Compiler", () => {
 	describe("generateTransclusionHeader", () => {
-		const getTestPublisher = (settings: Partial<DigitalGardenSettings>) => {
-			return new Publisher(
-				{} as unknown as Vault,
-				{} as unknown as MetadataCache,
-				{ pathRewriteRules: "", ...settings } as DigitalGardenSettings,
+		const getTestCompiler = (settings: Partial<DigitalGardenSettings>) => {
+			return new GardenPageCompiler(
+				// TODO add jest-mock-creator
+				{} as Vault,
+				{
+					pathRewriteRules: "",
+					...settings,
+				} as DigitalGardenSettings,
+				{} as MetadataCache,
+				jest.fn(),
 			);
 		};
 
 		it("should replace {{title}} with the basename of the file", () => {
-			const testPublisher = getTestPublisher({});
+			const testCompiler = getTestCompiler({});
 			const EXPECTED_TITLE = "expected";
 
-			const result = testPublisher.generateTransclusionHeader(
+			const result = testCompiler.generateTransclusionHeader(
 				"# {{title}}",
 				{ basename: EXPECTED_TITLE } as TFile,
 			);
@@ -27,9 +32,9 @@ describe("Publisher", () => {
 		});
 
 		it("should add # to header if it is not a markdown header", () => {
-			const testPublisher = getTestPublisher({});
+			const testCompiler = getTestCompiler({});
 
-			const result = testPublisher.generateTransclusionHeader(
+			const result = testCompiler.generateTransclusionHeader(
 				"header",
 				{} as TFile,
 			);
@@ -38,9 +43,9 @@ describe("Publisher", () => {
 		});
 
 		it("Ensures that header has space after #", () => {
-			const testPublisher = getTestPublisher({});
+			const testCompiler = getTestCompiler({});
 
-			const result = testPublisher.generateTransclusionHeader(
+			const result = testCompiler.generateTransclusionHeader(
 				"###header",
 				{} as TFile,
 			);
@@ -49,9 +54,9 @@ describe("Publisher", () => {
 		});
 
 		it("Returns undefined if heading is undefined", () => {
-			const testPublisher = getTestPublisher({});
+			const testCompiler = getTestCompiler({});
 
-			const result = testPublisher.generateTransclusionHeader(
+			const result = testCompiler.generateTransclusionHeader(
 				undefined,
 				{} as TFile,
 			);

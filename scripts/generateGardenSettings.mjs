@@ -59,7 +59,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	ENABLE_DEVELOPER_TOOLS: true,
 	devPluginPath: `${process.cwd()}`,
 };
-console.log(gardenSettings.devPluginPath)
+
 const TEST_VAULT_PATH =
 	"src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/";
 

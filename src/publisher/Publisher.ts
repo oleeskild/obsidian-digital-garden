@@ -7,7 +7,7 @@ import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 
-interface MarkedForPublishing {
+export interface MarkedForPublishing {
 	notes: TFile[];
 	images: string[];
 }
