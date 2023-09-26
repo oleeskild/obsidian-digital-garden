@@ -9,7 +9,6 @@
 
 <script lang="ts">
 	import { createEventDispatcher } from "svelte";
-	import { getIcon } from "obsidian";
 
 	import TreeNode from "src/models/TreeNode";
 	import Icon from "../Icon.svelte";
@@ -68,7 +67,7 @@
 					<Icon name="chevron-right" />
 				</span>
 				{#if !isRoot}
-				 	<Icon name="folder" />
+					<Icon name="folder" />
 					{#if !readOnly}
 						<input
 							type="checkbox"

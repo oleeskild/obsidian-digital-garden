@@ -26,9 +26,9 @@ const gardenSettings = {
 	showNoteIconOnInternalLink: false,
 	showNoteIconOnBackLink: false,
 	showCreatedTimestamp: false,
-	createdTimestampKey: "dg-created",
+	createdTimestampKey: "",
 	showUpdatedTimestamp: false,
-	updatedTimestampKey: "dg-updated",
+	updatedTimestampKey: "",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 	styleSettingsCss: "",
 	pathRewriteRules: `
