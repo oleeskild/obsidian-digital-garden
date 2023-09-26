@@ -54,6 +54,13 @@ I'm a list of all files in this folder:
 { .block-language-dataview}
 
 ---
+{"dg-publish":true,"permalink":"/009-comments/"}
+---
+
+This is the only content on this page
+
+
+---
 {"dg-publish":true,"permalink":"/008-pinned-note/","pinned":true}
 ---
 
@@ -133,7 +140,7 @@ This test vault enables snapshot testing of the garden compilation! To generate 
 - run `Generate Garden Snapshot` from the command palette
 - Snapshot generation is also run on plugin load. 
 
-Ideally this would be 
+
 ## Plugins 
 
 This garden should have the following plugins 
