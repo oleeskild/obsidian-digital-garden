@@ -25,7 +25,7 @@ export const generateGardenSnapshot = async (
 	);
 
 	for (const file of notesSortedByCreationDate) {
-		const [content, _] = await publisher.generateMarkdown(file);
+		const [content, _] = await publisher.compiler.generateMarkdown(file);
 		// TODO: add assets
 
 		fileString += `${content}\n`;

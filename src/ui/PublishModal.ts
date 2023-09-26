@@ -17,17 +17,6 @@ export class PublishModal {
 
 	publicationCenterUi!: PublicationCenter;
 
-	publishedContainer!: HTMLElement;
-	publishedContainerCount!: HTMLElement;
-	changedContainer!: HTMLElement;
-	changedContainerCount!: HTMLElement;
-	deletedContainer!: HTMLElement;
-	deletedContainerCount!: HTMLElement;
-	unpublishedContainer!: HTMLElement;
-	unpublishedContainerCount!: HTMLElement;
-
-	progressContainer!: HTMLElement;
-
 	constructor(
 		app: App,
 		publishStatusManager: PublishStatusManager,
@@ -66,7 +55,7 @@ export class PublishModal {
 
 			if (localFile instanceof TFile) {
 				const [localContent, _] =
-					await this.publisher.generateMarkdown(localFile);
+					await this.publisher.compiler.generateMarkdown(localFile);
 				const diff = Diff.diffLines(remoteContent, localContent);
 				let diffView: DiffView | undefined;
 				const diffModal = new Modal(this.modal.app);

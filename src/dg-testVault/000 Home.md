@@ -23,7 +23,7 @@ This test vault enables snapshot testing of the garden compilation! To generate 
 - run `Generate Garden Snapshot` from the command palette
 - Snapshot generation is also run on plugin load. 
 
-Ideally this would be 
+
 ## Plugins 
 
 This garden should have the following plugins 
