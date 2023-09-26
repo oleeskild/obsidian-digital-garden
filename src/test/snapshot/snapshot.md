@@ -1,5 +1,11 @@
 ---
 ---
+{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
+---
+
+[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
+
+---
 {"dg-publish":true,"dg-path":"fun-folder/More specific path rewriting.md","permalink":"/fun-folder/more-specific-path-rewriting/"}
 ---
 
@@ -71,12 +77,6 @@ Hello! I'm a pinned note (should be at the top yeah!)
 
 [Custom permalink](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
-
----
-{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
----
-
-[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ---
 {"dg-publish":true,"permalink":"/005-custom-filters/"}
