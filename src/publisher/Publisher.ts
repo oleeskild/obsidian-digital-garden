@@ -7,26 +7,17 @@ import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 
-export interface MarkedForPublishing {
+interface MarkedForPublishing {
 	notes: TFile[];
 	images: string[];
 }
-
-export interface IPublisher {
-	[x: string]: unknown;
-	publish(file: TFile): Promise<boolean>;
-	delete(vaultFilePath: string): Promise<boolean>;
-	getFilesMarkedForPublishing(): Promise<MarkedForPublishing>;
-	generateMarkdown(file: TFile): Promise<[string, Assets]>;
-}
-
 /**
  * Prepares files to be published and publishes them to Github
  */
 export default class Publisher {
 	vault: Vault;
 	metadataCache: MetadataCache;
-	gardenPageCompiler: GardenPageCompiler;
+	compiler: GardenPageCompiler;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
 
@@ -40,7 +31,7 @@ export default class Publisher {
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.gardenPageCompiler = new GardenPageCompiler(
+		this.compiler = new GardenPageCompiler(
 			vault,
 			settings,
 			metadataCache,
@@ -61,11 +52,10 @@ export default class Publisher {
 				if (frontMatter && frontMatter["dg-publish"] === true) {
 					notesToPublish.push(file);
 
-					const images =
-						await this.gardenPageCompiler.extractImageLinks(
-							await this.vault.cachedRead(file),
-							file.path,
-						);
+					const images = await this.compiler.extractImageLinks(
+						await this.vault.cachedRead(file),
+						file.path,
+					);
 					images.forEach((i) => imagesToPublish.add(i));
 				}
 			} catch {
@@ -168,8 +158,7 @@ export default class Publisher {
 		}
 
 		try {
-			const [text, assets] =
-				await this.gardenPageCompiler.generateMarkdown(file);
+			const [text, assets] = await this.compiler.generateMarkdown(file);
 			await this.uploadText(file.path, text);
 			await this.uploadAssets(assets);
 

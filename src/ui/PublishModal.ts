@@ -66,7 +66,7 @@ export class PublishModal {
 
 			if (localFile instanceof TFile) {
 				const [localContent, _] =
-					await this.publisher.generateMarkdown(localFile);
+					await this.publisher.compiler.generateMarkdown(localFile);
 				const diff = Diff.diffLines(remoteContent, localContent);
 				let diffView: DiffView | undefined;
 				const diffModal = new Modal(this.modal.app);

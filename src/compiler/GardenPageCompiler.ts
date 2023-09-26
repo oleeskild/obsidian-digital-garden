@@ -23,13 +23,13 @@ import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
-
-export const FRONTMATTER_REGEX = /^\s*?---\n([\s\S]*?)\n---/g;
-export const BLOCKREF_REGEX = /(\^\w+(\n|$))/g;
-
-export const codeFenceRegex = /`(.*?)`/g;
-export const codeBlockRegex = /```.*?\n[\s\S]+?```/g;
-export const excaliDrawRegex = /:\[\[(\d*?,\d*?)\],.*?\]\]/g;
+import {
+	CODEBLOCK_REGEX,
+	CODE_FENCE_REGEX,
+	EXCALIDRAW_REGEX,
+	FRONTMATTER_REGEX,
+	BLOCKREF_REGEX,
+} from "../utils/regexes";
 
 export interface Asset {
 	path: string;
@@ -133,9 +133,9 @@ export class GardenPageCompiler {
 	async removeObsidianComments(text: string): Promise<string> {
 		const obsidianCommentsRegex = /%%.+?%%/gms;
 		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
-		const codeBlocks = text.match(codeBlockRegex) || [];
-		const codeFences = text.match(codeFenceRegex) || [];
-		const excalidraw = text.match(excaliDrawRegex) || [];
+		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
+		const codeFences = text.match(CODE_FENCE_REGEX) || [];
+		const excalidraw = text.match(EXCALIDRAW_REGEX) || [];
 
 		if (obsidianCommentsMatches) {
 			for (const commentMatch of obsidianCommentsMatches) {
@@ -316,9 +316,9 @@ export class GardenPageCompiler {
 
 	stripAwayCodeFencesAndFrontmatter(text: string): string {
 		let textToBeProcessed = text;
-		textToBeProcessed = textToBeProcessed.replace(excaliDrawRegex, "");
-		textToBeProcessed = textToBeProcessed.replace(codeBlockRegex, "");
-		textToBeProcessed = textToBeProcessed.replace(codeFenceRegex, "");
+		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
+		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
+		textToBeProcessed = textToBeProcessed.replace(CODE_FENCE_REGEX, "");
 
 		textToBeProcessed = textToBeProcessed.replace(FRONTMATTER_REGEX, "");
 
