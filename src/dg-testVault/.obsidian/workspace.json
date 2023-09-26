@@ -33,19 +33,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "000 Home.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "25ba2471a9117bc5",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "009 Comments.md",
+                "file": "E Embeds/E02 PNG.md",
                 "mode": "source",
                 "source": false
               }
@@ -142,7 +130,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "009 Comments.md",
+                "file": "002 Hidden page.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -159,7 +147,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "009 Comments.md",
+                "file": "002 Hidden page.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -182,7 +170,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "009 Comments.md"
+                "file": "002 Hidden page.md"
               }
             }
           }
@@ -205,14 +193,20 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "25ba2471a9117bc5",
+  "active": "16078f5ef00e92e4",
   "lastOpenFiles": [
+    "E Embeds/E02 PNG.md",
     "000 Home.md",
-    "009 Comments.md",
-    "E Embeds/E01 SVG.md",
+    "005 Custom filters.md",
+    "002 Hidden page.md",
     "E Embeds/garden-gate.svg",
-    "001 Links.md",
+    "E Embeds/E02 Image",
+    "E Embeds/ahven_logo.png",
+    "E Embeds/IMG_8AA032A19D75-1.jpeg",
+    "E Embeds/E01 SVG.md",
     "E Embeds",
+    "009 Comments.md",
+    "001 Links.md",
     "Path Rewriting/Subfolder2/More specific path rewriting.md",
     "Path Rewriting/Subfolder/How deep do the rewrite rules go?.md",
     "Path Rewriting/Subfolder2",
@@ -229,14 +223,11 @@
     "008 Pinned note.md",
     "007 Custom permalink.md",
     "006 Custom title.md",
-    "002 Hidden page.md",
     "F Folder/F01 Note in folder!.md",
-    "005 Custom filters.md",
     "F Folder/004 Folder set to root.md",
     "004 Publishing this garden.md",
     "003 Non published page.md",
     "Folder/004 Folder set to root.md",
-    "F Folder",
-    "Folder"
+    "F Folder"
   ]
 }

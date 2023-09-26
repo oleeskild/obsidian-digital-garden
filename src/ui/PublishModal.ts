@@ -17,17 +17,6 @@ export class PublishModal {
 
 	publicationCenterUi!: PublicationCenter;
 
-	publishedContainer!: HTMLElement;
-	publishedContainerCount!: HTMLElement;
-	changedContainer!: HTMLElement;
-	changedContainerCount!: HTMLElement;
-	deletedContainer!: HTMLElement;
-	deletedContainerCount!: HTMLElement;
-	unpublishedContainer!: HTMLElement;
-	unpublishedContainerCount!: HTMLElement;
-
-	progressContainer!: HTMLElement;
-
 	constructor(
 		app: App,
 		publishStatusManager: PublishStatusManager,

@@ -27,3 +27,4 @@ deploy.sh
 yarn.lock
 
 .env
+src/dg-testVault/.obsidian/workspace.json

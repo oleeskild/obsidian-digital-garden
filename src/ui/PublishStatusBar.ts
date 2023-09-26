@@ -29,8 +29,4 @@ export class PublishStatusBar {
 			this.statusBarItem.remove();
 		}, displayDurationMillisec);
 	}
-
-	error() {
-		this.statusBarItem.remove();
-	}
 }
