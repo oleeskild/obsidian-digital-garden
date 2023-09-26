@@ -176,8 +176,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -197,8 +195,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -218,8 +214,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -239,8 +233,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -260,8 +252,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -279,8 +269,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -300,8 +288,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -321,8 +307,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -342,8 +326,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 
@@ -363,8 +345,6 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
-
-					new Notice("Setting saved");
 				});
 			});
 	}
@@ -378,12 +358,11 @@ export default class SettingView {
 			cb.setButtonText("Apply settings to site");
 			cb.setClass("mod-cta");
 
-			new Notice("Applying settings to site...");
-
 			cb.onClick(async (_ev) => {
 				const octokit = new Octokit({
 					auth: this.settings.githubToken,
 				});
+				new Notice("Applying settings to site...");
 				await this.saveSettingsAndUpdateEnv();
 				await this.addFavicon(octokit);
 			});
@@ -733,6 +712,7 @@ export default class SettingView {
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
 	) {
+		new Notice("Updating settings...");
 		let updateFailed = false;
 
 		try {
@@ -749,6 +729,7 @@ export default class SettingView {
 		}
 
 		if (!updateFailed) {
+			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
 	}
