@@ -8,6 +8,7 @@
 	import TreeView from "src/ui/TreeView/TreeView.svelte";
 	import { onMount } from "svelte";
 	import Publisher from "src/publisher/Publisher";
+	import Icon from "./Icon.svelte";
 
 	export let publishStatusManager: IPublishStatusManager;
 	export let publisher: Publisher;
@@ -260,11 +261,11 @@
 					{#if processingPaths.includes(note.path)}
 						{@html rotatingCog()?.outerHTML}
 					{:else if publishedPaths.includes(note.path)}
-						{@html getIcon("check")?.outerHTML}
+					 	<Icon name="check" />
 					{:else if failedPublish.includes(note.path)}
-						{@html getIcon("cross")?.outerHTML}
+					 	<Icon name="cross" />
 					{:else}
-						{@html getIcon("clock")?.outerHTML}
+					 	<Icon name="clock" />
 					{/if}
 					{note.name}
 					{#if publishedPaths.includes(note.path)}
@@ -278,9 +279,9 @@
 					{#if processingPaths.includes(path)}
 						{@html rotatingCog()?.outerHTML}
 					{:else if publishedPaths.includes(path)}
-						{@html getIcon("check")?.outerHTML}
+					 	<Icon name="check" />
 					{:else}
-						{@html getIcon("clock")?.outerHTML}
+					 	<Icon name="clock"/>
 					{/if}
 					{path.split("/").last()}
 

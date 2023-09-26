@@ -12,6 +12,7 @@
 	import { getIcon } from "obsidian";
 
 	import TreeNode from "src/models/TreeNode";
+	import Icon from "../Icon.svelte";
 	export let tree: TreeNode;
 	export let readOnly: boolean = false;
 	export let enableShowDiff: boolean = false;
@@ -64,10 +65,10 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<span>
 				<span on:click={toggleExpansion} class="arrow" class:arrowDown>
-					{@html getIcon("chevron-right")?.outerHTML}
+					<Icon name="chevron-right" />
 				</span>
 				{#if !isRoot}
-					{@html getIcon("folder")?.outerHTML}
+				 	<Icon name="folder" />
 					{#if !readOnly}
 						<input
 							type="checkbox"
@@ -111,7 +112,7 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<span>
 				<span class="no-arrow" />
-				{@html getIcon("file")?.outerHTML}
+				<Icon name="file" />
 				{#if !readOnly}
 					<input
 						type="checkbox"
@@ -127,7 +128,7 @@
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				{#if enableShowDiff}
 					<span title="Show diff" class="diff" on:click={showDiff}>
-						{@html getIcon("file-diff")?.outerHTML}
+						<Icon name="file-diff" />
 					</span>
 				{/if}
 			</span>
