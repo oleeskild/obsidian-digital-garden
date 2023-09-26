@@ -261,11 +261,11 @@
 					{#if processingPaths.includes(note.path)}
 						{@html rotatingCog()?.outerHTML}
 					{:else if publishedPaths.includes(note.path)}
-					 	<Icon name="check" />
+						<Icon name="check" />
 					{:else if failedPublish.includes(note.path)}
-					 	<Icon name="cross" />
+						<Icon name="cross" />
 					{:else}
-					 	<Icon name="clock" />
+						<Icon name="clock" />
 					{/if}
 					{note.name}
 					{#if publishedPaths.includes(note.path)}
@@ -279,9 +279,9 @@
 					{#if processingPaths.includes(path)}
 						{@html rotatingCog()?.outerHTML}
 					{:else if publishedPaths.includes(path)}
-					 	<Icon name="check" />
+						<Icon name="check" />
 					{:else}
-					 	<Icon name="clock"/>
+						<Icon name="clock" />
 					{/if}
 					{path.split("/").last()}
 

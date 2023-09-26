@@ -35,9 +35,9 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	// Timestamp related settings
 	showCreatedTimestamp: false,
-	createdTimestampKey: "dg-created",
+	createdTimestampKey: "",
 	showUpdatedTimestamp: false,
-	updatedTimestampKey: "dg-updated",
+	updatedTimestampKey: "",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 
 	styleSettingsCss: "",

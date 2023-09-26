@@ -176,6 +176,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -195,6 +197,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -214,6 +218,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -233,6 +239,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -252,6 +260,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -269,6 +279,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -288,6 +300,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -307,6 +321,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
@@ -326,13 +342,15 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 
 		new Setting(noteSettingsModal.contentEl)
 			.setName("Let all frontmatter through (dg-pass-frontmatter)")
 			.setDesc(
-				"Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
+				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
 			)
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter);
@@ -345,6 +363,8 @@ export default class SettingView {
 						this.settings,
 						this.saveSettings,
 					);
+
+					new Notice("Setting saved");
 				});
 			});
 	}
@@ -353,6 +373,21 @@ export default class SettingView {
 		const themeModal = new Modal(this.app);
 		themeModal.containerEl.addClass("dg-settings");
 		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
+
+		const handleSaveSettingsButton = (cb: ButtonComponent) => {
+			cb.setButtonText("Apply settings to site");
+			cb.setClass("mod-cta");
+
+			new Notice("Applying settings to site...");
+
+			cb.onClick(async (_ev) => {
+				const octokit = new Octokit({
+					auth: this.settings.githubToken,
+				});
+				await this.saveSettingsAndUpdateEnv();
+				await this.addFavicon(octokit);
+			});
+		};
 
 		new Setting(this.settingsRootElement)
 			.setName("Appearance")
@@ -498,6 +533,8 @@ export default class SettingView {
 				new SvgFileSuggest(this.app, tc.inputEl);
 			});
 
+		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
+
 		themeModal.contentEl
 			.createEl("h2", { text: "Timestamps Settings" })
 			.prepend(this.getIcon("calendar-clock"));
@@ -530,7 +567,7 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Created timestamp Frontmatter Key")
 			.setDesc(
-				"Key to get the created timestamp from the frontmatter. Keep blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.",
+				"Key to get the created timestamp from the frontmatter. Leave blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.",
 			)
 			.addText((text) =>
 				text
@@ -555,7 +592,7 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Updated timestamp Frontmatter Key")
 			.setDesc(
-				"Key to get the updated timestamp from the frontmatter. Keep blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.",
+				"Key to get the updated timestamp from the frontmatter. Leave blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.",
 			)
 			.addText((text) =>
 				text
@@ -565,6 +602,8 @@ export default class SettingView {
 						await this.saveSettings();
 					}),
 			);
+
+		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
 
 		themeModal.contentEl
 			.createEl("h2", { text: "CSS settings" })
@@ -583,6 +622,8 @@ export default class SettingView {
 						await this.saveSettings();
 					}),
 			);
+
+		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
 
 		themeModal.contentEl
 			.createEl("h2", { text: "Note icons Settings" })
@@ -663,17 +704,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl).addButton((cb) => {
-			cb.setButtonText("Apply settings to site");
-
-			cb.onClick(async (_ev) => {
-				const octokit = new Octokit({
-					auth: this.settings.githubToken,
-				});
-				await this.saveSettingsAndUpdateEnv();
-				await this.addFavicon(octokit);
-			});
-		});
+		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
 	}
 
 	private async saveSettingsAndUpdateEnv() {
