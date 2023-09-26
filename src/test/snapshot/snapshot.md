@@ -54,6 +54,13 @@ I'm a list of all files in this folder:
 { .block-language-dataview}
 
 ---
+{"dg-publish":true,"permalink":"/e-embeds/e02-png-published/"}
+---
+
+
+
+![travolta.png](/img/user/A%20Assets/travolta.png)
+---
 {"dg-publish":true,"permalink":"/009-comments/"}
 ---
 

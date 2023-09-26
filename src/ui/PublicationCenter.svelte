@@ -35,7 +35,7 @@
 			}
 
 			let childNode = currentNode.children.find(
-				(child) => child.name === part
+				(child) => child.name === part,
 			);
 
 			if (!childNode) {
@@ -55,7 +55,7 @@
 
 	function filePathsToTree(
 		filePaths: string[],
-		rootName: string = "root"
+		rootName: string = "root",
 	): TreeNode {
 		const root: TreeNode = {
 			name: rootName,
@@ -94,14 +94,14 @@
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.publishedNotes.map((note) => note.path),
-			"Published Notes"
+			"Published Notes",
 		);
 
 	$: changedNotesTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.changedNotes.map((note) => note.path),
-			"Changed Notes"
+			"Changed Notes",
 		);
 
 	$: deletedNoteTree =
@@ -111,14 +111,14 @@
 				...publishStatus.deletedNotePaths,
 				...publishStatus.deletedImagePaths,
 			],
-			"Deleted Notes"
+			"Deleted Notes",
 		);
 
 	$: unpublishedNoteTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.unpublishedNotes.map((note) => note.path),
-			"Unpublished Notes"
+			"Unpublished Notes",
 		);
 
 	$: publishProgress =
@@ -165,21 +165,21 @@
 		pathsToDelete = traverseTree(deletedNoteTree!);
 
 		const notesToDelete = pathsToDelete.filter((path) =>
-			publishStatus.deletedNotePaths.includes(path)
+			publishStatus.deletedNotePaths.includes(path),
 		);
 
 		const imagesToDelete = pathsToDelete.filter((path) =>
-			publishStatus.deletedImagePaths.includes(path)
+			publishStatus.deletedImagePaths.includes(path),
 		);
 
 		unpublishedToPublish =
 			publishStatus.unpublishedNotes.filter((note) =>
-				unpublishedPaths.includes(note.path)
+				unpublishedPaths.includes(note.path),
 			) ?? [];
 
 		changedToPublish =
 			publishStatus?.changedNotes.filter((note) =>
-				changedPaths.includes(note.path)
+				changedPaths.includes(note.path),
 			) ?? [];
 
 		showPublishingView = true;
@@ -189,7 +189,7 @@
 			let isPublished = await publisher.publish(note);
 
 			processingPaths = processingPaths.filter(
-				(path) => path !== note.path
+				(path) => path !== note.path,
 			);
 
 			if (isPublished) {
@@ -203,6 +203,7 @@
 			processingPaths.push(path);
 			const isNote = path.endsWith(".md");
 			let isDeleted: boolean;
+
 			if (isNote) {
 				isDeleted = await publisher.deleteNote(path);
 			} else {

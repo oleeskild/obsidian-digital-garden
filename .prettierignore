@@ -14,5 +14,7 @@ src/dg-testVault/*
 package-lock.json
 package.json
 
+*.md 
+*.mjs
 README.md
 *.md
