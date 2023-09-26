@@ -76,7 +76,7 @@ export default class Publisher {
 	}
 
 	async deleteImage(vaultFilePath: string) {
-		const path = `src/site/img/user/${encodeURI(vaultFilePath)}`;
+		const path = `src/site/img/user/${vaultFilePath}`;
 
 		return await this.delete(path);
 	}

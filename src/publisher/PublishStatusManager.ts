@@ -38,15 +38,16 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		remoteNoteHashes: { [key: string]: string },
 		marked: string[],
 	): Array<string> {
-		const deletedContentPaths: Array<string> = [];
+		const isJsFile = (key: string) => key.endsWith(".js");
 
-		Object.keys(remoteNoteHashes).forEach((key) => {
-			if (!key.endsWith(".js") && !marked.find((f) => f === key)) {
-				deletedContentPaths.push(key);
-			}
-		});
+		const isMarkedForPublish = (key: string) =>
+			marked.find((f) => f === key);
 
-		return deletedContentPaths;
+		const deletedImagePaths = Object.keys(remoteNoteHashes).filter(
+			(key) => !isJsFile(key) && !isMarkedForPublish(key),
+		);
+
+		return deletedImagePaths;
 	}
 	async getPublishStatus(): Promise<PublishStatus> {
 		const unpublishedNotes: Array<TFile> = [];
@@ -83,6 +84,9 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			remoteImageHashes,
 			marked.images,
 		);
+
+		console.log("marked.images", marked.images);
+		console.log("deletedImagePaths", deletedImagePaths);
 		unpublishedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
 		publishedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
 		changedNotes.sort((a, b) => (a.path > b.path ? 1 : -1));
