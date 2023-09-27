@@ -171,6 +171,7 @@ export default class DigitalGarden extends Plugin {
 						metadataCache,
 						this.settings,
 					);
+					publisher.validateSettings();
 
 					const siteManager = new DigitalGardenSiteManager(
 						metadataCache,
@@ -399,6 +400,7 @@ export default class DigitalGarden extends Plugin {
 				metadataCache,
 				this.settings,
 			);
+			publisher.validateSettings();
 			const publishSuccessful = await publisher.publish(activeFile);
 
 			if (publishSuccessful) {
