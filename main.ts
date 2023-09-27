@@ -308,7 +308,7 @@ export default class DigitalGarden extends Plugin {
 			id: "dg-unmark-note-for-publish",
 			name: "Remove publish flag",
 			callback: async () => {
-				this.setPublishFlagValue(true);
+				this.setPublishFlagValue(false);
 			},
 		});
 
