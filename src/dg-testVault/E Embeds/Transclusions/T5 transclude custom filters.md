@@ -1,6 +1,5 @@
 ---
 dg-publish: true
 ---
-???
 
-![[travolta.png|100]]
+![[005 Custom filters]]
