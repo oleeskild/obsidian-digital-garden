@@ -51,7 +51,6 @@ export class PublishModal {
 			const remoteContent =
 				await this.siteManager.getNoteContent(notePath);
 			const localFile = this.vault.getAbstractFileByPath(notePath);
-			console.log(localFile);
 
 			if (localFile instanceof TFile) {
 				const [localContent, _] =
