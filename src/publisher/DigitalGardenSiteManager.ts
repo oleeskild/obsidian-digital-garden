@@ -9,6 +9,7 @@ import {
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import type DigitalGardenPluginInfo from "../models/pluginInfo";
+import { IMAGE_PATH_BASE, NOTE_PATH_BASE } from "./Publisher";
 
 export interface PathRewriteRule {
 	from: string;
@@ -146,7 +147,7 @@ export default class DigitalGardenSiteManager {
 			{
 				owner: this.settings.githubUserName,
 				repo: this.settings.githubRepo,
-				path: "src/site/notes/" + path,
+				path: NOTE_PATH_BASE + path,
 			},
 		);
 
@@ -175,14 +176,14 @@ export default class DigitalGardenSiteManager {
 
 		const notes: Array<{ path: string; sha: string }> = files.filter(
 			(x: { path: string; type: string }) =>
-				x.path.startsWith("src/site/notes/") &&
+				x.path.startsWith(NOTE_PATH_BASE) &&
 				x.type === "blob" &&
-				x.path !== "src/site/notes/notes.json",
+				x.path !== `${NOTE_PATH_BASE}notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const note of notes) {
-			const vaultPath = note.path.replace("src/site/notes/", "");
+			const vaultPath = note.path.replace(NOTE_PATH_BASE, "");
 			hashes[vaultPath] = note.sha;
 		}
 
@@ -208,14 +209,12 @@ export default class DigitalGardenSiteManager {
 
 		const images: Array<{ path: string; sha: string }> = files.filter(
 			(x: { path: string; type: string }) =>
-				x.path.startsWith("src/site/img/user/") && x.type === "blob",
+				x.path.startsWith(IMAGE_PATH_BASE) && x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const img of images) {
-			const vaultPath = decodeURI(
-				img.path.replace("src/site/img/user/", ""),
-			);
+			const vaultPath = decodeURI(img.path.replace(IMAGE_PATH_BASE, ""));
 			hashes[vaultPath] = img.sha;
 		}
 
