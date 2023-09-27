@@ -82,27 +82,7 @@ export default class Publisher {
 	}
 
 	async delete(path: string): Promise<boolean> {
-		if (!this.settings.githubRepo) {
-			new Notice(
-				"Config error: You need to define a GitHub repo in the plugin settings",
-			);
-			throw {};
-		}
-
-		if (!this.settings.githubUserName) {
-			new Notice(
-				"Config error: You need to define a GitHub Username in the plugin settings",
-			);
-			throw {};
-		}
-
-		if (!this.settings.githubToken) {
-			new Notice(
-				"Config error: You need to define a GitHub Token in the plugin settings",
-			);
-			throw {};
-		}
-
+		this.validateSettings();
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
 		const payload = {
@@ -169,26 +149,7 @@ export default class Publisher {
 	}
 
 	async uploadToGithub(path: string, content: string) {
-		if (!this.settings.githubRepo) {
-			new Notice(
-				"Config error: You need to define a GitHub repo in the plugin settings",
-			);
-			throw {};
-		}
-
-		if (!this.settings.githubUserName) {
-			new Notice(
-				"Config error: You need to define a GitHub Username in the plugin settings",
-			);
-			throw {};
-		}
-
-		if (!this.settings.githubToken) {
-			new Notice(
-				"Config error: You need to define a GitHub Token in the plugin settings",
-			);
-			throw {};
-		}
+		this.validateSettings();
 
 		const octokit = new Octokit({ auth: this.settings.githubToken });
 
@@ -243,6 +204,29 @@ export default class Publisher {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
 			await this.uploadImage(image.path, image.content);
+		}
+	}
+
+	validateSettings() {
+		if (!this.settings.githubRepo) {
+			new Notice(
+				"Config error: You need to define a GitHub repo in the plugin settings",
+			);
+			throw {};
+		}
+
+		if (!this.settings.githubUserName) {
+			new Notice(
+				"Config error: You need to define a GitHub Username in the plugin settings",
+			);
+			throw {};
+		}
+
+		if (!this.settings.githubToken) {
+			new Notice(
+				"Config error: You need to define a GitHub Token in the plugin settings",
+			);
+			throw {};
 		}
 	}
 }
