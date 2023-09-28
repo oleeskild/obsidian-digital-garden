@@ -77,8 +77,6 @@ export class GardenPageCompiler {
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
-		const processedFrontmatter = file.getProcessedFrontmatter();
-
 		const fileText = await file.cachedRead();
 
 		if (file.getType() === "excalidraw") {
@@ -91,20 +89,25 @@ export class GardenPageCompiler {
 			];
 		}
 
-		let text = await this.convertFrontMatter(
-			fileText,
-			processedFrontmatter,
+		const COMPILE_STEPS: TCompilerStep[] = [
+			this.convertFrontMatter,
+			this.convertCustomFilters,
+			this.createBlockIDs,
+			this.removeObsidianComments,
+			this.convertDataViews,
+			this.convertLinksToFullPath,
+			this.createTranscludedText(0),
+			this.createSvgEmbeds,
+		];
+
+		const compiledText = await COMPILE_STEPS.reduce(
+			async (previousStep, currentStep) =>
+				currentStep(file, await previousStep),
+			Promise.resolve(fileText),
 		);
-		text = await this.convertCustomFilters(file, text);
-		text = await this.createBlockIDs(file, text);
-		text = await this.createTranscludedText(0)(file, text);
-		text = await this.convertDataViews(file, text);
-		text = await this.convertLinksToFullPath(file, text);
-		text = await this.removeObsidianComments(file, text);
-		text = await this.createSvgEmbeds(file, text);
 
 		const text_and_images = await this.convertImageLinks(
-			text,
+			compiledText,
 			file.getPath(),
 		);
 
@@ -184,16 +187,13 @@ export class GardenPageCompiler {
 		return text;
 	};
 
-	async convertFrontMatter(
-		text: string,
-		frontmatter: string,
-	): Promise<string> {
+	convertFrontMatter: TCompilerStep = (file, text) => {
 		const replaced = text.replace(FRONTMATTER_REGEX, (_match, _p1) => {
-			return frontmatter;
+			return file.getProcessedFrontmatter();
 		});
 
 		return replaced;
-	}
+	};
 
 	convertDataViews: TCompilerStep = async (file, text) => {
 		let replacedText = text;
