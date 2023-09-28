@@ -29,8 +29,10 @@ import {
 	EXCALIDRAW_REGEX,
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
+	TRANSCLUDED_SVG_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
+import { PublishFile } from "../publisher/PublishFile";
 
 export interface Asset {
 	path: string;
@@ -41,6 +43,11 @@ export interface Assets {
 }
 
 export type TCompiledFile = [string, Assets];
+
+export type TCompilerStep = (
+	publishFile: PublishFile,
+	content: string,
+) => Promise<string> | string;
 
 export class GardenPageCompiler {
 	private readonly vault: Vault;
@@ -67,22 +74,18 @@ export class GardenPageCompiler {
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 	}
 
-	async generateMarkdown(file: TFile): Promise<TCompiledFile> {
+	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
-		const processedFrontmatter =
-			this.frontMatterCompiler.getFrontMatterFromFile(
-				file,
-				this.metadataCache,
-			);
+		const processedFrontmatter = file.getProcessedFrontmatter();
 
-		const fileText = await this.vault.cachedRead(file);
+		const fileText = await file.cachedRead();
 
-		if (file.name.endsWith(".excalidraw.md")) {
+		if (file.getType() === "excalidraw") {
 			return [
-				await this.excalidrawCompiler.compileMarkdown(
-					{ file, processedFrontmatter, fileText },
-					true,
+				await this.excalidrawCompiler.compileMarkdown(true)(
+					file,
+					fileText,
 				),
 				assets,
 			];
@@ -92,19 +95,23 @@ export class GardenPageCompiler {
 			fileText,
 			processedFrontmatter,
 		);
-		text = await this.convertCustomFilters(text);
-		text = await this.createBlockIDs(text);
-		text = await this.createTranscludedText(text, file.path, 0);
-		text = await this.convertDataViews(text, file.path);
-		text = await this.convertLinksToFullPath(text, file.path);
-		text = await this.removeObsidianComments(text);
-		text = await this.createSvgEmbeds(text, file.path);
-		const text_and_images = await this.convertImageLinks(text, file.path);
+		text = await this.convertCustomFilters(file, text);
+		text = await this.createBlockIDs(file, text);
+		text = await this.createTranscludedText(0)(file, text);
+		text = await this.convertDataViews(file, text);
+		text = await this.convertLinksToFullPath(file, text);
+		text = await this.removeObsidianComments(file, text);
+		text = await this.createSvgEmbeds(file, text);
+
+		const text_and_images = await this.convertImageLinks(
+			text,
+			file.getPath(),
+		);
 
 		return [text_and_images[0], { images: text_and_images[1] }];
 	}
 
-	async convertCustomFilters(text: string) {
+	convertCustomFilters: TCompilerStep = (_publishFile, text) => {
 		for (const filter of this.settings.customFilters) {
 			try {
 				text = text.replace(
@@ -123,15 +130,15 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
-	async createBlockIDs(text: string) {
+	createBlockIDs: TCompilerStep = (file, text: string) => {
 		const block_pattern = / \^([\w\d-]+)/g;
 		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
 
 		text = text.replace(
 			complex_block_pattern,
-			(match: string, $1: string) => {
+			(_match: string, $1: string) => {
 				return `{ #${$1}}\n\n`;
 			},
 		);
@@ -141,9 +148,9 @@ export class GardenPageCompiler {
 		});
 
 		return text;
-	}
+	};
 
-	async removeObsidianComments(text: string): Promise<string> {
+	removeObsidianComments: TCompilerStep = (file, text: string) => {
 		const obsidianCommentsRegex = /%%.+?%%/gms;
 		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
 		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
@@ -175,7 +182,7 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
 	async convertFrontMatter(
 		text: string,
@@ -188,7 +195,7 @@ export class GardenPageCompiler {
 		return replaced;
 	}
 
-	async convertDataViews(text: string, path: string): Promise<string> {
+	convertDataViews: TCompilerStep = async (file, text) => {
 		let replacedText = text;
 		const dataViewRegex = /```dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
@@ -234,7 +241,11 @@ export class GardenPageCompiler {
 			try {
 				const block = queryBlock[0];
 				const query = queryBlock[1];
-				const markdown = await dvApi.tryQueryMarkdown(query, path);
+
+				const markdown = await dvApi.tryQueryMarkdown(
+					query,
+					file.getPath(),
+				);
 
 				replacedText = replacedText.replace(
 					block,
@@ -258,7 +269,7 @@ export class GardenPageCompiler {
 
 				const div = createEl("div");
 				const component = new Component();
-				await dvApi.executeJs(query, div, component, path);
+				await dvApi.executeJs(query, div, component, file.getPath());
 				component.load();
 
 				replacedText = replacedText.replace(block, div.innerHTML);
@@ -309,7 +320,7 @@ export class GardenPageCompiler {
 
 				const div = createEl("div");
 				const component = new Component();
-				await dvApi.executeJs(query, div, component, path);
+				await dvApi.executeJs(query, div, component, file.getPath());
 				component.load();
 
 				replacedText = replacedText.replace(code, div.innerHTML);
@@ -325,9 +336,9 @@ export class GardenPageCompiler {
 		}
 
 		return replacedText;
-	}
+	};
 
-	stripAwayCodeFencesAndFrontmatter(text: string): string {
+	stripAwayCodeFencesAndFrontmatter: TCompilerStep = (file, text) => {
 		let textToBeProcessed = text;
 		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
@@ -336,15 +347,15 @@ export class GardenPageCompiler {
 		textToBeProcessed = textToBeProcessed.replace(FRONTMATTER_REGEX, "");
 
 		return textToBeProcessed;
-	}
+	};
 
-	async convertLinksToFullPath(
-		text: string,
-		filePath: string,
-	): Promise<string> {
+	convertLinksToFullPath: TCompilerStep = async (file, text) => {
 		let convertedText = text;
 
-		const textToBeProcessed = this.stripAwayCodeFencesAndFrontmatter(text);
+		const textToBeProcessed = await this.stripAwayCodeFencesAndFrontmatter(
+			file,
+			text,
+		);
 
 		const linkedFileRegex = /\[\[(.+?)\]\]/g;
 		const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
@@ -382,7 +393,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						fullLinkedFilePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -411,213 +422,218 @@ export class GardenPageCompiler {
 		}
 
 		return convertedText;
-	}
+	};
 
-	async createTranscludedText(
-		text: string,
-		filePath: string,
-		currentDepth: number,
-	): Promise<string> {
-		if (currentDepth >= 4) {
-			return text;
-		}
+	createTranscludedText =
+		(currentDepth: number): TCompilerStep =>
+		async (file, text) => {
+			if (currentDepth >= 4) {
+				return text;
+			}
 
-		const { notes: publishedFiles } =
-			await this.getFilesMarkedForPublishing();
-		let transcludedText = text;
-		const transcludedRegex = /!\[\[(.+?)\]\]/g;
-		const transclusionMatches = text.match(transcludedRegex);
-		let numberOfExcaliDraws = 0;
+			const { notes: publishedFiles } =
+				await this.getFilesMarkedForPublishing();
+			let transcludedText = text;
+			const transcludedRegex = /!\[\[(.+?)\]\]/g;
+			const transclusionMatches = text.match(transcludedRegex);
+			let numberOfExcaliDraws = 0;
 
-		if (transclusionMatches) {
-			for (let i = 0; i < transclusionMatches.length; i++) {
-				try {
-					const transclusionMatch = transclusionMatches[i];
+			if (transclusionMatches) {
+				for (let i = 0; i < transclusionMatches.length; i++) {
+					try {
+						const transclusionMatch = transclusionMatches[i];
 
-					const [transclusionFileName, headerName] = transclusionMatch
-						.substring(
-							transclusionMatch.indexOf("[") + 2,
-							transclusionMatch.indexOf("]"),
-						)
-						.split("|");
+						const [transclusionFileName, headerName] =
+							transclusionMatch
+								.substring(
+									transclusionMatch.indexOf("[") + 2,
+									transclusionMatch.indexOf("]"),
+								)
+								.split("|");
 
-					const transclusionFilePath =
-						getLinkpath(transclusionFileName);
+						const transclusionFilePath =
+							getLinkpath(transclusionFileName);
 
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						transclusionFilePath,
-						filePath,
-					);
-
-					if (!linkedFile) {
-						continue;
-					}
-					let sectionID = "";
-
-					if (linkedFile.name.endsWith(".excalidraw.md")) {
-						const firstDrawing = ++numberOfExcaliDraws === 1;
-
-						const processedFrontmatter =
-							this.frontMatterCompiler.getFrontMatterFromFile(
-								linkedFile,
-								this.metadataCache,
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								transclusionFilePath,
+								file.getPath(),
 							);
 
-						const fileText =
-							await this.vault.cachedRead(linkedFile);
+						if (!linkedFile) {
+							continue;
+						}
 
-						const excaliDrawCode =
-							await this.excalidrawCompiler.compileMarkdown(
-								{
-									file: linkedFile,
-									processedFrontmatter,
-									fileText,
-								},
-								firstDrawing,
-								`${numberOfExcaliDraws}`,
-								false,
+						const publishLinkedFile = new PublishFile({
+							file: linkedFile,
+							compiler: this,
+							metadataCache: this.metadataCache,
+							vault: this.vault,
+							settings: this.settings,
+						});
+						let sectionID = "";
+
+						if (linkedFile.name.endsWith(".excalidraw.md")) {
+							const firstDrawing = ++numberOfExcaliDraws === 1;
+
+							const fileText =
+								await this.vault.cachedRead(linkedFile);
+
+							const excaliDrawCode =
+								await this.excalidrawCompiler.compileMarkdown(
+									firstDrawing,
+									`${numberOfExcaliDraws}`,
+									false,
+								)(publishLinkedFile, fileText);
+
+							transcludedText = transcludedText.replace(
+								transclusionMatch,
+								excaliDrawCode,
 							);
+						} else if (linkedFile.extension === "md") {
+							let fileText =
+								await this.vault.cachedRead(linkedFile);
 
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							excaliDrawCode,
-						);
-					} else if (linkedFile.extension === "md") {
-						let fileText = await this.vault.cachedRead(linkedFile);
+							const metadata =
+								this.metadataCache.getFileCache(linkedFile);
 
-						const metadata =
-							this.metadataCache.getFileCache(linkedFile);
+							if (transclusionFileName.includes("#^")) {
+								// Transclude Block
+								const refBlock =
+									transclusionFileName.split("#^")[1];
+								sectionID = `#${slugify(refBlock)}`;
 
-						if (transclusionFileName.includes("#^")) {
-							// Transclude Block
-							const refBlock =
-								transclusionFileName.split("#^")[1];
-							sectionID = `#${slugify(refBlock)}`;
+								const blockInFile =
+									metadata?.blocks &&
+									metadata.blocks[refBlock];
 
-							const blockInFile =
-								metadata?.blocks && metadata.blocks[refBlock];
-
-							if (blockInFile) {
-								fileText = fileText
-									.split("\n")
-									.slice(
-										blockInFile.position.start.line,
-										blockInFile.position.end.line + 1,
-									)
-									.join("\n")
-									.replace(`^${refBlock}`, "");
-							}
-						} else if (transclusionFileName.includes("#")) {
-							// transcluding header only
-							const refHeader =
-								transclusionFileName.split("#")[1];
-
-							const headerInFile = metadata?.headings?.find(
-								(header) => header.heading === refHeader,
-							);
-
-							sectionID = `#${slugify(refHeader)}`;
-
-							if (headerInFile && metadata?.headings) {
-								const headerPosition =
-									metadata.headings.indexOf(headerInFile);
-
-								// Embed should copy the content proparly under the given block
-								const cutTo = metadata.headings
-									.slice(headerPosition + 1)
-									.find(
-										(header) =>
-											header.level <= headerInFile.level,
-									);
-
-								if (cutTo) {
-									const cutToLine =
-										cutTo?.position?.start?.line;
-
+								if (blockInFile) {
 									fileText = fileText
 										.split("\n")
 										.slice(
-											headerInFile.position.start.line,
-											cutToLine,
+											blockInFile.position.start.line,
+											blockInFile.position.end.line + 1,
 										)
-										.join("\n");
-								} else {
-									fileText = fileText
-										.split("\n")
-										.slice(headerInFile.position.start.line)
-										.join("\n");
+										.join("\n")
+										.replace(`^${refBlock}`, "");
+								}
+							} else if (transclusionFileName.includes("#")) {
+								// transcluding header only
+								const refHeader =
+									transclusionFileName.split("#")[1];
+
+								const headerInFile = metadata?.headings?.find(
+									(header) => header.heading === refHeader,
+								);
+
+								sectionID = `#${slugify(refHeader)}`;
+
+								if (headerInFile && metadata?.headings) {
+									const headerPosition =
+										metadata.headings.indexOf(headerInFile);
+
+									// Embed should copy the content proparly under the given block
+									const cutTo = metadata.headings
+										.slice(headerPosition + 1)
+										.find(
+											(header) =>
+												header.level <=
+												headerInFile.level,
+										);
+
+									if (cutTo) {
+										const cutToLine =
+											cutTo?.position?.start?.line;
+
+										fileText = fileText
+											.split("\n")
+											.slice(
+												headerInFile.position.start
+													.line,
+												cutToLine,
+											)
+											.join("\n");
+									} else {
+										fileText = fileText
+											.split("\n")
+											.slice(
+												headerInFile.position.start
+													.line,
+											)
+											.join("\n");
+									}
 								}
 							}
-						}
-						//Remove frontmatter from transclusion
-						fileText = fileText.replace(FRONTMATTER_REGEX, "");
+							//Remove frontmatter from transclusion
+							fileText = fileText.replace(FRONTMATTER_REGEX, "");
 
-						// Apply custom filters to transclusion
-						fileText = await this.convertCustomFilters(fileText);
-
-						// Remove block reference
-						fileText = fileText.replace(BLOCKREF_REGEX, "");
-
-						const header = this.generateTransclusionHeader(
-							headerName,
-							linkedFile,
-						);
-
-						const headerSection = header
-							? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
-							: "";
-						let embedded_link = "";
-
-						const publishedFilesContainsLinkedFile =
-							publishedFiles.find(
-								(f) => f.getPath() == linkedFile.path,
-							);
-
-						if (publishedFilesContainsLinkedFile) {
-							const permalink =
-								metadata?.frontmatter &&
-								metadata.frontmatter["dg-permalink"];
-
-							const gardenPath = permalink
-								? sanitizePermalink(permalink)
-								: `/${generateUrlPath(
-										getGardenPathForNote(
-											linkedFile.path,
-											this.rewriteRules,
-										),
-								  )}`;
-							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
-						}
-
-						fileText =
-							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
-							fileText +
-							"\n\n</div></div>\n";
-
-						if (fileText.match(transcludedRegex)) {
-							fileText = await this.createTranscludedText(
+							// Apply custom filters to transclusion
+							fileText = await this.convertCustomFilters(
+								publishLinkedFile,
 								fileText,
-								linkedFile.path,
-								currentDepth + 1,
+							);
+
+							// Remove block reference
+							fileText = fileText.replace(BLOCKREF_REGEX, "");
+
+							const header = this.generateTransclusionHeader(
+								headerName,
+								linkedFile,
+							);
+
+							const headerSection = header
+								? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
+								: "";
+							let embedded_link = "";
+
+							const publishedFilesContainsLinkedFile =
+								publishedFiles.find(
+									(f) => f.getPath() == linkedFile.path,
+								);
+
+							if (publishedFilesContainsLinkedFile) {
+								const permalink =
+									metadata?.frontmatter &&
+									metadata.frontmatter["dg-permalink"];
+
+								const gardenPath = permalink
+									? sanitizePermalink(permalink)
+									: `/${generateUrlPath(
+											getGardenPathForNote(
+												linkedFile.path,
+												this.rewriteRules,
+											),
+									  )}`;
+								embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+							}
+
+							fileText =
+								`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
+								fileText +
+								"\n\n</div></div>\n";
+
+							if (fileText.match(transcludedRegex)) {
+								fileText = await this.createTranscludedText(
+									currentDepth + 1,
+								)(publishLinkedFile, fileText);
+							}
+
+							//This should be recursive up to a certain depth
+							transcludedText = transcludedText.replace(
+								transclusionMatch,
+								fileText,
 							);
 						}
-
-						//This should be recursive up to a certain depth
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							fileText,
-						);
+					} catch {
+						continue;
 					}
-				} catch {
-					continue;
 				}
 			}
-		}
 
-		return transcludedText;
-	}
+			return transcludedText;
+		};
 
-	async createSvgEmbeds(text: string, filePath: string): Promise<string> {
+	createSvgEmbeds: TCompilerStep = async (file, text) => {
 		function setWidth(svgText: string, size: string): string {
 			const parser = new DOMParser();
 			const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
@@ -629,10 +645,7 @@ export class GardenPageCompiler {
 			return svgSerializer.serializeToString(svgDoc);
 		}
 
-		//![[image.svg]]
-		const transcludedSvgRegex =
-			/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
-		const transcludedSvgs = text.match(transcludedSvgRegex);
+		const transcludedSvgs = text.match(TRANSCLUDED_SVG_REGEX);
 
 		if (transcludedSvgs) {
 			for (const svg of transcludedSvgs) {
@@ -644,7 +657,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -683,7 +696,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -703,9 +716,10 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
-	async extractImageLinks(text: string, filePath: string): Promise<string[]> {
+	extractImageLinks = async (file: PublishFile) => {
+		const text = await file.cachedRead();
 		const assets = [];
 
 		//![[image.png]]
@@ -728,7 +742,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -763,7 +777,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -778,7 +792,7 @@ export class GardenPageCompiler {
 		}
 
 		return assets;
-	}
+	};
 
 	async convertImageLinks(
 		text: string,

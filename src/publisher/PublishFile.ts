@@ -43,7 +43,7 @@ export class PublishFile {
 	}
 
 	async compile(): Promise<CompiledPublishFile> {
-		const compiledFile = await this.compiler.generateMarkdown(this.file);
+		const compiledFile = await this.compiler.generateMarkdown(this);
 
 		return new CompiledPublishFile(
 			{
@@ -57,14 +57,20 @@ export class PublishFile {
 		);
 	}
 
+	getType(): "excalidraw" | "markdown" {
+		if (this.file.name.endsWith(".excalidraw.md")) {
+			return "excalidraw";
+		}
+
+		return "markdown";
+	}
+
 	shouldPublish(): boolean {
 		return isPublishFrontmatterValid(this.frontmatter);
 	}
 
 	async getImageLinks() {
-		const content = await this.cachedRead();
-
-		return this.compiler.extractImageLinks(content, this.file.path);
+		return this.compiler.extractImageLinks(this);
 	}
 
 	async cachedRead() {
