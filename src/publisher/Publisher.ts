@@ -2,7 +2,7 @@ import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { getRewriteRules } from "../utils/utils";
-import { isPublishFrontmatterValid } from "./Validator";
+import { hasPublishFlag } from "./Validator";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
@@ -47,7 +47,7 @@ export default class Publisher {
 	shouldPublish(file: TFile): boolean {
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
-		return isPublishFrontmatterValid(frontMatter);
+		return hasPublishFlag(frontMatter);
 	}
 
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
