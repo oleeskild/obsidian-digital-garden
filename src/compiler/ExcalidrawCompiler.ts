@@ -16,7 +16,8 @@ export class ExcalidrawCompiler {
 			idAppendage = "",
 			includeFrontMatter = true,
 		): TCompilerStep =>
-		(file: PublishFile, fileText: string) => {
+		(file: PublishFile) =>
+		(fileText: string) => {
 			if (!file.file.name.endsWith(".excalidraw.md")) {
 				throw new Error("File is not an excalidraw file");
 			}

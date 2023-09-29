@@ -18,7 +18,6 @@ import {
 	getRewriteRules,
 	sanitizePermalink,
 } from "../utils/utils";
-import { FrontmatterCompiler } from "./FrontmatterCompiler";
 import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
@@ -46,13 +45,13 @@ export type TCompiledFile = [string, Assets];
 
 export type TCompilerStep = (
 	publishFile: PublishFile,
-	content: string,
-) => Promise<string> | string;
+) =>
+	| ((partiallyCompiledContent: string) => Promise<string>)
+	| ((partiallyCompiledContent: string) => string);
 
 export class GardenPageCompiler {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
-	private frontMatterCompiler: FrontmatterCompiler;
 	private excalidrawCompiler: ExcalidrawCompiler;
 	private metadataCache: MetadataCache;
 	private readonly getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"];
@@ -69,7 +68,6 @@ export class GardenPageCompiler {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
-		this.frontMatterCompiler = new FrontmatterCompiler(settings);
 		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 	}
@@ -81,28 +79,31 @@ export class GardenPageCompiler {
 
 		if (file.file.name.endsWith(".excalidraw.md")) {
 			return [
-				await this.excalidrawCompiler.compileMarkdown(true)(
-					file,
+				await this.excalidrawCompiler.compileMarkdown(true)(file)(
 					fileText,
 				),
 				assets,
 			];
 		}
 
+		// ORDER MATTERS!
 		const COMPILE_STEPS: TCompilerStep[] = [
 			this.convertFrontMatter,
 			this.convertCustomFilters,
 			this.createBlockIDs,
-			this.removeObsidianComments,
+			this.createTranscludedText(0),
 			this.convertDataViews,
 			this.convertLinksToFullPath,
-			this.createTranscludedText(0),
+			this.removeObsidianComments,
 			this.createSvgEmbeds,
 		];
 
 		const compiledText = await COMPILE_STEPS.reduce(
-			async (previousStep, currentStep) =>
-				currentStep(file, await previousStep),
+			async (previousStep, compilerStep) => {
+				const previousStepText = await previousStep;
+
+				return compilerStep(file)(previousStepText);
+			},
 			Promise.resolve(fileText),
 		);
 
@@ -114,7 +115,7 @@ export class GardenPageCompiler {
 		return [text_and_images[0], { images: text_and_images[1] }];
 	}
 
-	convertCustomFilters: TCompilerStep = (_publishFile, text) => {
+	convertCustomFilters: TCompilerStep = () => (text) => {
 		for (const filter of this.settings.customFilters) {
 			try {
 				text = text.replace(
@@ -135,7 +136,7 @@ export class GardenPageCompiler {
 		return text;
 	};
 
-	createBlockIDs: TCompilerStep = (file, text: string) => {
+	createBlockIDs: TCompilerStep = () => (text: string) => {
 		const block_pattern = / \^([\w\d-]+)/g;
 		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
 
@@ -153,7 +154,7 @@ export class GardenPageCompiler {
 		return text;
 	};
 
-	removeObsidianComments: TCompilerStep = (file, text: string) => {
+	removeObsidianComments: TCompilerStep = () => (text) => {
 		const obsidianCommentsRegex = /%%.+?%%/gms;
 		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
 		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
@@ -187,7 +188,7 @@ export class GardenPageCompiler {
 		return text;
 	};
 
-	convertFrontMatter: TCompilerStep = (file, text) => {
+	convertFrontMatter: TCompilerStep = (file) => (text) => {
 		const replaced = text.replace(FRONTMATTER_REGEX, (_match, _p1) => {
 			return file.getCompiledFrontmatter();
 		});
@@ -195,7 +196,7 @@ export class GardenPageCompiler {
 		return replaced;
 	};
 
-	convertDataViews: TCompilerStep = async (file, text) => {
+	convertDataViews: TCompilerStep = (file) => async (text) => {
 		let replacedText = text;
 		const dataViewRegex = /```dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
@@ -338,7 +339,7 @@ export class GardenPageCompiler {
 		return replacedText;
 	};
 
-	stripAwayCodeFencesAndFrontmatter: TCompilerStep = (file, text) => {
+	stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
 		let textToBeProcessed = text;
 		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
@@ -349,13 +350,11 @@ export class GardenPageCompiler {
 		return textToBeProcessed;
 	};
 
-	convertLinksToFullPath: TCompilerStep = async (file, text) => {
+	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
 		let convertedText = text;
 
-		const textToBeProcessed = await this.stripAwayCodeFencesAndFrontmatter(
-			file,
-			text,
-		);
+		const textToBeProcessed =
+			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
 
 		const linkedFileRegex = /\[\[(.+?)\]\]/g;
 		const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
@@ -368,7 +367,7 @@ export class GardenPageCompiler {
 						linkMatch.lastIndexOf("]") - 1,
 					);
 
-					let [linkedFileName, prettyName] =
+					let [linkedFileName, linkDisplayName] =
 						textInsideBrackets.split("|");
 
 					if (linkedFileName.endsWith("\\")) {
@@ -378,9 +377,10 @@ export class GardenPageCompiler {
 						);
 					}
 
-					prettyName = prettyName || linkedFileName;
+					linkDisplayName = linkDisplayName || linkedFileName;
 					let headerPath = "";
 
+					// detect links to headers or blocks
 					if (linkedFileName.includes("#")) {
 						const headerSplit = linkedFileName.split("#");
 						linkedFileName = headerSplit[0];
@@ -399,11 +399,12 @@ export class GardenPageCompiler {
 					if (!linkedFile) {
 						convertedText = convertedText.replace(
 							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${prettyName}]]`,
+							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
 						);
+						continue;
 					}
 
-					if (linkedFile?.extension === "md") {
+					if (linkedFile.extension === "md") {
 						const extensionlessPath = linkedFile.path.substring(
 							0,
 							linkedFile.path.lastIndexOf("."),
@@ -411,7 +412,7 @@ export class GardenPageCompiler {
 
 						convertedText = convertedText.replace(
 							linkMatch,
-							`[[${extensionlessPath}${headerPath}\\|${prettyName}]]`,
+							`[[${extensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
 						);
 					}
 				} catch (e) {
@@ -426,214 +427,207 @@ export class GardenPageCompiler {
 
 	createTranscludedText =
 		(currentDepth: number): TCompilerStep =>
-		async (file, text) => {
+		(file) =>
+		async (text) => {
 			if (currentDepth >= 4) {
 				return text;
 			}
 
 			const { notes: publishedFiles } =
 				await this.getFilesMarkedForPublishing();
+
 			let transcludedText = text;
+
 			const transcludedRegex = /!\[\[(.+?)\]\]/g;
 			const transclusionMatches = text.match(transcludedRegex);
 			let numberOfExcaliDraws = 0;
 
-			if (transclusionMatches) {
-				for (let i = 0; i < transclusionMatches.length; i++) {
-					try {
-						const transclusionMatch = transclusionMatches[i];
+			for (const transclusionMatch of transclusionMatches ?? []) {
+				try {
+					const [transclusionFileName, headerName] = transclusionMatch
+						.substring(
+							transclusionMatch.indexOf("[") + 2,
+							transclusionMatch.indexOf("]"),
+						)
+						.split("|");
 
-						const [transclusionFileName, headerName] =
-							transclusionMatch
-								.substring(
-									transclusionMatch.indexOf("[") + 2,
-									transclusionMatch.indexOf("]"),
-								)
-								.split("|");
+					const transclusionFilePath =
+						getLinkpath(transclusionFileName);
 
-						const transclusionFilePath =
-							getLinkpath(transclusionFileName);
+					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+						transclusionFilePath,
+						file.getPath(),
+					);
 
-						const linkedFile =
-							this.metadataCache.getFirstLinkpathDest(
-								transclusionFilePath,
-								file.getPath(),
+					if (!linkedFile) {
+						console.error(
+							`can't find transcluded file ${transclusionFilePath}}`,
+						);
+						continue;
+					}
+
+					const publishLinkedFile = new PublishFile({
+						file: linkedFile,
+						compiler: this,
+						metadataCache: this.metadataCache,
+						vault: this.vault,
+						settings: this.settings,
+					});
+					let sectionID = "";
+
+					if (linkedFile.name.endsWith(".excalidraw.md")) {
+						const firstDrawing = ++numberOfExcaliDraws === 1;
+
+						const fileText = await publishLinkedFile.cachedRead();
+
+						const excaliDrawCode =
+							await this.excalidrawCompiler.compileMarkdown(
+								firstDrawing,
+								`${numberOfExcaliDraws}`,
+								false,
+							)(publishLinkedFile)(fileText);
+
+						transcludedText = transcludedText.replace(
+							transclusionMatch,
+							excaliDrawCode,
+						);
+					} else if (linkedFile.extension === "md") {
+						let fileText = await this.vault.cachedRead(linkedFile);
+
+						const metadata =
+							this.metadataCache.getFileCache(linkedFile);
+
+						if (transclusionFileName.includes("#^")) {
+							// Transclude Block
+							const refBlock =
+								transclusionFileName.split("#^")[1];
+							sectionID = `#${slugify(refBlock)}`;
+
+							const blockInFile =
+								metadata?.blocks && metadata.blocks[refBlock];
+
+							if (blockInFile) {
+								fileText = fileText
+									.split("\n")
+									.slice(
+										blockInFile.position.start.line,
+										blockInFile.position.end.line + 1,
+									)
+									.join("\n")
+									.replace(`^${refBlock}`, "");
+							}
+						} else if (transclusionFileName.includes("#")) {
+							// transcluding header only
+							const refHeader =
+								transclusionFileName.split("#")[1];
+
+							const headerInFile = metadata?.headings?.find(
+								(header) => header.heading === refHeader,
 							);
 
-						if (!linkedFile) {
-							continue;
-						}
+							sectionID = `#${slugify(refHeader)}`;
 
-						const publishLinkedFile = new PublishFile({
-							file: linkedFile,
-							compiler: this,
-							metadataCache: this.metadataCache,
-							vault: this.vault,
-							settings: this.settings,
-						});
-						let sectionID = "";
+							if (headerInFile && metadata?.headings) {
+								const headerPosition =
+									metadata.headings.indexOf(headerInFile);
 
-						if (linkedFile.name.endsWith(".excalidraw.md")) {
-							const firstDrawing = ++numberOfExcaliDraws === 1;
+								// Embed should copy the content proparly under the given block
+								const cutTo = metadata.headings
+									.slice(headerPosition + 1)
+									.find(
+										(header) =>
+											header.level <= headerInFile.level,
+									);
 
-							const fileText =
-								await this.vault.cachedRead(linkedFile);
+								if (cutTo) {
+									const cutToLine =
+										cutTo?.position?.start?.line;
 
-							const excaliDrawCode =
-								await this.excalidrawCompiler.compileMarkdown(
-									firstDrawing,
-									`${numberOfExcaliDraws}`,
-									false,
-								)(publishLinkedFile, fileText);
-
-							transcludedText = transcludedText.replace(
-								transclusionMatch,
-								excaliDrawCode,
-							);
-						} else if (linkedFile.extension === "md") {
-							let fileText =
-								await this.vault.cachedRead(linkedFile);
-
-							const metadata =
-								this.metadataCache.getFileCache(linkedFile);
-
-							if (transclusionFileName.includes("#^")) {
-								// Transclude Block
-								const refBlock =
-									transclusionFileName.split("#^")[1];
-								sectionID = `#${slugify(refBlock)}`;
-
-								const blockInFile =
-									metadata?.blocks &&
-									metadata.blocks[refBlock];
-
-								if (blockInFile) {
 									fileText = fileText
 										.split("\n")
 										.slice(
-											blockInFile.position.start.line,
-											blockInFile.position.end.line + 1,
+											headerInFile.position.start.line,
+											cutToLine,
 										)
-										.join("\n")
-										.replace(`^${refBlock}`, "");
-								}
-							} else if (transclusionFileName.includes("#")) {
-								// transcluding header only
-								const refHeader =
-									transclusionFileName.split("#")[1];
-
-								const headerInFile = metadata?.headings?.find(
-									(header) => header.heading === refHeader,
-								);
-
-								sectionID = `#${slugify(refHeader)}`;
-
-								if (headerInFile && metadata?.headings) {
-									const headerPosition =
-										metadata.headings.indexOf(headerInFile);
-
-									// Embed should copy the content proparly under the given block
-									const cutTo = metadata.headings
-										.slice(headerPosition + 1)
-										.find(
-											(header) =>
-												header.level <=
-												headerInFile.level,
-										);
-
-									if (cutTo) {
-										const cutToLine =
-											cutTo?.position?.start?.line;
-
-										fileText = fileText
-											.split("\n")
-											.slice(
-												headerInFile.position.start
-													.line,
-												cutToLine,
-											)
-											.join("\n");
-									} else {
-										fileText = fileText
-											.split("\n")
-											.slice(
-												headerInFile.position.start
-													.line,
-											)
-											.join("\n");
-									}
+										.join("\n");
+								} else {
+									fileText = fileText
+										.split("\n")
+										.slice(headerInFile.position.start.line)
+										.join("\n");
 								}
 							}
-							//Remove frontmatter from transclusion
-							fileText = fileText.replace(FRONTMATTER_REGEX, "");
-
-							// Apply custom filters to transclusion
-							fileText = await this.convertCustomFilters(
-								publishLinkedFile,
-								fileText,
-							);
-
-							// Remove block reference
-							fileText = fileText.replace(BLOCKREF_REGEX, "");
-
-							const header = this.generateTransclusionHeader(
-								headerName,
-								linkedFile,
-							);
-
-							const headerSection = header
-								? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
-								: "";
-							let embedded_link = "";
-
-							const publishedFilesContainsLinkedFile =
-								publishedFiles.find(
-									(f) => f.getPath() == linkedFile.path,
-								);
-
-							if (publishedFilesContainsLinkedFile) {
-								const permalink =
-									metadata?.frontmatter &&
-									metadata.frontmatter["dg-permalink"];
-
-								const gardenPath = permalink
-									? sanitizePermalink(permalink)
-									: `/${generateUrlPath(
-											getGardenPathForNote(
-												linkedFile.path,
-												this.rewriteRules,
-											),
-									  )}`;
-								embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
-							}
-
-							fileText =
-								`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
-								fileText +
-								"\n\n</div></div>\n";
-
-							if (fileText.match(transcludedRegex)) {
-								fileText = await this.createTranscludedText(
-									currentDepth + 1,
-								)(publishLinkedFile, fileText);
-							}
-
-							//This should be recursive up to a certain depth
-							transcludedText = transcludedText.replace(
-								transclusionMatch,
-								fileText,
-							);
 						}
-					} catch {
-						continue;
+						//Remove frontmatter from transclusion
+						fileText = fileText.replace(FRONTMATTER_REGEX, "");
+
+						// Apply custom filters to transclusion
+						fileText =
+							await this.convertCustomFilters(publishLinkedFile)(
+								fileText,
+							);
+
+						// Remove block reference
+						fileText = fileText.replace(BLOCKREF_REGEX, "");
+
+						const header = this.generateTransclusionHeader(
+							headerName,
+							linkedFile,
+						);
+
+						const headerSection = header
+							? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
+							: "";
+						let embedded_link = "";
+
+						const publishedFilesContainsLinkedFile =
+							publishedFiles.find(
+								(f) => f.getPath() == linkedFile.path,
+							);
+
+						if (publishedFilesContainsLinkedFile) {
+							const permalink =
+								metadata?.frontmatter &&
+								metadata.frontmatter["dg-permalink"];
+
+							const gardenPath = permalink
+								? sanitizePermalink(permalink)
+								: `/${generateUrlPath(
+										getGardenPathForNote(
+											linkedFile.path,
+											this.rewriteRules,
+										),
+								  )}`;
+							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+						}
+
+						fileText =
+							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
+							fileText +
+							"\n\n</div></div>\n";
+
+						if (fileText.match(transcludedRegex)) {
+							fileText = await this.createTranscludedText(
+								currentDepth + 1,
+							)(publishLinkedFile)(fileText);
+						}
+
+						//This should be recursive up to a certain depth
+						transcludedText = transcludedText.replace(
+							transclusionMatch,
+							fileText,
+						);
 					}
+				} catch (error) {
+					console.error(error);
+					continue;
 				}
 			}
 
 			return transcludedText;
 		};
 
-	createSvgEmbeds: TCompilerStep = async (file, text) => {
+	createSvgEmbeds: TCompilerStep = (file) => async (text) => {
 		function setWidth(svgText: string, size: string): string {
 			const parser = new DOMParser();
 			const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
