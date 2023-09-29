@@ -5,14 +5,14 @@ import { PublishStatusBar } from "./src/ui/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
 import { PublishModal } from "src/ui/PublishModal";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
-import ObsidianFrontMatterEngine from "src/publisher/ObsidianFrontMatterEngine";
+import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
 import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
-import { FRONTMATTER_KEYS } from "./src/models/frontMatter";
 import dotenv from "dotenv";
 import Logger from "js-logger";
-import { PublishFile } from "./src/publisher/PublishFile";
+import { PublishFile } from "./src/publishFile/PublishFile";
+import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 dotenv.config();
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {

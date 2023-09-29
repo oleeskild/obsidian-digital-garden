@@ -9,6 +9,7 @@ import {
 } from "../compiler/FrontmatterCompiler";
 import DigitalGardenSettings from "../models/settings";
 import { hasPublishFlag } from "./Validator";
+import { FileMetadataManager } from "./FileMetaDataManager";
 
 interface IPublishFileProps {
 	file: TFile;
@@ -26,6 +27,8 @@ export class PublishFile {
 	metadataCache: MetadataCache;
 	frontmatter: TFrontmatter;
 	settings: DigitalGardenSettings;
+	// Access dg-props and other file metadata
+	meta: FileMetadataManager;
 
 	constructor({
 		file,
@@ -40,6 +43,7 @@ export class PublishFile {
 		this.settings = settings;
 		this.vault = vault;
 		this.frontmatter = this.getFrontmatter();
+		this.meta = new FileMetadataManager(this.frontmatter, metadataCache);
 	}
 
 	async compile(): Promise<CompiledPublishFile> {

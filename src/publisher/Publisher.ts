@@ -2,11 +2,11 @@ import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { getRewriteRules } from "../utils/utils";
-import { hasPublishFlag } from "./Validator";
+import { hasPublishFlag } from "../publishFile/Validator";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
-import { CompiledPublishFile, PublishFile } from "./PublishFile";
+import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
