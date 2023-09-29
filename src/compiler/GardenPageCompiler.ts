@@ -79,7 +79,7 @@ export class GardenPageCompiler {
 
 		const fileText = await file.cachedRead();
 
-		if (file.getType() === "excalidraw") {
+		if (file.file.name.endsWith(".excalidraw.md")) {
 			return [
 				await this.excalidrawCompiler.compileMarkdown(true)(
 					file,
@@ -189,7 +189,7 @@ export class GardenPageCompiler {
 
 	convertFrontMatter: TCompilerStep = (file, text) => {
 		const replaced = text.replace(FRONTMATTER_REGEX, (_match, _p1) => {
-			return file.getProcessedFrontmatter();
+			return file.getCompiledFrontmatter();
 		});
 
 		return replaced;

@@ -8,7 +8,7 @@ import {
 	TFrontmatter,
 } from "../compiler/FrontmatterCompiler";
 import DigitalGardenSettings from "../models/settings";
-import { isPublishFrontmatterValid } from "./Validator";
+import { hasPublishFlag } from "./Validator";
 
 interface IPublishFileProps {
 	file: TFile;
@@ -57,8 +57,9 @@ export class PublishFile {
 		);
 	}
 
+	// TODO: This doesn't work yet, but file should be able to tell it's type
 	getType(): "excalidraw" | "markdown" {
-		if (this.file.name.endsWith(".excalidraw.md")) {
+		if (this.file.name.endsWith(".excalidraw")) {
 			return "excalidraw";
 		}
 
@@ -66,7 +67,7 @@ export class PublishFile {
 	}
 
 	shouldPublish(): boolean {
-		return isPublishFrontmatterValid(this.frontmatter);
+		return hasPublishFlag(this.frontmatter);
 	}
 
 	async getImageLinks() {
@@ -82,13 +83,13 @@ export class PublishFile {
 	}
 
 	getPath = () => this.file.path;
-	getProcessedFrontmatter() {
+	getCompiledFrontmatter() {
 		const frontmatterCompiler = new FrontmatterCompiler(this.settings);
 
 		const metadata =
 			this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 
-		return frontmatterCompiler.getProcessedFrontMatter(this.file, metadata);
+		return frontmatterCompiler.compile(this.file, metadata);
 	}
 }
 

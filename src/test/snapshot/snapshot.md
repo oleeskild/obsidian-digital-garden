@@ -49,7 +49,7 @@ This subfolder also contains path rewrite testing!
 P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-embedded-excalidraw/"}
+{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-transcluded-excalidraw/"}
 ---
 
 
@@ -64,7 +64,7 @@ P Plugins/PD Dataview/PD1 Dataview.md
 I'm a list of all files in this folder: 
 
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
-- [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 
 { .block-language-dataview}
 
@@ -374,7 +374,7 @@ This test vault enables snapshot testing of the garden compilation! To generate 
 
 This garden should have the following plugins 
 
-- [x] [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [x] [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 - [x] [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [x] hot reload (reloads obsidian dev plugins on changes)
 ==========

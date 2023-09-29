@@ -17,7 +17,7 @@ export class ExcalidrawCompiler {
 			includeFrontMatter = true,
 		): TCompilerStep =>
 		(file: PublishFile, fileText: string) => {
-			if (file.getType() !== "excalidraw") {
+			if (!file.file.name.endsWith(".excalidraw.md")) {
 				throw new Error("File is not an excalidraw file");
 			}
 
@@ -53,7 +53,7 @@ export class ExcalidrawCompiler {
 			);
 
 			return `${
-				includeFrontMatter ? file.getProcessedFrontmatter() : ""
+				includeFrontMatter ? file.getCompiledFrontmatter() : ""
 			}${excaliDrawCode}`;
 		};
 }
