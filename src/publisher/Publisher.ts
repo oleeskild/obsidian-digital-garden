@@ -2,7 +2,10 @@ import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
 import { Octokit } from "@octokit/core";
 import { getRewriteRules } from "../utils/utils";
-import { hasPublishFlag } from "../publishFile/Validator";
+import {
+	hasPublishFlag,
+	isPublishFrontmatterValid,
+} from "../publishFile/Validator";
 import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
@@ -143,7 +146,7 @@ export default class Publisher {
 	}
 
 	async publish(file: CompiledPublishFile): Promise<boolean> {
-		if (file.shouldPublish()) {
+		if (!isPublishFrontmatterValid(file.frontmatter)) {
 			return false;
 		}
 
@@ -153,7 +156,9 @@ export default class Publisher {
 			await this.uploadAssets(assets);
 
 			return true;
-		} catch {
+		} catch (error) {
+			console.error(error);
+
 			return false;
 		}
 	}

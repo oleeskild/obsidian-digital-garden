@@ -103,7 +103,7 @@ export class DataviewCompiler {
 
 				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
 					// @ts-expect-error errors are caught
-					this: dvApi.page(path),
+					this: dvApi.page(file.getPath()),
 				});
 
 				if (dataviewResult) {

@@ -29,7 +29,7 @@ import {
 } from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
-import { PublishFile } from "../publisher/PublishFile";
+import { PublishFile } from "../publishFile/PublishFile";
 
 export interface Asset {
 	path: string;

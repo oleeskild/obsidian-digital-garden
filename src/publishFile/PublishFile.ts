@@ -43,7 +43,8 @@ export class PublishFile {
 		this.settings = settings;
 		this.vault = vault;
 		this.frontmatter = this.getFrontmatter();
-		this.meta = new FileMetadataManager(this.frontmatter, metadataCache);
+
+		this.meta = new FileMetadataManager(file, this.frontmatter, settings);
 	}
 
 	async compile(): Promise<CompiledPublishFile> {
@@ -101,7 +102,7 @@ export class PublishFile {
 		const metadata =
 			this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 
-		return frontmatterCompiler.compile(this.file, metadata);
+		return frontmatterCompiler.compile(this, metadata);
 	}
 }
 

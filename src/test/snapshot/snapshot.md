@@ -79,9 +79,7 @@ I'm a list of all files in this folder:
 - [[P Plugins/PD Dataview/PD0 - note with summary\|PD0 - note with summary]]
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [[P Plugins/PD Dataview/PD2 Inline queries\|PD2 Inline queries]]
-- [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
 - [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
-
 
 { .block-language-dataview}
 
@@ -273,6 +271,22 @@ E Embeds/E02 PNG published.md
 
 ![travolta.png](/img/user/A%20Assets/travolta.png)
 ==========
+011 Custom updatedAt.md
+==========
+---
+{"dg-publish":true,"permalink":"/011-custom-updated-at/","updated":"2021-01-01"}
+---
+
+This file should have createdAt: 2021-01-01
+==========
+010 custom createdAt.md
+==========
+---
+{"dg-publish":true,"permalink":"/010-custom-created-at/","created":"2020-01-01"}
+---
+
+This file should have createdAt: 2020-01-01
+==========
 009 Comments.md
 ==========
 ---
@@ -301,6 +315,15 @@ Hello! I'm a pinned note (should be at the top yeah!)
 
 
 ==========
+006 Custom title.md
+==========
+---
+{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
+---
+
+[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
+
+==========
 005 Custom filters.md
 ==========
 ---
@@ -313,15 +336,6 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 
 🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
-
-==========
-006 Custom title.md
-==========
----
-{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
----
-
-[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ==========
 004 Publishing this garden.md

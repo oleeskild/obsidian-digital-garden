@@ -5,6 +5,7 @@
     "tags": "tags",
     "dg-publish": "checkbox",
     "dg-home": "checkbox",
-    "dg-pinned": "checkbox"
+    "dg-pinned": "checkbox",
+    "customCreated": "text"
   }
 }
