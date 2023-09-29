@@ -75,13 +75,13 @@ export class GardenPageCompiler {
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
-		const fileText = await file.cachedRead();
+		const vaultFileText = await file.cachedRead();
 
 		if (file.file.name.endsWith(".excalidraw.md")) {
 			return [
-				await this.excalidrawCompiler.compileMarkdown(true)(file)(
-					fileText,
-				),
+				await this.excalidrawCompiler.compileMarkdown({
+					includeExcaliDrawJs: true,
+				})(file)(vaultFileText),
 				assets,
 			];
 		}
@@ -104,7 +104,7 @@ export class GardenPageCompiler {
 
 				return compilerStep(file)(previousStepText);
 			},
-			Promise.resolve(fileText),
+			Promise.resolve(vaultFileText),
 		);
 
 		const text_and_images = await this.convertImageLinks(
@@ -476,16 +476,17 @@ export class GardenPageCompiler {
 					let sectionID = "";
 
 					if (linkedFile.name.endsWith(".excalidraw.md")) {
-						const firstDrawing = ++numberOfExcaliDraws === 1;
+						numberOfExcaliDraws++;
+						const isFirstDrawing = numberOfExcaliDraws === 1;
 
 						const fileText = await publishLinkedFile.cachedRead();
 
 						const excaliDrawCode =
-							await this.excalidrawCompiler.compileMarkdown(
-								firstDrawing,
-								`${numberOfExcaliDraws}`,
-								false,
-							)(publishLinkedFile)(fileText);
+							await this.excalidrawCompiler.compileMarkdown({
+								includeExcaliDrawJs: isFirstDrawing,
+								idAppendage: `${numberOfExcaliDraws}`,
+								includeFrontMatter: false,
+							})(publishLinkedFile)(fileText);
 
 						transcludedText = transcludedText.replace(
 							transclusionMatch,

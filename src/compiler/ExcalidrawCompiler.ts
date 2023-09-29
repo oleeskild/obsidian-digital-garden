@@ -4,6 +4,15 @@ import LZString from "lz-string";
 import { TCompilerStep } from "./GardenPageCompiler";
 import { PublishFile } from "../publisher/PublishFile";
 
+interface IExcalidrawCompilerProps {
+	/**Includes excalidraw script bundle in compilation result */
+	includeExcaliDrawJs: boolean;
+	/** Is appended to the drawing id */
+	idAppendage?: string;
+	/** Includes frontmatter in compilation result */
+	includeFrontMatter?: boolean;
+}
+
 export class ExcalidrawCompiler {
 	private readonly vault: Vault;
 
@@ -11,11 +20,11 @@ export class ExcalidrawCompiler {
 		this.vault = vault;
 	}
 	compileMarkdown =
-		(
-			includeExcaliDrawJs: boolean,
+		({
+			includeExcaliDrawJs,
 			idAppendage = "",
 			includeFrontMatter = true,
-		): TCompilerStep =>
+		}: IExcalidrawCompilerProps): TCompilerStep =>
 		(file: PublishFile) =>
 		(fileText: string) => {
 			if (!file.file.name.endsWith(".excalidraw.md")) {
@@ -23,11 +32,9 @@ export class ExcalidrawCompiler {
 			}
 
 			const isCompressed = fileText.includes("```compressed-json");
+			const startString = isCompressed ? "```compressed-json" : "```json";
 
-			const start =
-				fileText.indexOf(
-					isCompressed ? "```compressed-json" : "```json",
-				) + (isCompressed ? "```compressed-json" : "```json").length;
+			const start = fileText.indexOf(startString) + startString.length;
 			const end = fileText.lastIndexOf("```");
 
 			const excaliDrawJson = JSON.parse(
