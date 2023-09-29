@@ -78,6 +78,14 @@ export class PublishFile {
 		return this.vault.cachedRead(this.file);
 	}
 
+	getMetadata() {
+		return this.metadataCache.getCache(this.file.path) ?? {};
+	}
+
+	getBlock(blockId: string) {
+		return this.getMetadata().blocks?.[blockId];
+	}
+
 	getFrontmatter() {
 		return this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 	}
