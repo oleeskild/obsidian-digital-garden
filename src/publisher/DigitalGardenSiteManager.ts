@@ -102,6 +102,8 @@ export default class DigitalGardenSiteManager {
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
 		if (decodedCurrentFile === envSettings) {
+			logger.info("No changes to .env file");
+
 			new Notice("Settings already up to date!");
 
 			return;
@@ -307,7 +309,17 @@ export default class DigitalGardenSiteManager {
 			return pr.data.html_url;
 		} catch (error) {
 			logger.error(error);
-			throw new Error("Unable to create PR");
+
+			if (
+				(error as { message?: string })?.message?.includes(
+					"No commits between main and",
+				)
+			) {
+				logger.warn("No changes to commit");
+
+				return "";
+			}
+			throw error;
 		}
 	}
 
@@ -321,7 +333,11 @@ export default class DigitalGardenSiteManager {
 		const filesToDelete = pluginInfo.filesToDelete;
 
 		for (const file of filesToDelete) {
-			await userGardenConnection.deleteFile(file, { branch: branchName });
+			await userGardenConnection
+				.deleteFile(file, {
+					branch: branchName,
+				})
+				.catch(() => {});
 		}
 	}
 
@@ -341,10 +357,9 @@ export default class DigitalGardenSiteManager {
 				throw new Error(`Unable to get file ${file} from base garden`);
 			}
 
-			const fileFromRepository = await userGardenConnection.getFile(
-				file,
-				branchName,
-			);
+			const fileFromRepository = await userGardenConnection
+				.getFile(file, branchName)
+				.catch(() => {});
 
 			const fileHasChanged = latestFile.sha !== fileFromRepository?.sha;
 
