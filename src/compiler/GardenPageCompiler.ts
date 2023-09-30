@@ -104,10 +104,20 @@ export class GardenPageCompiler {
 
 	async convertCustomFilters(text: string) {
 		for (const filter of this.settings.customFilters) {
-			text = text.replace(
-				RegExp(filter.pattern, filter.flags),
-				filter.replace,
-			);
+			try {
+				text = text.replace(
+					RegExp(filter.pattern, filter.flags),
+					filter.replace,
+				);
+			} catch (e) {
+				Logger.error(
+					`Invalid regex: ${filter.pattern} ${filter.flags}`,
+				);
+
+				new Notice(
+					`Your custom filters contains an invalid regex: ${filter.pattern}. Skipping it.`,
+				);
+			}
 		}
 
 		return text;
