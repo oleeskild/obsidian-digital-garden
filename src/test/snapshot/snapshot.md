@@ -227,7 +227,16 @@ Bonus pic:
 </div></div>
 
 ==========
-009 Comments.md
+E Embeds/E05 WEBP published.md
+==========
+---
+{"dg-publish":true,"permalink":"/e-embeds/e05-webp-published/"}
+---
+
+
+![travolta.webp](/img/user/A%20Assets/travolta.webp)
+==========
+E Embeds/E04 PNG reuse.md
 ==========
 ---
 {"dg-publish":true,"permalink":"/e-embeds/e04-png-reuse/"}
@@ -236,6 +245,9 @@ Bonus pic:
 This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_not_published]]. When removing the other one, the image should not be removed. 
 
 ![unused_image.png|100](/img/user/A%20Assets/unused_image.png)
+==========
+E Embeds/E02 PNG published.md
+==========
 ---
 {"dg-publish":true,"permalink":"/e-embeds/e02-png-published/"}
 ---
@@ -243,6 +255,9 @@ This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_no
 
 
 ![travolta.png](/img/user/A%20Assets/travolta.png)
+==========
+009 Comments.md
+==========
 ---
 {"dg-publish":true,"permalink":"/009-comments/"}
 ---
