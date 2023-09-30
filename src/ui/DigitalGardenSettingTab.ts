@@ -53,7 +53,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 				}
 				prModal.renderSuccess(prUrl);
 				button.setDisabled(false);
-			} catch {
+			} catch (error) {
 				prModal.renderError();
 			}
 		};
