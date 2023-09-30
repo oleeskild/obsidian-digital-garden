@@ -30,6 +30,7 @@ import {
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
 } from "../utils/regexes";
+import Logger from "js-logger";
 
 export interface Asset {
 	path: string;
@@ -697,7 +698,7 @@ export class GardenPageCompiler {
 
 		//![[image.png]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -730,7 +731,7 @@ export class GardenPageCompiler {
 		}
 
 		//![](image.png)
-		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
+		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -777,7 +778,7 @@ export class GardenPageCompiler {
 
 		//![[image.png]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -785,12 +786,32 @@ export class GardenPageCompiler {
 				try {
 					const imageMatch = transcludedImageMatches[i];
 
-					const [imageName, size] = imageMatch
+					//[image.png|100]
+					//[image.png|meta1 meta2|100]
+					const [imageName, ...metaDataAndSize] = imageMatch
 						.substring(
 							imageMatch.indexOf("[") + 2,
 							imageMatch.indexOf("]"),
 						)
 						.split("|");
+
+					const lastValue =
+						metaDataAndSize[metaDataAndSize.length - 1];
+					const lastValueIsSize = !isNaN(parseInt(lastValue));
+
+					const size = lastValueIsSize ? lastValue : undefined;
+					let metaData = "";
+
+					if (metaDataAndSize.length > 1) {
+						metaData = metaDataAndSize
+							.slice(0, metaDataAndSize.length - 1)
+							.join(" ");
+					}
+
+					if (!lastValueIsSize) {
+						metaData += ` ${lastValue}`;
+					}
+
 					const imagePath = getLinkpath(imageName);
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
@@ -805,7 +826,16 @@ export class GardenPageCompiler {
 					const imageBase64 = arrayBufferToBase64(image);
 
 					const cmsImgPath = `/img/user/${linkedFile.path}`;
-					const name = size ? `${imageName}|${size}` : imageName;
+
+					let name = "";
+
+					if (metaData && size) {
+						name = `${imageName}|${metaData}|${size}`;
+					} else if (size) {
+						name = `${imageName}|${size}`;
+					} else {
+						name = imageName;
+					}
 
 					const imageMarkdown = `![${name}](${encodeURI(
 						cmsImgPath,
@@ -815,13 +845,14 @@ export class GardenPageCompiler {
 
 					imageText = imageText.replace(imageMatch, imageMarkdown);
 				} catch (e) {
+					Logger.debug(e);
 					continue;
 				}
 			}
 		}
 
 		//![](image.png)
-		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif))\)/g;
+		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -857,7 +888,8 @@ export class GardenPageCompiler {
 					const imageMarkdown = `![${imageName}](${cmsImgPath})`;
 					assets.push({ path: cmsImgPath, content: imageBase64 });
 					imageText = imageText.replace(imageMatch, imageMarkdown);
-				} catch {
+				} catch (e) {
+					Logger.debug(e);
 					continue;
 				}
 			}
