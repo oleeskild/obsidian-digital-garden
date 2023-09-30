@@ -1,4 +1,4 @@
-import { Setting } from "obsidian";
+import { Setting, debounce } from "obsidian";
 import SettingView from "./SettingView";
 import { Octokit } from "@octokit/core";
 
@@ -40,7 +40,7 @@ export class GithubSettings {
 
 	checkConnectionAndSaveSettings = async () => {
 		this.settings.saveSettings();
-		await this.updateConnectionStatus();
+		this.debouncedUpdateConnectionStatus();
 	};
 
 	updateConnectionStatus = async () => {
@@ -67,6 +67,12 @@ export class GithubSettings {
 		}
 		this.updateConnectionStatusIndicator();
 	};
+
+	debouncedUpdateConnectionStatus = debounce(
+		this.updateConnectionStatus,
+		500,
+		true,
+	);
 
 	updateConnectionStatusIndicator = () => {
 		if (this.connectionStatus === "loading") {
