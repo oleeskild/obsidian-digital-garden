@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { FrontMatterCache, MetadataCache, TFile, Vault } from "obsidian";
+import { FrontMatterCache, MetadataCache, TFile } from "obsidian";
 import {
 	getGardenPathForNote,
 	sanitizePermalink,
@@ -33,8 +33,7 @@ export class FrontmatterCompiler {
 	private readonly settings: DigitalGardenSettings;
 	private readonly rewriteRules: PathRewriteRules;
 
-	constructor(vault: Vault, settings: DigitalGardenSettings) {
-		// this.vault = vault;
+	constructor(settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 	}
