@@ -15,7 +15,7 @@
 	export let showDiff: (path: string) => void;
 	export let close: () => void;
 
-	let publishStatus: PublishStatus | undefined;
+	let publishStatus: PublishStatus;
 	let showPublishingView: boolean = false;
 
 	async function getPublishStatus() {
@@ -90,30 +90,36 @@
 		return cog;
 	};
 
-	$: publishedNotesTree = publishStatus
-		? filePathsToTree(
-				publishStatus.publishedNotes.map((note) => note.path),
-				"Published Notes",
-		  )
-		: null;
+	$: publishedNotesTree =
+		publishStatus &&
+		filePathsToTree(
+			publishStatus.publishedNotes.map((note) => note.path),
+			"Published Notes",
+		);
 
-	$: changedNotesTree = publishStatus
-		? filePathsToTree(
-				publishStatus.changedNotes.map((note) => note.path),
-				"Changed Notes",
-		  )
-		: null;
+	$: changedNotesTree =
+		publishStatus &&
+		filePathsToTree(
+			publishStatus.changedNotes.map((note) => note.path),
+			"Changed Notes",
+		);
 
-	$: deletedNoteTree = publishStatus
-		? filePathsToTree(publishStatus.deletedNotePaths, "Deleted Notes")
-		: null;
+	$: deletedNoteTree =
+		publishStatus &&
+		filePathsToTree(
+			[
+				...publishStatus.deletedNotePaths,
+				...publishStatus.deletedImagePaths,
+			],
+			"Deleted Notes",
+		);
 
-	$: unpublishedNoteTree = publishStatus
-		? filePathsToTree(
-				publishStatus.unpublishedNotes.map((note) => note.path),
-				"Unpublished Notes",
-		  )
-		: null;
+	$: unpublishedNoteTree =
+		publishStatus &&
+		filePathsToTree(
+			publishStatus.unpublishedNotes.map((note) => note.path),
+			"Unpublished Notes",
+		);
 
 	$: publishProgress =
 		((publishedPaths.length + failedPublish.length) /
@@ -121,6 +127,7 @@
 				changedToPublish.length +
 				pathsToDelete.length)) *
 		100;
+
 	const traverseTree = (tree: TreeNode): Array<string> => {
 		const paths: Array<string> = [];
 
@@ -148,13 +155,25 @@
 	const publishMarkedNotes = async () => {
 		if (!unpublishedNoteTree || !changedNotesTree) return;
 
+		if (!publishStatus) {
+			throw new Error("Publish status is undefined");
+		}
+
 		const unpublishedPaths = traverseTree(unpublishedNoteTree!);
 		const changedPaths = traverseTree(changedNotesTree!);
 
 		pathsToDelete = traverseTree(deletedNoteTree!);
 
+		const notesToDelete = pathsToDelete.filter((path) =>
+			publishStatus.deletedNotePaths.includes(path),
+		);
+
+		const imagesToDelete = pathsToDelete.filter((path) =>
+			publishStatus.deletedImagePaths.includes(path),
+		);
+
 		unpublishedToPublish =
-			publishStatus?.unpublishedNotes.filter((note) =>
+			publishStatus.unpublishedNotes.filter((note) =>
 				unpublishedPaths.includes(note.path),
 			) ?? [];
 
@@ -180,9 +199,17 @@
 			}
 		}
 
-		for (const path of pathsToDelete) {
+		for (const path of [...notesToDelete, ...imagesToDelete]) {
 			processingPaths.push(path);
-			let isDeleted = await publisher.deleteNote(path);
+			const isNote = path.endsWith(".md");
+			let isDeleted: boolean;
+
+			if (isNote) {
+				isDeleted = await publisher.deleteNote(path);
+			} else {
+				isDeleted = await publisher.deleteImage(path);
+			}
+
 			processingPaths = processingPaths.filter((p) => p !== path);
 
 			if (isDeleted) {
@@ -252,7 +279,7 @@
 					<div
 						class="loading-bar"
 						style="width: {publishProgress}%"
-					></div>
+					/>
 				</div>
 			</div>
 

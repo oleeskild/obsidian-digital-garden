@@ -11,6 +11,10 @@ export interface MarkedForPublishing {
 	notes: TFile[];
 	images: string[];
 }
+
+export const IMAGE_PATH_BASE = "src/site/img/user/";
+export const NOTE_PATH_BASE = "src/site/notes/";
+
 /**
  * Prepares files to be published and publishes them to Github
  */
@@ -70,13 +74,13 @@ export default class Publisher {
 	}
 
 	async deleteNote(vaultFilePath: string) {
-		const path = `src/site/notes/${vaultFilePath}`;
+		const path = `${NOTE_PATH_BASE}${vaultFilePath}`;
 
 		return await this.delete(path);
 	}
 
 	async deleteImage(vaultFilePath: string) {
-		const path = `src/site/img/user/${encodeURI(vaultFilePath)}`;
+		const path = `${IMAGE_PATH_BASE}${vaultFilePath}`;
 
 		return await this.delete(path);
 	}
@@ -230,7 +234,7 @@ export default class Publisher {
 
 	async uploadText(filePath: string, content: string) {
 		content = Base64.encode(content);
-		const path = `src/site/notes/${filePath}`;
+		const path = `${NOTE_PATH_BASE}${filePath}`;
 		await this.uploadToGithub(path, content);
 	}
 
