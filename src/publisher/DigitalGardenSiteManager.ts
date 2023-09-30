@@ -51,28 +51,33 @@ export default class DigitalGardenSiteManager {
 			gardenBaseUrl = this.settings.gardenBaseUrl;
 		}
 
-		let envSettings = "";
+		const envValues = {
+			SITE_NAME_HEADER: siteName,
+			SITE_BASE_URL: gardenBaseUrl,
+			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
+			TIMESTAMP_FORMAT: this.settings.timestampFormat,
+			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
+			NOTE_ICON_DEFAULT: this.settings.defaultNoteIcon,
+			NOTE_ICON_TITLE: this.settings.showNoteIconOnTitle,
+			NOTE_ICON_FILETREE: this.settings.showNoteIconInFileTree,
+			NOTE_ICON_INTERNAL_LINKS: this.settings.showNoteIconOnInternalLink,
+			NOTE_ICON_BACK_LINKS: this.settings.showNoteIconOnBackLink,
+			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
+		} as Record<string, string | boolean>;
 
 		if (theme.name !== "default") {
-			envSettings = `THEME=${theme.cssUrl}\nBASE_THEME=${baseTheme}`;
+			envValues["THEME"] = theme.cssUrl;
+			envValues["BASE_THEME"] = baseTheme;
 		}
-		envSettings += `\nSITE_NAME_HEADER=${siteName}`;
-		envSettings += `\nSITE_BASE_URL=${gardenBaseUrl}`;
-		envSettings += `\nSHOW_CREATED_TIMESTAMP=${this.settings.showCreatedTimestamp}`;
-		envSettings += `\nTIMESTAMP_FORMAT=${this.settings.timestampFormat}`;
-		envSettings += `\nSHOW_UPDATED_TIMESTAMP=${this.settings.showUpdatedTimestamp}`;
-		envSettings += `\nNOTE_ICON_DEFAULT=${this.settings.defaultNoteIcon}`;
-		envSettings += `\nNOTE_ICON_TITLE=${this.settings.showNoteIconOnTitle}`;
-		envSettings += `\nNOTE_ICON_FILETREE=${this.settings.showNoteIconInFileTree}`;
-		envSettings += `\nNOTE_ICON_INTERNAL_LINKS=${this.settings.showNoteIconOnInternalLink}`;
-		envSettings += `\nNOTE_ICON_BACK_LINKS=${this.settings.showNoteIconOnBackLink}`;
-		envSettings += `\nSTYLE_SETTINGS_CSS="${this.settings.styleSettingsCss}"`;
 
-		const defaultNoteSettings = { ...this.settings.defaultNoteSettings };
+		const keysToSet = {
+			...envValues,
+			...this.settings.defaultNoteSettings,
+		};
 
-		for (const [key, value] of Object.entries(defaultNoteSettings)) {
-			envSettings += `\n${key}=${value}`;
-		}
+		const envSettings = Object.entries(keysToSet)
+			.map(([key, value]) => `${key}=${value}`)
+			.join("\n");
 
 		const base64Settings = Base64.encode(envSettings);
 
@@ -90,6 +95,18 @@ export default class DigitalGardenSiteManager {
 			);
 		} catch (error) {
 			fileExists = false;
+		}
+
+		const decoded = Base64.decode(
+			// hacky before we can abstract this bad boy
+			(currentFile?.data as { content?: string })?.content ?? "",
+		);
+
+		if (fileExists && decoded === envSettings) {
+			console.info("No changes to update!");
+			new Notification("No changes to update!");
+
+			return;
 		}
 
 		// commit
