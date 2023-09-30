@@ -2,6 +2,7 @@ import dotevnt from "dotenv";
 import fs from "fs";
 dotevnt.config();
 import copyfiles from "copyfiles";
+import Logger from "js-logger";
 
 const gardenSettings = {
 	githubRepo:
@@ -58,6 +59,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	},
 	ENABLE_DEVELOPER_TOOLS: true,
 	devPluginPath: `${process.cwd()}`,
+	logLevel: Logger.DEBUG,
 };
 
 const TEST_VAULT_PATH =

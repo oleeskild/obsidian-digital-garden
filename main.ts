@@ -11,6 +11,7 @@ import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
 import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
 import { FRONTMATTER_KEYS } from "./src/models/frontMatter";
 import dotenv from "dotenv";
+import Logger from "js-logger";
 dotenv.config();
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
@@ -58,8 +59,16 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
+	logLevel: undefined,
 };
 
+Logger.useDefaults({
+	defaultLevel: Logger.WARN,
+	formatter: function (messages, _context) {
+		messages.unshift(new Date().toUTCString());
+		messages.unshift("DG: ");
+	},
+});
 export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
@@ -72,6 +81,11 @@ export default class DigitalGarden extends Plugin {
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
 
+		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
+
+		Logger.info(
+			"Digital garden log level set to " + Logger.getLevel().name,
+		);
 		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
 		await this.addCommands();
@@ -141,6 +155,8 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		if (this.settings["ENABLE_DEVELOPER_TOOLS"]) {
+			Logger.info("Developer tools enabled");
+
 			const publisher = new Publisher(
 				this.app.vault,
 				this.app.metadataCache,
