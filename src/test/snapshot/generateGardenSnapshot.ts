@@ -31,9 +31,8 @@ export const generateGardenSnapshot = async (
 		fileString += `${file.getPath()}\n`;
 		fileString += "==========\n";
 
-		const [content, assets] = await publisher.compiler.generateMarkdown(
-			file.file,
-		);
+		const [content, assets] =
+			await publisher.compiler.generateMarkdown(file);
 		assets.images.map((image) => assetPaths.add(image.path));
 
 		fileString += `${content}\n`;
