@@ -40,7 +40,7 @@ export default class Publisher {
 			vault,
 			settings,
 			metadataCache,
-			this.getFilesMarkedForPublishing,
+			() => this.getFilesMarkedForPublishing(),
 		);
 	}
 
