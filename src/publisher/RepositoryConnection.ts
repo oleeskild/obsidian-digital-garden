@@ -21,7 +21,7 @@ interface IPutPayload {
 export class RepositoryConnection {
 	private githubUserName: string;
 	private gardenRepository: string;
-	private octokit: Octokit;
+	octokit: Octokit;
 
 	constructor({
 		gardenRepository,
@@ -32,6 +32,10 @@ export class RepositoryConnection {
 		this.githubUserName = githubUserName;
 
 		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
+	}
+
+	getRepositoryName() {
+		return this.githubUserName + "/" + this.gardenRepository;
 	}
 
 	getBasePayload() {
@@ -58,14 +62,14 @@ export class RepositoryConnection {
 			}
 		} catch (error) {
 			throw new Error(
-				`Could not get repository content  ${this.githubUserName}/${this.gardenRepository}`,
+				`Could not get file ${""} from repository ${this.getRepositoryName()}`,
 			);
 		}
 	}
 
 	async getFile(path: string, branch?: string) {
 		logger.info(
-			`Getting file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+			`Getting file ${path} from repository ${this.getRepositoryName()}`,
 		);
 
 		try {
@@ -87,7 +91,7 @@ export class RepositoryConnection {
 			}
 		} catch (error) {
 			throw new Error(
-				`Could not get file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+				`Could not get file ${path} from repository ${this.getRepositoryName()}`,
 			);
 		}
 	}
@@ -99,8 +103,8 @@ export class RepositoryConnection {
 		if (!sha) {
 			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
 
-			logger.error(
-				`Could not get sha for file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+			console.error(
+				`Could not get sha for file ${path} from repository ${this.getRepositoryName()}`,
 			);
 
 			return;
@@ -121,7 +125,7 @@ export class RepositoryConnection {
 			);
 
 			Logger.info(
-				`Deleted file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+				`Deleted file ${path} from repository ${this.getRepositoryName()}`,
 			);
 
 			return result;
@@ -182,6 +186,32 @@ export class RepositoryConnection {
 		} catch (error) {
 			logger.error(error);
 		}
+	}
+
+	async getRepositoryInfo() {
+		const repoInfo = await this.octokit
+			.request("GET /repos/{owner}/{repo}", {
+				...this.getBasePayload(),
+			})
+			.catch((error) => {
+				logger.error(error);
+
+				logger.warn(
+					`Could not get repository info for ${this.getRepositoryName()}`,
+				);
+
+				return undefined;
+			});
+
+		return repoInfo?.data;
+	}
+
+	async createBranch(branchName: string, sha: string) {
+		await this.octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+			...this.getBasePayload(),
+			ref: `refs/heads/${branchName}`,
+			sha,
+		});
 	}
 }
 

@@ -3,6 +3,7 @@ import DigitalGarden from "../../main";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import SettingView from "./SettingsView/SettingView";
 import { UpdateGardenRepositoryModal } from "./SettingsModal";
+import Logger from "js-logger";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
@@ -38,14 +39,28 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			prModal.renderLoading();
 			button.setDisabled(true);
 
-			try {
-				const siteManager = new DigitalGardenSiteManager(
-					this.plugin.app.metadataCache,
-					this.plugin.settings,
-				);
+			const siteManager = new DigitalGardenSiteManager(
+				this.plugin.app.metadataCache,
+				this.plugin.settings,
+			);
+			Logger.time("checkForUpdate");
 
-				const prUrl =
-					await siteManager.createPullRequestWithSiteChanges();
+			const updater = await siteManager.templateUpdater.checkForUpdates();
+			Logger.timeEnd("checkForUpdate");
+			console.log("updater", updater);
+
+			if (!updater) {
+				prModal.renderSuccess("");
+				button.setDisabled(false);
+
+				return;
+			}
+
+			try {
+				Logger.time("update");
+
+				const prUrl = await updater.updateFiles();
+				Logger.timeEnd("update");
 
 				if (prUrl) {
 					this.plugin.settings.prHistory.push(prUrl);
