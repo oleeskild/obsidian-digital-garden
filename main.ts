@@ -171,6 +171,7 @@ export default class DigitalGarden extends Plugin {
 						metadataCache,
 						this.settings,
 					);
+					publisher.validateSettings();
 
 					const siteManager = new DigitalGardenSiteManager(
 						metadataCache,
@@ -190,6 +191,18 @@ export default class DigitalGarden extends Plugin {
 					);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
+
+					const totalItems =
+						filesToPublish.length +
+						filesToDelete.length +
+						imagesToDelete.length;
+
+					if (totalItems === 0) {
+						new Notice("Garden is already fully synced!");
+						statusBarItem.remove();
+
+						return;
+					}
 
 					const statusBar = new PublishStatusBar(
 						statusBarItem,
@@ -387,6 +400,7 @@ export default class DigitalGarden extends Plugin {
 				metadataCache,
 				this.settings,
 			);
+			publisher.validateSettings();
 			const publishSuccessful = await publisher.publish(activeFile);
 
 			if (publishSuccessful) {
