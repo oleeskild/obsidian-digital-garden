@@ -1,3 +1,5 @@
+import { ILogLevel } from "js-logger";
+
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
 	githubToken: string;
@@ -50,4 +52,5 @@ export default interface DigitalGardenSettings {
 	};
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;
+	logLevel?: ILogLevel;
 }
