@@ -1,4 +1,8 @@
 import { Octokit } from "@octokit/core";
+import Logger from "js-logger";
+
+const logger = Logger.get("repository-connection");
+const oktokitLogger = Logger.get("octokit");
 
 interface IOctokitterInput {
 	githubToken: string;
@@ -27,7 +31,7 @@ export class RepositoryConnection {
 		this.gardenRepository = gardenRepository;
 		this.githubUserName = githubUserName;
 
-		this.octokit = new Octokit({ auth: githubToken });
+		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
 	}
 
 	getBasePayload() {
@@ -37,7 +41,33 @@ export class RepositoryConnection {
 		};
 	}
 
+	/** Get filetree with path and sha of each file from repository */
+	async getContent(branch: string) {
+		try {
+			const response = await this.octokit.request(
+				"GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
+				{
+					...this.getBasePayload(),
+					tree_sha: branch,
+					recursive: "true",
+				},
+			);
+
+			if (response.status === 200) {
+				return response.data;
+			}
+		} catch (error) {
+			throw new Error(
+				`Could not get repository content  ${this.githubUserName}/${this.gardenRepository}`,
+			);
+		}
+	}
+
 	async getFile(path: string, branch?: string) {
+		logger.info(
+			`Getting file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+		);
+
 		try {
 			const response = await this.octokit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
@@ -56,16 +86,23 @@ export class RepositoryConnection {
 				return response.data;
 			}
 		} catch (error) {
-			return;
+			throw new Error(
+				`Could not get file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+			);
 		}
 	}
 
-	async deleteFile(path: string, branch?: string) {
-		const sha = await this.getFile(path, branch).then((file) => file?.sha);
+	async deleteFile(
+		path: string,
+		{ branch, sha }: { branch?: string; sha?: string },
+	) {
 		if (!sha) {
-			console.error(
-				`Could not get sha for file ${path} from repository ${this.gardenRepository}`,
+			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
+
+			logger.error(
+				`Could not get sha for file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
 			);
+
 			return;
 		}
 
@@ -78,12 +115,18 @@ export class RepositoryConnection {
 				branch,
 			};
 
-			return await this.octokit.request(
+			const result = await this.octokit.request(
 				"DELETE /repos/{owner}/{repo}/contents/{path}",
 				payload,
 			);
+
+			Logger.info(
+				`Deleted file ${path} from repository ${this.githubUserName}/${this.gardenRepository}`,
+			);
+
+			return result;
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 		}
 	}
 
@@ -93,12 +136,14 @@ export class RepositoryConnection {
 				"GET /repos/{owner}/{repo}/releases/latest",
 				this.getBasePayload(),
 			);
+
 			if (!release || !release.data) {
-				console.error("Could not get latest release");
+				logger.error("Could not get latest release");
 			}
+
 			return release.data;
 		} catch (error) {
-			console.error("Could not get latest release", error);
+			logger.error("Could not get latest release", error);
 		}
 	}
 
@@ -110,11 +155,12 @@ export class RepositoryConnection {
 			);
 
 			if (!latestCommit || !latestCommit.data) {
-				console.error("Could not get latest commit");
+				logger.error("Could not get latest commit");
 			}
+
 			return latestCommit.data;
 		} catch (error) {
-			console.error("Could not get latest commit", error);
+			logger.error("Could not get latest commit", error);
 		}
 	}
 
@@ -134,7 +180,11 @@ export class RepositoryConnection {
 				payload,
 			);
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 		}
 	}
 }
+
+export type TRepositoryContent = Awaited<
+	ReturnType<typeof RepositoryConnection.prototype.getContent>
+>;

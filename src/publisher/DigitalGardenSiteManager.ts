@@ -11,7 +11,9 @@ import { Base64 } from "js-base64";
 import type DigitalGardenPluginInfo from "../models/pluginInfo";
 import { IMAGE_PATH_BASE, NOTE_PATH_BASE } from "./Publisher";
 import { RepositoryConnection } from "./RepositoryConnection";
+import Logger from "js-logger";
 
+const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
 	from: string;
 	to: string;
@@ -277,7 +279,7 @@ export default class DigitalGardenSiteManager {
 		branchName: string,
 		templateVersion: string,
 	): Promise<string> {
-		console.info("Creating PR");
+		logger.info(`Creating PR for branch ${branchName}`);
 
 		try {
 			const repoInfo = await octokit.request(
@@ -303,7 +305,8 @@ export default class DigitalGardenSiteManager {
 			);
 
 			return pr.data.html_url;
-		} catch {
+		} catch (error) {
+			logger.error(error);
 			throw new Error("Unable to create PR");
 		}
 	}
@@ -312,13 +315,13 @@ export default class DigitalGardenSiteManager {
 		userGardenConnection: RepositoryConnection,
 		branchName: string,
 	) {
-		console.info("Deleting files");
+		logger.info("Deleting files");
 		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 
 		const filesToDelete = pluginInfo.filesToDelete;
 
 		for (const file of filesToDelete) {
-			await userGardenConnection.deleteFile(file, branchName);
+			await userGardenConnection.deleteFile(file, { branch: branchName });
 		}
 	}
 
@@ -326,7 +329,7 @@ export default class DigitalGardenSiteManager {
 		userGardenConnection: RepositoryConnection,
 		branchName: string,
 	) {
-		console.info("Modifying changed files");
+		logger.info("Modifying changed files");
 
 		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 		const filesToModify = pluginInfo.filesToModify;
@@ -346,12 +349,12 @@ export default class DigitalGardenSiteManager {
 			const fileHasChanged = latestFile.sha !== fileFromRepository?.sha;
 
 			if (!fileFromRepository || fileHasChanged) {
-				console.info(
+				logger.info(
 					`updating file ${file} because ${
 						fileHasChanged
 							? "it has changed"
 							: "it does not exist yet"
-					}}}`,
+					}`,
 				);
 
 				userGardenConnection.updateFile({
@@ -369,7 +372,7 @@ export default class DigitalGardenSiteManager {
 		branchName: string,
 		sha: string,
 	) {
-		console.info(`Creating new branch: ${branchName} to update template`);
+		logger.info(`Creating new branch: ${branchName} to update template`);
 
 		try {
 			await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
@@ -379,7 +382,7 @@ export default class DigitalGardenSiteManager {
 				sha,
 			});
 		} catch (e) {
-			console.info(`branch already exists!`);
+			logger.info(`branch already exists!`);
 		}
 	}
 
@@ -387,7 +390,7 @@ export default class DigitalGardenSiteManager {
 		userGardenConnection: RepositoryConnection,
 		branchName: string,
 	) {
-		console.info("Adding missing files");
+		logger.info("Adding missing files");
 		// Should only be added if it does not exist yet. Otherwise leave it alone
 		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
 		const filesToAdd = pluginInfo.filesToAdd;
