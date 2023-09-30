@@ -11,7 +11,7 @@ const gardenSettings = {
 	githubUserName:
 		process.env.GITHUB_USERNAME ||
 		"add your username to .env as GITHUB_USERNAME",
-	gardenBaseUrl: "",
+	gardenBaseUrl: process.env.GARDEN_BASE_URL || "http://add-to-env.com",
 	prHistory: [],
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',

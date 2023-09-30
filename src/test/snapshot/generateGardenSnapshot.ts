@@ -24,13 +24,21 @@ export const generateGardenSnapshot = async (
 		(note) => note.stat.ctime,
 	);
 
+	const assetPaths = new Set<string>();
+
 	for (const file of notesSortedByCreationDate) {
-		const [content, _] = await publisher.compiler.generateMarkdown(file);
-		// TODO: add assets
+		fileString += "==========\n";
+		fileString += `${file.path}\n`;
+		fileString += "==========\n";
+
+		const [content, assets] =
+			await publisher.compiler.generateMarkdown(file);
+		assets.images.map((image) => assetPaths.add(image.path));
 
 		fileString += `${content}\n`;
 	}
-	fileString += "---\n";
+	fileString += "==========\n";
+	fileString += assetPaths.forEach((path) => `${path}\n`);
 
 	const fullSnapshotPath = `${devPluginPath}/${SNAPSHOT_PATH}`;
 
