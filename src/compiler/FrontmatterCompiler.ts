@@ -42,13 +42,10 @@ export class FrontmatterCompiler {
 		const frontmatter =
 			metadataCache.getCache(file.path)?.frontmatter ?? {};
 
-		return this.getProcessedFrontMatter(file, frontmatter);
+		return this.compile(file, frontmatter);
 	}
 
-	getProcessedFrontMatter(
-		file: TFile,
-		frontmatter: FrontMatterCache,
-	): string {
+	compile(file: TFile, frontmatter: FrontMatterCache): string {
 		const fileFrontMatter = { ...frontmatter };
 		delete fileFrontMatter["position"];
 
