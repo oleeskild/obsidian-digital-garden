@@ -8,10 +8,10 @@ import {
 } from "../utils/utils";
 import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import type DigitalGardenPluginInfo from "../models/pluginInfo";
-import { IMAGE_PATH_BASE, NOTE_PATH_BASE } from "./Publisher";
 import { RepositoryConnection } from "./RepositoryConnection";
 import Logger from "js-logger";
+import { TemplateUpdateChecker } from "./TemplateManager";
+import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "./Publisher";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -33,6 +33,8 @@ export default class DigitalGardenSiteManager {
 	rewriteRules: PathRewriteRules;
 	baseGardenConnection: RepositoryConnection;
 	userGardenConnection: RepositoryConnection;
+
+	templateUpdater: TemplateUpdateChecker;
 	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
@@ -48,6 +50,11 @@ export default class DigitalGardenSiteManager {
 			githubToken: settings.githubToken,
 			githubUserName: settings.githubUserName,
 			gardenRepository: settings.githubRepo,
+		});
+
+		this.templateUpdater = new TemplateUpdateChecker({
+			baseGardenConnection: this.baseGardenConnection,
+			userGardenConnection: this.userGardenConnection,
 		});
 	}
 
@@ -232,217 +239,5 @@ export default class DigitalGardenSiteManager {
 		}
 
 		return hashes;
-	}
-
-	/**
-	 *
-	 * @returns {Promise<string>} The url of the created PR. Null if unable to create PR.
-	 */
-	async createPullRequestWithSiteChanges(): Promise<string> {
-		const octokit = new Octokit({ auth: this.settings.githubToken });
-
-		const latestRelease =
-			await this.baseGardenConnection.getLatestRelease();
-
-		if (!latestRelease) {
-			throw new Error(
-				"Unable to get latest release from oleeskid repository",
-			);
-		}
-
-		const templateVersion = latestRelease.tag_name;
-		const uuid = crypto.randomUUID();
-
-		const branchName =
-			"update-template-to-v" + templateVersion + "-" + uuid;
-
-		const latestCommit = await this.userGardenConnection.getLatestCommit();
-
-		if (!latestCommit) {
-			throw new Error("Unable to get latest commit");
-		}
-
-		await this.createNewBranch(octokit, branchName, latestCommit.sha);
-		await this.deleteFiles(this.userGardenConnection, branchName);
-		await this.addFilesIfMissing(this.userGardenConnection, branchName);
-		await this.modifyFiles(this.userGardenConnection, branchName);
-
-		const prUrl = await this.createPullRequest(
-			octokit,
-			branchName,
-			templateVersion,
-		);
-
-		return prUrl;
-	}
-
-	private async createPullRequest(
-		octokit: Octokit,
-		branchName: string,
-		templateVersion: string,
-	): Promise<string> {
-		logger.info(`Creating PR for branch ${branchName}`);
-
-		try {
-			const repoInfo = await octokit.request(
-				"GET /repos/{owner}/{repo}",
-				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-				},
-			);
-
-			const defaultBranch = repoInfo.data.default_branch;
-
-			const pr = await octokit.request(
-				"POST /repos/{owner}/{repo}/pulls",
-				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-					title: `Update template to version ${templateVersion}`,
-					head: branchName,
-					base: defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${templateVersion})`,
-				},
-			);
-
-			return pr.data.html_url;
-		} catch (error) {
-			logger.error(error);
-
-			if (
-				(error as { message?: string })?.message?.includes(
-					"No commits between main and",
-				)
-			) {
-				logger.warn("No changes to commit");
-
-				return "";
-			}
-			throw error;
-		}
-	}
-
-	private async deleteFiles(
-		userGardenConnection: RepositoryConnection,
-		branchName: string,
-	) {
-		logger.info("Deleting files");
-		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
-
-		const filesToDelete = pluginInfo.filesToDelete;
-
-		for (const file of filesToDelete) {
-			await userGardenConnection
-				.deleteFile(file, {
-					branch: branchName,
-				})
-				.catch(() => {});
-		}
-	}
-
-	private async modifyFiles(
-		userGardenConnection: RepositoryConnection,
-		branchName: string,
-	) {
-		logger.info("Modifying changed files");
-
-		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
-		const filesToModify = pluginInfo.filesToModify;
-
-		for (const file of filesToModify) {
-			const latestFile = await this.baseGardenConnection.getFile(file);
-
-			if (!latestFile) {
-				throw new Error(`Unable to get file ${file} from base garden`);
-			}
-
-			const fileFromRepository = await userGardenConnection
-				.getFile(file, branchName)
-				.catch(() => {});
-
-			const fileHasChanged = latestFile.sha !== fileFromRepository?.sha;
-
-			if (!fileFromRepository || fileHasChanged) {
-				logger.info(
-					`updating file ${file} because ${
-						fileHasChanged
-							? "it has changed"
-							: "it does not exist yet"
-					}`,
-				);
-
-				userGardenConnection.updateFile({
-					path: file,
-					content: latestFile.content,
-					branch: branchName,
-					sha: fileFromRepository?.sha,
-				});
-			}
-		}
-	}
-
-	private async createNewBranch(
-		octokit: Octokit,
-		branchName: string,
-		sha: string,
-	) {
-		logger.info(`Creating new branch: ${branchName} to update template`);
-
-		try {
-			await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				ref: `refs/heads/${branchName}`,
-				sha,
-			});
-		} catch (e) {
-			logger.info(`branch already exists!`);
-		}
-	}
-
-	private async addFilesIfMissing(
-		userGardenConnection: RepositoryConnection,
-		branchName: string,
-	) {
-		logger.info("Adding missing files");
-		// Should only be added if it does not exist yet. Otherwise leave it alone
-		const pluginInfo = await this.getPluginInfo(this.baseGardenConnection);
-		const filesToAdd = pluginInfo.filesToAdd;
-
-		for (const filePath of filesToAdd) {
-			const userFile = userGardenConnection.getFile(filePath, branchName);
-
-			if (!userFile) {
-				// Create from baseGarden
-				const initialFile =
-					await this.baseGardenConnection.getFile(filePath);
-
-				if (!initialFile) {
-					throw new Error(
-						`Unable to get file ${filePath} from base garden`,
-					);
-				}
-
-				await userGardenConnection.updateFile({
-					path: filePath,
-					content: initialFile.content,
-					branch: branchName,
-				});
-			}
-		}
-	}
-
-	private async getPluginInfo(
-		baseGardenConnection: RepositoryConnection,
-	): Promise<DigitalGardenPluginInfo> {
-		const pluginInfoResponse =
-			await baseGardenConnection.getFile("plugin-info.json");
-
-		if (!pluginInfoResponse) {
-			throw new Error("Unable to get plugin info");
-		}
-
-		return JSON.parse(Base64.decode(pluginInfoResponse.content));
 	}
 }

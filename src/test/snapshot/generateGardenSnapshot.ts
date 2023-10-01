@@ -38,7 +38,7 @@ export const generateGardenSnapshot = async (
 		fileString += `${content}\n`;
 	}
 	fileString += "==========\n";
-	fileString += assetPaths.forEach((path) => `${path}\n`);
+	fileString += Array.from(assetPaths).map((path) => `${path}\n`);
 
 	const fullSnapshotPath = `${devPluginPath}/${SNAPSHOT_PATH}`;
 

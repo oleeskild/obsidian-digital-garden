@@ -20,6 +20,8 @@ import { SvgFileSuggest } from "../suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
+import { hasUpdates, TemplateUpdater } from "../../publisher/TemplateManager";
+import Logger from "js-logger";
 
 interface IObsidianTheme {
 	name: string;
@@ -936,21 +938,42 @@ export default class SettingView {
 		}
 	}
 
-	renderCreatePr(
+	async renderCreatePr(
 		modal: Modal,
-		handlePR: (button: ButtonComponent) => Promise<void>,
+		handlePR: (
+			button: ButtonComponent,
+			updater: TemplateUpdater,
+		) => Promise<void>,
+		siteManager: DigitalGardenSiteManager,
 	) {
 		this.settingsRootElement
 			.createEl("h3", { text: "Update site" })
 			.prepend(getIcon("sync") ?? "");
+
+		Logger.time("checkForUpdate");
+
+		const updater = await siteManager.templateUpdater.checkForUpdates();
+		Logger.timeEnd("checkForUpdate");
+
+		const updateAvailable = hasUpdates(updater);
 
 		new Setting(this.settingsRootElement)
 			.setName("Site Template")
 			.setDesc(
 				"Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.",
 			)
-			.addButton((button) => {
-				button.setButtonText("Manage site template");
+			.addButton(async (button) => {
+				button.setButtonText(`Checking...`);
+				Logger.time("checkForUpdate");
+
+				if (updateAvailable) {
+					button.setButtonText(
+						`Update to ${updater.newestTemplateVersion}`,
+					);
+				} else {
+					button.setButtonText("Already up to date!");
+					button.setDisabled(true);
+				}
 
 				button.onClick(() => {
 					modal.open();
@@ -969,7 +992,9 @@ export default class SettingView {
 			.addButton((button) =>
 				button
 					.setButtonText("Create PR")
-					.onClick(() => handlePR(button)),
+					.onClick(() =>
+						handlePR(button, updater as TemplateUpdater),
+					),
 			);
 
 		this.settingsRootElement
