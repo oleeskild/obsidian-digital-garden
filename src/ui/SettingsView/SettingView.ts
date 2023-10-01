@@ -781,9 +781,14 @@ export default class SettingView {
 
 			faviconsAreIdentical =
 				// @ts-expect-error TODO: abstract octokit response
-				currentFaviconOnSite.data.content
-					.replaceAll("\n", "")
-					.replaceAll(" ", "") === base64SettingsFaviconContent;
+				currentFaviconOnSite.data.content ===
+				base64SettingsFaviconContent;
+
+			if (faviconsAreIdentical) {
+				Logger.info("Favicons are identical, skipping update");
+
+				return;
+			}
 		} catch (error) {
 			faviconExists = false;
 		}
