@@ -399,7 +399,8 @@ export default class SettingView {
 						"Click the apply button to use the current style settings from the Style Settings Plugin on your site.",
 					)
 					.addButton((btn) => {
-						btn.setButtonText("Apply");
+						btn.setButtonText("Apply Style Settings");
+						btn.setClass("mod-cta");
 
 						btn.onClick(async (_ev) => {
 							new Notice("Applying Style Settings...");

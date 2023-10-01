@@ -84,6 +84,25 @@ I'm a list of all files in this folder:
 { .block-language-dataview}
 
 ==========
+E Embeds/E05 WEBP published.md
+==========
+---
+{"dg-publish":true,"permalink":"/e-embeds/e05-webp-published/"}
+---
+
+
+![travolta.webp](/img/user/A%20Assets/travolta.webp)
+==========
+E Embeds/E04 PNG reuse.md
+==========
+---
+{"dg-publish":true,"permalink":"/e-embeds/e04-png-reuse/"}
+---
+
+This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_not_published]]. When removing the other one, the image should not be removed. 
+
+![unused_image.png|100](/img/user/A%20Assets/unused_image.png)
+==========
 E Embeds/Transclusions/T5 transclude custom filters.md
 ==========
 ---
@@ -130,36 +149,6 @@ This should be in this header block
 
 
 
-==========
-E Embeds/Transclusions/T3 Transcluded block.md
-==========
----
-{"dg-publish":true,"permalink":"/e-embeds/transclusions/t3-transcluded-block/"}
----
-
-
-Below it should just say "cheese": 
-
-
-<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
-
-
-
-cheese 
-
-</div></div>
-
-
-==========
-E Embeds/Transclusions/T2 Too deep to transclude.md
-==========
----
-{"dg-publish":true,"permalink":"/e-embeds/transclusions/t2-too-deep-to-transclude/"}
----
-
-This one isn't isn't transcluded anymore (too deep)
-
-![travolta.png|100](/img/user/A%20Assets/travolta.png)
 ==========
 E Embeds/Transclusions/T1 BaseFile.md
 ==========
@@ -242,24 +231,35 @@ Bonus pic:
 </div></div>
 
 ==========
-E Embeds/E05 WEBP published.md
+E Embeds/Transclusions/T3 Transcluded block.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/e-embeds/e05-webp-published/"}
+{"dg-publish":true,"permalink":"/e-embeds/transclusions/t3-transcluded-block/"}
 ---
 
 
-![travolta.webp](/img/user/A%20Assets/travolta.webp)
+Below it should just say "cheese": 
+
+
+<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
+
+
+
+cheese 
+
+</div></div>
+
+
 ==========
-E Embeds/E04 PNG reuse.md
+E Embeds/Transclusions/T2 Too deep to transclude.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/e-embeds/e04-png-reuse/"}
+{"dg-publish":true,"permalink":"/e-embeds/transclusions/t2-too-deep-to-transclude/"}
 ---
 
-This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_not_published]]. When removing the other one, the image should not be removed. 
+This one isn't isn't transcluded anymore (too deep)
 
-![unused_image.png|100](/img/user/A%20Assets/unused_image.png)
+![travolta.png|100](/img/user/A%20Assets/travolta.png)
 ==========
 E Embeds/E02 PNG published.md
 ==========
@@ -337,77 +337,6 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
 
-==========
-004 Publishing this garden.md
-==========
----
-{"dg-publish":true,"permalink":"/004-publishing-this-garden/"}
----
-
-To use this test garden, add a test garden token / username / repo to `.env` (see README.md)
-
-
-
-==========
-002 Hidden page.md
-==========
----
-{"dg-publish":true,"permalink":"/002-hidden-page/","hide":true}
----
-
-This page is hidden from the folder tree!
-==========
-001 Links.md
-==========
----
-{"dg-publish":true,"permalink":"/001-links/"}
----
-
-[[002 Hidden page\|002 Hidden page]]
-
-[[003 Non published page\|003 Non published page]]
-
-[[000 Home\| Aliased link to home]]
-
-[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
-
-
-==========
-000 Home.md
-==========
----
-{"dg-publish":true,"permalink":"/000-home/","tags":["gardenEntry"]}
----
-
-## Welcome
-
-Welcome to the digital garden testing vault! 
-
-This vault is part of the `obsidian-digital-garden` repository, and meant to act as a staging area for 
-
-1. providing a maintainable testing ground for the digital garden features
-2. documenting features in action 
-
-Hopefully in the future it can be part of automated testing too! Say, snapshot testing the output from this garden would actually be relatively easy! :) 
-
-> [!info] See README for instructions on adding info to .env for testing
-
-
-## Snapshot tests
-
-This test vault enables snapshot testing of the garden compilation! To generate the snapshot: 
-
-- run `Generate Garden Snapshot` from the command palette
-- Snapshot generation is also run on plugin load. 
-
-
-## Plugins 
-
-This garden should have the following plugins 
-
-- [x] [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
-- [x] [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
-- [x] hot reload (reloads obsidian dev plugins on changes)
 ==========
 0 QA hell/Break links + transclusions.md
 ==========
@@ -502,6 +431,77 @@ Cheese
 
 
 ==========
-/img/user/A Assets/travolta.png
-,/img/user/A Assets/travolta.webp
+004 Publishing this garden.md
+==========
+---
+{"dg-publish":true,"permalink":"/004-publishing-this-garden/"}
+---
+
+To use this test garden, add a test garden token / username / repo to `.env` (see README.md)
+
+
+
+==========
+002 Hidden page.md
+==========
+---
+{"dg-publish":true,"permalink":"/002-hidden-page/","hide":true}
+---
+
+This page is hidden from the folder tree!
+==========
+001 Links.md
+==========
+---
+{"dg-publish":true,"permalink":"/001-links/"}
+---
+
+[[002 Hidden page\|002 Hidden page]]
+
+[[003 Non published page\|003 Non published page]]
+
+[[000 Home\| Aliased link to home]]
+
+[[000 Home \| Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
+
+
+==========
+000 Home.md
+==========
+---
+{"dg-publish":true,"permalink":"/000-home/","tags":["gardenEntry"]}
+---
+
+## Welcome
+
+Welcome to the digital garden testing vault! 
+
+This vault is part of the `obsidian-digital-garden` repository, and meant to act as a staging area for 
+
+1. providing a maintainable testing ground for the digital garden features
+2. documenting features in action 
+
+Hopefully in the future it can be part of automated testing too! Say, snapshot testing the output from this garden would actually be relatively easy! :) 
+
+> [!info] See README for instructions on adding info to .env for testing
+
+
+## Snapshot tests
+
+This test vault enables snapshot testing of the garden compilation! To generate the snapshot: 
+
+- run `Generate Garden Snapshot` from the command palette
+- Snapshot generation is also run on plugin load. 
+
+
+## Plugins 
+
+This garden should have the following plugins 
+
+- [x] [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
+- [x] [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
+- [x] hot reload (reloads obsidian dev plugins on changes)
+==========
+/img/user/A Assets/travolta.webp
 ,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.png
