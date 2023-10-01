@@ -21,6 +21,7 @@ interface IUpdateCheckerProps {
 interface IUpdateProps extends IUpdateCheckerProps {
 	filesToChange: IUpdateInfo;
 	defaultBranch: string;
+	newestTemplateVersion: string;
 }
 
 interface IUpdateInfo {
@@ -33,6 +34,7 @@ export class TemplateUpdateChecker {
 	baseGardenConnection: RepositoryConnection;
 	userGardenConnection: RepositoryConnection;
 	defaultBranch?: string;
+	newestTemplateVersion?: string;
 
 	constructor({
 		baseGardenConnection,
@@ -108,18 +110,43 @@ export class TemplateUpdateChecker {
 		return filesToAdd;
 	}
 
+	async getTemplateVersion() {
+		const latestRelease =
+			await this.baseGardenConnection.getLatestRelease();
+
+		if (!latestRelease) {
+			throw new Error(
+				"Unable to get latest release from oleeskid repository",
+			);
+		}
+
+		return latestRelease.tag_name;
+	}
+
 	async checkForUpdates() {
-		const updateInfo = await this.getFilesToUpdate();
+		const [updateInfo, templateVersion] = await Promise.all([
+			this.getFilesToUpdate(),
+			this.getTemplateVersion(),
+		]);
+
+		if (!templateVersion) {
+			throw new Error("Unable to get update info");
+		}
 
 		if (!updateInfo) {
-			return null;
+			this.newestTemplateVersion = templateVersion;
+
+			return this;
 		}
+
+		this.newestTemplateVersion = templateVersion;
 
 		return new TemplateUpdater({
 			baseGardenConnection: this.baseGardenConnection,
 			userGardenConnection: this.userGardenConnection,
 			filesToChange: updateInfo,
 			defaultBranch: this.defaultBranch as string,
+			newestTemplateVersion: templateVersion,
 		});
 	}
 
@@ -193,28 +220,38 @@ export class TemplateUpdateChecker {
 	}
 }
 
+/**
+ * Note: it might not make sense anymore to list changed/deleted/added files
+ * option 1: migrations for versions
+ * option 2: just a list of files to check
+ * option 3: give sha for each expected file and check them (maybe best for now?)
+ */
+
 export class TemplateUpdater {
 	filesToChange: IUpdateInfo;
 	defaultBranch: string;
 	baseGardenConnection: RepositoryConnection;
 	userGardenConnection: RepositoryConnection;
+	newestTemplateVersion: string;
 
 	constructor({
 		baseGardenConnection,
 		userGardenConnection,
 		filesToChange,
 		defaultBranch,
+		newestTemplateVersion,
 	}: IUpdateProps) {
 		this.filesToChange = filesToChange;
 		this.defaultBranch = defaultBranch;
 		this.baseGardenConnection = baseGardenConnection;
 		this.userGardenConnection = userGardenConnection;
+		this.newestTemplateVersion = newestTemplateVersion;
 	}
 
-	async updateFiles() {
+	async updateTemplate() {
 		const { filesToDelete, filesToUpdate, filesToAdd } = this.filesToChange;
 
-		const { branchName, templateVersion } = await this.createNewBranch();
+		const { branchName } = await this.createNewBranch();
 
 		logger.info("Deleting files");
 		await this.deleteFiles(filesToDelete, branchName);
@@ -235,10 +272,10 @@ export class TemplateUpdater {
 				"POST /repos/{owner}/{repo}/pulls",
 				{
 					...this.userGardenConnection.getBasePayload(),
-					title: `Update template to version ${templateVersion}`,
+					title: `Update template to version ${this.newestTemplateVersion}`,
 					head: branchName,
 					base: this.defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${templateVersion})`,
+					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
 				},
 			);
 
@@ -250,22 +287,11 @@ export class TemplateUpdater {
 
 	private async createNewBranch(): Promise<{
 		branchName: string;
-		templateVersion: string;
 	}> {
-		const latestRelease =
-			await this.baseGardenConnection.getLatestRelease();
-
-		if (!latestRelease) {
-			throw new Error(
-				"Unable to get latest release from oleeskid repository",
-			);
-		}
-
-		const templateVersion = latestRelease.tag_name;
 		const uuid = crypto.randomUUID();
 
 		const branchName =
-			"update-template-to-v" + templateVersion + "-" + uuid;
+			"update-template-to-v" + this.newestTemplateVersion + "-" + uuid;
 
 		const latestCommit = await this.userGardenConnection.getLatestCommit();
 
@@ -278,7 +304,7 @@ export class TemplateUpdater {
 			latestCommit.sha,
 		);
 
-		return { branchName, templateVersion };
+		return { branchName };
 	}
 
 	private async deleteFiles(
@@ -316,3 +342,8 @@ export class TemplateUpdater {
 		}
 	}
 }
+
+export const hasUpdates = (
+	updater: TemplateUpdater | TemplateUpdateChecker,
+): updater is TemplateUpdater =>
+	(updater as TemplateUpdater).filesToChange !== undefined;

@@ -4,6 +4,7 @@ import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import SettingView from "./SettingsView/SettingView";
 import { UpdateGardenRepositoryModal } from "./SettingsModal";
 import Logger from "js-logger";
+import { TemplateUpdater } from "../publisher/TemplateManager";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
@@ -26,6 +27,11 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 	async display(): Promise<void> {
 		const { containerEl } = this;
 
+		const siteManager = new DigitalGardenSiteManager(
+			this.plugin.app.metadataCache,
+			this.plugin.settings,
+		);
+
 		const settingView = new SettingView(
 			this.app,
 			containerEl,
@@ -35,19 +41,12 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 		const prModal = new UpdateGardenRepositoryModal(this.app);
 		await settingView.initialize(prModal);
 
-		const handlePR = async (button: ButtonComponent) => {
+		const handlePR = async (
+			button: ButtonComponent,
+			updater: TemplateUpdater,
+		) => {
 			prModal.renderLoading();
 			button.setDisabled(true);
-
-			const siteManager = new DigitalGardenSiteManager(
-				this.plugin.app.metadataCache,
-				this.plugin.settings,
-			);
-			Logger.time("checkForUpdate");
-
-			const updater = await siteManager.templateUpdater.checkForUpdates();
-			Logger.timeEnd("checkForUpdate");
-			console.log("updater", updater);
 
 			if (!updater) {
 				prModal.renderSuccess("");
@@ -59,7 +58,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			try {
 				Logger.time("update");
 
-				const prUrl = await updater.updateFiles();
+				const prUrl = await updater.updateTemplate();
 				Logger.timeEnd("update");
 
 				if (prUrl) {
@@ -72,7 +71,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 				prModal.renderError();
 			}
 		};
-		settingView.renderCreatePr(prModal, handlePR);
+		settingView.renderCreatePr(prModal, handlePR, siteManager);
 
 		settingView.renderPullRequestHistory(
 			prModal,

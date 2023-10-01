@@ -284,15 +284,6 @@ Hello! I'm a pinned note (should be at the top yeah!)
 
 
 ==========
-006 Custom title.md
-==========
----
-{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
----
-
-[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
-
-==========
 005 Custom filters.md
 ==========
 ---
@@ -305,6 +296,15 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 
 🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
+
+==========
+006 Custom title.md
+==========
+---
+{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
+---
+
+[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ==========
 004 Publishing this garden.md
