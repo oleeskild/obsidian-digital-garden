@@ -20,6 +20,7 @@ import { SvgFileSuggest } from "../suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
+import Logger from "js-logger";
 
 interface IObsidianTheme {
 	name: string;
@@ -779,9 +780,14 @@ export default class SettingView {
 
 			faviconsAreIdentical =
 				// @ts-expect-error TODO: abstract octokit response
-				currentFaviconOnSite.data.content
-					.replaceAll("\n", "")
-					.replaceAll(" ", "") === base64SettingsFaviconContent;
+				currentFaviconOnSite.data.content ===
+				base64SettingsFaviconContent;
+
+			if (faviconsAreIdentical) {
+				Logger.info("Favicons are identical, skipping update");
+
+				return;
+			}
 		} catch (error) {
 			faviconExists = false;
 		}
