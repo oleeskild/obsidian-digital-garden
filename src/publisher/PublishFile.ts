@@ -8,7 +8,7 @@ import {
 	TFrontmatter,
 } from "../compiler/FrontmatterCompiler";
 import DigitalGardenSettings from "../models/settings";
-import { isPublishFrontmatterValid } from "./Validator";
+import { hasPublishFlag } from "./Validator";
 
 interface IPublishFileProps {
 	file: TFile;
@@ -58,7 +58,7 @@ export class PublishFile {
 	}
 
 	shouldPublish(): boolean {
-		return isPublishFrontmatterValid(this.frontmatter);
+		return hasPublishFlag(this.frontmatter);
 	}
 
 	async getImageLinks() {
