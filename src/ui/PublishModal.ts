@@ -6,6 +6,7 @@ import PublicationCenter from "./PublicationCenter.svelte";
 import DiffView from "./DiffView.svelte";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import * as Diff from "diff";
+import { PublishFile } from "../publisher/PublishFile";
 
 export class PublishModal {
 	modal: Modal;
@@ -52,9 +53,20 @@ export class PublishModal {
 				await this.siteManager.getNoteContent(notePath);
 			const localFile = this.vault.getAbstractFileByPath(notePath);
 
+			const localPublishFile = new PublishFile({
+				file: localFile as TFile,
+				vault: this.vault,
+				compiler: this.publisher.compiler,
+				metadataCache: this.publisher.metadataCache,
+				settings: this.settings,
+			});
+
 			if (localFile instanceof TFile) {
 				const [localContent, _] =
-					await this.publisher.compiler.generateMarkdown(localFile);
+					await this.publisher.compiler.generateMarkdown(
+						localPublishFile,
+					);
+
 				const diff = Diff.diffLines(remoteContent, localContent);
 				let diffView: DiffView | undefined;
 				const diffModal = new Modal(this.modal.app);

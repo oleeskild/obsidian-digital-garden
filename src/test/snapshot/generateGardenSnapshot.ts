@@ -31,15 +31,14 @@ export const generateGardenSnapshot = async (
 		fileString += `${file.getPath()}\n`;
 		fileString += "==========\n";
 
-		const [content, assets] = await publisher.compiler.generateMarkdown(
-			file.file,
-		);
+		const [content, assets] =
+			await publisher.compiler.generateMarkdown(file);
 		assets.images.map((image) => assetPaths.add(image.path));
 
 		fileString += `${content}\n`;
 	}
 	fileString += "==========\n";
-	fileString += assetPaths.forEach((path) => `${path}\n`);
+	fileString += Array.from(assetPaths).map((path) => `${path}\n`);
 
 	const fullSnapshotPath = `${devPluginPath}/${SNAPSHOT_PATH}`;
 

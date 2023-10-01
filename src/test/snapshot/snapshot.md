@@ -46,10 +46,10 @@ This means this file should be in the root directory :)
 This subfolder also contains path rewrite testing! 
 
 ==========
-P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md
+P Plugins/PE Excalidraw/PE1 Transcluded excalidraw.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-embedded-excalidraw/"}
+{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-transcluded-excalidraw/"}
 ---
 
 
@@ -80,6 +80,8 @@ I'm a list of all files in this folder:
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [[P Plugins/PD Dataview/PD2 Inline queries\|PD2 Inline queries]]
 - [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
+
 
 { .block-language-dataview}
 
@@ -219,7 +221,7 @@ This is as far as we can go! Or is it???
 
 Bonus: 
 
-<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/p-plugins/pe-excalidraw/pe-1-embedded-excalidraw/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
+<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/p-plugins/pe-excalidraw/pe-1-transcluded-excalidraw/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
 
 
 
@@ -299,15 +301,6 @@ Hello! I'm a pinned note (should be at the top yeah!)
 
 
 ==========
-006 Custom title.md
-==========
----
-{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
----
-
-[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
-
-==========
 005 Custom filters.md
 ==========
 ---
@@ -320,6 +313,15 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 
 🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
+
+==========
+006 Custom title.md
+==========
+---
+{"dg-publish":true,"permalink":"/006-custom-title/","title":"006 THIS IS A CUSTOM TITLE"}
+---
+
+[Custom title](https://dg-docs.ole.dev/advanced/note-specific-settings/)
 
 ==========
 004 Publishing this garden.md
@@ -389,7 +391,7 @@ This test vault enables snapshot testing of the garden compilation! To generate 
 
 This garden should have the following plugins 
 
-- [x] [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [x] [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 - [x] [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [x] hot reload (reloads obsidian dev plugins on changes)
 ==========
@@ -486,4 +488,6 @@ Cheese
 
 
 ==========
-undefined
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
