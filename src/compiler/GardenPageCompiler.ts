@@ -291,7 +291,7 @@ export class GardenPageCompiler {
 				const code = inlineQuery[0];
 				const query = inlineQuery[1];
 
-				const dataviewResult = dvApi.tryEvaluate(query, {
+				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
 					// @ts-expect-error errors are caught
 					this: dvApi.page(path),
 				});
