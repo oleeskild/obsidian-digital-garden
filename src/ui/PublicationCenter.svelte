@@ -110,7 +110,7 @@
 			[
 				...publishStatus.deletedNotePaths,
 				...publishStatus.deletedImagePaths,
-			],
+			].map((path) => path.path),
 			"Deleted Notes",
 		);
 
@@ -165,11 +165,11 @@
 		pathsToDelete = traverseTree(deletedNoteTree!);
 
 		const notesToDelete = pathsToDelete.filter((path) =>
-			publishStatus.deletedNotePaths.includes(path),
+			publishStatus.deletedNotePaths.some((p) => p.path === path),
 		);
 
 		const imagesToDelete = pathsToDelete.filter((path) =>
-			publishStatus.deletedImagePaths.includes(path),
+			publishStatus.deletedImagePaths.some((p) => p.path === path),
 		);
 
 		unpublishedToPublish =
@@ -205,8 +205,13 @@
 			let isDeleted: boolean;
 
 			if (isNote) {
-				isDeleted = await publisher.deleteNote(path);
+				const sha = publishStatus.deletedNotePaths.find(
+					(p) => p.path === path,
+				)?.sha;
+
+				isDeleted = await publisher.deleteNote(path, sha);
 			} else {
+				// TODO: remove with sha
 				isDeleted = await publisher.deleteImage(path);
 			}
 

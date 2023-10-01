@@ -13,55 +13,58 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
 	}
-
-	async getDeletedNotePaths(): Promise<Array<string>> {
-		const remoteNoteHashes = await this.siteManager.getNoteHashes();
-		const marked = await this.publisher.getFilesMarkedForPublishing();
-
-		return this.generateDeletedContentPaths(
-			remoteNoteHashes,
-			marked.notes.map((f) => f.getPath()),
-		);
+	getDeletedNotePaths(): Promise<string[]> {
+		throw new Error("Method not implemented.");
 	}
-
-	async getDeletedImagesPaths(): Promise<Array<string>> {
-		const remoteImageHashes = await this.siteManager.getImageHashes();
-		const marked = await this.publisher.getFilesMarkedForPublishing();
-
-		return this.generateDeletedContentPaths(
-			remoteImageHashes,
-			marked.images,
-		);
+	getDeletedImagesPaths(): Promise<string[]> {
+		throw new Error("Method not implemented.");
 	}
 
 	private generateDeletedContentPaths(
 		remoteNoteHashes: { [key: string]: string },
 		marked: string[],
-	): Array<string> {
+	): Array<{ path: string; sha: string }> {
 		const isJsFile = (key: string) => key.endsWith(".js");
 
 		const isMarkedForPublish = (key: string) =>
 			marked.find((f) => f === key);
 
-		const deletedImagePaths = Object.keys(remoteNoteHashes).filter(
+		const deletedPaths = Object.keys(remoteNoteHashes).filter(
 			(key) => !isJsFile(key) && !isMarkedForPublish(key),
 		);
 
-		return deletedImagePaths;
+		const pathsWithSha = deletedPaths.map((path) => {
+			return {
+				path,
+				sha: remoteNoteHashes[path],
+			};
+		});
+
+		return pathsWithSha;
 	}
 	async getPublishStatus(): Promise<PublishStatus> {
 		const unpublishedNotes: Array<CompiledPublishFile> = [];
 		const publishedNotes: Array<CompiledPublishFile> = [];
 		const changedNotes: Array<CompiledPublishFile> = [];
 
-		const remoteNoteHashes = await this.siteManager.getNoteHashes();
-		const remoteImageHashes = await this.siteManager.getImageHashes();
+		const contentTree =
+			await this.siteManager.userGardenConnection.getContent("main");
+
+		if (!contentTree) {
+			throw new Error("Could not get content tree from base garden");
+		}
+
+		const remoteNoteHashes =
+			await this.siteManager.getNoteHashes(contentTree);
+
+		const remoteImageHashes =
+			await this.siteManager.getImageHashes(contentTree);
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
 		for (const file of marked.notes) {
 			const compiledFile = await file.compile();
-			const [content, _] = await compiledFile.getCompiledFile();
+			const [content, _] = compiledFile.getCompiledFile();
 
 			const localHash = generateBlobHash(content);
 			const remoteHash = remoteNoteHashes[file.getPath()];
@@ -69,8 +72,10 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			if (!remoteHash) {
 				unpublishedNotes.push(compiledFile);
 			} else if (remoteHash === localHash) {
+				compiledFile.setRemoteHash(remoteHash);
 				publishedNotes.push(compiledFile);
 			} else {
+				compiledFile.setRemoteHash(remoteHash);
 				changedNotes.push(compiledFile);
 			}
 		}
@@ -99,16 +104,19 @@ export default class PublishStatusManager implements IPublishStatusManager {
 	}
 }
 
+interface PathToRemove {
+	path: string;
+	sha: string;
+}
+
 export interface PublishStatus {
 	unpublishedNotes: Array<CompiledPublishFile>;
 	publishedNotes: Array<CompiledPublishFile>;
 	changedNotes: Array<CompiledPublishFile>;
-	deletedNotePaths: Array<string>;
-	deletedImagePaths: Array<string>;
+	deletedNotePaths: Array<PathToRemove>;
+	deletedImagePaths: Array<PathToRemove>;
 }
 
 export interface IPublishStatusManager {
 	getPublishStatus(): Promise<PublishStatus>;
-	getDeletedNotePaths(): Promise<Array<string>>;
-	getDeletedImagesPaths(): Promise<Array<string>>;
 }

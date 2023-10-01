@@ -6,9 +6,11 @@ import {
 	getGardenPathForNote,
 	getRewriteRules,
 } from "../utils/utils";
-import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
-import { RepositoryConnection } from "./RepositoryConnection";
+import {
+	RepositoryConnection,
+	TRepositoryContent,
+} from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "./Publisher";
@@ -19,6 +21,12 @@ export interface PathRewriteRule {
 	to: string;
 }
 export type PathRewriteRules = PathRewriteRule[];
+
+type ContentTreeItem = {
+	path: string;
+	sha: string;
+	type: string;
+};
 
 /**
  * Manages the digital garden website by handling various site configurations, files,
@@ -160,42 +168,28 @@ export default class DigitalGardenSiteManager {
 		if (path.startsWith("/")) {
 			path = path.substring(1);
 		}
-		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		const response = await octokit.request(
-			`GET /repos/{owner}/{repo}/contents/{path}`,
-			{
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				path: NOTE_PATH_BASE + path,
-			},
+		const response = await this.userGardenConnection.getFile(
+			NOTE_PATH_BASE + path,
 		);
 
-		// @ts-expect-error data is not yet type-guarded
-		const content = Base64.decode(response.data.content);
+		if (!response) {
+			return "";
+		}
+
+		const content = Base64.decode(response.content);
 
 		return content;
 	}
 
-	async getNoteHashes(): Promise<Record<string, string>> {
-		const octokit = new Octokit({ auth: this.settings.githubToken });
+	async getNoteHashes(
+		contentTree: NonNullable<TRepositoryContent>,
+	): Promise<Record<string, string>> {
+		const files = contentTree.tree;
 
-		// Force the cache to be updated
-		const response = await octokit.request(
-			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
-				Math.random() * 1000,
-			)}`,
-			{
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				tree_sha: "HEAD",
-			},
-		);
-
-		const files = response.data.tree;
-
-		const notes: Array<{ path: string; sha: string }> = files.filter(
-			(x: { path: string; type: string }) =>
+		const notes = files.filter(
+			(x): x is ContentTreeItem =>
+				typeof x.path === "string" &&
 				x.path.startsWith(NOTE_PATH_BASE) &&
 				x.type === "blob" &&
 				x.path !== `${NOTE_PATH_BASE}notes.json`,
@@ -210,26 +204,16 @@ export default class DigitalGardenSiteManager {
 		return hashes;
 	}
 
-	async getImageHashes(): Promise<Record<string, string>> {
-		const octokit = new Octokit({ auth: this.settings.githubToken });
+	async getImageHashes(
+		contentTree: NonNullable<TRepositoryContent>,
+	): Promise<Record<string, string>> {
+		const files = contentTree.tree ?? [];
 
-		// Force the cache to be updated
-		const response = await octokit.request(
-			`GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=${Math.ceil(
-				Math.random() * 1000,
-			)}`,
-			{
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				tree_sha: "HEAD",
-			},
-		);
-
-		const files = response.data.tree;
-
-		const images: Array<{ path: string; sha: string }> = files.filter(
-			(x: { path: string; type: string }) =>
-				x.path.startsWith(IMAGE_PATH_BASE) && x.type === "blob",
+		const images = files.filter(
+			(x): x is ContentTreeItem =>
+				typeof x.path === "string" &&
+				x.path.startsWith(IMAGE_PATH_BASE) &&
+				x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 

@@ -1,6 +1,5 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
-import { Octokit } from "@octokit/core";
 import { getRewriteRules } from "../utils/utils";
 import {
 	hasPublishFlag,
@@ -10,6 +9,8 @@ import { PathRewriteRules } from "./DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
+import Logger from "js-logger";
+import { RepositoryConnection } from "./RepositoryConnection";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -75,8 +76,8 @@ export default class Publisher {
 
 					images.forEach((i) => imagesToPublish.add(i));
 				}
-			} catch {
-				//ignore
+			} catch (e) {
+				Logger.error(e);
 			}
 		}
 
@@ -86,63 +87,30 @@ export default class Publisher {
 		};
 	}
 
-	async deleteNote(vaultFilePath: string) {
+	async deleteNote(vaultFilePath: string, sha?: string) {
 		const path = `${NOTE_PATH_BASE}${vaultFilePath}`;
 
-		return await this.delete(path);
+		return await this.delete(path, sha);
 	}
 
-	async deleteImage(vaultFilePath: string) {
+	async deleteImage(vaultFilePath: string, sha?: string) {
 		const path = `${IMAGE_PATH_BASE}${vaultFilePath}`;
 
-		return await this.delete(path);
+		return await this.delete(path, sha);
 	}
-
-	async delete(path: string): Promise<boolean> {
+	/** If provided with sha, garden connection does not need to get it seperately! */
+	async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
-		const octokit = new Octokit({ auth: this.settings.githubToken });
 
-		const payload = {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-			path,
-			message: `Delete content ${path}`,
-			sha: "",
-		};
+		const userGardenConnection = new RepositoryConnection({
+			gardenRepository: this.settings.githubRepo,
+			githubUserName: this.settings.githubUserName,
+			githubToken: this.settings.githubToken,
+		});
 
-		try {
-			const response = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-					path,
-				},
-			);
-
-			// @ts-expect-error TODO: abstract octokit response
-			if (response.status === 200 && response?.data.type === "file") {
-				// @ts-expect-error TODO: abstract octokit response
-				payload.sha = response.data.sha;
-			}
-		} catch (e) {
-			console.log(e);
-
-			return false;
-		}
-
-		try {
-			await octokit.request(
-				"DELETE /repos/{owner}/{repo}/contents/{path}",
-				payload,
-			);
-		} catch (e) {
-			console.log(e);
-
-			return false;
-		}
-
-		return true;
+		return !!userGardenConnection.deleteFile(path, {
+			sha,
+		});
 	}
 
 	async publish(file: CompiledPublishFile): Promise<boolean> {
@@ -151,8 +119,8 @@ export default class Publisher {
 		}
 
 		try {
-			const [text, assets] = await file.compiledFile;
-			await this.uploadText(file.getPath(), text);
+			const [text, assets] = file.compiledFile;
+			await this.uploadText(file.getPath(), text, file?.remoteHash);
 			await this.uploadAssets(assets);
 
 			return true;
@@ -163,62 +131,55 @@ export default class Publisher {
 		}
 	}
 
-	async uploadToGithub(path: string, content: string) {
+	async uploadToGithub(
+		path: string,
+		content: string,
+		remoteFileHash?: string,
+	) {
 		this.validateSettings();
+		let message = `Update content ${path}`;
 
-		const octokit = new Octokit({ auth: this.settings.githubToken });
+		const userGardenConnection = new RepositoryConnection({
+			gardenRepository: this.settings.githubRepo,
+			githubUserName: this.settings.githubUserName,
+			githubToken: this.settings.githubToken,
+		});
 
-		const payload = {
-			owner: this.settings.githubUserName,
-			repo: this.settings.githubRepo,
-			path,
-			message: `Add content ${path}`,
-			content,
-			sha: "",
-		};
+		if (!remoteFileHash) {
+			const file = await userGardenConnection.getFile(path).catch(() => {
+				// file does not exist
+				Logger.info(`File ${path} does not exist, adding`);
+			});
+			remoteFileHash = file?.sha;
 
-		try {
-			const response = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
-					path,
-				},
-			);
-
-			// @ts-expect-error TODO: abstract octokit response
-			if (response.status === 200 && response.data.type === "file") {
-				// @ts-expect-error TODO: abstract octokit response
-				payload.sha = response.data.sha;
+			if (!remoteFileHash) {
+				message = `Add content ${path}`;
 			}
-		} catch (e) {
-			console.log(e);
 		}
 
-		payload.message = `Update content ${path}`;
-
-		await octokit.request(
-			"PUT /repos/{owner}/{repo}/contents/{path}",
-			payload,
-		);
+		return await userGardenConnection.updateFile({
+			content,
+			path,
+			message,
+			sha: remoteFileHash,
+		});
 	}
 
-	async uploadText(filePath: string, content: string) {
+	async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
 		const path = `${NOTE_PATH_BASE}${filePath}`;
-		await this.uploadToGithub(path, content);
+		await this.uploadToGithub(path, content, sha);
 	}
 
-	async uploadImage(filePath: string, content: string) {
+	async uploadImage(filePath: string, content: string, sha?: string) {
 		const path = `src/site${filePath}`;
-		await this.uploadToGithub(path, content);
+		await this.uploadToGithub(path, content, sha);
 	}
 
 	async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
-			await this.uploadImage(image.path, image.content);
+			await this.uploadImage(image.path, image.content, image.remoteHash);
 		}
 	}
 

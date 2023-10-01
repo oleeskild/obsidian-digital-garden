@@ -254,7 +254,12 @@ export default class DigitalGarden extends Plugin {
 					for (const filePath of filesToDelete) {
 						try {
 							statusBar.increment();
-							await publisher.deleteNote(filePath);
+
+							// TODO: include sha from file.remoteHash to make faster!
+							await publisher.deleteNote(
+								filePath.path,
+								filePath.sha,
+							);
 						} catch {
 							errorDeleteFiles++;
 
@@ -267,7 +272,11 @@ export default class DigitalGarden extends Plugin {
 					for (const filePath of imagesToDelete) {
 						try {
 							statusBar.increment();
-							await publisher.deleteImage(filePath);
+
+							await publisher.deleteImage(
+								filePath.path,
+								filePath.sha,
+							);
 						} catch {
 							errorDeleteImage++;
 

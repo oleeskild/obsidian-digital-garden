@@ -34,6 +34,8 @@ import { PublishFile } from "../publishFile/PublishFile";
 export interface Asset {
 	path: string;
 	content: string;
+	// not set yet
+	remoteHash?: string;
 }
 export interface Assets {
 	images: Array<Asset>;
