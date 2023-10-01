@@ -6,7 +6,7 @@ I can go deeper!
 ![[T4 Deeper]]
 
 Bonus: 
-![[PE1 Embedded excalidraw]]
+![[PE1 Transcluded excalidraw]]
 
 Bonus pic: 
 

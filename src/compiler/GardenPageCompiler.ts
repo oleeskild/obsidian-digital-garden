@@ -18,7 +18,6 @@ import {
 	getRewriteRules,
 	sanitizePermalink,
 } from "../utils/utils";
-import { FrontmatterCompiler } from "./FrontmatterCompiler";
 import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
 import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
@@ -29,8 +28,10 @@ import {
 	EXCALIDRAW_REGEX,
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
+	TRANSCLUDED_SVG_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
+import { PublishFile } from "../publisher/PublishFile";
 
 export interface Asset {
 	path: string;
@@ -42,10 +43,15 @@ export interface Assets {
 
 export type TCompiledFile = [string, Assets];
 
+export type TCompilerStep = (
+	publishFile: PublishFile,
+) =>
+	| ((partiallyCompiledContent: string) => Promise<string>)
+	| ((partiallyCompiledContent: string) => string);
+
 export class GardenPageCompiler {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
-	private frontMatterCompiler: FrontmatterCompiler;
 	private excalidrawCompiler: ExcalidrawCompiler;
 	private metadataCache: MetadataCache;
 	private readonly getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"];
@@ -62,49 +68,54 @@ export class GardenPageCompiler {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
-		this.frontMatterCompiler = new FrontmatterCompiler(settings);
 		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 	}
 
-	async generateMarkdown(file: TFile): Promise<TCompiledFile> {
+	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
-		const processedFrontmatter =
-			this.frontMatterCompiler.getFrontMatterFromFile(
-				file,
-				this.metadataCache,
-			);
+		const vaultFileText = await file.cachedRead();
 
-		const fileText = await this.vault.cachedRead(file);
-
-		if (file.name.endsWith(".excalidraw.md")) {
+		if (file.file.name.endsWith(".excalidraw.md")) {
 			return [
-				await this.excalidrawCompiler.compileMarkdown(
-					{ file, processedFrontmatter, fileText },
-					true,
-				),
+				await this.excalidrawCompiler.compileMarkdown({
+					includeExcaliDrawJs: true,
+				})(file)(vaultFileText),
 				assets,
 			];
 		}
 
-		let text = await this.convertFrontMatter(
-			fileText,
-			processedFrontmatter,
+		// ORDER MATTERS!
+		const COMPILE_STEPS: TCompilerStep[] = [
+			this.convertFrontMatter,
+			this.convertCustomFilters,
+			this.createBlockIDs,
+			this.createTranscludedText(0),
+			this.convertDataViews,
+			this.convertLinksToFullPath,
+			this.removeObsidianComments,
+			this.createSvgEmbeds,
+		];
+
+		const compiledText = await COMPILE_STEPS.reduce(
+			async (previousStep, compilerStep) => {
+				const previousStepText = await previousStep;
+
+				return compilerStep(file)(previousStepText);
+			},
+			Promise.resolve(vaultFileText),
 		);
-		text = await this.convertCustomFilters(text);
-		text = await this.createBlockIDs(text);
-		text = await this.createTranscludedText(text, file.path, 0);
-		text = await this.convertDataViews(text, file.path);
-		text = await this.convertLinksToFullPath(text, file.path);
-		text = await this.removeObsidianComments(text);
-		text = await this.createSvgEmbeds(text, file.path);
-		const text_and_images = await this.convertImageLinks(text, file.path);
+
+		const text_and_images = await this.convertImageLinks(
+			compiledText,
+			file.getPath(),
+		);
 
 		return [text_and_images[0], { images: text_and_images[1] }];
 	}
 
-	async convertCustomFilters(text: string) {
+	convertCustomFilters: TCompilerStep = () => (text) => {
 		for (const filter of this.settings.customFilters) {
 			try {
 				text = text.replace(
@@ -123,15 +134,15 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
-	async createBlockIDs(text: string) {
+	createBlockIDs: TCompilerStep = () => (text: string) => {
 		const block_pattern = / \^([\w\d-]+)/g;
 		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
 
 		text = text.replace(
 			complex_block_pattern,
-			(match: string, $1: string) => {
+			(_match: string, $1: string) => {
 				return `{ #${$1}}\n\n`;
 			},
 		);
@@ -141,9 +152,9 @@ export class GardenPageCompiler {
 		});
 
 		return text;
-	}
+	};
 
-	async removeObsidianComments(text: string): Promise<string> {
+	removeObsidianComments: TCompilerStep = () => (text) => {
 		const obsidianCommentsRegex = /%%.+?%%/gms;
 		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
 		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
@@ -175,20 +186,17 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
-	async convertFrontMatter(
-		text: string,
-		frontmatter: string,
-	): Promise<string> {
+	convertFrontMatter: TCompilerStep = (file) => (text) => {
 		const replaced = text.replace(FRONTMATTER_REGEX, (_match, _p1) => {
-			return frontmatter;
+			return file.getCompiledFrontmatter();
 		});
 
 		return replaced;
-	}
+	};
 
-	async convertDataViews(text: string, path: string): Promise<string> {
+	convertDataViews: TCompilerStep = (file) => async (text) => {
 		let replacedText = text;
 		const dataViewRegex = /```dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
@@ -234,7 +242,11 @@ export class GardenPageCompiler {
 			try {
 				const block = queryBlock[0];
 				const query = queryBlock[1];
-				const markdown = await dvApi.tryQueryMarkdown(query, path);
+
+				const markdown = await dvApi.tryQueryMarkdown(
+					query,
+					file.getPath(),
+				);
 
 				replacedText = replacedText.replace(
 					block,
@@ -258,7 +270,7 @@ export class GardenPageCompiler {
 
 				const div = createEl("div");
 				const component = new Component();
-				await dvApi.executeJs(query, div, component, path);
+				await dvApi.executeJs(query, div, component, file.getPath());
 				component.load();
 
 				replacedText = replacedText.replace(block, div.innerHTML);
@@ -309,7 +321,7 @@ export class GardenPageCompiler {
 
 				const div = createEl("div");
 				const component = new Component();
-				await dvApi.executeJs(query, div, component, path);
+				await dvApi.executeJs(query, div, component, file.getPath());
 				component.load();
 
 				replacedText = replacedText.replace(code, div.innerHTML);
@@ -325,9 +337,9 @@ export class GardenPageCompiler {
 		}
 
 		return replacedText;
-	}
+	};
 
-	stripAwayCodeFencesAndFrontmatter(text: string): string {
+	stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
 		let textToBeProcessed = text;
 		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
@@ -336,15 +348,13 @@ export class GardenPageCompiler {
 		textToBeProcessed = textToBeProcessed.replace(FRONTMATTER_REGEX, "");
 
 		return textToBeProcessed;
-	}
+	};
 
-	async convertLinksToFullPath(
-		text: string,
-		filePath: string,
-	): Promise<string> {
+	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
 		let convertedText = text;
 
-		const textToBeProcessed = this.stripAwayCodeFencesAndFrontmatter(text);
+		const textToBeProcessed =
+			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
 
 		const linkedFileRegex = /\[\[(.+?)\]\]/g;
 		const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
@@ -357,7 +367,7 @@ export class GardenPageCompiler {
 						linkMatch.lastIndexOf("]") - 1,
 					);
 
-					let [linkedFileName, prettyName] =
+					let [linkedFileName, linkDisplayName] =
 						textInsideBrackets.split("|");
 
 					if (linkedFileName.endsWith("\\")) {
@@ -367,9 +377,10 @@ export class GardenPageCompiler {
 						);
 					}
 
-					prettyName = prettyName || linkedFileName;
+					linkDisplayName = linkDisplayName || linkedFileName;
 					let headerPath = "";
 
+					// detect links to headers or blocks
 					if (linkedFileName.includes("#")) {
 						const headerSplit = linkedFileName.split("#");
 						linkedFileName = headerSplit[0];
@@ -382,17 +393,18 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						fullLinkedFilePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
 						convertedText = convertedText.replace(
 							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${prettyName}]]`,
+							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
 						);
+						continue;
 					}
 
-					if (linkedFile?.extension === "md") {
+					if (linkedFile.extension === "md") {
 						const extensionlessPath = linkedFile.path.substring(
 							0,
 							linkedFile.path.lastIndexOf("."),
@@ -400,7 +412,7 @@ export class GardenPageCompiler {
 
 						convertedText = convertedText.replace(
 							linkMatch,
-							`[[${extensionlessPath}${headerPath}\\|${prettyName}]]`,
+							`[[${extensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
 						);
 					}
 				} catch (e) {
@@ -411,29 +423,27 @@ export class GardenPageCompiler {
 		}
 
 		return convertedText;
-	}
+	};
 
-	async createTranscludedText(
-		text: string,
-		filePath: string,
-		currentDepth: number,
-	): Promise<string> {
-		if (currentDepth >= 4) {
-			return text;
-		}
+	createTranscludedText =
+		(currentDepth: number): TCompilerStep =>
+		(file) =>
+		async (text) => {
+			if (currentDepth >= 4) {
+				return text;
+			}
 
-		const { notes: publishedFiles } =
-			await this.getFilesMarkedForPublishing();
-		let transcludedText = text;
-		const transcludedRegex = /!\[\[(.+?)\]\]/g;
-		const transclusionMatches = text.match(transcludedRegex);
-		let numberOfExcaliDraws = 0;
+			const { notes: publishedFiles } =
+				await this.getFilesMarkedForPublishing();
 
-		if (transclusionMatches) {
-			for (let i = 0; i < transclusionMatches.length; i++) {
+			let transcludedText = text;
+
+			const transcludedRegex = /!\[\[(.+?)\]\]/g;
+			const transclusionMatches = text.match(transcludedRegex);
+			let numberOfExcaliDraws = 0;
+
+			for (const transclusionMatch of transclusionMatches ?? []) {
 				try {
-					const transclusionMatch = transclusionMatches[i];
-
 					const [transclusionFileName, headerName] = transclusionMatch
 						.substring(
 							transclusionMatch.indexOf("[") + 2,
@@ -446,37 +456,37 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						transclusionFilePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
+						console.error(
+							`can't find transcluded file ${transclusionFilePath}}`,
+						);
 						continue;
 					}
+
+					const publishLinkedFile = new PublishFile({
+						file: linkedFile,
+						compiler: this,
+						metadataCache: this.metadataCache,
+						vault: this.vault,
+						settings: this.settings,
+					});
 					let sectionID = "";
 
 					if (linkedFile.name.endsWith(".excalidraw.md")) {
-						const firstDrawing = ++numberOfExcaliDraws === 1;
+						numberOfExcaliDraws++;
+						const isFirstDrawing = numberOfExcaliDraws === 1;
 
-						const processedFrontmatter =
-							this.frontMatterCompiler.getFrontMatterFromFile(
-								linkedFile,
-								this.metadataCache,
-							);
-
-						const fileText =
-							await this.vault.cachedRead(linkedFile);
+						const fileText = await publishLinkedFile.cachedRead();
 
 						const excaliDrawCode =
-							await this.excalidrawCompiler.compileMarkdown(
-								{
-									file: linkedFile,
-									processedFrontmatter,
-									fileText,
-								},
-								firstDrawing,
-								`${numberOfExcaliDraws}`,
-								false,
-							);
+							await this.excalidrawCompiler.compileMarkdown({
+								includeExcaliDrawJs: isFirstDrawing,
+								idAppendage: `${numberOfExcaliDraws}`,
+								includeFrontMatter: false,
+							})(publishLinkedFile)(fileText);
 
 						transcludedText = transcludedText.replace(
 							transclusionMatch,
@@ -553,7 +563,10 @@ export class GardenPageCompiler {
 						fileText = fileText.replace(FRONTMATTER_REGEX, "");
 
 						// Apply custom filters to transclusion
-						fileText = await this.convertCustomFilters(fileText);
+						fileText =
+							await this.convertCustomFilters(publishLinkedFile)(
+								fileText,
+							);
 
 						// Remove block reference
 						fileText = fileText.replace(BLOCKREF_REGEX, "");
@@ -596,10 +609,8 @@ export class GardenPageCompiler {
 
 						if (fileText.match(transcludedRegex)) {
 							fileText = await this.createTranscludedText(
-								fileText,
-								linkedFile.path,
 								currentDepth + 1,
-							);
+							)(publishLinkedFile)(fileText);
 						}
 
 						//This should be recursive up to a certain depth
@@ -608,16 +619,16 @@ export class GardenPageCompiler {
 							fileText,
 						);
 					}
-				} catch {
+				} catch (error) {
+					console.error(error);
 					continue;
 				}
 			}
-		}
 
-		return transcludedText;
-	}
+			return transcludedText;
+		};
 
-	async createSvgEmbeds(text: string, filePath: string): Promise<string> {
+	createSvgEmbeds: TCompilerStep = (file) => async (text) => {
 		function setWidth(svgText: string, size: string): string {
 			const parser = new DOMParser();
 			const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
@@ -629,10 +640,7 @@ export class GardenPageCompiler {
 			return svgSerializer.serializeToString(svgDoc);
 		}
 
-		//![[image.svg]]
-		const transcludedSvgRegex =
-			/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
-		const transcludedSvgs = text.match(transcludedSvgRegex);
+		const transcludedSvgs = text.match(TRANSCLUDED_SVG_REGEX);
 
 		if (transcludedSvgs) {
 			for (const svg of transcludedSvgs) {
@@ -644,7 +652,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -683,7 +691,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -703,9 +711,10 @@ export class GardenPageCompiler {
 		}
 
 		return text;
-	}
+	};
 
-	async extractImageLinks(text: string, filePath: string): Promise<string[]> {
+	extractImageLinks = async (file: PublishFile) => {
+		const text = await file.cachedRead();
 		const assets = [];
 
 		//![[image.png]]
@@ -728,7 +737,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -763,7 +772,7 @@ export class GardenPageCompiler {
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
-						filePath,
+						file.getPath(),
 					);
 
 					if (!linkedFile) {
@@ -778,7 +787,7 @@ export class GardenPageCompiler {
 		}
 
 		return assets;
-	}
+	};
 
 	async convertImageLinks(
 		text: string,

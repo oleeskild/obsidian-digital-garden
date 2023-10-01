@@ -46,10 +46,10 @@ This means this file should be in the root directory :)
 This subfolder also contains path rewrite testing! 
 
 ==========
-P Plugins/PE Excalidraw/PE1 Embedded excalidraw.md
+P Plugins/PE Excalidraw/PE1 Transcluded excalidraw.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-embedded-excalidraw/"}
+{"dg-publish":true,"permalink":"/p-plugins/pe-excalidraw/pe-1-transcluded-excalidraw/"}
 ---
 
 
@@ -64,7 +64,7 @@ P Plugins/PD Dataview/PD1 Dataview.md
 I'm a list of all files in this folder: 
 
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
-- [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 
 { .block-language-dataview}
 
@@ -204,7 +204,7 @@ This is as far as we can go! Or is it???
 
 Bonus: 
 
-<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/p-plugins/pe-excalidraw/pe-1-embedded-excalidraw/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
+<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/p-plugins/pe-excalidraw/pe-1-transcluded-excalidraw/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
 
 
 
@@ -374,7 +374,7 @@ This test vault enables snapshot testing of the garden compilation! To generate 
 
 This garden should have the following plugins 
 
-- [x] [[P Plugins/PE Excalidraw/PE1 Embedded excalidraw\|PE1 Embedded excalidraw]]
+- [x] [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 - [x] [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [x] hot reload (reloads obsidian dev plugins on changes)
 ==========
