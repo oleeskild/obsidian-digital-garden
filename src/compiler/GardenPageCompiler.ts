@@ -1,5 +1,4 @@
 import {
-	Component,
 	MetadataCache,
 	Notice,
 	TFile,
@@ -11,7 +10,6 @@ import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRule } from "../publisher/DigitalGardenSiteManager";
 import Publisher from "../publisher/Publisher";
 import {
-	escapeRegExp,
 	fixSvgForXmlSerializer,
 	generateUrlPath,
 	getGardenPathForNote,
@@ -19,7 +17,6 @@ import {
 	sanitizePermalink,
 } from "../utils/utils";
 import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
-import { getAPI } from "obsidian-dataview";
 import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 import {
@@ -31,7 +28,8 @@ import {
 	TRANSCLUDED_SVG_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
-import { PublishFile } from "../publisher/PublishFile";
+import { DataviewCompiler } from "./DataviewCompiler";
+import { PublishFile } from "../publishFile/PublishFile";
 
 export interface Asset {
 	path: string;
@@ -72,6 +70,19 @@ export class GardenPageCompiler {
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
 	}
 
+	runCompilerSteps =
+		(file: PublishFile, compilerSteps: TCompilerStep[]) =>
+		async (text: string): Promise<string> => {
+			return await compilerSteps.reduce(
+				async (previousStep, compilerStep) => {
+					const previousStepText = await previousStep;
+
+					return compilerStep(file)(previousStepText);
+				},
+				Promise.resolve(text),
+			);
+		};
+
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
 
@@ -98,21 +109,14 @@ export class GardenPageCompiler {
 			this.createSvgEmbeds,
 		];
 
-		const compiledText = await COMPILE_STEPS.reduce(
-			async (previousStep, compilerStep) => {
-				const previousStepText = await previousStep;
+		const compiledText = await this.runCompilerSteps(
+			file,
+			COMPILE_STEPS,
+		)(vaultFileText);
 
-				return compilerStep(file)(previousStepText);
-			},
-			Promise.resolve(vaultFileText),
-		);
+		const [text, images] = await this.convertImageLinks(file)(compiledText);
 
-		const text_and_images = await this.convertImageLinks(
-			compiledText,
-			file.getPath(),
-		);
-
-		return [text_and_images[0], { images: text_and_images[1] }];
+		return [text, { images }];
 	}
 
 	convertCustomFilters: TCompilerStep = () => (text) => {
@@ -127,6 +131,7 @@ export class GardenPageCompiler {
 					`Invalid regex: ${filter.pattern} ${filter.flags}`,
 				);
 
+				// TODO: validate in settings
 				new Notice(
 					`Your custom filters contains an invalid regex: ${filter.pattern}. Skipping it.`,
 				);
@@ -157,189 +162,39 @@ export class GardenPageCompiler {
 	removeObsidianComments: TCompilerStep = () => (text) => {
 		const obsidianCommentsRegex = /%%.+?%%/gms;
 		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
+
 		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
 		const codeFences = text.match(CODE_FENCE_REGEX) || [];
 		const excalidraw = text.match(EXCALIDRAW_REGEX) || [];
+		const matchesToSkip = [...codeBlocks, ...codeFences, ...excalidraw];
 
-		if (obsidianCommentsMatches) {
-			for (const commentMatch of obsidianCommentsMatches) {
-				//If comment is in a code block, code fence, or excalidrawing, leave it in
-				if (
-					codeBlocks.findIndex((x) => x.contains(commentMatch)) > -1
-				) {
-					continue;
-				}
+		if (!obsidianCommentsMatches) return text;
 
-				if (
-					codeFences.findIndex((x) => x.contains(commentMatch)) > -1
-				) {
-					continue;
-				}
-
-				if (
-					excalidraw.findIndex((x) => x.contains(commentMatch)) > -1
-				) {
-					continue;
-				}
-				text = text.replace(commentMatch, "");
+		for (const commentMatch of obsidianCommentsMatches) {
+			//If comment is in a code block, code fence, or excalidrawing, leave it in
+			if (matchesToSkip.findIndex((x) => x.contains(commentMatch)) > -1) {
+				continue;
 			}
+
+			text = text.replace(commentMatch, "");
 		}
 
 		return text;
 	};
 
 	convertFrontMatter: TCompilerStep = (file) => (text) => {
-		const replaced = text.replace(FRONTMATTER_REGEX, (_match, _p1) => {
-			return file.getCompiledFrontmatter();
-		});
+		const compiledFrontmatter = file.getCompiledFrontmatter();
 
-		return replaced;
+		return text.replace(FRONTMATTER_REGEX, () => compiledFrontmatter);
 	};
 
 	convertDataViews: TCompilerStep = (file) => async (text) => {
-		let replacedText = text;
-		const dataViewRegex = /```dataview\s(.+?)```/gms;
-		const dvApi = getAPI();
+		const dataviewCompiler = new DataviewCompiler();
 
-		if (!dvApi) return replacedText;
-		const matches = text.matchAll(dataViewRegex);
-
-		const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
-
-		const dataViewJsRegex = new RegExp(
-			"```" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```",
-			"gsm",
-		);
-		const dataviewJsMatches = text.matchAll(dataViewJsRegex);
-
-		const inlineQueryPrefix = dvApi.settings.inlineQueryPrefix;
-
-		const inlineDataViewRegex = new RegExp(
-			"`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`",
-			"gsm",
-		);
-		const inlineMatches = text.matchAll(inlineDataViewRegex);
-
-		const inlineJsQueryPrefix = dvApi.settings.inlineJsQueryPrefix;
-
-		const inlineJsDataViewRegex = new RegExp(
-			"`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`",
-			"gsm",
-		);
-		const inlineJsMatches = text.matchAll(inlineJsDataViewRegex);
-
-		if (
-			!matches &&
-			!inlineMatches &&
-			!dataviewJsMatches &&
-			!inlineJsMatches
-		) {
-			return text;
-		}
-
-		//Code block queries
-		for (const queryBlock of matches) {
-			try {
-				const block = queryBlock[0];
-				const query = queryBlock[1];
-
-				const markdown = await dvApi.tryQueryMarkdown(
-					query,
-					file.getPath(),
-				);
-
-				replacedText = replacedText.replace(
-					block,
-					`${markdown}\n{ .block-language-dataview}`,
-				);
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render dataview query. Please update the dataview plugin to the latest version.",
-				);
-
-				return queryBlock[0];
-			}
-		}
-
-		for (const queryBlock of dataviewJsMatches) {
-			try {
-				const block = queryBlock[0];
-				const query = queryBlock[1];
-
-				const div = createEl("div");
-				const component = new Component();
-				await dvApi.executeJs(query, div, component, file.getPath());
-				component.load();
-
-				replacedText = replacedText.replace(block, div.innerHTML);
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render dataviewjs query. Please update the dataview plugin to the latest version.",
-				);
-
-				return queryBlock[0];
-			}
-		}
-
-		//Inline queries
-		for (const inlineQuery of inlineMatches) {
-			try {
-				const code = inlineQuery[0];
-				const query = inlineQuery[1];
-
-				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-					// @ts-expect-error errors are caught
-					this: dvApi.page(path),
-				});
-
-				if (dataviewResult) {
-					replacedText = replacedText.replace(
-						code,
-						// @ts-expect-error errors are caught
-						dataviewResult.toString(),
-					);
-				}
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render inline dataview query. Please update the dataview plugin to the latest version.",
-				);
-
-				return inlineQuery[0];
-			}
-		}
-
-		for (const inlineJsQuery of inlineJsMatches) {
-			try {
-				const code = inlineJsQuery[0];
-				const query = inlineJsQuery[1];
-
-				const div = createEl("div");
-				const component = new Component();
-				await dvApi.executeJs(query, div, component, file.getPath());
-				component.load();
-
-				replacedText = replacedText.replace(code, div.innerHTML);
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.",
-				);
-
-				return inlineJsQuery[0];
-			}
-		}
-
-		return replacedText;
+		return await dataviewCompiler.compile(file)(text);
 	};
 
-	stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
+	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
 		let textToBeProcessed = text;
 		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
@@ -493,19 +348,19 @@ export class GardenPageCompiler {
 							excaliDrawCode,
 						);
 					} else if (linkedFile.extension === "md") {
-						let fileText = await this.vault.cachedRead(linkedFile);
+						let fileText = await publishLinkedFile.cachedRead();
 
-						const metadata =
-							this.metadataCache.getFileCache(linkedFile);
+						const metadata = publishLinkedFile.getMetadata();
 
 						if (transclusionFileName.includes("#^")) {
 							// Transclude Block
 							const refBlock =
 								transclusionFileName.split("#^")[1];
+
 							sectionID = `#${slugify(refBlock)}`;
 
 							const blockInFile =
-								metadata?.blocks && metadata.blocks[refBlock];
+								publishLinkedFile.getBlock(refBlock);
 
 							if (blockInFile) {
 								fileText = fileText
@@ -789,135 +644,150 @@ export class GardenPageCompiler {
 		return assets;
 	};
 
-	async convertImageLinks(
-		text: string,
-		filePath: string,
-	): Promise<[string, Array<Asset>]> {
-		const assets = [];
+	convertImageLinks =
+		(file: PublishFile) =>
+		async (text: string): Promise<[string, Array<Asset>]> => {
+			const filePath = file.getPath();
+			const assets = [];
 
-		let imageText = text;
+			let imageText = text;
 
-		//![[image.png]]
-		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
-		const transcludedImageMatches = text.match(transcludedImageRegex);
+			//![[image.png]]
+			const transcludedImageRegex =
+				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+			const transcludedImageMatches = text.match(transcludedImageRegex);
 
-		if (transcludedImageMatches) {
-			for (let i = 0; i < transcludedImageMatches.length; i++) {
-				try {
-					const imageMatch = transcludedImageMatches[i];
+			if (transcludedImageMatches) {
+				for (let i = 0; i < transcludedImageMatches.length; i++) {
+					try {
+						const imageMatch = transcludedImageMatches[i];
 
-					//[image.png|100]
-					//[image.png|meta1 meta2|100]
-					const [imageName, ...metaDataAndSize] = imageMatch
-						.substring(
-							imageMatch.indexOf("[") + 2,
-							imageMatch.indexOf("]"),
-						)
-						.split("|");
+						//[image.png|100]
+						//[image.png|meta1 meta2|100]
+						const [imageName, ...metaDataAndSize] = imageMatch
+							.substring(
+								imageMatch.indexOf("[") + 2,
+								imageMatch.indexOf("]"),
+							)
+							.split("|");
 
-					const lastValue =
-						metaDataAndSize[metaDataAndSize.length - 1];
-					const lastValueIsSize = !isNaN(parseInt(lastValue));
+						const lastValue =
+							metaDataAndSize[metaDataAndSize.length - 1];
+						const lastValueIsSize = !isNaN(parseInt(lastValue));
 
-					const size = lastValueIsSize ? lastValue : undefined;
-					let metaData = "";
+						const size = lastValueIsSize ? lastValue : undefined;
+						let metaData = "";
 
-					if (metaDataAndSize.length > 1) {
-						metaData = metaDataAndSize
-							.slice(0, metaDataAndSize.length - 1)
-							.join(" ");
-					}
+						if (metaDataAndSize.length > 1) {
+							metaData = metaDataAndSize
+								.slice(0, metaDataAndSize.length - 1)
+								.join(" ");
+						}
 
-					if (!lastValueIsSize) {
-						metaData += ` ${lastValue}`;
-					}
+						if (!lastValueIsSize) {
+							metaData += ` ${lastValue}`;
+						}
 
-					const imagePath = getLinkpath(imageName);
+						const imagePath = getLinkpath(imageName);
 
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						imagePath,
-						filePath,
-					);
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								imagePath,
+								filePath,
+							);
 
-					if (!linkedFile) {
+						if (!linkedFile) {
+							continue;
+						}
+						const image = await this.vault.readBinary(linkedFile);
+						const imageBase64 = arrayBufferToBase64(image);
+
+						const cmsImgPath = `/img/user/${linkedFile.path}`;
+						let name = "";
+
+						if (metaData && size) {
+							name = `${imageName}|${metaData}|${size}`;
+						} else if (size) {
+							name = `${imageName}|${size}`;
+						} else {
+							name = imageName;
+						}
+
+						const imageMarkdown = `![${name}](${encodeURI(
+							cmsImgPath,
+						)})`;
+
+						assets.push({ path: cmsImgPath, content: imageBase64 });
+
+						imageText = imageText.replace(
+							imageMatch,
+							imageMarkdown,
+						);
+					} catch (e) {
 						continue;
 					}
-					const image = await this.vault.readBinary(linkedFile);
-					const imageBase64 = arrayBufferToBase64(image);
-
-					const cmsImgPath = `/img/user/${linkedFile.path}`;
-
-					let name = "";
-
-					if (metaData && size) {
-						name = `${imageName}|${metaData}|${size}`;
-					} else if (size) {
-						name = `${imageName}|${size}`;
-					} else {
-						name = imageName;
-					}
-
-					const imageMarkdown = `![${name}](${encodeURI(
-						cmsImgPath,
-					)})`;
-
-					assets.push({ path: cmsImgPath, content: imageBase64 });
-
-					imageText = imageText.replace(imageMatch, imageMarkdown);
-				} catch (e) {
-					Logger.debug(e);
-					continue;
 				}
 			}
-		}
 
-		//![](image.png)
-		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
-		const imageMatches = text.match(imageRegex);
+			//![](image.png)
+			const imageRegex =
+				/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
+			const imageMatches = text.match(imageRegex);
 
-		if (imageMatches) {
-			for (let i = 0; i < imageMatches.length; i++) {
-				try {
-					const imageMatch = imageMatches[i];
+			if (imageMatches) {
+				for (let i = 0; i < imageMatches.length; i++) {
+					try {
+						const imageMatch = imageMatches[i];
 
-					const nameStart = imageMatch.indexOf("[") + 1;
-					const nameEnd = imageMatch.indexOf("]");
-					const imageName = imageMatch.substring(nameStart, nameEnd);
+						const nameStart = imageMatch.indexOf("[") + 1;
+						const nameEnd = imageMatch.indexOf("]");
 
-					const pathStart = imageMatch.lastIndexOf("(") + 1;
-					const pathEnd = imageMatch.lastIndexOf(")");
-					const imagePath = imageMatch.substring(pathStart, pathEnd);
+						const imageName = imageMatch.substring(
+							nameStart,
+							nameEnd,
+						);
 
-					if (imagePath.startsWith("http")) {
+						const pathStart = imageMatch.lastIndexOf("(") + 1;
+						const pathEnd = imageMatch.lastIndexOf(")");
+
+						const imagePath = imageMatch.substring(
+							pathStart,
+							pathEnd,
+						);
+
+						if (imagePath.startsWith("http")) {
+							continue;
+						}
+
+						const decodedImagePath = decodeURI(imagePath);
+
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								decodedImagePath,
+								filePath,
+							);
+
+						if (!linkedFile) {
+							continue;
+						}
+						const image = await this.vault.readBinary(linkedFile);
+						const imageBase64 = arrayBufferToBase64(image);
+						const cmsImgPath = `/img/user/${linkedFile.path}`;
+						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
+						assets.push({ path: cmsImgPath, content: imageBase64 });
+
+						imageText = imageText.replace(
+							imageMatch,
+							imageMarkdown,
+						);
+					} catch {
 						continue;
 					}
-
-					const decodedImagePath = decodeURI(imagePath);
-
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						decodedImagePath,
-						filePath,
-					);
-
-					if (!linkedFile) {
-						continue;
-					}
-					const image = await this.vault.readBinary(linkedFile);
-					const imageBase64 = arrayBufferToBase64(image);
-					const cmsImgPath = `/img/user/${linkedFile.path}`;
-					const imageMarkdown = `![${imageName}](${cmsImgPath})`;
-					assets.push({ path: cmsImgPath, content: imageBase64 });
-					imageText = imageText.replace(imageMatch, imageMarkdown);
-				} catch (e) {
-					Logger.debug(e);
-					continue;
 				}
 			}
-		}
 
-		return [imageText, assets];
-	}
+			return [imageText, assets];
+		};
 
 	generateTransclusionHeader(
 		headerName: string | undefined,

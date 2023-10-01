@@ -1,7 +1,7 @@
 import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
-import { CompiledPublishFile } from "./PublishFile";
+import { CompiledPublishFile } from "../publishFile/PublishFile";
 
 /**
  *  Manages the publishing status of notes and images for a digital garden.

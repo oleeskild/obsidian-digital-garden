@@ -9,7 +9,7 @@
 	import { onMount } from "svelte";
 	import Publisher from "src/publisher/Publisher";
 	import Icon from "./Icon.svelte";
-	import { CompiledPublishFile } from "src/publisher/PublishFile";
+	import { CompiledPublishFile } from "src/publishFile/PublishFile";
 	export let publishStatusManager: IPublishStatusManager;
 	export let publisher: Publisher;
 	export let showDiff: (path: string) => void;

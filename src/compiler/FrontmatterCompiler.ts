@@ -1,5 +1,4 @@
-import { DateTime } from "luxon";
-import { FrontMatterCache, MetadataCache, TFile } from "obsidian";
+import { FrontMatterCache } from "obsidian";
 import {
 	getGardenPathForNote,
 	sanitizePermalink,
@@ -9,6 +8,7 @@ import {
 } from "../utils/utils";
 import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRules } from "../publisher/DigitalGardenSiteManager";
+import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
 	"dg-path"?: string;
@@ -38,14 +38,7 @@ export class FrontmatterCompiler {
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 	}
 
-	getFrontMatterFromFile(file: TFile, metadataCache: MetadataCache): string {
-		const frontmatter =
-			metadataCache.getCache(file.path)?.frontmatter ?? {};
-
-		return this.compile(file, frontmatter);
-	}
-
-	compile(file: TFile, frontmatter: FrontMatterCache): string {
+	compile(file: PublishFile, frontmatter: FrontMatterCache): string {
 		const fileFrontMatter = { ...frontmatter };
 		delete fileFrontMatter["position"];
 
@@ -56,7 +49,7 @@ export class FrontmatterCompiler {
 		publishedFrontMatter = this.addPermalink(
 			fileFrontMatter,
 			publishedFrontMatter,
-			file.path,
+			file.getPath(),
 		);
 
 		publishedFrontMatter = this.addDefaultPassThrough(
@@ -84,11 +77,8 @@ export class FrontmatterCompiler {
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addTimestampsFrontmatter(
-			fileFrontMatter,
-			publishedFrontMatter,
-			file,
-		);
+		publishedFrontMatter =
+			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
 
 		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
 			? { ...fileFrontMatter, ...publishedFrontMatter }
@@ -213,53 +203,28 @@ export class FrontmatterCompiler {
 		return publishedFrontMatter;
 	}
 
-	private addTimestampsFrontmatter(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-		file: TFile,
-	) {
-		if (!baseFrontMatter) {
-			baseFrontMatter = {};
-		}
+	/**
+	 * Adds the created and updated timestamps to the compiled frontmatter if specified in user settings
+	 */
+	private addTimestampsFrontmatter =
+		(file: PublishFile) => (newFrontMatter: TPublishedFrontMatter) => {
+			//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
+			const { showCreatedTimestamp, showUpdatedTimestamp } =
+				this.settings;
 
-		//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-		if (
-			!this.settings.showCreatedTimestamp &&
-			!this.settings.showUpdatedTimestamp
-		) {
+			const updatedAt = file.meta.getUpdatedAt();
+			const createdAt = file.meta.getCreatedAt();
+
+			if (createdAt && showCreatedTimestamp) {
+				newFrontMatter["created"] = createdAt;
+			}
+
+			if (updatedAt && showUpdatedTimestamp) {
+				newFrontMatter["updated"] = updatedAt;
+			}
+
 			return newFrontMatter;
-		}
-
-		const publishedFrontMatter = { ...newFrontMatter };
-		const createdKey = this.settings.createdTimestampKey;
-		const updatedKey = this.settings.updatedTimestampKey;
-
-		if (createdKey.length) {
-			if (typeof baseFrontMatter[createdKey] == "string") {
-				publishedFrontMatter["created"] = baseFrontMatter[createdKey];
-			} else {
-				publishedFrontMatter["created"] = "";
-			}
-		} else {
-			publishedFrontMatter["created"] = DateTime.fromMillis(
-				file.stat.ctime,
-			).toISO();
-		}
-
-		if (updatedKey.length) {
-			if (typeof baseFrontMatter[updatedKey] == "string") {
-				publishedFrontMatter["updated"] = baseFrontMatter[updatedKey];
-			} else {
-				publishedFrontMatter["updated"] = "";
-			}
-		} else {
-			publishedFrontMatter["updated"] = DateTime.fromMillis(
-				file.stat.mtime,
-			).toISO();
-		}
-
-		return publishedFrontMatter;
-	}
+		};
 
 	private addNoteIconFrontMatter(
 		baseFrontMatter: TFrontmatter,

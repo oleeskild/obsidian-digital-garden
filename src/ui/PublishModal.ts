@@ -6,7 +6,7 @@ import PublicationCenter from "./PublicationCenter.svelte";
 import DiffView from "./DiffView.svelte";
 import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import * as Diff from "diff";
-import { PublishFile } from "../publisher/PublishFile";
+import { PublishFile } from "../publishFile/PublishFile";
 
 export class PublishModal {
 	modal: Modal;
