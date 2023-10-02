@@ -104,22 +104,17 @@ export class RepositoryConnection {
 		path: string,
 		{ branch, sha }: { branch?: string; sha?: string },
 	) {
-		if (!sha) {
-			logger.info(
-				`Getting sha for file ${path} from repository ${this.getRepositoryName()}`,
-			);
+		try {
 			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
 
 			if (!sha) {
 				console.error(
-					`Could not get sha for file ${path} from repository ${this.getRepositoryName()}`,
+					`cannot find file ${path} on github, not removing`,
 				);
 
 				return false;
 			}
-		}
 
-		try {
 			const payload = {
 				...this.getBasePayload(),
 				path,
