@@ -1,4 +1,4 @@
-import DigitalGardenSiteManager from "./DigitalGardenSiteManager";
+import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteManager";
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";

@@ -5,12 +5,12 @@ import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
 } from "../publishFile/Validator";
-import { PathRewriteRules } from "./DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
-import { RepositoryConnection } from "./RepositoryConnection";
+import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];

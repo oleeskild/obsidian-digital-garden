@@ -1,14 +1,14 @@
 import { type App, Modal, getIcon, Vault, TFile } from "obsidian";
-import Publisher from "../publisher/Publisher";
-import PublishStatusManager from "../publisher/PublishStatusManager";
-import DigitalGardenSettings from "../models/settings";
-import PublicationCenter from "./PublicationCenter.svelte";
+import DigitalGardenSettings from "../../models/settings";
+import { PublishFile } from "../../publishFile/PublishFile";
+import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
+import PublishStatusManager from "../../publisher/PublishStatusManager";
+import Publisher from "../../publisher/Publisher";
+import PublicationCenterSvelte from "./PublicationCenter.svelte";
 import DiffView from "./DiffView.svelte";
-import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
 import * as Diff from "diff";
-import { PublishFile } from "../publishFile/PublishFile";
 
-export class PublishModal {
+export class PublicationCenter {
 	modal: Modal;
 	settings: DigitalGardenSettings;
 	publishStatusManager: PublishStatusManager;
@@ -16,7 +16,7 @@ export class PublishModal {
 	siteManager: DigitalGardenSiteManager;
 	vault: Vault;
 
-	publicationCenterUi!: PublicationCenter;
+	publicationCenterUi!: PublicationCenterSvelte;
 
 	constructor(
 		app: App,
@@ -102,7 +102,7 @@ export class PublishModal {
 		this.modal.onOpen = () => {
 			this.modal.contentEl.empty();
 
-			this.publicationCenterUi = new PublicationCenter({
+			this.publicationCenterUi = new PublicationCenterSvelte({
 				target: this.modal.contentEl,
 				props: {
 					publishStatusManager: this.publishStatusManager,

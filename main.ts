@@ -1,13 +1,13 @@
 import { Notice, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
-import { PublishStatusBar } from "./src/ui/PublishStatusBar";
+import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
-import { PublishModal } from "src/ui/PublishModal";
+import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
-import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
-import { DigitalGardenSettingTab } from "./src/ui/DigitalGardenSettingTab";
+import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
+import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
 import dotenv from "dotenv";
 import Logger from "js-logger";
@@ -74,7 +74,7 @@ export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
 
-	publishModal!: PublishModal;
+	publishModal!: PublicationCenter;
 
 	async onload() {
 		this.appVersion = this.manifest.version;
@@ -506,7 +506,7 @@ export default class DigitalGarden extends Plugin {
 				publisher,
 			);
 
-			this.publishModal = new PublishModal(
+			this.publishModal = new PublicationCenter(
 				this.app,
 				publishStatusManager,
 				publisher,
