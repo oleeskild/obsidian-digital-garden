@@ -234,6 +234,13 @@ This file should have createdAt: 2020-01-01
 
 This file should have createdAt: 2021-01-01
 ==========
+012 Callouts.md
+==========
+```dataview
+> list 
+> from "012 Callouts"
+> ```
+==========
 E Embeds/E02 PNG published.md
 ==========
 ---
