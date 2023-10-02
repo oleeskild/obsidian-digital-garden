@@ -79,7 +79,7 @@
 							on:click={toggleCheck}
 						/>
 					{/if}
-					{tree.name}
+					<span on:click={toggleExpansion}>{tree.name}</span>
 				{:else}
 					{#if !readOnly}
 						<input
@@ -93,7 +93,9 @@
 						/>
 					{/if}
 
-					<span class="root-header">{tree.name}</span>
+					<span class="root-header" on:click={toggleExpansion}
+						>{tree.name}</span
+					>
 				{/if}
 			</span>
 			{#if expanded}
@@ -123,7 +125,8 @@
 						on:click={toggleCheck}
 					/>
 				{/if}
-				{tree.name}
+				<!-- svelte-ignore a11y-click-events-have-key-events -->
+				<span on:click={toggleExpansion}>{tree.name}</span>
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				{#if enableShowDiff}
 					<span title="Show diff" class="diff" on:click={showDiff}>
