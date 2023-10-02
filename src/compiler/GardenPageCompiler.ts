@@ -318,7 +318,7 @@ export class GardenPageCompiler {
 
 					if (!linkedFile) {
 						console.error(
-							`can't find transcluded file ${transclusionFilePath}}`,
+							`can't find transcluded file ${transclusionFilePath}`,
 						);
 						continue;
 					}
