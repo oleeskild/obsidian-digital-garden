@@ -49,11 +49,15 @@ export class RepositoryConnection {
 	async getContent(branch: string) {
 		try {
 			const response = await this.octokit.request(
-				"GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
+				`GET /repos/{owner}/{repo}/git/trees/{tree_sha}`,
 				{
 					...this.getBasePayload(),
 					tree_sha: branch,
 					recursive: "true",
+					// invalidate cache
+					headers: {
+						"If-None-Match": "",
+					},
 				},
 			);
 
@@ -101,13 +105,18 @@ export class RepositoryConnection {
 		{ branch, sha }: { branch?: string; sha?: string },
 	) {
 		if (!sha) {
+			logger.info(
+				`Getting sha for file ${path} from repository ${this.getRepositoryName()}`,
+			);
 			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
 
-			console.error(
-				`Could not get sha for file ${path} from repository ${this.getRepositoryName()}`,
-			);
+			if (!sha) {
+				console.error(
+					`Could not get sha for file ${path} from repository ${this.getRepositoryName()}`,
+				);
 
-			return;
+				return false;
+			}
 		}
 
 		try {
@@ -131,6 +140,8 @@ export class RepositoryConnection {
 			return result;
 		} catch (error) {
 			logger.error(error);
+
+			return false;
 		}
 	}
 
