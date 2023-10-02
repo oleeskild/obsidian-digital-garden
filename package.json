@@ -55,11 +55,21 @@
 		"crypto-js": "^4.1.1",
 		"diff": "^5.1.0",
 		"eslint-plugin-svelte": "^2.33.2",
+		"install": "^0.13.0",
 		"js-base64": "^3.7.5",
 		"js-logger": "^1.6.1",
 		"luxon": "^3.4.3",
 		"lz-string": "^1.5.0",
-		"obsidian-dataview": "^0.5.56"
+		"npm": "^10.1.0",
+		"obsidian-dataview": "^0.5.56",
+		"rehype-stringify": "^10.0.0",
+		"remark": "^15.0.1",
+		"remark-parse": "^11.0.0",
+		"remark-stringify": "^11.0.0",
+		"remarkable": "^2.0.1",
+		"unified": "^11.0.3",
+		"unist-util-find-after": "^5.0.0",
+		"unist-util-visit": "^5.0.0"
 	},
 	"lint-staged": {
 		"*.{ts}": [

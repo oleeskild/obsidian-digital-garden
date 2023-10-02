@@ -15,7 +15,7 @@ dg-publish: true
 > [!info] This one has dataview in it...
 > ```dataview
 > list 
-> from "012 Callouts"
+> from "P Plugins"
 > ```
 
 > [!success] this one has a friggin note embedded in it 

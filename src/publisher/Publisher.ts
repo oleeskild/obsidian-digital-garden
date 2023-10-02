@@ -11,6 +11,7 @@ import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
+import { RemarkableParser } from "../compiler/RemarkableCompiler";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -40,7 +41,7 @@ export default class Publisher {
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.compiler = new GardenPageCompiler(
+		this.compiler = new RemarkableParser(
 			vault,
 			settings,
 			metadataCache,

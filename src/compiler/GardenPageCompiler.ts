@@ -206,6 +206,11 @@ export class GardenPageCompiler {
 
 		return textToBeProcessed;
 	};
+	removeFrontmatter: TCompilerStep = () => (text) => {
+		text = text.replace(FRONTMATTER_REGEX, "");
+
+		return text;
+	};
 
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
 		let convertedText = text;
