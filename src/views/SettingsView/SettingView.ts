@@ -11,16 +11,19 @@ import {
 	Setting,
 	TFile,
 } from "obsidian";
-import DigitalGardenSiteManager from "src/publisher/DigitalGardenSiteManager";
+import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
 
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import { arrayBufferToBase64 } from "../../utils/utils";
-import { SvgFileSuggest } from "../suggest/file-suggest";
+import { SvgFileSuggest } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
-import { hasUpdates, TemplateUpdater } from "../../publisher/TemplateManager";
+import {
+	hasUpdates,
+	TemplateUpdater,
+} from "../../repositoryConnection/TemplateManager";
 import Logger from "js-logger";
 
 interface IObsidianTheme {

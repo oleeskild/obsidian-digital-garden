@@ -4,7 +4,7 @@ import {
 	getRewriteRules,
 	wrapAround,
 } from "../utils/utils";
-import { PathRewriteRules } from "../publisher/DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 
 describe("utils", () => {
 	describe("getGardenPathForNote", () => {

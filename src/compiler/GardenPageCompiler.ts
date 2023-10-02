@@ -7,7 +7,7 @@ import {
 	getLinkpath,
 } from "obsidian";
 import DigitalGardenSettings from "../models/settings";
-import { PathRewriteRule } from "../publisher/DigitalGardenSiteManager";
+import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManager";
 import Publisher from "../publisher/Publisher";
 import {
 	fixSvgForXmlSerializer,

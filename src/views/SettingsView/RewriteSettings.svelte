@@ -5,7 +5,7 @@
 	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
 	import DigitalGardenSettings from "../../models/settings";
 	import { Change, diffLines } from "diff";
-	import LineDiff from "../LineDiff.svelte";
+	import LineDiff from "../../ui/LineDiff.svelte";
 
 	export let publisher: Publisher;
 	export let settings: DigitalGardenSettings;

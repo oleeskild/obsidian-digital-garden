@@ -1,7 +1,7 @@
 import { Base64 } from "js-base64";
 import slugify from "@sindresorhus/slugify";
 import sha1 from "crypto-js/sha1";
-import { PathRewriteRules } from "../publisher/DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 
 const REWRITE_RULE_DELIMITER = ":";
 

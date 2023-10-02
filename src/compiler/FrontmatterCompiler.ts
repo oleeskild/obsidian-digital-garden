@@ -7,7 +7,7 @@ import {
 	getRewriteRules,
 } from "../utils/utils";
 import DigitalGardenSettings from "../models/settings";
-import { PathRewriteRules } from "../publisher/DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {

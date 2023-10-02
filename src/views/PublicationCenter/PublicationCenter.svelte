@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { getIcon } from "obsidian";
-	import TreeNode from "../models/TreeNode";
+	import TreeNode from "../../models/TreeNode";
 	import {
 		IPublishStatusManager,
 		PublishStatus,
-	} from "../publisher/PublishStatusManager";
+	} from "../../publisher/PublishStatusManager";
 	import TreeView from "src/ui/TreeView/TreeView.svelte";
 	import { onMount } from "svelte";
 	import Publisher from "src/publisher/Publisher";
-	import Icon from "./Icon.svelte";
+	import Icon from "../../ui/Icon.svelte";
 	import { CompiledPublishFile } from "src/publishFile/PublishFile";
 	export let publishStatusManager: IPublishStatusManager;
 	export let publisher: Publisher;

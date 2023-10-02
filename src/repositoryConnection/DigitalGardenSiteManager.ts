@@ -13,7 +13,7 @@ import {
 } from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
-import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "./Publisher";
+import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
