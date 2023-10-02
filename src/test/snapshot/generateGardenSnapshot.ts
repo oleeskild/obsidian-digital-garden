@@ -18,15 +18,12 @@ export const generateGardenSnapshot = async (
 	}
 
 	const marked = await publisher.getFilesMarkedForPublishing();
-	let fileString = "---\n";
-
-	const notesSortedByCreationDate = marked.notes.sort(
-		(note) => note.file.stat.ctime,
-	);
+	let fileString = "IMAGES: \n";
+	fileString += marked.images.map((path) => `${path}\n`);
 
 	const assetPaths = new Set<string>();
 
-	for (const file of notesSortedByCreationDate) {
+	for (const file of marked.notes) {
 		fileString += "==========\n";
 		fileString += `${file.getPath()}\n`;
 		fileString += "==========\n";
@@ -36,9 +33,9 @@ export const generateGardenSnapshot = async (
 		assets.images.map((image) => assetPaths.add(image.path));
 
 		fileString += `${content}\n`;
+		fileString += Array.from(assetPaths).map((path) => `${path}\n`);
 	}
 	fileString += "==========\n";
-	fileString += Array.from(assetPaths).map((path) => `${path}\n`);
 
 	const fullSnapshotPath = `${devPluginPath}/${SNAPSHOT_PATH}`;
 

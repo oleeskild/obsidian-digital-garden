@@ -82,7 +82,7 @@ export default class Publisher {
 		}
 
 		return {
-			notes: notesToPublish,
+			notes: notesToPublish.sort((a, b) => a.compare(b)),
 			images: Array.from(imagesToPublish),
 		};
 	}
