@@ -95,6 +95,13 @@ export class PublishFile {
 		return this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 	}
 
+	/** Add other possible sorting logic here, eg if we add dg-sortWeight
+	 * We might also want to sort by meta.getPath for rewritten garden path
+	 */
+	compare(other: PublishFile) {
+		return this.file.path.localeCompare(other.file.path);
+	}
+
 	getPath = () => this.file.path;
 	getCompiledFrontmatter() {
 		const frontmatterCompiler = new FrontmatterCompiler(this.settings);

@@ -89,10 +89,11 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			remoteImageHashes,
 			marked.images,
 		);
-		unpublishedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
-		publishedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
-		changedNotes.sort((a, b) => (a.getPath() > b.getPath() ? 1 : -1));
-		deletedNotePaths.sort((a, b) => (a > b ? 1 : -1));
+		// These might already be sorted, as getFilesMarkedForPublishing sorts already
+		publishedNotes.sort((a, b) => a.compare(b));
+		publishedNotes.sort((a, b) => a.compare(b));
+		changedNotes.sort((a, b) => a.compare(b));
+		deletedNotePaths.sort((a, b) => a.path.localeCompare(b.path));
 
 		return {
 			unpublishedNotes,
