@@ -1,6 +1,5 @@
 import Publisher from "../../publisher/Publisher";
-import { Notice } from "obsidian";
-import { writeFile } from "fs/promises";
+import { Notice, Platform } from "obsidian";
 import DigitalGardenSettings from "../../models/settings";
 
 const SNAPSHOT_PATH = "src/test/snapshot/snapshot.md";
@@ -39,7 +38,11 @@ export const generateGardenSnapshot = async (
 
 	const fullSnapshotPath = `${devPluginPath}/${SNAPSHOT_PATH}`;
 
-	await writeFile(fullSnapshotPath, fileString);
+	if (Platform.isDesktop) {
+		await import("fs/promises").then(async (fs) => {
+			await fs.writeFile(fullSnapshotPath, fileString);
+		});
+	}
 	new Notice(`Snapshot written to ${fullSnapshotPath}`);
 	new Notice(`Check snapshot to make sure nothing has accidentally changed`);
 };

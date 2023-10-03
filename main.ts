@@ -1,4 +1,4 @@
-import { Notice, Plugin, Workspace, addIcon } from "obsidian";
+import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
@@ -154,7 +154,7 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
-		if (this.settings["ENABLE_DEVELOPER_TOOLS"]) {
+		if (this.settings["ENABLE_DEVELOPER_TOOLS"] && Platform.isDesktop) {
 			Logger.info("Developer tools enabled");
 
 			const publisher = new Publisher(
