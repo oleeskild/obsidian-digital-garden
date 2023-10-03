@@ -76,6 +76,7 @@ export default class DigitalGarden extends Plugin {
 	publishModal!: PublicationCenter;
 
 	async onload() {
+		this.monkeyPatchConsole(this);
 		this.appVersion = this.manifest.version;
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
@@ -523,5 +524,31 @@ export default class DigitalGarden extends Plugin {
 			);
 		}
 		this.publishModal.open();
+	}
+
+	monkeyPatchConsole(plugin: Plugin) {
+		if (!Platform.isMobile) {
+			return;
+		}
+
+		const logFile = `${plugin.manifest.dir}/logs.txt`;
+		const logs: string[] = [];
+
+		const logMessages =
+			(prefix: string) =>
+			(...messages: unknown[]) => {
+				logs.push(`\n[${prefix}]`);
+
+				for (const message of messages) {
+					logs.push(String(message));
+				}
+				plugin.app.vault.adapter.write(logFile, logs.join(" "));
+			};
+
+		console.debug = logMessages("debug");
+		console.error = logMessages("error");
+		console.info = logMessages("info");
+		console.log = logMessages("log");
+		console.warn = logMessages("warn");
 	}
 }
