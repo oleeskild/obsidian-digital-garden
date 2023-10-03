@@ -8,7 +8,6 @@ import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
-import { generateGardenSnapshot } from "./src/test/snapshot/generateGardenSnapshot";
 import dotenv from "dotenv";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
@@ -164,13 +163,22 @@ export default class DigitalGarden extends Plugin {
 				this.settings,
 			);
 
-			this.addCommand({
-				id: "generate-garden-snapshot",
-				name: "Generate Garden Snapshot",
-				callback: async () => {
-					await generateGardenSnapshot(this.settings, publisher);
-				},
-			});
+			import("./src/test/snapshot/generateGardenSnapshot")
+				.then((snapshotGen) => {
+					this.addCommand({
+						id: "generate-garden-snapshot",
+						name: "Generate Garden Snapshot",
+						callback: async () => {
+							await snapshotGen.generateGardenSnapshot(
+								this.settings,
+								publisher,
+							);
+						},
+					});
+				})
+				.catch((e) => {
+					Logger.error("Unable to load generateGardenSnapshot", e);
+				});
 		}
 
 		this.addCommand({
