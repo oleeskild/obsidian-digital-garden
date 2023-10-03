@@ -45,6 +45,7 @@
 		"svelte-preprocess": "^5.0.4",
 		"ts-jest": "^29.1.1",
 		"tslib": "^2.6.2",
+		"eslint-plugin-svelte": "^2.33.2",
 		"typescript": "^5.2.2"
 	},
 	"dependencies": {
@@ -54,7 +55,6 @@
 		"axios": "^1.5.0",
 		"crypto-js": "^4.1.1",
 		"diff": "^5.1.0",
-		"eslint-plugin-svelte": "^2.33.2",
 		"js-base64": "^3.7.5",
 		"js-logger": "^1.6.1",
 		"luxon": "^3.4.3",
