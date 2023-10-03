@@ -293,9 +293,9 @@
 					{#if processingPaths.includes(note.getPath())}
 						{@html rotatingCog()?.outerHTML}
 					{:else if publishedPaths.includes(note.getPath())}
-						{@html getIcon("check")?.outerHTML}
+					 	<Icon name="check" />
 					{:else if failedPublish.includes(note.getPath())}
-						{@html getIcon("cross")?.outerHTML}
+					 	<Icon name="cross" />
 					{:else}
 						<Icon name="clock" />
 					{/if}
