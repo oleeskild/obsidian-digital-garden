@@ -53,10 +53,17 @@ export class DataviewCompiler {
 				const block = queryBlock[0];
 				const query = queryBlock[1];
 
-				const markdown = await dvApi.tryQueryMarkdown(
-					query,
+				const { isInsideCallout, finalQuery } =
+					this.sanitizeQuery(query);
+
+				let markdown = await dvApi.tryQueryMarkdown(
+					finalQuery,
 					file.getPath(),
 				);
+
+				if (isInsideCallout) {
+					markdown = this.surroundWithCalloutBlock(markdown);
+				}
 
 				replacedText = replacedText.replace(
 					block,
@@ -148,4 +155,48 @@ export class DataviewCompiler {
 
 		return replacedText;
 	};
+
+	/**
+	 * Splits input in lines.
+	 * Prepends the callout/quote sign to each line,
+	 * returns all the lines as a single string
+	 *
+	 */
+	surroundWithCalloutBlock(input: string): string {
+		const tmp = input.split("\n");
+
+		return " " + tmp.join("\n> ");
+	}
+
+	/**
+	 * Checks if a query is inside a callout block.
+	 * Removes the callout symbols and re-join sanitized parts.
+	 * Also returns the boolean that indicates if the query was inside a callout.
+	 * @param query
+	 * @returns
+	 */
+	sanitizeQuery(query: string): {
+		isInsideCallout: boolean;
+		finalQuery: string;
+	} {
+		let isInsideCallout = false;
+		const parts = query.split("\n");
+		const sanitized = [];
+
+		for (const part of parts) {
+			if (part.startsWith(">")) {
+				isInsideCallout = true;
+				sanitized.push(part.substring(1).trim());
+			} else {
+				sanitized.push(part);
+			}
+		}
+		let finalQuery = query;
+
+		if (isInsideCallout) {
+			finalQuery = sanitized.join("\n");
+		}
+
+		return { isInsideCallout, finalQuery };
+	}
 }
