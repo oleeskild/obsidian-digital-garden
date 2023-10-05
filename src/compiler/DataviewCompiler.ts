@@ -1,7 +1,9 @@
 import { Component, Notice } from "obsidian";
 import { TCompilerStep } from "./GardenPageCompiler";
 import { escapeRegExp } from "../utils/utils";
-import { getAPI } from "obsidian-dataview";
+import { DataviewApi, getAPI } from "obsidian-dataview";
+import { PublishFile } from "src/publishFile/PublishFile";
+import Logger from "js-logger";
 
 export class DataviewCompiler {
 	constructor() {}
@@ -87,10 +89,16 @@ export class DataviewCompiler {
 
 				const div = createEl("div");
 				const component = new Component();
-				await dvApi.executeJs(query, div, component, file.getPath());
 				component.load();
+				await dvApi.executeJs(query, div, component, file.getPath());
+				let counter = 0;
 
-				replacedText = replacedText.replace(block, div.innerHTML);
+				while (!div.querySelector("[data-tag-name]") && counter < 100) {
+					await delay(5);
+					counter++;
+				}
+
+				replacedText = replacedText.replace(block, div.innerHTML ?? "");
 			} catch (e) {
 				console.log(e);
 
@@ -136,14 +144,24 @@ export class DataviewCompiler {
 				const code = inlineJsQuery[0];
 				const query = inlineJsQuery[1];
 
-				const div = createEl("div");
-				const component = new Component();
-				await dvApi.executeJs(query, div, component, file.getPath());
-				component.load();
+				let result: string | undefined | null = "";
 
-				replacedText = replacedText.replace(code, div.innerHTML);
+				result = tryDVEvaluate(query, file, dvApi);
+
+				if (!result) {
+					result = tryEval(query);
+				}
+
+				if (!result) {
+					result = await tryExecuteJs(query, file, dvApi);
+				}
+
+				replacedText = replacedText.replace(
+					code,
+					result ?? "Unable to render query",
+				);
 			} catch (e) {
-				console.log(e);
+				Logger.error(e);
 
 				new Notice(
 					"Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.",
@@ -199,4 +217,62 @@ export class DataviewCompiler {
 
 		return { isInsideCallout, finalQuery };
 	}
+}
+
+function tryDVEvaluate(
+	query: string,
+	file: PublishFile,
+	dvApi: DataviewApi,
+): string | undefined | null {
+	let result = "";
+
+	try {
+		const dataviewResult = dvApi.tryEvaluate(query.trim(), {
+			// @ts-expect-error errors are caught
+			this: dvApi.page(file.getPath()),
+		});
+		result = dataviewResult?.toString() ?? "";
+	} catch (e) {
+		Logger.warn("dvapi.tryEvaluate did not yield any result", e);
+	}
+
+	return result;
+}
+
+function tryEval(query: string) {
+	let result = "";
+
+	try {
+		result = eval("const dv = DataviewAPI;" + query);
+	} catch (e) {
+		Logger.warn("eval did not yield any result", e);
+	}
+
+	return result;
+}
+
+async function tryExecuteJs(
+	query: string,
+	file: PublishFile,
+	dvApi: DataviewApi,
+) {
+	const div = createEl("div");
+	const component = new Component();
+	component.load();
+	await dvApi.executeJs(query, div, component, file.getPath());
+	let counter = 0;
+
+	while (!div.querySelector("[data-tag-name]") && counter < 50) {
+		await delay(5);
+		counter++;
+	}
+
+	return div.innerHTML;
+}
+
+//delay async function
+function delay(milliseconds: number) {
+	return new Promise((resolve, _) => {
+		setTimeout(resolve, milliseconds);
+	});
 }
