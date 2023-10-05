@@ -605,6 +605,8 @@ I'm a list of all files in this folder:
 - [[P Plugins/PD Dataview/PD0 - note with summary\|PD0 - note with summary]]
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [[P Plugins/PD Dataview/PD2 Inline queries\|PD2 Inline queries]]
+- [[P Plugins/PD Dataview/PD3 Inline JS queries\|PD3 Inline JS queries]]
+- [[P Plugins/PD Dataview/PD4 DataviewJs queries\|PD4 DataviewJs queries]]
 - [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 - [[P Plugins/PE Excalidraw/PE2 excalidraw with image\|PE2 excalidraw with image]]
 
@@ -622,9 +624,39 @@ P Plugins/PD Dataview/PD2 Inline queries.md
 
 
 
-
+PD2 Inline queries
 
 this note is about foo
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
+P Plugins/PD Dataview/PD3 Inline JS queries.md
+==========
+---
+{"dg-publish":true,"permalink":"/p-plugins/pd-dataview/pd-3-inline-js-queries/"}
+---
+
+
+3
+92
+<p><span>A paragraph</span></p>
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
+P Plugins/PD Dataview/PD4 DataviewJs queries.md
+==========
+---
+{"dg-publish":true,"permalink":"/p-plugins/pd-dataview/pd-4-dataview-js-queries/"}
+---
+
+<h2><span>Header 2</span></h2><p><span>PD4 DataviewJs queries</span></p>
+
+<div><table class="dataview table-view-table"><thead class="table-view-thead"><tr class="table-view-tr-header"><th class="table-view-th"><span>mtime</span><span class="dataview small-text">4</span></th><th class="table-view-th"><span>link</span></th></tr></thead><tbody class="table-view-tbody"><tr><td>9:33 pm - September 20, 2023</td><td><span><a data-tooltip-position="top" aria-label="005 Custom filters.md" data-href="005 Custom filters.md" href="005 Custom filters.md" class="internal-link" target="_blank" rel="noopener">005 Custom filters</a></span></td></tr><tr><td>9:20 pm - September 25, 2023</td><td><span><a data-tooltip-position="top" aria-label="006 Custom title.md" data-href="006 Custom title.md" href="006 Custom title.md" class="internal-link" target="_blank" rel="noopener">006 Custom title</a></span></td></tr><tr><td>9:20 pm - September 25, 2023</td><td><span><a data-tooltip-position="top" aria-label="007 Custom permalink.md" data-href="007 Custom permalink.md" href="007 Custom permalink.md" class="internal-link" target="_blank" rel="noopener">007 Custom permalink</a></span></td></tr><tr><td>9:27 pm - October 01, 2023</td><td><span><a data-tooltip-position="top" aria-label="011 Custom updatedAt.md" data-href="011 Custom updatedAt.md" href="011 Custom updatedAt.md" class="internal-link" target="_blank" rel="noopener">011 Custom updatedAt</a></span></td></tr></tbody></table></div>
+
 
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
