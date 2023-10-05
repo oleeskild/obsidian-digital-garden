@@ -243,7 +243,7 @@ function tryEval(query: string) {
 	let result = "";
 
 	try {
-		result = eval("const dv = DataviewAPI;" + query);
+		result = (0, eval)("const dv = DataviewAPI;" + query); //https://esbuild.github.io/content-types/#direct-eval
 	} catch (e) {
 		Logger.warn("eval did not yield any result", e);
 	}
