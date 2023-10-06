@@ -70,6 +70,7 @@ export default class DigitalGardenSiteManager {
 		const theme = JSON.parse(this.settings.theme);
 		const baseTheme = this.settings.baseTheme;
 		const siteName = this.settings.siteName;
+		const mainLanguage = this.settings.mainLanguage;
 		let gardenBaseUrl = "";
 
 		// check that gardenbaseurl is not an access token wrongly pasted.
@@ -84,6 +85,7 @@ export default class DigitalGardenSiteManager {
 
 		const envValues = {
 			SITE_NAME_HEADER: siteName,
+			SITE_MAIN_LANGUAGE: mainLanguage,
 			SITE_BASE_URL: gardenBaseUrl,
 			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
 			TIMESTAMP_FORMAT: this.settings.timestampFormat,
