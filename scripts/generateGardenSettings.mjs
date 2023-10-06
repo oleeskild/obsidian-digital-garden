@@ -19,6 +19,7 @@ const gardenSettings = {
 	faviconPath: "",
 	noteSettingsIsInitialized: true,
 	siteName: "Digital Garden",
+	mainLanguage: "en",
 	slugifyEnabled: true,
 	noteIconKey: "dg-note-icon",
 	defaultNoteIcon: "",

@@ -11,6 +11,7 @@ export default interface DigitalGardenSettings {
 	theme: string;
 	baseTheme: string;
 	faviconPath: string;
+	mainLanguage: string;
 
 	siteName: string;
 

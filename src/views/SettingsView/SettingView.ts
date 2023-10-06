@@ -503,6 +503,20 @@ export default class SettingView {
 			);
 
 		new Setting(themeModal.contentEl)
+			.setName("Main language")
+			.setDesc(
+				'ISO 639-1 language code for the main language of your site. This is used to set correct <html lang="">.',
+			)
+			.addText((text) =>
+				text
+					.setValue(this.settings.mainLanguage)
+					.onChange(async (value) => {
+						this.settings.mainLanguage = value;
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(themeModal.contentEl)
 			.setName("Favicon")
 			.setDesc(
 				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.",

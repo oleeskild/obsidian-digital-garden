@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	faviconPath: "",
 	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
+	mainLanguage: "en",
 	slugifyEnabled: true,
 	// Note Icon Related Settings
 	noteIconKey: "dg-note-icon",
