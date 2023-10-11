@@ -8,11 +8,9 @@ import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
-import dotenv from "dotenv";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
-dotenv.config();
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
