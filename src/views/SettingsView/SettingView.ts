@@ -505,7 +505,7 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Main language")
 			.setDesc(
-				'ISO 639-1 language code for the main language of your site. This is used to set correct <html lang="">.',
+				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
 			)
 			.addText((text) =>
 				text
