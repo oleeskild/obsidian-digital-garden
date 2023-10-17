@@ -664,8 +664,9 @@ export class GardenPageCompiler {
 					try {
 						const imageMatch = transcludedImageMatches[i];
 
-						//[image.png|100]
-						//[image.png|meta1 meta2|100]
+						//Alt 1: [image.png|100]
+						//Alt 2: [image.png|meta1 meta2|100]
+						//Alt 3: [image.png|meta1 meta2]
 						const [imageName, ...metaDataAndSize] = imageMatch
 							.substring(
 								imageMatch.indexOf("[") + 2,
@@ -677,17 +678,25 @@ export class GardenPageCompiler {
 							metaDataAndSize[metaDataAndSize.length - 1];
 						const lastValueIsSize = !isNaN(parseInt(lastValue));
 
+						const lastValueIsMetaData = !lastValueIsSize;
+
 						const size = lastValueIsSize ? lastValue : undefined;
+
 						let metaData = "";
 
-						if (metaDataAndSize.length > 1) {
+						const metaDataIsMiddleValues =
+							metaDataAndSize.length > 1;
+
+						//Alt 2: [image.png|meta1 meta2|100]
+						if (metaDataIsMiddleValues) {
 							metaData = metaDataAndSize
 								.slice(0, metaDataAndSize.length - 1)
 								.join(" ");
 						}
 
-						if (!lastValueIsSize) {
-							metaData += ` ${lastValue}`;
+						//Alt 2: [image.png|meta1 meta2]
+						if (lastValueIsMetaData) {
+							metaData = `${lastValue}`;
 						}
 
 						const imagePath = getLinkpath(imageName);
@@ -711,6 +720,8 @@ export class GardenPageCompiler {
 							name = `${imageName}|${metaData}|${size}`;
 						} else if (size) {
 							name = `${imageName}|${size}`;
+						} else if (metaData) {
+							name = `${imageName}|${metaData}`;
 						} else {
 							name = imageName;
 						}
