@@ -8,11 +8,11 @@ dv.paragraph(pg)
 ```
 
 ```dataviewjs
-dv.table(["mtime", "link"],
+dv.table(["name", "link"],
 	dv.pages()
 	.where(p => p.file.name.includes("Custom"))
 	.map(p => [
- 		p.file.mtime,
+ 		p.file.name,
  		p.file.link
 	])
 )
