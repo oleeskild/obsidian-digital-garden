@@ -345,7 +345,7 @@ E Embeds/E02 PNG published.md
 
 
 
-![travolta.png](/img/user/A%20Assets/travolta.png)
+![travolta.png| undefined](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
 ==========
 E Embeds/E04 PNG reuse.md
@@ -367,7 +367,25 @@ E Embeds/E05 WEBP published.md
 ---
 
 
-![travolta.webp](/img/user/A%20Assets/travolta.webp)
+![travolta.webp| undefined](/img/user/A%20Assets/travolta.webp)
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
+E Embeds/E07 Image with alt attributes.md
+==========
+---
+{"dg-publish":true,"permalink":"/e-embeds/e07-image-with-alt-attributes/"}
+---
+
+This should render to a 200 px wide image with the alt text "center"
+Like so: `![travolta.png|center|200](/img/user/A%20Assets/travolta.png)`
+![travolta.png|center|200](/img/user/A%20Assets/travolta.png)
+
+
+This should render to an image with the alt text "left", like so:
+`[travolta.png|left](/img/user/A%20Assets/travolta.png)`
+![travolta.png| left](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -640,7 +658,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-92
+94
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
@@ -655,7 +673,7 @@ P Plugins/PD Dataview/PD4 DataviewJs queries.md
 
 <h2><span>Header 2</span></h2><p><span>PD4 DataviewJs queries</span></p>
 
-<div><table class="dataview table-view-table"><thead class="table-view-thead"><tr class="table-view-tr-header"><th class="table-view-th"><span>mtime</span><span class="dataview small-text">4</span></th><th class="table-view-th"><span>link</span></th></tr></thead><tbody class="table-view-tbody"><tr><td>9:33 pm - September 20, 2023</td><td><span><a data-tooltip-position="top" aria-label="005 Custom filters.md" data-href="005 Custom filters.md" href="005 Custom filters.md" class="internal-link" target="_blank" rel="noopener">005 Custom filters</a></span></td></tr><tr><td>9:20 pm - September 25, 2023</td><td><span><a data-tooltip-position="top" aria-label="006 Custom title.md" data-href="006 Custom title.md" href="006 Custom title.md" class="internal-link" target="_blank" rel="noopener">006 Custom title</a></span></td></tr><tr><td>9:20 pm - September 25, 2023</td><td><span><a data-tooltip-position="top" aria-label="007 Custom permalink.md" data-href="007 Custom permalink.md" href="007 Custom permalink.md" class="internal-link" target="_blank" rel="noopener">007 Custom permalink</a></span></td></tr><tr><td>9:27 pm - October 01, 2023</td><td><span><a data-tooltip-position="top" aria-label="011 Custom updatedAt.md" data-href="011 Custom updatedAt.md" href="011 Custom updatedAt.md" class="internal-link" target="_blank" rel="noopener">011 Custom updatedAt</a></span></td></tr></tbody></table></div>
+<div><table class="dataview table-view-table"><thead class="table-view-thead"><tr class="table-view-tr-header"><th class="table-view-th"><span>name</span><span class="dataview small-text">4</span></th><th class="table-view-th"><span>link</span></th></tr></thead><tbody class="table-view-tbody"><tr><td><span>005 Custom filters</span></td><td><span><a data-tooltip-position="top" aria-label="005 Custom filters.md" data-href="005 Custom filters.md" href="005 Custom filters.md" class="internal-link" target="_blank" rel="noopener">005 Custom filters</a></span></td></tr><tr><td><span>006 Custom title</span></td><td><span><a data-tooltip-position="top" aria-label="006 Custom title.md" data-href="006 Custom title.md" href="006 Custom title.md" class="internal-link" target="_blank" rel="noopener">006 Custom title</a></span></td></tr><tr><td><span>007 Custom permalink</span></td><td><span><a data-tooltip-position="top" aria-label="007 Custom permalink.md" data-href="007 Custom permalink.md" href="007 Custom permalink.md" class="internal-link" target="_blank" rel="noopener">007 Custom permalink</a></span></td></tr><tr><td><span>011 Custom updatedAt</span></td><td><span><a data-tooltip-position="top" aria-label="011 Custom updatedAt.md" data-href="011 Custom updatedAt.md" href="011 Custom updatedAt.md" class="internal-link" target="_blank" rel="noopener">011 Custom updatedAt</a></span></td></tr></tbody></table></div>
 
 
 /img/user/A Assets/travolta.png
