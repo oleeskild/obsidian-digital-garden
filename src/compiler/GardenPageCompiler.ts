@@ -676,11 +676,16 @@ export class GardenPageCompiler {
 
 						const lastValue =
 							metaDataAndSize[metaDataAndSize.length - 1];
-						const lastValueIsSize = !isNaN(parseInt(lastValue));
 
-						const lastValueIsMetaData = !lastValueIsSize;
+						const hasSeveralValues = metaDataAndSize.length > 0;
 
-						const size = lastValueIsSize ? lastValue : undefined;
+						const lastValueIsSize =
+							hasSeveralValues && !isNaN(parseInt(lastValue));
+
+						const lastValueIsMetaData =
+							!lastValueIsSize && hasSeveralValues;
+
+						const size = lastValueIsSize ? lastValue : null;
 
 						let metaData = "";
 
@@ -720,7 +725,7 @@ export class GardenPageCompiler {
 							name = `${imageName}|${metaData}|${size}`;
 						} else if (size) {
 							name = `${imageName}|${size}`;
-						} else if (metaData) {
+						} else if (metaData && metaData !== "") {
 							name = `${imageName}|${metaData}`;
 						} else {
 							name = imageName;
