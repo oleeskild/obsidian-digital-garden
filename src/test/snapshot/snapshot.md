@@ -345,7 +345,7 @@ E Embeds/E02 PNG published.md
 
 
 
-![travolta.png| undefined](/img/user/A%20Assets/travolta.png)
+![travolta.png](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
 ==========
 E Embeds/E04 PNG reuse.md
@@ -367,7 +367,7 @@ E Embeds/E05 WEBP published.md
 ---
 
 
-![travolta.webp| undefined](/img/user/A%20Assets/travolta.webp)
+![travolta.webp](/img/user/A%20Assets/travolta.webp)
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -385,7 +385,7 @@ Like so: `![travolta.png|center|200](/img/user/A%20Assets/travolta.png)`
 
 This should render to an image with the alt text "left", like so:
 `[travolta.png|left](/img/user/A%20Assets/travolta.png)`
-![travolta.png| left](/img/user/A%20Assets/travolta.png)
+![travolta.png|left](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -612,6 +612,18 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
 ==========
+L Links/01 Link to header.md
+==========
+---
+{"dg-publish":true,"permalink":"/l-links/01-link-to-header/"}
+---
+
+Link to header should keep header link info
+[[000 Home#Welcome\|000 Home#Welcome]]
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
 P Plugins/PD Dataview/PD1 Dataview.md
 ==========
 ---
@@ -658,7 +670,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-94
+96
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
