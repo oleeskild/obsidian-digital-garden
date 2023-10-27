@@ -35,6 +35,8 @@ export default interface DigitalGardenSettings {
 	timestampFormat: string;
 
 	styleSettingsCss: string;
+	styleSettingsBodyClasses: string;
+
 	pathRewriteRules: string;
 	customFilters: Array<{ pattern: string; flags: string; replace: string }>;
 	contentClassesKey: string;

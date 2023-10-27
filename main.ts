@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	timestampFormat: "MMM dd, yyyy h:mm a",
 
 	styleSettingsCss: "",
+	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
 
