@@ -521,6 +521,11 @@ export class GardenPageCompiler {
 					if (svgText && size) {
 						svgText = setWidth(svgText, size);
 					}
+
+					if (svgText) {
+						//Remove whitespace, as markdown-it will insert a <p> tag otherwise
+						svgText = svgText.replace(/[\t\n\r]/g, "");
+					}
 					text = text.replace(svg, svgText);
 				} catch {
 					continue;
