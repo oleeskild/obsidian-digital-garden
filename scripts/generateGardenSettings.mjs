@@ -33,6 +33,7 @@ const gardenSettings = {
 	updatedTimestampKey: "customUpdated",
 	timestampFormat: "MMM dd, yyyy h:mm a",
 	styleSettingsCss: "",
+	styleSettingsBodyClasses: "",
 	pathRewriteRules: `
 Path Rewriting/Subfolder2:fun-folder
 Path Rewriting:

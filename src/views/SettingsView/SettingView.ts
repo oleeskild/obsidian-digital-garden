@@ -412,27 +412,54 @@ export default class SettingView {
 								"#css-settings-manager",
 							);
 
-							if (!styleSettingsNode) {
+							const bodyClasses =
+								document.querySelector("body")?.className;
+
+							if (!styleSettingsNode && !bodyClasses) {
 								new Notice("No Style Settings found");
 
 								return;
 							}
 
-							this.settings.styleSettingsCss =
-								styleSettingsNode.innerHTML;
+							if (styleSettingsNode?.innerHTML) {
+								this.settings.styleSettingsCss =
+									styleSettingsNode?.innerHTML;
+							}
 
-							if (!this.settings.styleSettingsCss) {
+							if (bodyClasses) {
+								this.settings.styleSettingsBodyClasses = `${bodyClasses}`;
+							}
+
+							if (
+								!this.settings.styleSettingsCss &&
+								!this.settings.styleSettingsBodyClasses
+							) {
 								new Notice("No Style Settings found");
 
 								return;
 							}
 
-							this.saveSiteSettingsAndUpdateEnv(
+							await this.saveSiteSettingsAndUpdateEnv(
 								this.app.metadataCache,
 								this.settings,
 								this.saveSettings,
 							);
 							new Notice("Style Settings applied to site");
+						});
+					})
+					.addButton((btn) => {
+						btn.setButtonText("Clear");
+
+						btn.onClick(async (_ev) => {
+							this.settings.styleSettingsCss = "";
+							this.settings.styleSettingsBodyClasses = "";
+
+							await this.saveSiteSettingsAndUpdateEnv(
+								this.app.metadataCache,
+								this.settings,
+								this.saveSettings,
+							);
+							new Notice("Style Settings removed from site");
 						});
 					});
 			}

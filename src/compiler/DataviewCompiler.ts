@@ -117,14 +117,12 @@ export class DataviewCompiler {
 				const query = inlineQuery[1];
 
 				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-					// @ts-expect-error errors are caught
 					this: dvApi.page(file.getPath()),
 				});
 
 				if (dataviewResult) {
 					replacedText = replacedText.replace(
 						code,
-						// @ts-expect-error errors are caught
 						dataviewResult.toString(),
 					);
 				}
@@ -228,7 +226,6 @@ function tryDVEvaluate(
 
 	try {
 		const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-			// @ts-expect-error errors are caught
 			this: dvApi.page(file.getPath()),
 		});
 		result = dataviewResult?.toString() ?? "";
