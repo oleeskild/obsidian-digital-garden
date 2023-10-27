@@ -399,7 +399,7 @@ export default class SettingView {
 				new Setting(themeModal.contentEl)
 					.setName("Apply current style settings to site")
 					.setDesc(
-						"Click the apply button to use the current style settings from the Style Settings Plugin on your site.",
+						"Click the apply button to use the current style settings from the Style Settings Plugin on your site. (The plugin looks at the currently APPLIED settings. Meaning you need to have the theme you want are using in the garden selected in Obsidian before applying)",
 					)
 					.addButton((btn) => {
 						btn.setButtonText("Apply Style Settings");
