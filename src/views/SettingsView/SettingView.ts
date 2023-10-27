@@ -25,6 +25,8 @@ import {
 	TemplateUpdater,
 } from "../../repositoryConnection/TemplateManager";
 import Logger from "js-logger";
+import ForestrySettings from "./ForestrySettings.svelte";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 interface IObsidianTheme {
 	name: string;
@@ -89,11 +91,47 @@ export default class SettingView {
 			href: "https://dg-docs.ole.dev/getting-started/01-getting-started/",
 		});
 
-		const githubSettings = this.settingsRootElement.createEl("div", {
-			cls: "connection-status",
-		});
+		new Setting(this.settingsRootElement)
+			.setName("Publish Platform")
+			.addDropdown((dd) => {
+				if (
+					this.settings.publishPlatform === PublishPlatform.SelfHosted
+				) {
+					dd.setValue(PublishPlatform.SelfHosted);
+				} else {
+					dd.setValue(PublishPlatform.ForestryMd);
+				}
 
-		new GithubSettings(this, githubSettings);
+				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
+				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
+
+				dd.onChange(async (val) => {
+					switch (val) {
+						case PublishPlatform.SelfHosted:
+							this.settings.publishPlatform =
+								PublishPlatform.SelfHosted;
+							break;
+						case PublishPlatform.ForestryMd:
+							this.settings.publishPlatform =
+								PublishPlatform.ForestryMd;
+							break;
+					}
+					await this.saveSettings();
+
+					this.initializePublishPlatformSettings(
+						publishPlatformSettings,
+					);
+				});
+			});
+
+		const publishPlatformSettings = this.settingsRootElement.createEl(
+			"div",
+			{
+				cls: "connection-status",
+			},
+		);
+
+		this.initializePublishPlatformSettings(publishPlatformSettings);
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
@@ -129,6 +167,22 @@ export default class SettingView {
 			});
 		this.initializeCustomFilterSettings();
 		prModal.titleEl.createEl("h1", "Site template settings");
+	}
+
+	private initializePublishPlatformSettings(target: HTMLElement) {
+		target.empty();
+
+		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
+			new GithubSettings(this, target);
+		} else {
+			new ForestrySettings({
+				target,
+				props: {
+					settings: this.settings,
+					saveSettings: this.saveSettings,
+				},
+			});
+		}
 	}
 
 	private async initializeDefaultNoteSettings() {
@@ -1016,7 +1070,9 @@ export default class SettingView {
 
 		Logger.time("checkForUpdate");
 
-		const updater = await siteManager.templateUpdater.checkForUpdates();
+		const updater = await (
+			await siteManager.getTemplateUpdater()
+		).checkForUpdates();
 		Logger.timeEnd("checkForUpdate");
 
 		const updateAvailable = hasUpdates(updater);

@@ -11,6 +11,7 @@ import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
+import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -102,11 +103,11 @@ export default class Publisher {
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
-			githubUserName: this.settings.githubUserName,
-			githubToken: this.settings.githubToken,
-		});
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			),
+		);
 
 		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
@@ -189,11 +190,11 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
-			githubUserName: this.settings.githubUserName,
-			githubToken: this.settings.githubToken,
-		});
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			),
+		);
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {
