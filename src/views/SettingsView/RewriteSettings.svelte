@@ -39,9 +39,9 @@
 		const files = await publisher.getFilesMarkedForPublishing();
 
 		const paths = files.notes.map((note) => ({
-			id: note.path,
-			newPath: getGardenPathForNote(note.path, newRewriteRules),
-			oldPath: getGardenPathForNote(note.path, oldRewriteRules),
+			id: note.file.path,
+			newPath: getGardenPathForNote(note.file.path, newRewriteRules),
+			oldPath: getGardenPathForNote(note.file.path, oldRewriteRules),
 		}));
 
 		return paths;
