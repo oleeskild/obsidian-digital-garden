@@ -11,6 +11,9 @@ import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
+import { OAuthCallbackParameters } from "src/models/OAuthCallbackParameters";
+import { auth0 } from "src/authentication/auth0";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const defaultTheme = {
 	name: "Red Graphite",
@@ -25,6 +28,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
+	forestryPageName: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -55,6 +59,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
+	publishPlatform: PublishPlatform.SelfHosted,
 
 	contentClassesKey: "dg-content-classes",
 
@@ -110,6 +115,8 @@ export default class DigitalGarden extends Plugin {
 				this.openPublishModal();
 			},
 		);
+
+		this.registerHandlers();
 	}
 
 	onunload() {}
@@ -335,6 +342,19 @@ export default class DigitalGarden extends Plugin {
 		});
 	}
 
+	registerHandlers() {
+		this.registerObsidianProtocolHandler("digital-garden", async (e) => {
+			const parameters = e as unknown as OAuthCallbackParameters;
+
+			await auth0.handleRedirectCallback(
+				`obsidian://digital-garden?${Object.entries(parameters)
+					.map(([key, value]) => `${key}=${value}`)
+					.join("&")}`,
+			);
+			//TODO: Reload settings tab
+		});
+	}
+
 	private getActiveFile(workspace: Workspace) {
 		const activeFile = workspace.getActiveFile();
 
@@ -463,31 +483,29 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	openPublishModal() {
-		if (!this.publishModal) {
-			const siteManager = new DigitalGardenSiteManager(
-				this.app.metadataCache,
-				this.settings,
-			);
+		const siteManager = new DigitalGardenSiteManager(
+			this.app.metadataCache,
+			this.settings,
+		);
 
-			const publisher = new Publisher(
-				this.app.vault,
-				this.app.metadataCache,
-				this.settings,
-			);
+		const publisher = new Publisher(
+			this.app.vault,
+			this.app.metadataCache,
+			this.settings,
+		);
 
-			const publishStatusManager = new PublishStatusManager(
-				siteManager,
-				publisher,
-			);
+		const publishStatusManager = new PublishStatusManager(
+			siteManager,
+			publisher,
+		);
 
-			this.publishModal = new PublicationCenter(
-				this.app,
-				publishStatusManager,
-				publisher,
-				siteManager,
-				this.settings,
-			);
-		}
+		this.publishModal = new PublicationCenter(
+			this.app,
+			publishStatusManager,
+			publisher,
+			siteManager,
+			this.settings,
+		);
 		this.publishModal.open();
 	}
 }

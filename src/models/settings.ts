@@ -5,6 +5,9 @@ export default interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
+
+	forestryPageName: string; //TODO: Get this from API
+
 	gardenBaseUrl: string;
 	prHistory: string[];
 
@@ -41,6 +44,8 @@ export default interface DigitalGardenSettings {
 	pathRewriteRules: string;
 	customFilters: Array<{ pattern: string; flags: string; replace: string }>;
 	contentClassesKey: string;
+
+	publishPlatform: PublishPlatform;
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;

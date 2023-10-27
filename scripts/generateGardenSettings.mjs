@@ -20,6 +20,7 @@ const gardenSettings = {
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: true,
 	siteName: "Digital Garden",
+	publishPlatform: "SelfHosted",
 	mainLanguage: "en",
 	slugifyEnabled: true,
 	noteIconKey: "dg-note-icon",
