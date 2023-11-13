@@ -1,7 +1,9 @@
 import { ILogLevel } from "js-logger";
+import { LocalStorageCache } from "obsidian-dataview/lib/data-import/persister";
 
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
+	localStorage: LocalStorageCache;
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
