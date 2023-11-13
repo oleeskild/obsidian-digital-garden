@@ -28,6 +28,7 @@
 		let isSuccess = await new ForestryApi().createPage(
 			settings.forestryPageName,
 		);
+
 		if (isSuccess) {
 			new Notice("Page created successfully");
 		} else {
