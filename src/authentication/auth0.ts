@@ -4,7 +4,7 @@ export const auth0 = new Auth0Client({
 	clientId: "ZOqGEEH2ue60UzJIlJcEEnGTn0jULvEv",
 	cacheLocation: "localstorage",
 	authorizationParams: {
-		redirect_uri: "http://localhost:5217/authorize",
+		redirect_uri: "https://localhost:7035/authorize",
 		audience: "https://digitalforest/api",
 	},
 });

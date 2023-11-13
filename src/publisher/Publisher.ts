@@ -123,8 +123,14 @@ export default class Publisher {
 
 		try {
 			const [text, assets] = file.compiledFile;
-			await this.uploadText(file.getPath(), text, file?.remoteHash);
-			await this.uploadAssets(assets);
+
+			await this.uploadText(
+				file.getPath(),
+				text,
+				file?.remoteHash,
+				skipCi,
+			);
+			await this.uploadAssets(assets, skipCi);
 
 			return true;
 		} catch (error) {
@@ -186,9 +192,10 @@ export default class Publisher {
 		path: string,
 		content: string,
 		remoteFileHash?: string,
+		skipCi = false,
 	) {
 		this.validateSettings();
-		let message = `Update content ${path}`;
+		let message = `${skipCi ? "[skip ci]" : ""} Update content ${path}`;
 
 		const userGardenConnection = new RepositoryConnection(
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
@@ -204,7 +211,7 @@ export default class Publisher {
 			remoteFileHash = file?.sha;
 
 			if (!remoteFileHash) {
-				message = `Add content ${path}`;
+				message = `${skipCi ? "[skip ci]" : ""} Add content ${path}`;
 			}
 		}
 
@@ -219,18 +226,24 @@ export default class Publisher {
 	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
 		const path = `${NOTE_PATH_BASE}${filePath}`;
-		await this.uploadToGithub(path, content, sha);
+		await this.uploadToGithub(path, content, sha, skipCi);
 	}
 
 	private async uploadImage(filePath: string, content: string, sha?: string) {
 		const path = `src/site${filePath}`;
-		await this.uploadToGithub(path, content, sha);
+		await this.uploadToGithub(path, content, sha, skipCi);
 	}
 
 	private async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
-			await this.uploadImage(image.path, image.content, image.remoteHash);
+
+			await this.uploadImage(
+				image.path,
+				image.content,
+				image.remoteHash,
+				skipCi,
+			);
 		}
 	}
 

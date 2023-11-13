@@ -25,6 +25,7 @@ const defaultTheme = {
 };
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
+	localStorage: {},
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
@@ -432,7 +433,10 @@ export default class DigitalGarden extends Plugin {
 				settings: this.settings,
 			}).compile();
 
-			const publishSuccessful = await publisher.publish(publishFile);
+			const publishSuccessful = await publisher.publish(
+				publishFile,
+				false,
+			);
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
