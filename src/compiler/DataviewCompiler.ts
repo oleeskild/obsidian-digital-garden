@@ -67,10 +67,10 @@ export class DataviewCompiler {
 					markdown = this.surroundWithCalloutBlock(markdown);
 				}
 
-				replacedText = replacedText.replace(
+				/*replacedText = replacedText.replace(
 					block,
 					`${markdown}\n{ .block-language-dataview}`,
-				);
+				);*/
 			} catch (e) {
 				console.log(e);
 
