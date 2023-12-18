@@ -33,6 +33,13 @@ jobs:
             run: npm install
           - name: "Build"
             run: npm run build
+          - name: Archive production artifacts
+            uses: actions/upload-artifact@v3
+            with:
+              name: dist-without-markdown
+              path: |
+                dist
+                !dist/**/*.md
     run-tests:
       runs-on: ubuntu-latest
       steps:
