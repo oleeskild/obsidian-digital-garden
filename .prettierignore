@@ -7,6 +7,7 @@ node_modules
 coverage
 .vscode
 .parcel-cache
+content/*
 
 *.yml
 src/dg-testVault/*
