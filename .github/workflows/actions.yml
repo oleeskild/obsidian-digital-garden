@@ -3,6 +3,7 @@ on:
     types: [edited, synchronize, opened]
   push: 
     branches: [master]
+  workflow_dispatch:
 jobs:
     lint-and-check-formatting:
         runs-on: ubuntu-latest
