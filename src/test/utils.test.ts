@@ -16,27 +16,27 @@ describe("utils", () => {
 			{
 				name: "replaces a path according to rules",
 				input: {
-					gardenPath: "defaultGardenPath/notes/note.md",
+					gardenPath: "defaultGardenPath/content/note.md",
 					rules: [{ from: "defaultGardenPath", to: "gardenPath" }],
 				},
-				expected: "gardenPath/notes/note.md",
+				expected: "gardenPath/content/note.md",
 			},
 			{
 				name: "replaces a path according to the first rule found",
 				input: {
-					gardenPath: "defaultGardenPath/notes/note.md",
+					gardenPath: "defaultGardenPath/content/note.md",
 					rules: [
 						{
 							from: "defaultGardenPath",
 							to: "gardenPath",
 						},
 						{
-							from: "defaultGardenPath/notes",
+							from: "defaultGardenPath/content",
 							to: "gargamel",
 						},
 					],
 				},
-				expected: "gardenPath/notes/note.md",
+				expected: "gardenPath/content/note.md",
 			},
 		];
 
@@ -56,11 +56,11 @@ describe("utils", () => {
 			const rewriteRules: PathRewriteRules = [
 				{ from: "defaultGardenPath", to: "" },
 			];
-			const gardenPath = "defaultGardenPath/notes/note.md";
+			const gardenPath = "defaultGardenPath/content/note.md";
 
 			const result = getGardenPathForNote(gardenPath, rewriteRules);
 
-			expect(result).toBe("notes/note.md");
+			expect(result).toBe("content/note.md");
 		});
 	});
 
@@ -82,14 +82,14 @@ describe("utils", () => {
 			},
 			{
 				name: "parses multiple rewrite rules",
-				input: "defaultGardenPath:gardenPath\ndefaultGardenPath/notes:gargamel",
+				input: "defaultGardenPath:gardenPath\ndefaultGardenPath/content:gargamel",
 				expected: [
 					{
 						from: "defaultGardenPath",
 						to: "gardenPath",
 					},
 					{
-						from: "defaultGardenPath/notes",
+						from: "defaultGardenPath/content",
 						to: "gargamel",
 					},
 				],
