@@ -38,8 +38,7 @@ jobs:
             with:
               name: dist-without-markdown
               path: |
-                dist
-                !dist/**/*.md
+                main.js
     run-tests:
       runs-on: ubuntu-latest
       steps:
