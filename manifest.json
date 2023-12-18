@@ -1,10 +1,10 @@
 {
-	"id": "digitalgarden",
-	"name": "Digital Garden",
-	"version": "2.55.0",
+	"id": "quartz-dataview-converter",
+	"name": "Quartz Dataview Converter",
+	"version": "1.0.0",
 	"minAppVersion": "0.12.0",
-	"description": "Publish your notes to the web for others to enjoy. For free.",
-	"author": "Ole Eskild Steensen",
+	"description": "Convert dataview to markdown for Quartz",
+	"author": "Emile Bangma, Ole Eskild Steensen",
 	"authorUrl": "https://dg-docs.ole.dev/",
 	"isDesktopOnly": false,
 	"fundingUrl": "https://ko-fi.com/oleeskild"
