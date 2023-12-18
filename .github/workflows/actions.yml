@@ -2,7 +2,7 @@ on:
   pull_request:
     types: [edited, synchronize, opened]
   push: 
-    branches: [master]
+    branches: [master, main]
   workflow_dispatch:
 jobs:
     lint-and-check-formatting:
