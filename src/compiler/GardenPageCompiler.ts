@@ -379,8 +379,13 @@ export class GardenPageCompiler {
 							const refHeader =
 								transclusionFileName.split("#")[1];
 
+							// This is to mitigate the issue where the header matching doesn't work properly with headers with special characters (e.g. :)
+							// Obsidian's autocomplete for transclusion omits such charcters which leads to full page transclusion instead of just the heading
+							const headerSlug = slugify(refHeader);
+
 							const headerInFile = metadata?.headings?.find(
-								(header) => header.heading === refHeader,
+								(header) =>
+									slugify(header.heading) === headerSlug,
 							);
 
 							sectionID = `#${slugify(refHeader)}`;
@@ -434,7 +439,7 @@ export class GardenPageCompiler {
 						);
 
 						const headerSection = header
-							? `$<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
+							? `<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
 							: "";
 						let embedded_link = "";
 
