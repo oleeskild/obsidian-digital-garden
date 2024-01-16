@@ -16,7 +16,7 @@ Whitespace and bar in name:
 
 <div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
 
-$<div class="markdown-embed-title">
+<div class="markdown-embed-title">
 
 # whitespace.
 
@@ -32,7 +32,7 @@ Random hashes in transclusion title:
 
 <div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
 
-$<div class="markdown-embed-title">
+<div class="markdown-embed-title">
 
 ## ## i think i fixed this one ## earlier #lol
 
@@ -69,27 +69,17 @@ Cheese
 
 
 
-This is a header transclusion that is slightly wrong in a way that obsidian fixes it but DG doesn't #known-issue
+This is a header transclusion that is slightly that uses a special character in the header
 
 
 <div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
 
 
 
-
-
-This is above the header
 ## Header
 
 This should be in this header block
 
-## Another header
-
-This shouldn't be under a header transclusion
-
-
-
-Cheese 
 
 </div></div>
 
@@ -410,7 +400,7 @@ How deep can you go?
 
 <div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
 
-$<div class="markdown-embed-title">
+<div class="markdown-embed-title">
 
 # Spice it up
 
@@ -612,6 +602,31 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
 ==========
+L Languages/Transclude Headers.md
+==========
+---
+{"dg-publish":true,"permalink":"/l-languages/transclude-headers/"}
+---
+
+
+
+<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
+
+
+
+#  解决
+
+This should be visible when transcluding the header above
+
+
+
+</div></div>
+
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
 L Links/01 Link to header.md
 ==========
 ---
@@ -620,6 +635,19 @@ L Links/01 Link to header.md
 
 Link to header should keep header link info
 [[000 Home#Welcome\|000 Home#Welcome]]
+
+Link to header with special characters should work
+
+<div class="transclusion internal-embed is-loaded"><div class="markdown-embed">
+
+
+
+# A header: With a colon
+Body under header
+
+
+</div></div>
+
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -670,7 +698,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-96
+102
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
