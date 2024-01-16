@@ -14,7 +14,7 @@ This is a header ref which doesn't exist:
 ![[0 File with headers#whodis]]
 
 
-This is a header transclusion that is slightly wrong in a way that obsidian fixes it but DG doesn't #known-issue
+This is a header transclusion that is slightly that uses a special character in the header
 
 ![[0 File with headers#Header?]]
 

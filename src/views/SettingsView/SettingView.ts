@@ -546,7 +546,7 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Favicon")
 			.setDesc(
-				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.",
+				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default. Must be square! (eg. 16x16)",
 			)
 			.addText((tc) => {
 				tc.setPlaceholder("myfavicon.svg");
