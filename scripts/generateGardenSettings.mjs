@@ -17,6 +17,7 @@ const gardenSettings = {
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: "",
+	useFullResolutionImages: false,
 	noteSettingsIsInitialized: true,
 	siteName: "Digital Garden",
 	mainLanguage: "en",

@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: "",
+	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
 	mainLanguage: "en",
