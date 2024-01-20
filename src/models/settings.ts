@@ -12,6 +12,7 @@ export default interface DigitalGardenSettings {
 	baseTheme: string;
 	faviconPath: string;
 	mainLanguage: string;
+	useFullResolutionImages: boolean;
 
 	siteName: string;
 
