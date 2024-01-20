@@ -166,9 +166,9 @@ export class FrontmatterCompiler {
 					? fileFrontMatter["tags"].split(/,\s*/)
 					: fileFrontMatter["tags"]) || [];
 
-			if (fileFrontMatter["dg-home"]) {
+			/*if (fileFrontMatter["dg-home"]) {
 				tags.push("gardenEntry");
-			}
+			}*/
 
 			if (tags.length > 0) {
 				publishedFrontMatter["tags"] = tags;
