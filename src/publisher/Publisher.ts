@@ -108,9 +108,11 @@ export default class Publisher {
 			githubToken: this.settings.githubToken,
 		});
 
-		return !!userGardenConnection.deleteFile(path, {
+		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
 		});
+
+		return !!deleted;
 	}
 
 	async publish(file: CompiledPublishFile): Promise<boolean> {
