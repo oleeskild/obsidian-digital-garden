@@ -1,23 +1,35 @@
-import axios from "axios";
-import { auth0 } from "src/authentication/auth0";
+import axios, { AxiosInstance, AxiosResponse } from "axios";
+import IPageInfoResponse from "src/models/PageInfo";
+import Logger from "js-logger";
 export default class ForestryApi {
-	baseUrl = "https://localhost:7035";
+	client: AxiosInstance;
 
-	async createPage(pageName: string): Promise<boolean> {
-		const response = await axios.post(
-			this.baseUrl + `/Pages/${pageName}`,
-			{},
-			{
-				headers: {
-					Authorization: `Bearer ${await auth0.getTokenSilently()}`,
-				},
+	constructor(apiKey: string) {
+		const baseUrl = "https://localhost:7035/app"; //TODO: Get from .env
+
+		this.client = axios.create({
+			baseURL: baseUrl,
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
 			},
-		);
+		});
+	}
 
-		if (response.status === 200) {
-			return true;
+	async getPageInfo(): Promise<IPageInfoResponse | null> {
+		try {
+			const response = (await this.client.get(
+				"pages/info",
+			)) as AxiosResponse<IPageInfoResponse>;
+
+			if (response.status !== 200) {
+				return null;
+			}
+
+			return response.data;
+		} catch (e) {
+			Logger.error(e);
+
+			return null;
 		}
-
-		return false;
 	}
 }

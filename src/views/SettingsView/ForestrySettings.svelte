@@ -1,64 +1,73 @@
 <script lang="ts">
-	import { auth0 } from "src/authentication/auth0";
 	import DigitalGardenSettings from "../../models/settings";
 	import ForestryApi from "src/forestry/ForestryApi";
 	import { Notice } from "obsidian";
+	import Icon from "src/ui/Icon.svelte";
 
 	let unique = {};
 
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
-	const login = async () => {
-		await auth0.loginWithRedirect();
-	};
+	let apiKey: string = settings.forestrySettings.apiKey;
 
-	const logout = async () => {
-		await auth0.logout();
+	const authorize = async () => {
+		let pageInfo = await getPageInfo();
+		if (!pageInfo) {
+			new Notice("Invalid API token");
+			return;
+		}
+		settings.forestrySettings.forestryPageName = pageInfo.value.pageName;
+		settings.forestrySettings.apiKey = apiKey;
+		settings.forestrySettings.baseUrl = pageInfo.value.baseUrl;
+		await saveSettings();
 		unique = {};
 	};
 
-	let forestyPageName: string = settings.forestryPageName;
-
-	const savePageName = async () => {
-		settings.forestryPageName = forestyPageName;
+	const disconnect = async () => {
+		settings.forestrySettings.apiKey = "";
+		settings.forestrySettings.forestryPageName = "";
 		await saveSettings();
+		apiKey = "";
 	};
 
-	const createPage = async () => {
-		let isSuccess = await new ForestryApi().createPage(
-			settings.forestryPageName,
-		);
-
-		if (isSuccess) {
-			new Notice("Page created successfully");
-		} else {
-			new Notice("Page creation failed");
-		}
+	const getPageInfo = async () => {
+		let pageInfo = await new ForestryApi(apiKey).getPageInfo();
+		return pageInfo;
 	};
 </script>
 
 <div>
+	<h3>
+		<Icon name="trees" />Forestry.md Settings
+	</h3>
 	{#key unique}
-		{#await auth0.isAuthenticated()}
-			<div>Retrieving user info...</div>
-		{:then isAuthenticated}
-			{#if isAuthenticated}
-				{#await auth0.getUser()}
-					<div>Retrieving user info...</div>
-				{:then user}
-					<div>Logged in as {user?.nickname ?? "Unknown"}</div>
-				{/await}
+		{#if !settings.forestrySettings.apiKey}
+			<label>
+				Forestry API Key
+				<input type="text" bind:value={apiKey} />
+			</label>
+			<button on:click={authorize}>Authorize</button>
+		{:else}
+			{#await getPageInfo()}
+			<div>
+				Connected to {settings.forestrySettings.forestryPageName ??
+					"Unknown"}
+			</div>
+			{:then pageInfo}
+				{#if pageInfo}
+					<div>
+						Connected to {pageInfo.value.pageName ?? "Unknown"}
+					</div>
 
-				<input type="text" bind:value={forestyPageName} />
-				<button on:click={savePageName}>Save Page Name</button>
-
-				<button on:click={createPage}>TODO: Create page</button>
-				<button on:click={logout}>Log out</button>
-			{:else}
-				<button on:click={login}>Login/Sign Up</button>
-			{/if}
-		{:catch error}
-			<div>Error: {error.message}</div>
-		{/await}
+					<button on:click={disconnect}>Disconnect</button>
+				{:else}
+					<div>Something went wrong when connecting to Forestry.md</div>
+					<button on:click={disconnect}>Disconnect</button>
+				{/if}
+			{:catch}
+				<div>Something went wrong when connecting to Forestry.md</div>
+				<button on:click={disconnect}>Disconnect</button>
+			{/await}
+		{/if}
 	{/key}
 </div>

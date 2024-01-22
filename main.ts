@@ -11,8 +11,6 @@ import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
-import { OAuthCallbackParameters } from "src/models/OAuthCallbackParameters";
-import { auth0 } from "src/authentication/auth0";
 import { PublishPlatform } from "src/models/PublishPlatform";
 
 const defaultTheme = {
@@ -25,11 +23,9 @@ const defaultTheme = {
 };
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
-	localStorage: {},
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
-	forestryPageName: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -63,6 +59,12 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	publishPlatform: PublishPlatform.SelfHosted,
 
 	contentClassesKey: "dg-content-classes",
+
+	forestrySettings: {
+		forestryPageName: "",
+		apiKey: "",
+		baseUrl: "",
+	},
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
@@ -344,16 +346,16 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	registerHandlers() {
-		this.registerObsidianProtocolHandler("digital-garden", async (e) => {
-			const parameters = e as unknown as OAuthCallbackParameters;
-
-			await auth0.handleRedirectCallback(
-				`obsidian://digital-garden?${Object.entries(parameters)
-					.map(([key, value]) => `${key}=${value}`)
-					.join("&")}`,
-			);
-			//TODO: Reload settings tab
-		});
+		// this.registerObsidianProtocolHandler("digital-garden", async (e) => {
+		// const parameters = e as unknown as OAuthCallbackParameters;
+		//TODO: Get ApiKey from parameters
+		// await auth0.handleRedirectCallback(
+		// 	`obsidian://digital-garden?${Object.entries(parameters)
+		// 		.map(([key, value]) => `${key}=${value}`)
+		// 		.join("&")}`,
+		// );
+		//TODO: Reload settings tab
+		// });
 	}
 
 	private getActiveFile(workspace: Workspace) {

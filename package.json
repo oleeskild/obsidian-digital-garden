@@ -49,7 +49,6 @@
 		"typescript": "^5.2.2"
 	},
 	"dependencies": {
-		"@auth0/auth0-spa-js": "^2.1.2",
 		"@octokit/core": "^5.0.0",
 		"@popperjs/core": "^2.11.8",
 		"@sindresorhus/slugify": "^1.1.2",

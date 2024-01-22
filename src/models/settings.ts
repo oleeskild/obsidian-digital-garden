@@ -1,14 +1,11 @@
 import { ILogLevel } from "js-logger";
-import { LocalStorageCache } from "obsidian-dataview/lib/data-import/persister";
+import { PublishPlatform } from "./PublishPlatform";
 
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
-	localStorage: LocalStorageCache;
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
-
-	forestryPageName: string; //TODO: Get this from API
 
 	gardenBaseUrl: string;
 	prHistory: string[];
@@ -48,6 +45,11 @@ export default interface DigitalGardenSettings {
 	contentClassesKey: string;
 
 	publishPlatform: PublishPlatform;
+	forestrySettings: {
+		forestryPageName: string;
+		apiKey: string;
+		baseUrl: string;
+	};
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;
