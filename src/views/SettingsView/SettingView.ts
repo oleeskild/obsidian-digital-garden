@@ -94,6 +94,9 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Publish Platform")
 			.addDropdown((dd) => {
+				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
+				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
+
 				if (
 					this.settings.publishPlatform === PublishPlatform.SelfHosted
 				) {
@@ -101,9 +104,6 @@ export default class SettingView {
 				} else {
 					dd.setValue(PublishPlatform.ForestryMd);
 				}
-
-				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
-				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
 
 				dd.onChange(async (val) => {
 					switch (val) {
@@ -920,12 +920,29 @@ export default class SettingView {
 	}
 
 	private initializeGitHubBaseURLSetting() {
-		new Setting(this.settingsRootElement)
+		const siteBaseUrl = new Setting(this.settingsRootElement)
 			.setName("Base URL")
 			.setDesc(
 				`This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
-			)
-			.addText((text) =>
+			);
+
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			siteBaseUrl.addText((text) =>
+				text
+					.setPlaceholder("https://my-garden.forestry.md")
+					.setValue(this.settings.forestrySettings.baseUrl)
+					.onChange(async (value) => {
+						this.settings.forestrySettings.baseUrl = value;
+
+						this.debouncedSaveAndUpdate(
+							this.app.metadataCache,
+							this.settings,
+							this.saveSettings,
+						);
+					}),
+			);
+		} else {
+			siteBaseUrl.addText((text) =>
 				text
 					.setPlaceholder("https://my-garden.vercel.app")
 					.setValue(this.settings.gardenBaseUrl)
@@ -939,6 +956,7 @@ export default class SettingView {
 						);
 					}),
 			);
+		}
 	}
 
 	private initializeSlugifySetting() {

@@ -1,6 +1,5 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
-import { auth0 } from "src/authentication/auth0";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import DigitalGardenSettings from "src/models/settings";
@@ -27,17 +26,16 @@ export default class PublishPlatformConnectionFactory {
 				pageName: settings.githubRepo,
 			};
 		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
-			const userName = (await auth0.getUser())?.nickname ?? "";
-
-			const token = await auth0.getTokenSilently();
+			const userName = "Forestry";
+			const token = settings.forestrySettings.apiKey;
 
 			const octoKit = new Octokit({
-				baseUrl: "https://localhost:7035/GitHub",
+				baseUrl: "https://localhost:7035/app/Garden", //TODO: Move base/app to .env
 				auth: token,
 				log: oktokitLogger,
 			});
 
-			const pageName = settings.forestryPageName;
+			const pageName = settings.forestrySettings.forestryPageName;
 
 			return {
 				userName,
