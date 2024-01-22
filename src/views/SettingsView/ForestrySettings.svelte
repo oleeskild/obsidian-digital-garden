@@ -12,8 +12,10 @@
 
 	const authorize = async () => {
 		let pageInfo = await getPageInfo();
+
 		if (!pageInfo) {
 			new Notice("Invalid API token");
+
 			return;
 		}
 		settings.forestrySettings.forestryPageName = pageInfo.value.pageName;
@@ -32,6 +34,7 @@
 
 	const getPageInfo = async () => {
 		let pageInfo = await new ForestryApi(apiKey).getPageInfo();
+
 		return pageInfo;
 	};
 </script>
@@ -49,10 +52,10 @@
 			<button on:click={authorize}>Authorize</button>
 		{:else}
 			{#await getPageInfo()}
-			<div>
-				Connected to {settings.forestrySettings.forestryPageName ??
-					"Unknown"}
-			</div>
+				<div>
+					Connected to {settings.forestrySettings.forestryPageName ??
+						"Unknown"}
+				</div>
 			{:then pageInfo}
 				{#if pageInfo}
 					<div>
@@ -61,7 +64,9 @@
 
 					<button on:click={disconnect}>Disconnect</button>
 				{:else}
-					<div>Something went wrong when connecting to Forestry.md</div>
+					<div>
+						Something went wrong when connecting to Forestry.md
+					</div>
 					<button on:click={disconnect}>Disconnect</button>
 				{/if}
 			{:catch}
