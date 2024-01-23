@@ -54,18 +54,19 @@
 			<button on:click={authorize}>Authorize</button>
 		{:else}
 			{#await getPageInfo()}
-				<div>
-					Loading Forestry.md settings...
-				</div>
+				<div>Loading Forestry.md settings...</div>
 			{:then pageInfo}
 				{#if pageInfo}
 					<div class="setting-item">
 						<div class="setting-item-info">
-							<div class="setting-item-name" style="display: flex; align-items: center;">
-								<Icon name="cloud" /> Connected to page: {pageInfo.value.pageName ?? "Unknown"}
+							<div
+								class="setting-item-name"
+								style="display: flex; align-items: center;"
+							>
+								<Icon name="cloud" /> Connected to page: {pageInfo
+									.value.pageName ?? "Unknown"}
 							</div>
-							<div class="setting-item-description">
-							</div>
+							<div class="setting-item-description"></div>
 						</div>
 
 						<div class="setting-item-control">
