@@ -15,6 +15,7 @@ import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -153,16 +154,19 @@ export default class DigitalGardenSiteManager {
 	}
 
 	getNoteUrl(file: TFile): string {
-		if (!this.settings.gardenBaseUrl) {
+		const savedBaseUrl =
+			this.settings.publishPlatform === PublishPlatform.SelfHosted
+				? this.settings.gardenBaseUrl
+				: this.settings.forestrySettings.baseUrl;
+
+		if (!savedBaseUrl) {
 			new Notice("Please set the garden base url in the settings");
 
 			// caught in copyUrlToClipboard
 			throw new Error("Garden base url not set");
 		}
 
-		const baseUrl = `https://${extractBaseUrl(
-			this.settings.gardenBaseUrl,
-		)}`;
+		const baseUrl = `https://${extractBaseUrl(savedBaseUrl)}`;
 
 		const noteUrlPath = generateUrlPath(
 			getGardenPathForNote(file.path, this.rewriteRules),

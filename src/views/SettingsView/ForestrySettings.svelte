@@ -8,6 +8,7 @@
 
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
+	export let onAuthorize: () => Promise<void>;
 	let apiKey: string = settings.forestrySettings.apiKey;
 
 	const authorize = async () => {
@@ -19,10 +20,11 @@
 			return;
 		}
 		settings.forestrySettings.forestryPageName = pageInfo.value.pageName;
-		settings.forestrySettings.apiKey = apiKey;
 		settings.forestrySettings.baseUrl = pageInfo.value.baseUrl;
+		settings.forestrySettings.apiKey = apiKey;
 		await saveSettings();
 		unique = {};
+		onAuthorize();
 	};
 
 	const disconnect = async () => {
@@ -53,16 +55,26 @@
 		{:else}
 			{#await getPageInfo()}
 				<div>
-					Connected to {settings.forestrySettings.forestryPageName ??
-						"Unknown"}
+					Loading Forestry.md settings...
 				</div>
 			{:then pageInfo}
 				{#if pageInfo}
-					<div>
-						Connected to {pageInfo.value.pageName ?? "Unknown"}
-					</div>
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name" style="display: flex; align-items: center;">
+								<Icon name="cloud" /> Connected to page: {pageInfo.value.pageName ?? "Unknown"}
+							</div>
+							<div class="setting-item-description">
+							</div>
+						</div>
 
-					<button on:click={disconnect}>Disconnect</button>
+						<div class="setting-item-control">
+							<button on:click={disconnect}>Disconnect</button>
+						</div>
+					</div>
+					<a href="https://dashboard.forestry.md" target="_blank">
+						Open Forestry dashboard
+					</a>
 				{:else}
 					<div>
 						Something went wrong when connecting to Forestry.md

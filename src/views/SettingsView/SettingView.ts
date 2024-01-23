@@ -44,6 +44,7 @@ const OBSIDIAN_THEME_URL =
 
 export default class SettingView {
 	private app: App;
+	private prModal: Modal | undefined;
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
@@ -71,7 +72,14 @@ export default class SettingView {
 		return getIcon(name) ?? document.createElement("span");
 	}
 
+	private reInitializeSettings() {
+		if (this.prModal) {
+			this.initialize(this.prModal);
+		}
+	}
+
 	async initialize(prModal: Modal) {
+		this.prModal = prModal;
 		this.settingsRootElement.empty();
 
 		this.settingsRootElement.createEl("h1", {
@@ -180,6 +188,9 @@ export default class SettingView {
 				props: {
 					settings: this.settings,
 					saveSettings: this.saveSettings,
+					onAuthorize: async () => {
+						this.reInitializeSettings();
+					},
 				},
 			});
 		}
