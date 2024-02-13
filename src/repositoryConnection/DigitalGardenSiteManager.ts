@@ -97,6 +97,7 @@ export default class DigitalGardenSiteManager {
 			NOTE_ICON_BACK_LINKS: this.settings.showNoteIconOnBackLink,
 			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
 			STYLE_SETTINGS_BODY_CLASSES: this.settings.styleSettingsBodyClasses,
+			USE_FULL_RESOLUTION_IMAGES: this.settings.useFullResolutionImages,
 		} as Record<string, string | boolean>;
 
 		if (theme.name !== "default") {

@@ -17,6 +17,7 @@ const gardenSettings = {
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',
 	faviconPath: "",
+	useFullResolutionImages: false,
 	noteSettingsIsInitialized: true,
 	siteName: "Digital Garden",
 	mainLanguage: "en",
@@ -65,7 +66,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 };
 
 const TEST_VAULT_PATH =
-	"src/dg-testVault/.obsidian/plugins/obsidian-digital-garden/";
+	"content/.obsidian/plugins/obsidian-digital-garden/";
 
 console.log("Creating test vault data.json");
 // write garden settings to test vault

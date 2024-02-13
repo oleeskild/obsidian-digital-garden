@@ -67,10 +67,7 @@ export class DataviewCompiler {
 					markdown = this.surroundWithCalloutBlock(markdown);
 				}
 
-				/*replacedText = replacedText.replace(
-					block,
-					`${markdown}\n{ .block-language-dataview}`,
-				);*/
+				replacedText = replacedText.replace(block, `${markdown}`);
 			} catch (e) {
 				console.log(e);
 
@@ -117,13 +114,13 @@ export class DataviewCompiler {
 				const query = inlineQuery[1];
 
 				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-					this: dvApi.page(file.getPath()),
+					this: dvApi.page(file.getPath()) ?? {},
 				});
 
 				if (dataviewResult) {
 					replacedText = replacedText.replace(
 						code,
-						dataviewResult.toString(),
+						dataviewResult.toString() ?? "",
 					);
 				}
 			} catch (e) {
@@ -226,7 +223,7 @@ function tryDVEvaluate(
 
 	try {
 		const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-			this: dvApi.page(file.getPath()),
+			this: dvApi.page(file.getPath()) ?? {},
 		});
 		result = dataviewResult?.toString() ?? "";
 	} catch (e) {

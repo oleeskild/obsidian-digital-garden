@@ -2,4 +2,4 @@
 dg-publish: true
 ---
 
-![[travolta.webp]]
+![[Chinese#解决]]

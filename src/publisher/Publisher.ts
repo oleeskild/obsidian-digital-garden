@@ -108,9 +108,11 @@ export default class Publisher {
 			githubToken: this.settings.githubToken,
 		});
 
-		return !!userGardenConnection.deleteFile(path, {
+		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
 		});
+
+		return !!deleted;
 	}
 
 	async publish(file: CompiledPublishFile): Promise<boolean> {
@@ -172,7 +174,7 @@ export default class Publisher {
 	}
 
 	async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `${IMAGE_PATH_BASE}${filePath}`;
+		const path = `src/site${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 

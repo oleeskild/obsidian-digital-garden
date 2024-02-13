@@ -399,7 +399,7 @@ export default class SettingView {
 				new Setting(themeModal.contentEl)
 					.setName("Apply current style settings to site")
 					.setDesc(
-						"Click the apply button to use the current style settings from the Style Settings Plugin on your site.",
+						"Click the apply button to use the current style settings from the Style Settings Plugin on your site. (The plugin looks at the currently APPLIED settings. Meaning you need to have the theme you are using in the garden selected in Obsidian before applying)",
 					)
 					.addButton((btn) => {
 						btn.setButtonText("Apply Style Settings");
@@ -546,7 +546,7 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Favicon")
 			.setDesc(
-				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default.",
+				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default. Must be square! (eg. 16x16)",
 			)
 			.addText((tc) => {
 				tc.setPlaceholder("myfavicon.svg");
@@ -557,6 +557,20 @@ export default class SettingView {
 					await this.saveSettings();
 				});
 				new SvgFileSuggest(this.app, tc.inputEl);
+			});
+
+		new Setting(themeModal.contentEl)
+			.setName("Use full resolution images")
+			.setDesc(
+				"By default, the images on your site are compressed to make your site load faster. If you instead want to use the full resolution images, enable this setting.",
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.settings.useFullResolutionImages);
+
+				toggle.onChange(async (val) => {
+					this.settings.useFullResolutionImages = val;
+					await this.saveSettings();
+				});
 			});
 
 		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
