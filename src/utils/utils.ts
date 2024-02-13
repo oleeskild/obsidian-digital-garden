@@ -28,7 +28,10 @@ function generateUrlPath(filePath: string, slugifyPath = true): string {
 	if (!filePath) {
 		return filePath;
 	}
-	const extensionLessPath = filePath.substring(0, filePath.lastIndexOf("."));
+
+	const extensionLessPath = filePath.contains(".")
+		? filePath.substring(0, filePath.lastIndexOf("."))
+		: filePath;
 
 	if (!slugifyPath) {
 		return extensionLessPath + "/";

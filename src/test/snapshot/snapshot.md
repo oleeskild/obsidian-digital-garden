@@ -222,7 +222,8 @@ This file should have createdAt: 2020-01-01
 {"dg-publish":true,"permalink":"/011-custom-updated-at/","updated":"2021-01-01"}
 ---
 
-This file should have createdAt: 2021-01-01
+This file should have updatedAt: 2021-01-01
+
 ==========
 012 Callouts.md
 ==========
@@ -324,6 +325,22 @@ this is just text i guess
 
 
 
+
+
+==========
+013 Custom path.md
+==========
+---
+{"dg-publish":true,"dg-path":"custom path/should also write to permalink","permalink":"/custom-path/should-also-write-to-permalink/"}
+---
+
+
+==========
+014 Customer path and permalink.md
+==========
+---
+{"dg-publish":true,"dg-path":"custom path/should not overwrite permalink","dg-permalink":"custom link/shouldBeDifferentToPath","permalink":"/custom link/shouldBeDifferentToPath/"}
+---
 
 
 ==========
@@ -698,7 +715,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-102
+106
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
@@ -713,7 +730,7 @@ P Plugins/PD Dataview/PD4 DataviewJs queries.md
 
 <h2><span>Header 2</span></h2><p><span>PD4 DataviewJs queries</span></p>
 
-<div><table class="dataview table-view-table"><thead class="table-view-thead"><tr class="table-view-tr-header"><th class="table-view-th"><span>name</span><span class="dataview small-text">4</span></th><th class="table-view-th"><span>link</span></th></tr></thead><tbody class="table-view-tbody"><tr><td><span>005 Custom filters</span></td><td><span><a data-tooltip-position="top" aria-label="005 Custom filters.md" data-href="005 Custom filters.md" href="005 Custom filters.md" class="internal-link" target="_blank" rel="noopener">005 Custom filters</a></span></td></tr><tr><td><span>006 Custom title</span></td><td><span><a data-tooltip-position="top" aria-label="006 Custom title.md" data-href="006 Custom title.md" href="006 Custom title.md" class="internal-link" target="_blank" rel="noopener">006 Custom title</a></span></td></tr><tr><td><span>007 Custom permalink</span></td><td><span><a data-tooltip-position="top" aria-label="007 Custom permalink.md" data-href="007 Custom permalink.md" href="007 Custom permalink.md" class="internal-link" target="_blank" rel="noopener">007 Custom permalink</a></span></td></tr><tr><td><span>011 Custom updatedAt</span></td><td><span><a data-tooltip-position="top" aria-label="011 Custom updatedAt.md" data-href="011 Custom updatedAt.md" href="011 Custom updatedAt.md" class="internal-link" target="_blank" rel="noopener">011 Custom updatedAt</a></span></td></tr></tbody></table></div>
+<div><table class="dataview table-view-table"><thead class="table-view-thead"><tr class="table-view-tr-header"><th class="table-view-th"><span>name</span><span class="dataview small-text">6</span></th><th class="table-view-th"><span>link</span></th></tr></thead><tbody class="table-view-tbody"><tr><td><span>006 Custom title</span></td><td><span><a data-tooltip-position="top" aria-label="006 Custom title.md" data-href="006 Custom title.md" href="006 Custom title.md" class="internal-link" target="_blank" rel="noopener">006 Custom title</a></span></td></tr><tr><td><span>005 Custom filters</span></td><td><span><a data-tooltip-position="top" aria-label="005 Custom filters.md" data-href="005 Custom filters.md" href="005 Custom filters.md" class="internal-link" target="_blank" rel="noopener">005 Custom filters</a></span></td></tr><tr><td><span>007 Custom permalink</span></td><td><span><a data-tooltip-position="top" aria-label="007 Custom permalink.md" data-href="007 Custom permalink.md" href="007 Custom permalink.md" class="internal-link" target="_blank" rel="noopener">007 Custom permalink</a></span></td></tr><tr><td><span>011 Custom updatedAt</span></td><td><span><a data-tooltip-position="top" aria-label="011 Custom updatedAt.md" data-href="011 Custom updatedAt.md" href="011 Custom updatedAt.md" class="internal-link" target="_blank" rel="noopener">011 Custom updatedAt</a></span></td></tr><tr><td><span>013 Custom path</span></td><td><span><a data-tooltip-position="top" aria-label="013 Custom path.md" data-href="013 Custom path.md" href="013 Custom path.md" class="internal-link" target="_blank" rel="noopener">013 Custom path</a></span></td></tr><tr><td><span>014 Customer path and permalink</span></td><td><span><a data-tooltip-position="top" aria-label="014 Customer path and permalink.md" data-href="014 Customer path and permalink.md" href="014 Customer path and permalink.md" class="internal-link" target="_blank" rel="noopener">014 Customer path and permalink</a></span></td></tr></tbody></table></div>
 
 
 /img/user/A Assets/travolta.png
