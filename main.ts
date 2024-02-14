@@ -49,16 +49,16 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	contentClassesKey: "content-classes",
 
 	defaultNoteSettings: {
-		dgHomeLink: true,
-		dgPassFrontmatter: false,
-		dgShowBacklinks: false,
-		dgShowLocalGraph: false,
-		dgShowInlineTitle: false,
-		dgShowFileTree: false,
-		dgEnableSearch: false,
-		dgShowToc: false,
-		dgLinkPreview: false,
-		dgShowTags: false,
+	HomeLink: true,
+	PassFrontmatter: false,
+	ShowBacklinks: false,
+	ShowLocalGraph: false,
+	ShowInlineTitle: false,
+	ShowFileTree: false,
+	EnableSearch: false,
+	ShowToc: false,
+	LinkPreview: false,
+	ShowTags: false,
 	},
 	logLevel: undefined,
 };
@@ -67,7 +67,7 @@ Logger.useDefaults({
 	defaultLevel: Logger.WARN,
 	formatter: function (messages, _context) {
 		messages.unshift(new Date().toUTCString());
-		messages.unshift("DG: ");
+		messages.unshift("QS: ");
 	},
 });
 export default class QuartzSyncer extends Plugin {

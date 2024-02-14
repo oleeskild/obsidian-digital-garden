@@ -171,10 +171,10 @@ export default class SettingView {
 				"Determines whether to show a link back to the homepage or not.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgHomeLink);
+				t.setValue(this.settings.defaultNoteSettingsHomeLink);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgHomeLink = val;
+					this.settings.defaultNoteSettingsHomeLink = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -190,10 +190,10 @@ export default class SettingView {
 				"When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph);
+				t.setValue(this.settings.defaultNoteSettingsShowLocalGraph);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
+					this.settings.defaultNoteSettingsShowLocalGraph = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -209,10 +209,10 @@ export default class SettingView {
 				"When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks);
+				t.setValue(this.settings.defaultNoteSettingsShowBacklinks);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowBacklinks = val;
+					this.settings.defaultNoteSettingsShowBacklinks = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -228,10 +228,10 @@ export default class SettingView {
 				"When turned on, notes will show all headers as a table of content in a sidebar on desktop. It will not be shown on mobile devices.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowToc);
+				t.setValue(this.settings.defaultNoteSettingsShowToc);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowToc = val;
+					this.settings.defaultNoteSettingsShowToc = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -247,10 +247,10 @@ export default class SettingView {
 				"When turned on, the title of the note will show on top of the page.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle);
+				t.setValue(this.settings.defaultNoteSettingsShowInlineTitle);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
+					this.settings.defaultNoteSettingsShowInlineTitle = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -264,10 +264,10 @@ export default class SettingView {
 			.setName("Show filetree sidebar (show-file-tree)")
 			.setDesc("When turned on, a filetree will be shown on your site.")
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowFileTree);
+				t.setValue(this.settings.defaultNoteSettingsShowFileTree);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowFileTree = val;
+					this.settings.defaultNoteSettingsShowFileTree = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -283,10 +283,10 @@ export default class SettingView {
 				"When turned on, users will be able to search through the content of your site.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgEnableSearch);
+				t.setValue(this.settings.defaultNoteSettingsEnableSearch);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgEnableSearch = val;
+					this.settings.defaultNoteSettingsEnableSearch = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -302,10 +302,10 @@ export default class SettingView {
 				"When turned on, hovering over links to notes in your garden shows a scrollable preview.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgLinkPreview);
+				t.setValue(this.settings.defaultNoteSettingsLinkPreview);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgLinkPreview = val;
+					this.settings.defaultNoteSettingsLinkPreview = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -321,10 +321,10 @@ export default class SettingView {
 				"When turned on, tags in your frontmatter will be displayed on each note. If search is enabled, clicking on a tag will bring up a search for all notes containing that tag.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgShowTags);
+				t.setValue(this.settings.defaultNoteSettingsShowTags);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowTags = val;
+					this.settings.defaultNoteSettingsShowTags = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -340,10 +340,10 @@ export default class SettingView {
 				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
 			)
 			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter);
+				t.setValue(this.settings.defaultNoteSettingsPassFrontmatter);
 
 				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
+					this.settings.defaultNoteSettingsPassFrontmatter = val;
 
 					this.saveSiteSettingsAndUpdateEnv(
 						this.app.metadataCache,
@@ -759,11 +759,11 @@ export default class SettingView {
 			return;
 		}
 
-		const gardenManager = new QuartzSyncerSiteManager(
+		const quartzManager = new QuartzSyncerSiteManager(
 			this.app.metadataCache,
 			this.settings,
 		);
-		await gardenManager.updateEnv();
+		await quartzManager.updateEnv();
 
 		new Notice("Successfully applied settings");
 	}
@@ -777,11 +777,11 @@ export default class SettingView {
 		let updateFailed = false;
 
 		try {
-			const gardenManager = new QuartzSyncerSiteManager(
+			const quartzManager = new QuartzSyncerSiteManager(
 				metadataCache,
 				settings,
 			);
-			await gardenManager.updateEnv();
+			await quartzManager.updateEnv();
 		} catch {
 			new Notice(
 				"Failed to update settings. Make sure you have an internet connection.",

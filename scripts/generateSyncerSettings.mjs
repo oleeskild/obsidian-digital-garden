@@ -4,7 +4,7 @@ dotevnt.config();
 import copyfiles from "copyfiles";
 import Logger from "js-logger";
 
-const gardenSettings = {
+const quartzSettings = {
 	githubRepo:
 		process.env.GITHUB_REPO || "add your repo to .env as GITHUB_REPO",
 	githubToken:
@@ -49,16 +49,16 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	],
 	contentClassesKey: "content-classes",
 	defaultNoteSettings: {
-		dgHomeLink: true,
-		dgPassFrontmatter: false,
-		dgShowBacklinks: true,
-		dgShowLocalGraph: true,
-		dgShowInlineTitle: false,
-		dgShowFileTree: true,
-		dgEnableSearch: false,
-		dgShowToc: false,
-		dgLinkPreview: false,
-		dgShowTags: false,
+	HomeLink: true,
+	PassFrontmatter: false,
+	ShowBacklinks: true,
+	ShowLocalGraph: true,
+	ShowInlineTitle: false,
+	ShowFileTree: true,
+	EnableSearch: false,
+	ShowToc: false,
+	LinkPreview: false,
+	ShowTags: false,
 	},
 	ENABLE_DEVELOPER_TOOLS: true,
 	devPluginPath: `${process.cwd()}`,
@@ -72,7 +72,7 @@ console.log("Creating test vault data.json");
 // write garden settings to test vault
 fs.writeFile(
 	`${TEST_VAULT_PATH}/data.json`,
-	JSON.stringify(gardenSettings, null, 2),
+	JSON.stringify(quartzSettings, null, 2),
 	function (err) {
 		if (err) {
 			console.log(err);

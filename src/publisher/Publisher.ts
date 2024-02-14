@@ -103,7 +103,7 @@ export default class Publisher {
 		this.validateSettings();
 
 		const userSyncerConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
+			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
 		});
@@ -142,7 +142,7 @@ export default class Publisher {
 		let message = `Update content ${path}`;
 
 		const userSyncerConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
+			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
 		});

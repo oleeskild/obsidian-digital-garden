@@ -10,25 +10,25 @@ describe("utils", () => {
 	describe("getSyncerPathForNote", () => {
 		const TESTS: Array<{
 			name: string;
-			input: { gardenPath: string; rules: PathRewriteRules };
+			input: { quartzPath: string; rules: PathRewriteRules };
 			expected: string;
 		}> = [
 			{
 				name: "replaces a path according to rules",
 				input: {
-					gardenPath: "defaultSyncerPath/content/note.md",
-					rules: [{ from: "defaultSyncerPath", to: "gardenPath" }],
+					quartzPath: "defaultSyncerPath/content/note.md",
+					rules: [{ from: "defaultSyncerPath", to: "quartzPath" }],
 				},
-				expected: "gardenPath/content/note.md",
+				expected: "quartzPath/content/note.md",
 			},
 			{
 				name: "replaces a path according to the first rule found",
 				input: {
-					gardenPath: "defaultSyncerPath/content/note.md",
+					quartzPath: "defaultSyncerPath/content/note.md",
 					rules: [
 						{
 							from: "defaultSyncerPath",
-							to: "gardenPath",
+							to: "quartzPath",
 						},
 						{
 							from: "defaultSyncerPath/content",
@@ -36,7 +36,7 @@ describe("utils", () => {
 						},
 					],
 				},
-				expected: "gardenPath/content/note.md",
+				expected: "quartzPath/content/note.md",
 			},
 		];
 
@@ -44,7 +44,7 @@ describe("utils", () => {
 			it(test.name, () => {
 				assert.strictEqual(
 					getSyncerPathForNote(
-						test.input.gardenPath,
+						test.input.quartzPath,
 						test.input.rules,
 					),
 					test.expected,
@@ -56,9 +56,9 @@ describe("utils", () => {
 			const rewriteRules: PathRewriteRules = [
 				{ from: "defaultSyncerPath", to: "" },
 			];
-			const gardenPath = "defaultSyncerPath/content/note.md";
+			const quartzPath = "defaultSyncerPath/content/note.md";
 
-			const result = getSyncerPathForNote(gardenPath, rewriteRules);
+			const result = getSyncerPathForNote(quartzPath, rewriteRules);
 
 			expect(result).toBe("content/note.md");
 		});
@@ -77,16 +77,16 @@ describe("utils", () => {
 			},
 			{
 				name: "parses a single rewrite rule",
-				input: "defaultSyncerPath:gardenPath",
-				expected: [{ from: "defaultSyncerPath", to: "gardenPath" }],
+				input: "defaultSyncerPath:quartzPath",
+				expected: [{ from: "defaultSyncerPath", to: "quartzPath" }],
 			},
 			{
 				name: "parses multiple rewrite rules",
-				input: "defaultSyncerPath:gardenPath\ndefaultSyncerPath/content:gargamel",
+				input: "defaultSyncerPath:quartzPath\ndefaultSyncerPath/content:gargamel",
 				expected: [
 					{
 						from: "defaultSyncerPath",
-						to: "gardenPath",
+						to: "quartzPath",
 					},
 					{
 						from: "defaultSyncerPath/content",
@@ -96,8 +96,8 @@ describe("utils", () => {
 			},
 			{
 				name: "skips lines without a colon",
-				input: "defaultSyncerPath:gardenPath\nnoColon",
-				expected: [{ from: "defaultSyncerPath", to: "gardenPath" }],
+				input: "defaultSyncerPath:quartzPath\nnoColon",
+				expected: [{ from: "defaultSyncerPath", to: "quartzPath" }],
 			},
 		];
 

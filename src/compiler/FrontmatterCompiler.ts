@@ -80,7 +80,7 @@ export class FrontmatterCompiler {
 		publishedFrontMatter =
 			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
 
-		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
+		const fullFrontMatter = publishedFrontMatter?.PassFrontmatter
 			? { ...fileFrontMatter, ...publishedFrontMatter }
 			: publishedFrontMatter;
 
@@ -96,13 +96,13 @@ export class FrontmatterCompiler {
 	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 
-		const gardenPath =
+		const quartzPath =
 			baseFrontMatter && baseFrontMatter["path"]
 				? baseFrontMatter["path"]
 				: getSyncerPathForNote(filePath, this.rewriteRules);
 
-		if (gardenPath != filePath) {
-			publishedFrontMatter["path"] = gardenPath;
+		if (quartzPath != filePath) {
+			publishedFrontMatter["path"] = quartzPath;
 		}
 
 		if (baseFrontMatter && baseFrontMatter["permalink"]) {
@@ -114,7 +114,7 @@ export class FrontmatterCompiler {
 			);
 		} else {
 			publishedFrontMatter["permalink"] =
-				"/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
+				"/" + generateUrlPath(quartzPath, this.settings.slugifyEnabled);
 		}
 
 		return publishedFrontMatter;
@@ -273,11 +273,11 @@ export class FrontmatterCompiler {
 			}
 		}
 
-		const dgPassFrontmatter =
-			this.settings.defaultNoteSettings.dgPassFrontmatter;
+		const PassFrontmatter =
+			this.settings.defaultNoteSettings.PassFrontmatter;
 
-		if (dgPassFrontmatter) {
-			publishedFrontMatter.dgPassFrontmatter = dgPassFrontmatter;
+		if (PassFrontmatter) {
+			publishedFrontMatter.PassFrontmatter = PassFrontmatter;
 		}
 
 		return publishedFrontMatter;
