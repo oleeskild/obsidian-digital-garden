@@ -1,6 +1,6 @@
-# 🏡 Obsidian Quartz Syncer
+# Obsidian Quartz Syncer
 
-Publish your notes to the web, for free. In your own personal garden.
+Upload and sync your Obsidian notes to your [Quartz](https://github.com/jackyzha0/quartz) website.
 
 ## Features
 
