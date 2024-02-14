@@ -2,12 +2,6 @@
 
 Publish your notes to the web, for free. In your own personal garden.
 
-## Docs
-
-Documentation and examples can be found at [docs.ole.dev](https://docs.ole.dev/).
-
-![quartz-syncer-Demo](https://raw.githubusercontent.com/oleeskild/quartz-syncer/main/img/demo.gif)
-
 ## Features
 
 -   Basic Markdown Syntax
@@ -73,8 +67,6 @@ publish: true
 Congratulations, you now have your own digital garden, hosted free of charge!
 You can now start adding links as you usually would in Obisidan, with double square brackets like this: [[Some Other Note]], to the note that you just published. You can also link to a specific header by using the syntax [[Some Other Note#A Header]]. Remember to also publish the notes your are linking to as this will not happen automatically. This is by design. You are always in control of what notes you actually want to publish. If you did not publish a linked note, the link will simply lead to a site telling the user that this note does not exist.
 
-![new-note-demo](https://raw.githubusercontent.com/oleeskild/quartz-syncer/main/img/new-note-demo.gif)
-
 ## Modifying the template/site
 
 The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
@@ -124,10 +116,6 @@ Be a part of the Quartz Syncer Community by joining our [Discord Server](https:/
 
 Huge thanks to all the contributors who helped in making this
 
-<a href="https://github.com/oleeskild/quartz-syncer/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=oleeskild/quartz-syncer" />
-</a>
-
 ---
 
 ## Support
@@ -136,5 +124,4 @@ This plugin is developed in my free time. If you've found it useful, it would ma
 
 Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future.
 
-[<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
 
