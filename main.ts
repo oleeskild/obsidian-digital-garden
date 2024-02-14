@@ -16,7 +16,6 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
-	quartzBaseUrl: "",
 	prHistory: [],
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
@@ -98,36 +97,6 @@ export default class QuartzSyncer extends Plugin {
 	}
 
 	async addCommands() {
-		this.addCommand({
-			id: "quick-publish-and-share-note",
-			name: "Quick Publish And Share Note",
-			callback: async () => {
-				new Notice("Adding publish flag to note and publishing it.");
-				await this.setPublishFlagValue(true);
-				const activeFile = this.app.workspace.getActiveFile();
-
-				const event = this.app.metadataCache.on(
-					"changed",
-					async (file, _data, _cache) => {
-						if (file.path === activeFile?.path) {
-							const successfullyPublished =
-								await this.publishSingleNote();
-
-							if (successfullyPublished) {
-								await this.copySyncerUrlToClipboard();
-							}
-							this.app.metadataCache.offref(event);
-						}
-					},
-				);
-
-				// Remove the event listener after 5 seconds in case the file is not changed.
-				setTimeout(() => {
-					this.app.metadataCache.offref(event);
-				}, 5000);
-			},
-		});
-
 		this.addCommand({
 			id: "publish-note",
 			name: "Publish Single Note",
@@ -311,14 +280,6 @@ export default class QuartzSyncer extends Plugin {
 		});
 
 		this.addCommand({
-			id: "copy-garden-url",
-			name: "Copy Syncer URL",
-			callback: async () => {
-				this.copySyncerUrlToClipboard();
-			},
-		});
-
-		this.addCommand({
 			id: "open-publish-modal",
 			name: "Open Publication Center",
 			callback: async () => {
@@ -363,33 +324,6 @@ export default class QuartzSyncer extends Plugin {
 		}
 
 		return activeFile;
-	}
-
-	async copySyncerUrlToClipboard() {
-		try {
-			const { metadataCache, workspace } = this.app;
-
-			const activeFile = this.getActiveFile(workspace);
-
-			if (!activeFile) {
-				return;
-			}
-
-			const siteManager = new QuartzSyncerSiteManager(
-				metadataCache,
-				this.settings,
-			);
-			const fullUrl = siteManager.getNoteUrl(activeFile);
-
-			await navigator.clipboard.writeText(fullUrl);
-			new Notice(`Note URL copied to clipboard`);
-		} catch (e) {
-			console.log(e);
-
-			new Notice(
-				"Unable to copy note URL to clipboard, something went wrong.",
-			);
-		}
 	}
 
 	// TODO: move to publisher?
