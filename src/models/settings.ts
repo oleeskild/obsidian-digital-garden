@@ -5,7 +5,7 @@ export default interface QuartzSyncerSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
-	gardenBaseUrl: string;
+	quartzBaseUrl: string;
 	prHistory: string[];
 
 	theme: string;

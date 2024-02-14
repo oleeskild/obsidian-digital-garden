@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
-	gardenBaseUrl: "",
+	quartzBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
 	theme: '{"name": "default", "modes": ["dark"]}',

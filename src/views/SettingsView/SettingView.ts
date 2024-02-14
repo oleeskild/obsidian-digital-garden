@@ -874,9 +874,9 @@ export default class SettingView {
 			.addText((text) =>
 				text
 					.setPlaceholder("https://my-garden.vercel.app")
-					.setValue(this.settings.gardenBaseUrl)
+					.setValue(this.settings.quartzBaseUrl)
 					.onChange(async (value) => {
-						this.settings.gardenBaseUrl = value;
+						this.settings.quartzBaseUrl = value;
 
 						this.debouncedSaveAndUpdate(
 							this.app.metadataCache,

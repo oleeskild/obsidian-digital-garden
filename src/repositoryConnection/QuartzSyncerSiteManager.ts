@@ -71,22 +71,22 @@ export default class QuartzSyncerSiteManager {
 		const baseTheme = this.settings.baseTheme;
 		const siteName = this.settings.siteName;
 		const mainLanguage = this.settings.mainLanguage;
-		let gardenBaseUrl = "";
+		let quartzBaseUrl = "";
 
-		// check that gardenbaseurl is not an access token wrongly pasted.
+		// check that quartzbaseurl is not an access token wrongly pasted.
 		if (
-			this.settings.gardenBaseUrl &&
-			!this.settings.gardenBaseUrl.startsWith("ghp_") &&
-			!this.settings.gardenBaseUrl.startsWith("github_pat") &&
-			this.settings.gardenBaseUrl.contains(".")
+			this.settings.quartzBaseUrl &&
+			!this.settings.quartzBaseUrl.startsWith("ghp_") &&
+			!this.settings.quartzBaseUrl.startsWith("github_pat") &&
+			this.settings.quartzBaseUrl.contains(".")
 		) {
-			gardenBaseUrl = this.settings.gardenBaseUrl;
+			quartzBaseUrl = this.settings.quartzBaseUrl;
 		}
 
 		const envValues = {
 			SITE_NAME_HEADER: siteName,
 			SITE_MAIN_LANGUAGE: mainLanguage,
-			SITE_BASE_URL: gardenBaseUrl,
+			SITE_BASE_URL: quartzBaseUrl,
 			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
 			TIMESTAMP_FORMAT: this.settings.timestampFormat,
 			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
@@ -137,7 +137,7 @@ export default class QuartzSyncerSiteManager {
 	}
 
 	getNoteUrl(file: TFile): string {
-		if (!this.settings.gardenBaseUrl) {
+		if (!this.settings.quartzBaseUrl) {
 			new Notice("Please set the garden base url in the settings");
 
 			// caught in copyUrlToClipboard
@@ -145,7 +145,7 @@ export default class QuartzSyncerSiteManager {
 		}
 
 		const baseUrl = `https://${extractBaseUrl(
-			this.settings.gardenBaseUrl,
+			this.settings.quartzBaseUrl,
 		)}`;
 
 		const noteUrlPath = generateUrlPath(
