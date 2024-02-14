@@ -1,5 +1,3 @@
-import { Octokit } from "@octokit/core";
-import axios from "axios";
 import {
 	App,
 	ButtonComponent,
@@ -9,14 +7,11 @@ import {
 	Modal,
 	Notice,
 	Setting,
-	TFile,
 } from "obsidian";
 import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
 
 import QuartzSyncerSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
-import { arrayBufferToBase64 } from "../../utils/utils";
-import { SvgFileSuggest } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
@@ -25,20 +20,6 @@ import {
 	TemplateUpdater,
 } from "../../repositoryConnection/TemplateManager";
 import Logger from "js-logger";
-
-interface IObsidianTheme {
-	name: string;
-	author: string;
-	screenshot: string;
-	modes: string[];
-	repo: string;
-	legacy: boolean;
-	// @deprecated
-	branch?: string;
-}
-
-const OBSIDIAN_THEME_URL =
-	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
 
 export default class SettingView {
 	private app: App;
@@ -109,7 +90,6 @@ export default class SettingView {
 		this.settingsRootElement
 			.createEl("h3", { text: "Appearance" })
 			.prepend(this.getIcon("brush"));
-		this.initializeThemesSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
@@ -202,129 +182,6 @@ export default class SettingView {
 					);
 				});
 			});
-	}
-
-	private async initializeThemesSettings() {
-		const themeModal = new Modal(this.app);
-		themeModal.containerEl.addClass("settings");
-		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
-
-		const handleSaveSettingsButton = (cb: ButtonComponent) => {
-			cb.setButtonText("Apply settings to site");
-			cb.setClass("mod-cta");
-
-			cb.onClick(async (_ev) => {
-				const octokit = new Octokit({
-					auth: this.settings.githubToken,
-				});
-				new Notice("Applying settings to site...");
-				await this.saveSettingsAndUpdateEnv();
-			});
-		};
-
-		new Setting(this.settingsRootElement)
-			.setName("Appearance")
-			.setDesc("Manage themes, sitename and styling on your site")
-			.addButton((cb) => {
-				cb.setButtonText("Manage appearance");
-
-				cb.onClick(async () => {
-					themeModal.open();
-				});
-			});
-
-		//this.app.plugins is not defined, so we need to use a try catch in case the internal api is changed
-		try {
-			if (
-				// @ts-expect-error https://gist.github.com/aidenlx/6067c943fbec8ead230f2b163bfd3bc8 for typing example
-				this.app.plugins &&
-				// @ts-expect-error see above
-				this.app.plugins.plugins["obsidian-style-settings"]._loaded
-			) {
-				themeModal.contentEl
-					.createEl("h2", { text: "Style Settings Plugin" })
-					.prepend(this.getIcon("paintbrush"));
-
-				new Setting(themeModal.contentEl)
-					.setName("Apply current style settings to site")
-					.setDesc(
-						"Click the apply button to use the current style settings from the Style Settings Plugin on your site. (The plugin looks at the currently APPLIED settings. Meaning you need to have the theme you are using in the garden selected in Obsidian before applying)",
-					)
-					.addButton((btn) => {
-						btn.setButtonText("Apply Style Settings");
-						btn.setClass("mod-cta");
-
-						btn.onClick(async (_ev) => {
-							new Notice("Applying Style Settings...");
-
-							const styleSettingsNode = document.querySelector(
-								"#css-settings-manager",
-							);
-
-							const bodyClasses =
-								document.querySelector("body")?.className;
-
-							if (!styleSettingsNode && !bodyClasses) {
-								new Notice("No Style Settings found");
-
-								return;
-							}
-
-							if (styleSettingsNode?.innerHTML) {
-								this.settings.styleSettingsCss =
-									styleSettingsNode?.innerHTML;
-							}
-
-							if (bodyClasses) {
-								this.settings.styleSettingsBodyClasses = `${bodyClasses}`;
-							}
-
-							if (
-								!this.settings.styleSettingsCss &&
-								!this.settings.styleSettingsBodyClasses
-							) {
-								new Notice("No Style Settings found");
-
-								return;
-							}
-
-							await this.saveSiteSettingsAndUpdateEnv(
-								this.app.metadataCache,
-								this.settings,
-								this.saveSettings,
-							);
-							new Notice("Style Settings applied to site");
-						});
-					})
-					.addButton((btn) => {
-						btn.setButtonText("Clear");
-
-						btn.onClick(async (_ev) => {
-							this.settings.styleSettingsCss = "";
-							this.settings.styleSettingsBodyClasses = "";
-
-							await this.saveSiteSettingsAndUpdateEnv(
-								this.app.metadataCache,
-								this.settings,
-								this.saveSettings,
-							);
-							new Notice("Style Settings removed from site");
-						});
-					});
-			}
-		} catch {
-			console.error("Error loading style settings plugin");
-		}
-	}
-
-	private async saveSettingsAndUpdateEnv() {
-		const quartzManager = new QuartzSyncerSiteManager(
-			this.app.metadataCache,
-			this.settings,
-		);
-		await quartzManager.updateEnv();
-
-		new Notice("Successfully applied settings");
 	}
 
 	private async saveSiteSettingsAndUpdateEnv(
