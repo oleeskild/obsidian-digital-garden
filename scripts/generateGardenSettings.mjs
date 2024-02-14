@@ -19,10 +19,10 @@ const gardenSettings = {
 	faviconPath: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: true,
-	siteName: "Digital Garden",
+	siteName: "Quartz Syncer Test Site",
 	mainLanguage: "en",
 	slugifyEnabled: true,
-	noteIconKey: "dg-note-icon",
+	noteIconKey: "note-icon",
 	defaultNoteIcon: "",
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
@@ -47,7 +47,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 			replace: "🌞",
 		},
 	],
-	contentClassesKey: "dg-content-classes",
+	contentClassesKey: "content-classes",
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
@@ -66,7 +66,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 };
 
 const TEST_VAULT_PATH =
-	"content/.obsidian/plugins/obsidian-digital-garden/";
+	"content/.obsidian/plugins/quartz-syncer/";
 
 console.log("Creating test vault data.json");
 // write garden settings to test vault

@@ -451,7 +451,7 @@ export class GardenPageCompiler {
 						if (publishedFilesContainsLinkedFile) {
 							const permalink =
 								metadata?.frontmatter &&
-								metadata.frontmatter["dg-permalink"];
+								metadata.frontmatter["permalink"];
 
 							const gardenPath = permalink
 								? sanitizePermalink(permalink)

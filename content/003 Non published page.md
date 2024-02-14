@@ -1,4 +1,4 @@
 ---
-dg-publish: false
+publish: false
 ---
 This page should not be published! 

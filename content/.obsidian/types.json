@@ -3,9 +3,9 @@
     "aliases": "aliases",
     "cssclasses": "multitext",
     "tags": "tags",
-    "dg-publish": "checkbox",
-    "dg-home": "checkbox",
-    "dg-pinned": "checkbox",
+    "publish": "checkbox",
+    "home": "checkbox",
+    "pinned": "checkbox",
     "customCreated": "text"
   }
 }

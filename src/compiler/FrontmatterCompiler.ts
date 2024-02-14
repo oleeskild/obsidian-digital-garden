@@ -11,13 +11,13 @@ import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManag
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
-	"dg-path"?: string;
-	"dg-permalink"?: string;
-	"dg-home"?: boolean;
-	"dg-hide-in-graph"?: boolean;
-	"dg-hide"?: boolean;
-	"dg-pinned"?: boolean;
-	"dg-metatags"?: string;
+	"path"?: string;
+	"permalink"?: string;
+	"home"?: boolean;
+	"hide-in-graph"?: boolean;
+	"hide"?: boolean;
+	"pinned"?: boolean;
+	"metatags"?: string;
 	tags?: string;
 };
 
@@ -43,7 +43,7 @@ export class FrontmatterCompiler {
 		delete fileFrontMatter["position"];
 
 		let publishedFrontMatter: TPublishedFrontMatter = {
-			"dg-publish": true,
+			"publish": true,
 		};
 
 		publishedFrontMatter = this.addPermalink(
@@ -97,20 +97,20 @@ export class FrontmatterCompiler {
 		const publishedFrontMatter = { ...newFrontMatter };
 
 		const gardenPath =
-			baseFrontMatter && baseFrontMatter["dg-path"]
-				? baseFrontMatter["dg-path"]
+			baseFrontMatter && baseFrontMatter["path"]
+				? baseFrontMatter["path"]
 				: getGardenPathForNote(filePath, this.rewriteRules);
 
 		if (gardenPath != filePath) {
-			publishedFrontMatter["dg-path"] = gardenPath;
+			publishedFrontMatter["path"] = gardenPath;
 		}
 
-		if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
-			publishedFrontMatter["dg-permalink"] =
-				baseFrontMatter["dg-permalink"];
+		if (baseFrontMatter && baseFrontMatter["permalink"]) {
+			publishedFrontMatter["permalink"] =
+				baseFrontMatter["permalink"];
 
 			publishedFrontMatter["permalink"] = sanitizePermalink(
-				baseFrontMatter["dg-permalink"],
+				baseFrontMatter["permalink"],
 			);
 		} else {
 			publishedFrontMatter["permalink"] =
@@ -132,22 +132,22 @@ export class FrontmatterCompiler {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
 
-			if (baseFrontMatter["dg-metatags"]) {
+			if (baseFrontMatter["metatags"]) {
 				publishedFrontMatter["metatags"] =
-					baseFrontMatter["dg-metatags"];
+					baseFrontMatter["metatags"];
 			}
 
-			if (baseFrontMatter["dg-hide"]) {
-				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
+			if (baseFrontMatter["hide"]) {
+				publishedFrontMatter["hide"] = baseFrontMatter["hide"];
 			}
 
-			if (baseFrontMatter["dg-hide-in-graph"]) {
+			if (baseFrontMatter["hide-in-graph"]) {
 				publishedFrontMatter["hideInGraph"] =
-					baseFrontMatter["dg-hide-in-graph"];
+					baseFrontMatter["hide-in-graph"];
 			}
 
-			if (baseFrontMatter["dg-pinned"]) {
-				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
+			if (baseFrontMatter["pinned"]) {
+				publishedFrontMatter["pinned"] = baseFrontMatter["pinned"];
 			}
 		}
 
@@ -166,7 +166,7 @@ export class FrontmatterCompiler {
 					? fileFrontMatter["tags"].split(/,\s*/)
 					: fileFrontMatter["tags"]) || [];
 
-			/*if (fileFrontMatter["dg-home"]) {
+			/*if (fileFrontMatter["home"]) {
 				tags.push("gardenEntry");
 			}*/
 

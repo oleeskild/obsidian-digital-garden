@@ -1,5 +1,5 @@
 ---
-dg-hide: true
-dg-publish: true
+hide: true
+publish: true
 ---
 This page is hidden from the folder tree!

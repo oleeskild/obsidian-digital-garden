@@ -1,7 +1,7 @@
 ---
-dg-publish: true
+publish: true
 ---
-#known-issue [Issue](https://github.com/oleeskild/obsidian-digital-garden/issues/113)
+#known-issue [Issue](https://github.com/oleeskild/quartz-syncer/issues/113)
 
 Transclusions inside code blocks should not show transcluded content, but the literal text inside. Currently it transcludes the content
 

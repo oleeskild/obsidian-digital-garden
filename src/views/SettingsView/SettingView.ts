@@ -60,7 +60,7 @@ export default class SettingView {
 	) {
 		this.app = app;
 		this.settingsRootElement = settingsRootElement;
-		this.settingsRootElement.classList.add("dg-settings");
+		this.settingsRootElement.classList.add("settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
 	}
@@ -86,7 +86,7 @@ export default class SettingView {
 
 		linkDiv.createEl("a", {
 			text: "here.",
-			href: "https://dg-docs.ole.dev/getting-started/01-getting-started/",
+			href: "https://docs.ole.dev/getting-started/01-getting-started/",
 		});
 
 		const githubSettings = this.settingsRootElement.createEl("div", {
@@ -145,12 +145,12 @@ export default class SettingView {
 
 		linkDiv.createEl("a", {
 			text: "here.",
-			href: "https://dg-docs.ole.dev/getting-started/03-note-settings/",
+			href: "https://docs.ole.dev/getting-started/03-note-settings/",
 		});
 
 		// noteSettingsModal.contentEl.createEl("div", { text: `Toggling these settings will update the global default setting for each note.
 		// If you want to enable or disable some of these on single notes, use their corresponding key.
-		// For example will adding 'dg-show-local-graph: false' to the frontmatter of a note, disable the local graph for that particular note. ` });
+		// For example will adding 'show-local-graph: false' to the frontmatter of a note, disable the local graph for that particular note. ` });
 
 		new Setting(this.settingsRootElement)
 			.setName("Global Note Settings")
@@ -166,7 +166,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show home link (dg-home-link)")
+			.setName("Show home link (home-link)")
 			.setDesc(
 				"Determines whether to show a link back to the homepage or not.",
 			)
@@ -185,7 +185,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show local graph for notes (dg-show-local-graph)")
+			.setName("Show local graph for notes (show-local-graph)")
 			.setDesc(
 				"When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
@@ -204,7 +204,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show backlinks for notes (dg-show-backlinks)")
+			.setName("Show backlinks for notes (show-backlinks)")
 			.setDesc(
 				"When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
@@ -223,7 +223,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show a table of content for notes (dg-show-toc)")
+			.setName("Show a table of content for notes (show-toc)")
 			.setDesc(
 				"When turned on, notes will show all headers as a table of content in a sidebar on desktop. It will not be shown on mobile devices.",
 			)
@@ -242,7 +242,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show inline title (dg-show-inline-title)")
+			.setName("Show inline title (show-inline-title)")
 			.setDesc(
 				"When turned on, the title of the note will show on top of the page.",
 			)
@@ -261,7 +261,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show filetree sidebar (dg-show-file-tree)")
+			.setName("Show filetree sidebar (show-file-tree)")
 			.setDesc("When turned on, a filetree will be shown on your site.")
 			.addToggle((t) => {
 				t.setValue(this.settings.defaultNoteSettings.dgShowFileTree);
@@ -278,7 +278,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable search (dg-enable-search)")
+			.setName("Enable search (enable-search)")
 			.setDesc(
 				"When turned on, users will be able to search through the content of your site.",
 			)
@@ -297,7 +297,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable link preview (dg-link-preview)")
+			.setName("Enable link preview (link-preview)")
 			.setDesc(
 				"When turned on, hovering over links to notes in your garden shows a scrollable preview.",
 			)
@@ -316,7 +316,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Show Tags (dg-show-tags)")
+			.setName("Show Tags (show-tags)")
 			.setDesc(
 				"When turned on, tags in your frontmatter will be displayed on each note. If search is enabled, clicking on a tag will bring up a search for all notes containing that tag.",
 			)
@@ -335,7 +335,7 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
-			.setName("Let all frontmatter through (dg-pass-frontmatter)")
+			.setName("Let all frontmatter through (pass-frontmatter)")
 			.setDesc(
 				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
 			)
@@ -356,7 +356,7 @@ export default class SettingView {
 
 	private async initializeThemesSettings() {
 		const themeModal = new Modal(this.app);
-		themeModal.containerEl.addClass("dg-settings");
+		themeModal.containerEl.addClass("settings");
 		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
 
 		const handleSaveSettingsButton = (cb: ButtonComponent) => {
@@ -673,7 +673,7 @@ export default class SettingView {
 			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
 			.createEl("a", {
 				text: "Documentation on note icons",
-				href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons",
+				href: "https://docs.ole.dev/advanced/note-specific-settings/#note-icons",
 			});
 
 		new Setting(themeModal.contentEl)

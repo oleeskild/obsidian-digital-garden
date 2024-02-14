@@ -10,7 +10,7 @@ coverage
 content/*
 
 *.yml
-src/dg-testVault/*
+src/testVault/*
 
 package-lock.json
 package.json

@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 
 ![[T2 First transclusion]]

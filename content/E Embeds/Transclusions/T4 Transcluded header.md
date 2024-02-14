@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 
 Below should be a header and one line of text: 

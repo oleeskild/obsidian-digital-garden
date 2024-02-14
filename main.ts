@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	mainLanguage: "en",
 	slugifyEnabled: true,
 	// Note Icon Related Settings
-	noteIconKey: "dg-note-icon",
+	noteIconKey: "note-icon",
 	defaultNoteIcon: "",
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
@@ -46,7 +46,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	pathRewriteRules: "",
 	customFilters: [],
 
-	contentClassesKey: "dg-content-classes",
+	contentClassesKey: "content-classes",
 
 	defaultNoteSettings: {
 		dgHomeLink: true,
@@ -338,7 +338,7 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: "dg-open-publish-modal",
+			id: "open-publish-modal",
 			name: "Open Publication Center",
 			callback: async () => {
 				this.openPublishModal();
@@ -346,7 +346,7 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: "dg-mark-note-for-publish",
+			id: "mark-note-for-publish",
 			name: "Add publish flag",
 			callback: async () => {
 				this.setPublishFlagValue(true);
@@ -354,7 +354,7 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: "dg-unmark-note-for-publish",
+			id: "unmark-note-for-publish",
 			name: "Remove publish flag",
 			callback: async () => {
 				this.setPublishFlagValue(false);
@@ -362,7 +362,7 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
-			id: "dg-mark-toggle-publish-status",
+			id: "mark-toggle-publish-status",
 			name: "Toggle publication status",
 			callback: async () => {
 				this.togglePublishFlag();

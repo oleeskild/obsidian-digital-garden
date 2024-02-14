@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 With the rewrite rules: 
 

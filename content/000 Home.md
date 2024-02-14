@@ -1,12 +1,12 @@
 ---
-dg-home: true
-dg-publish: true
+home: true
+publish: true
 ---
 ## Welcome
 
 Welcome to the digital garden testing vault! 
 
-This vault is part of the `obsidian-digital-garden` repository, and meant to act as a staging area for 
+This vault is part of the `quartz-syncer` repository, and meant to act as a staging area for 
 
 1. providing a maintainable testing ground for the digital garden features
 2. documenting features in action 

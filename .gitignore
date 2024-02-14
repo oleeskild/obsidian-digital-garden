@@ -17,8 +17,8 @@ node_modules
 
 # obsidian
 data.json
-!src/dg-testVault/.obsidian/plugins/obsidian-excalidraw-plugin/data.json
-!src/dg-testVault/.obsidian/plugins/dataview/data.json
+!src/testVault/.obsidian/plugins/obsidian-excalidraw-plugin/data.json
+!src/testVault/.obsidian/plugins/dataview/data.json
 deploy.ps1
 deploy.sh
 
@@ -27,4 +27,4 @@ deploy.sh
 yarn.lock
 
 .env
-src/dg-testVault/.obsidian/workspace.json
+src/testVault/.obsidian/workspace.json

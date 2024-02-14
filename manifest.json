@@ -5,7 +5,7 @@
 	"minAppVersion": "0.12.0",
 	"description": "Convert dataview to markdown for Quartz",
 	"author": "Emile Bangma, Ole Eskild Steensen",
-	"authorUrl": "https://dg-docs.ole.dev/",
+	"authorUrl": "https://docs.ole.dev/",
 	"isDesktopOnly": false,
 	"fundingUrl": "https://ko-fi.com/oleeskild"
 }

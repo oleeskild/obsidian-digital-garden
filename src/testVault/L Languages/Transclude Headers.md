@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 
 ![[Chinese#解决]]
