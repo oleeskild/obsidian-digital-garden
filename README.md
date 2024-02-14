@@ -16,7 +16,7 @@ Don't have an authentication token yet? You can generate it <a href="https://git
 
 You can click on the icon in the sidebar or launch the `Quartz Syncer: Open Publication Center` to publish/unpublish notes.
 
-> [!IMPORTANT] On Publishing:
+> [!IMPORTANT]
 > Notes need a `publish` flag in the notes <a href="https://help.obsidian.md/Editing+and+formatting/Properties">frontmatter</a>. You can add these with the `Quartz Syncer: Add Publish Flag` command, or by adding them to the notes properties manually or via template.
 
 The following frontmatter in a note will cause it to be published when opening the Publication Center:
