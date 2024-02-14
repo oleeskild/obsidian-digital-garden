@@ -1,13 +1,13 @@
 import { FrontMatterCache } from "obsidian";
 import {
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	sanitizePermalink,
 	generateUrlPath,
 	kebabize,
 	getRewriteRules,
 } from "../utils/utils";
-import DigitalGardenSettings from "../models/settings";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSettings from "../models/settings";
+import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
@@ -30,10 +30,10 @@ export type TPublishedFrontMatter = Record<string, unknown> & {
 };
 
 export class FrontmatterCompiler {
-	private readonly settings: DigitalGardenSettings;
+	private readonly settings: QuartzSyncerSettings;
 	private readonly rewriteRules: PathRewriteRules;
 
-	constructor(settings: DigitalGardenSettings) {
+	constructor(settings: QuartzSyncerSettings) {
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 	}
@@ -99,7 +99,7 @@ export class FrontmatterCompiler {
 		const gardenPath =
 			baseFrontMatter && baseFrontMatter["path"]
 				? baseFrontMatter["path"]
-				: getGardenPathForNote(filePath, this.rewriteRules);
+				: getSyncerPathForNote(filePath, this.rewriteRules);
 
 		if (gardenPath != filePath) {
 			publishedFrontMatter["path"] = gardenPath;

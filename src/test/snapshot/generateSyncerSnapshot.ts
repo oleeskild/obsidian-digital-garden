@@ -1,18 +1,18 @@
 import Publisher from "../../publisher/Publisher";
 import { Notice, Platform } from "obsidian";
-import DigitalGardenSettings from "../../models/settings";
+import QuartzSyncerSettings from "../../models/settings";
 import fs from "fs/promises";
 
 const SNAPSHOT_PATH = "src/test/snapshot/snapshot.md";
 
-export const generateGardenSnapshot = async (
-	settings: DigitalGardenSettings,
+export const generateSyncerSnapshot = async (
+	settings: QuartzSyncerSettings,
 	publisher: Publisher,
 ) => {
 	const devPluginPath = settings.devPluginPath;
 
 	if (!devPluginPath) {
-		new Notice("devPluginPath missing, run generateGardenSettings.mjs");
+		new Notice("devPluginPath missing, run generateSyncerSettings.mjs");
 
 		return;
 	}

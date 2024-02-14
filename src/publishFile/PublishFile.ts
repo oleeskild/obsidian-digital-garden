@@ -1,32 +1,32 @@
 import { MetadataCache, TFile, Vault } from "obsidian";
 import {
-	GardenPageCompiler,
+	SyncerPageCompiler,
 	TCompiledFile,
-} from "../compiler/GardenPageCompiler";
+} from "../compiler/SyncerPageCompiler";
 import {
 	FrontmatterCompiler,
 	TFrontmatter,
 } from "../compiler/FrontmatterCompiler";
-import DigitalGardenSettings from "../models/settings";
+import QuartzSyncerSettings from "../models/settings";
 import { hasPublishFlag } from "./Validator";
 import { FileMetadataManager } from "./FileMetaDataManager";
 
 interface IPublishFileProps {
 	file: TFile;
 	vault: Vault;
-	compiler: GardenPageCompiler;
+	compiler: SyncerPageCompiler;
 	metadataCache: MetadataCache;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 }
 
 export class PublishFile {
 	file: TFile;
-	compiler: GardenPageCompiler;
+	compiler: SyncerPageCompiler;
 	vault: Vault;
 	compiledFile?: TCompiledFile;
 	metadataCache: MetadataCache;
 	frontmatter: TFrontmatter;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 	// Access props and other file metadata
 	meta: FileMetadataManager;
 

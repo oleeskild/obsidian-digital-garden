@@ -1,20 +1,20 @@
 import { PluginSettingTab, App, ButtonComponent } from "obsidian";
-import DigitalGarden from "../../main";
-import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncer from "../../main";
+import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
 import SettingView from "./SettingsView/SettingView";
-import { UpdateGardenRepositoryModal } from "./UpdateGardenRepositoryModal";
+import { UpdateSyncerRepositoryModal } from "./UpdateSyncerRepositoryModal";
 import Logger from "js-logger";
 import { TemplateUpdater } from "../repositoryConnection/TemplateManager";
 
-export class DigitalGardenSettingTab extends PluginSettingTab {
-	plugin: DigitalGarden;
+export class QuartzSyncerSettingTab extends PluginSettingTab {
+	plugin: QuartzSyncer;
 
-	constructor(app: App, plugin: DigitalGarden) {
+	constructor(app: App, plugin: QuartzSyncer) {
 		super(app, plugin);
 		this.plugin = plugin;
 
 		if (!this.plugin.settings.noteSettingsIsInitialized) {
-			const siteManager = new DigitalGardenSiteManager(
+			const siteManager = new QuartzSyncerSiteManager(
 				this.app.metadataCache,
 				this.plugin.settings,
 			);
@@ -27,7 +27,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 	async display(): Promise<void> {
 		const { containerEl } = this;
 
-		const siteManager = new DigitalGardenSiteManager(
+		const siteManager = new QuartzSyncerSiteManager(
 			this.plugin.app.metadataCache,
 			this.plugin.settings,
 		);
@@ -38,7 +38,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			this.plugin.settings,
 			async () => await this.plugin.saveData(this.plugin.settings),
 		);
-		const prModal = new UpdateGardenRepositoryModal(this.app);
+		const prModal = new UpdateSyncerRepositoryModal(this.app);
 		await settingView.initialize(prModal);
 
 		const handlePR = async (

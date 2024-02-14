@@ -11,9 +11,9 @@ import {
 	Setting,
 	TFile,
 } from "obsidian";
-import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
 
-import DigitalGardenSettings from "../../models/settings";
+import QuartzSyncerSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import { arrayBufferToBase64 } from "../../utils/utils";
 import { SvgFileSuggest } from "../../ui/suggest/file-suggest";
@@ -42,7 +42,7 @@ const OBSIDIAN_THEME_URL =
 
 export default class SettingView {
 	private app: App;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
 
@@ -55,7 +55,7 @@ export default class SettingView {
 	constructor(
 		app: App,
 		settingsRootElement: HTMLElement,
-		settings: DigitalGardenSettings,
+		settings: QuartzSyncerSettings,
 		saveSettings: () => Promise<void>,
 	) {
 		this.app = app;
@@ -73,7 +73,7 @@ export default class SettingView {
 		this.settingsRootElement.empty();
 
 		this.settingsRootElement.createEl("h1", {
-			text: "Digital Garden Settings",
+			text: "Quartz Syncer Settings",
 		});
 
 		const linkDiv = this.settingsRootElement.createEl("div", {
@@ -759,7 +759,7 @@ export default class SettingView {
 			return;
 		}
 
-		const gardenManager = new DigitalGardenSiteManager(
+		const gardenManager = new QuartzSyncerSiteManager(
 			this.app.metadataCache,
 			this.settings,
 		);
@@ -770,14 +770,14 @@ export default class SettingView {
 
 	private async saveSiteSettingsAndUpdateEnv(
 		metadataCache: MetadataCache,
-		settings: DigitalGardenSettings,
+		settings: QuartzSyncerSettings,
 		saveSettings: () => Promise<void>,
 	) {
 		new Notice("Updating settings...");
 		let updateFailed = false;
 
 		try {
-			const gardenManager = new DigitalGardenSiteManager(
+			const gardenManager = new QuartzSyncerSiteManager(
 				metadataCache,
 				settings,
 			);
@@ -815,7 +815,7 @@ export default class SettingView {
 				"GET /repos/{owner}/{repo}/contents/{path}",
 				{
 					owner: "oleeskild",
-					repo: "digitalgarden",
+					repo: "quartzsyncer",
 					path: "src/site/favicon.svg",
 				},
 			);
@@ -869,7 +869,7 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Base URL")
 			.setDesc(
-				`This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
+				`This is optional, but recommended. It is used for the "Copy Syncer URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
 			)
 			.addText((text) =>
 				text
@@ -1008,7 +1008,7 @@ export default class SettingView {
 			button: ButtonComponent,
 			updater: TemplateUpdater,
 		) => Promise<void>,
-		siteManager: DigitalGardenSiteManager,
+		siteManager: QuartzSyncerSiteManager,
 	) {
 		this.settingsRootElement
 			.createEl("h3", { text: "Update site" })

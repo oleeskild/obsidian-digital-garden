@@ -1,9 +1,9 @@
-import type DigitalGardenSettings from "src/models/settings";
+import type QuartzSyncerSettings from "src/models/settings";
 import { type MetadataCache, Notice, type TFile } from "obsidian";
 import {
 	extractBaseUrl,
 	generateUrlPath,
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	getRewriteRules,
 } from "../utils/utils";
 import { Base64 } from "js-base64";
@@ -15,7 +15,7 @@ import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 
-const logger = Logger.get("digital-garden-site-manager");
+const logger = Logger.get("quartz-syncer-site-manager");
 export interface PathRewriteRule {
 	from: string;
 	to: string;
@@ -35,34 +35,34 @@ type ContentTreeItem = {
  * for site changes.
  */
 
-export default class DigitalGardenSiteManager {
-	settings: DigitalGardenSettings;
+export default class QuartzSyncerSiteManager {
+	settings: QuartzSyncerSettings;
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseSyncerConnection: RepositoryConnection;
+	userSyncerConnection: RepositoryConnection;
 
 	templateUpdater: TemplateUpdateChecker;
-	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
+	constructor(metadataCache: MetadataCache, settings: QuartzSyncerSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.baseGardenConnection = new RepositoryConnection({
+		this.baseSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
 			githubUserName: "oleeskild",
-			gardenRepository: "digitalgarden",
+			gardenRepository: "quartzsyncer",
 		});
 
-		this.userGardenConnection = new RepositoryConnection({
+		this.userSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
 			githubUserName: settings.githubUserName,
 			gardenRepository: settings.githubRepo,
 		});
 
 		this.templateUpdater = new TemplateUpdateChecker({
-			baseGardenConnection: this.baseGardenConnection,
-			userGardenConnection: this.userGardenConnection,
+			baseSyncerConnection: this.baseSyncerConnection,
+			userSyncerConnection: this.userSyncerConnection,
 		});
 	}
 
@@ -116,7 +116,7 @@ export default class DigitalGardenSiteManager {
 
 		const base64Settings = Base64.encode(envSettings);
 
-		const currentFile = await this.userGardenConnection.getFile(".env");
+		const currentFile = await this.userSyncerConnection.getFile(".env");
 
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
@@ -128,7 +128,7 @@ export default class DigitalGardenSiteManager {
 			return;
 		}
 
-		await this.userGardenConnection.updateFile({
+		await this.userSyncerConnection.updateFile({
 			path: ".env",
 			content: base64Settings,
 			message: "Update settings",
@@ -141,7 +141,7 @@ export default class DigitalGardenSiteManager {
 			new Notice("Please set the garden base url in the settings");
 
 			// caught in copyUrlToClipboard
-			throw new Error("Garden base url not set");
+			throw new Error("Syncer base url not set");
 		}
 
 		const baseUrl = `https://${extractBaseUrl(
@@ -149,7 +149,7 @@ export default class DigitalGardenSiteManager {
 		)}`;
 
 		const noteUrlPath = generateUrlPath(
-			getGardenPathForNote(file.path, this.rewriteRules),
+			getSyncerPathForNote(file.path, this.rewriteRules),
 			this.settings.slugifyEnabled,
 		);
 
@@ -173,7 +173,7 @@ export default class DigitalGardenSiteManager {
 			path = path.substring(1);
 		}
 
-		const response = await this.userGardenConnection.getFile(
+		const response = await this.userSyncerConnection.getFile(
 			NOTE_PATH_BASE + path,
 		);
 

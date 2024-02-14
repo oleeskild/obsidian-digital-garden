@@ -1,18 +1,18 @@
 import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
-import DigitalGardenSettings from "./src/models/settings";
+import QuartzSyncerSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
 import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
-import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
-import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
+import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
+import { QuartzSyncerSettingTab } from "./src/views/QuartzSyncerSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 
-const DEFAULT_SETTINGS: DigitalGardenSettings = {
+const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	faviconPath: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
-	siteName: "Digital Garden",
+	siteName: "Quartz Syncer",
 	mainLanguage: "en",
 	slugifyEnabled: true,
 	// Note Icon Related Settings
@@ -70,8 +70,8 @@ Logger.useDefaults({
 		messages.unshift("DG: ");
 	},
 });
-export default class DigitalGarden extends Plugin {
-	settings!: DigitalGardenSettings;
+export default class QuartzSyncer extends Plugin {
+	settings!: QuartzSyncerSettings;
 	appVersion!: string;
 
 	publishModal!: PublicationCenter;
@@ -79,7 +79,7 @@ export default class DigitalGarden extends Plugin {
 	async onload() {
 		this.appVersion = this.manifest.version;
 
-		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
+		console.log("Initializing QuartzSyncer plugin v" + this.appVersion);
 		await this.loadSettings();
 
 		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
@@ -87,15 +87,15 @@ export default class DigitalGarden extends Plugin {
 		Logger.info(
 			"Digital garden log level set to " + Logger.getLevel().name,
 		);
-		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
+		this.addSettingTab(new QuartzSyncerSettingTab(this.app, this));
 
 		await this.addCommands();
 
-		addIcon("digital-garden-icon", seedling);
+		addIcon("quartz-syncer-icon", seedling);
 
 		this.addRibbonIcon(
-			"digital-garden-icon",
-			"Digital Garden Publication Center",
+			"quartz-syncer-icon",
+			"Quartz Syncer Publication Center",
 			async () => {
 				this.openPublishModal();
 			},
@@ -133,7 +133,7 @@ export default class DigitalGarden extends Plugin {
 								await this.publishSingleNote();
 
 							if (successfullyPublished) {
-								await this.copyGardenUrlToClipboard();
+								await this.copySyncerUrlToClipboard();
 							}
 							this.app.metadataCache.offref(event);
 						}
@@ -164,13 +164,13 @@ export default class DigitalGarden extends Plugin {
 				this.settings,
 			);
 
-			import("./src/test/snapshot/generateGardenSnapshot")
+			import("./src/test/snapshot/generateSyncerSnapshot")
 				.then((snapshotGen) => {
 					this.addCommand({
 						id: "generate-garden-snapshot",
-						name: "Generate Garden Snapshot",
+						name: "Generate Syncer Snapshot",
 						callback: async () => {
-							await snapshotGen.generateGardenSnapshot(
+							await snapshotGen.generateSyncerSnapshot(
 								this.settings,
 								publisher,
 							);
@@ -178,7 +178,7 @@ export default class DigitalGarden extends Plugin {
 					});
 				})
 				.catch((e) => {
-					Logger.error("Unable to load generateGardenSnapshot", e);
+					Logger.error("Unable to load generateSyncerSnapshot", e);
 				});
 		}
 
@@ -200,7 +200,7 @@ export default class DigitalGarden extends Plugin {
 					);
 					publisher.validateSettings();
 
-					const siteManager = new DigitalGardenSiteManager(
+					const siteManager = new QuartzSyncerSiteManager(
 						metadataCache,
 						this.settings,
 					);
@@ -225,7 +225,7 @@ export default class DigitalGarden extends Plugin {
 						imagesToDelete.length;
 
 					if (totalItems === 0) {
-						new Notice("Garden is already fully synced!");
+						new Notice("Syncer is already fully synced!");
 						statusBarItem.remove();
 
 						return;
@@ -331,9 +331,9 @@ export default class DigitalGarden extends Plugin {
 
 		this.addCommand({
 			id: "copy-garden-url",
-			name: "Copy Garden URL",
+			name: "Copy Syncer URL",
 			callback: async () => {
-				this.copyGardenUrlToClipboard();
+				this.copySyncerUrlToClipboard();
 			},
 		});
 
@@ -384,7 +384,7 @@ export default class DigitalGarden extends Plugin {
 		return activeFile;
 	}
 
-	async copyGardenUrlToClipboard() {
+	async copySyncerUrlToClipboard() {
 		try {
 			const { metadataCache, workspace } = this.app;
 
@@ -394,7 +394,7 @@ export default class DigitalGarden extends Plugin {
 				return;
 			}
 
-			const siteManager = new DigitalGardenSiteManager(
+			const siteManager = new QuartzSyncerSiteManager(
 				metadataCache,
 				this.settings,
 			);
@@ -499,7 +499,7 @@ export default class DigitalGarden extends Plugin {
 
 	openPublishModal() {
 		if (!this.publishModal) {
-			const siteManager = new DigitalGardenSiteManager(
+			const siteManager = new QuartzSyncerSiteManager(
 				this.app.metadataCache,
 				this.settings,
 			);

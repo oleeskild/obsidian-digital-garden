@@ -1,4 +1,4 @@
-# 🏡 Obsidian Digital Garden
+# 🏡 Obsidian Quartz Syncer
 
 Publish your notes to the web, for free. In your own personal garden.
 
@@ -6,7 +6,7 @@ Publish your notes to the web, for free. In your own personal garden.
 
 Documentation and examples can be found at [docs.ole.dev](https://docs.ole.dev/).
 
-![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/quartz-syncer/main/img/demo.gif)
+![quartz-syncer-Demo](https://raw.githubusercontent.com/oleeskild/quartz-syncer/main/img/demo.gif)
 
 ## Features
 
@@ -37,9 +37,9 @@ Lets get started:
 
 1. First off, you will need a GitHub account. If you don't have this, create one [here](https://github.com/signup).
 2. You'll also need a Vercel account. You can sign up using your GitHub account [here](https://vercel.com/signup)
-3. Open [this repo](https://github.com/oleeskild/digitalgarden), and click the blue "Deploy to Vercel" button. This will open Vercel which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-digital-garden'. Follow the steps to publish your site to the internet.
+3. Open [this repo](https://github.com/oleeskild/quartzsyncer), and click the blue "Deploy to Vercel" button. This will open Vercel which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-quartz-syncer'. Follow the steps to publish your site to the internet.
 4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Detailed instructions with images are available in the [docs](https://docs.ole.dev/advanced/fine-grained-access-token/). Use a [Fine grained personal access token](https://github.com/settings/personal-access-tokens/new) with the following settings:
-		- Token Name:  _`YYYY-Digital Garden`_
+		- Token Name:  _`YYYY-Quartz Syncer`_
 		- Expiration: _Custom / a year / whatever you want._
 		- Description: _Publishing content to the digital garden._
 		- Resource owner: _yourself_
@@ -48,7 +48,7 @@ Lets get started:
 			- Contents: `Access: Read and write`
 			- Pull requests: `Access: Read and write`
 Click the "Generate token" button, and copy the token you are presented with on the next page.
-5. In Obsidian open the setting menu and find the settings for "Digital Garden". The top three settings here is required for the plugin to work.
+5. In Obsidian open the setting menu and find the settings for "Quartz Syncer". The top three settings here is required for the plugin to work.
    Fill in your GitHub username, the name of the repo with your notes which you created in step 3. Lastly paste the token you created in step 4. The other options are optional. You can leave them as is.
 6. Now, let's publish your first note! Create a new note in Obsidian. And add the following to the top of your file
 
@@ -67,7 +67,7 @@ publish: true
 
 -   The publish setting tells the plugin that this note should be published to your digital garden. Notes without this setting will not be published. (In other terms: Every note you publish will need this setting.)
 
-7. Open your command palette by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
+7. Open your command palette by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Quartz Syncer: Publish Single Note" command. Press enter.
 8. Go to your site's URL which you should find on [Vercel](https://vercel.com/dashboard). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
 
 Congratulations, you now have your own digital garden, hosted free of charge!
@@ -118,7 +118,7 @@ Note: this repository uses prettier and eslint to enforce code formatting and st
 
 ## Join the Community
 
-Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/Z46n2RNX8e). 
+Be a part of the Quartz Syncer Community by joining our [Discord Server](https://discord.gg/Z46n2RNX8e). 
 
 ## Code Contributers
 

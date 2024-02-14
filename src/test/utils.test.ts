@@ -1,13 +1,13 @@
 import assert from "node:assert";
 import {
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	getRewriteRules,
 	wrapAround,
 } from "../utils/utils";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
 
 describe("utils", () => {
-	describe("getGardenPathForNote", () => {
+	describe("getSyncerPathForNote", () => {
 		const TESTS: Array<{
 			name: string;
 			input: { gardenPath: string; rules: PathRewriteRules };
@@ -16,22 +16,22 @@ describe("utils", () => {
 			{
 				name: "replaces a path according to rules",
 				input: {
-					gardenPath: "defaultGardenPath/content/note.md",
-					rules: [{ from: "defaultGardenPath", to: "gardenPath" }],
+					gardenPath: "defaultSyncerPath/content/note.md",
+					rules: [{ from: "defaultSyncerPath", to: "gardenPath" }],
 				},
 				expected: "gardenPath/content/note.md",
 			},
 			{
 				name: "replaces a path according to the first rule found",
 				input: {
-					gardenPath: "defaultGardenPath/content/note.md",
+					gardenPath: "defaultSyncerPath/content/note.md",
 					rules: [
 						{
-							from: "defaultGardenPath",
+							from: "defaultSyncerPath",
 							to: "gardenPath",
 						},
 						{
-							from: "defaultGardenPath/content",
+							from: "defaultSyncerPath/content",
 							to: "gargamel",
 						},
 					],
@@ -43,7 +43,7 @@ describe("utils", () => {
 		for (const test of TESTS) {
 			it(test.name, () => {
 				assert.strictEqual(
-					getGardenPathForNote(
+					getSyncerPathForNote(
 						test.input.gardenPath,
 						test.input.rules,
 					),
@@ -54,11 +54,11 @@ describe("utils", () => {
 
 		it("handles rewrites to base path correctly", () => {
 			const rewriteRules: PathRewriteRules = [
-				{ from: "defaultGardenPath", to: "" },
+				{ from: "defaultSyncerPath", to: "" },
 			];
-			const gardenPath = "defaultGardenPath/content/note.md";
+			const gardenPath = "defaultSyncerPath/content/note.md";
 
-			const result = getGardenPathForNote(gardenPath, rewriteRules);
+			const result = getSyncerPathForNote(gardenPath, rewriteRules);
 
 			expect(result).toBe("content/note.md");
 		});
@@ -77,27 +77,27 @@ describe("utils", () => {
 			},
 			{
 				name: "parses a single rewrite rule",
-				input: "defaultGardenPath:gardenPath",
-				expected: [{ from: "defaultGardenPath", to: "gardenPath" }],
+				input: "defaultSyncerPath:gardenPath",
+				expected: [{ from: "defaultSyncerPath", to: "gardenPath" }],
 			},
 			{
 				name: "parses multiple rewrite rules",
-				input: "defaultGardenPath:gardenPath\ndefaultGardenPath/content:gargamel",
+				input: "defaultSyncerPath:gardenPath\ndefaultSyncerPath/content:gargamel",
 				expected: [
 					{
-						from: "defaultGardenPath",
+						from: "defaultSyncerPath",
 						to: "gardenPath",
 					},
 					{
-						from: "defaultGardenPath/content",
+						from: "defaultSyncerPath/content",
 						to: "gargamel",
 					},
 				],
 			},
 			{
 				name: "skips lines without a colon",
-				input: "defaultGardenPath:gardenPath\nnoColon",
-				expected: [{ from: "defaultGardenPath", to: "gardenPath" }],
+				input: "defaultSyncerPath:gardenPath\nnoColon",
+				expected: [{ from: "defaultSyncerPath", to: "gardenPath" }],
 			},
 		];
 

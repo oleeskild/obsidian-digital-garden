@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 
-export class UpdateGardenRepositoryModal extends Modal {
+export class UpdateSyncerRepositoryModal extends Modal {
 	loading: HTMLElement | undefined;
 	loadingInterval: NodeJS.Timeout | undefined;
 	progressViewTop: HTMLElement;

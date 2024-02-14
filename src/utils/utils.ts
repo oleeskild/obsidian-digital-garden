@@ -1,7 +1,7 @@
 import { Base64 } from "js-base64";
 import slugify from "@sindresorhus/slugify";
 import sha1 from "crypto-js/sha1";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
+import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
 
 const REWRITE_RULE_DELIMITER = ":";
 
@@ -79,7 +79,7 @@ function getRewriteRules(pathRewriteRules: string): PathRewriteRules {
 		});
 }
 
-function getGardenPathForNote(
+function getSyncerPathForNote(
 	vaultPath: string,
 	rules: PathRewriteRules,
 ): string {
@@ -138,7 +138,7 @@ export {
 	kebabize,
 	wrapAround,
 	getRewriteRules,
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	escapeRegExp,
 	fixSvgForXmlSerializer,
 	sanitizePermalink,

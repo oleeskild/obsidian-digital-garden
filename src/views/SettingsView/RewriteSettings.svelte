@@ -2,13 +2,13 @@
 	import Publisher from "src/publisher/Publisher";
 
 	import { ChangeEventHandler } from "svelte/elements";
-	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
-	import DigitalGardenSettings from "../../models/settings";
+	import { getSyncerPathForNote, getRewriteRules } from "../../utils/utils";
+	import QuartzSyncerSettings from "../../models/settings";
 	import { Change, diffLines } from "diff";
 	import LineDiff from "../../ui/LineDiff.svelte";
 
 	export let publisher: Publisher;
-	export let settings: DigitalGardenSettings;
+	export let settings: QuartzSyncerSettings;
 	export let closeModal: () => void;
 
 	let newPathRewriteRules: string;
@@ -40,8 +40,8 @@
 
 		const paths = files.notes.map((note) => ({
 			id: note.file.path,
-			newPath: getGardenPathForNote(note.file.path, newRewriteRules),
-			oldPath: getGardenPathForNote(note.file.path, oldRewriteRules),
+			newPath: getSyncerPathForNote(note.file.path, newRewriteRules),
+			oldPath: getSyncerPathForNote(note.file.path, oldRewriteRules),
 		}));
 
 		return paths;

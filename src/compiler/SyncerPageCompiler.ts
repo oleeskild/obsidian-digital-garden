@@ -6,13 +6,13 @@ import {
 	arrayBufferToBase64,
 	getLinkpath,
 } from "obsidian";
-import DigitalGardenSettings from "../models/settings";
-import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSettings from "../models/settings";
+import { PathRewriteRule } from "../repositoryConnection/QuartzSyncerSiteManager";
 import Publisher from "../publisher/Publisher";
 import {
 	fixSvgForXmlSerializer,
 	generateUrlPath,
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	getRewriteRules,
 	sanitizePermalink,
 } from "../utils/utils";
@@ -49,9 +49,9 @@ export type TCompilerStep = (
 	| ((partiallyCompiledContent: string) => Promise<string>)
 	| ((partiallyCompiledContent: string) => string);
 
-export class GardenPageCompiler {
+export class SyncerPageCompiler {
 	private readonly vault: Vault;
-	private readonly settings: DigitalGardenSettings;
+	private readonly settings: QuartzSyncerSettings;
 	private excalidrawCompiler: ExcalidrawCompiler;
 	private metadataCache: MetadataCache;
 	private readonly getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"];
@@ -60,7 +60,7 @@ export class GardenPageCompiler {
 
 	constructor(
 		vault: Vault,
-		settings: DigitalGardenSettings,
+		settings: QuartzSyncerSettings,
 		metadataCache: MetadataCache,
 		getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"],
 	) {
@@ -456,7 +456,7 @@ export class GardenPageCompiler {
 							const gardenPath = permalink
 								? sanitizePermalink(permalink)
 								: `/${generateUrlPath(
-										getGardenPathForNote(
+										getSyncerPathForNote(
 											linkedFile.path,
 											this.rewriteRules,
 										),

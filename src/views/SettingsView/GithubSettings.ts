@@ -94,7 +94,7 @@ export class GithubSettings {
 			.setDesc("The name of the GitHub repository")
 			.addText((text) =>
 				text
-					.setPlaceholder("mydigitalgarden")
+					.setPlaceholder("myquartzsyncer")
 					.setValue(this.settings.settings.githubRepo)
 					.onChange(async (value) => {
 						this.settings.settings.githubRepo = value;

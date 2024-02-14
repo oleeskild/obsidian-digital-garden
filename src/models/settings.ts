@@ -1,7 +1,7 @@
 import { ILogLevel } from "js-logger";
 
 /** Saved to data.json, changing requires a migration */
-export default interface DigitalGardenSettings {
+export default interface QuartzSyncerSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;

@@ -1,6 +1,6 @@
 {
-	"id": "digitalgarden",
-	"name": "Digital Garden",
+	"id": "quartzsyncer",
+	"name": "Quartz Syncer",
 	"version": "2.56.2",
 	"minAppVersion": "0.12.0",
 	"description": "Publish your notes to the web for others to enjoy. For free.",

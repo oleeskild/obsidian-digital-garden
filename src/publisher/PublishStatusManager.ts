@@ -1,4 +1,4 @@
-import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSiteManager from "../repositoryConnection/QuartzSyncerSiteManager";
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
@@ -7,9 +7,9 @@ import { CompiledPublishFile } from "../publishFile/PublishFile";
  *  Manages the publishing status of notes and images for a digital garden.
  */
 export default class PublishStatusManager implements IPublishStatusManager {
-	siteManager: DigitalGardenSiteManager;
+	siteManager: QuartzSyncerSiteManager;
 	publisher: Publisher;
-	constructor(siteManager: DigitalGardenSiteManager, publisher: Publisher) {
+	constructor(siteManager: QuartzSyncerSiteManager, publisher: Publisher) {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
 	}
@@ -48,7 +48,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const changedNotes: Array<CompiledPublishFile> = [];
 
 		const contentTree =
-			await this.siteManager.userGardenConnection.getContent("HEAD");
+			await this.siteManager.userSyncerConnection.getContent("HEAD");
 
 		if (!contentTree) {
 			throw new Error("Could not get content tree from base garden");

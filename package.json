@@ -5,7 +5,7 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"postdev": "node scripts/generateGardenSettings.mjs",
+		"postdev": "node scripts/generateSyncerSettings.mjs",
 		"dev1": "parcel main.ts",
 		"build": "node esbuild.config.mjs production",
 		"test": "jest",

@@ -1,7 +1,7 @@
 import { Vault } from "obsidian";
 import { excaliDrawBundle, excalidraw } from "../ui/suggest/constants";
 import LZString from "lz-string";
-import { TCompilerStep } from "./GardenPageCompiler";
+import { TCompilerStep } from "./SyncerPageCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
 
 interface IExcalidrawCompilerProps {

@@ -1,12 +1,12 @@
 import Logger from "js-logger";
-import DigitalGardenPluginInfo from "../models/pluginInfo";
+import QuartzSyncerPluginInfo from "../models/pluginInfo";
 import {
 	RepositoryConnection,
 	TRepositoryContent,
 } from "./RepositoryConnection";
 
 import { Base64 } from "js-base64";
-const logger = Logger.get("digital-garden-site-manager");
+const logger = Logger.get("quartz-syncer-site-manager");
 
 interface IUpdateFileInfo {
 	path: string;
@@ -14,8 +14,8 @@ interface IUpdateFileInfo {
 }
 
 interface IUpdateCheckerProps {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseSyncerConnection: RepositoryConnection;
+	userSyncerConnection: RepositoryConnection;
 }
 
 interface IUpdateProps extends IUpdateCheckerProps {
@@ -31,17 +31,17 @@ interface IUpdateInfo {
 }
 
 export class TemplateUpdateChecker {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseSyncerConnection: RepositoryConnection;
+	userSyncerConnection: RepositoryConnection;
 	defaultBranch?: string;
 	newestTemplateVersion?: string;
 
 	constructor({
-		baseGardenConnection,
-		userGardenConnection,
+		baseSyncerConnection,
+		userSyncerConnection,
 	}: IUpdateCheckerProps) {
-		this.baseGardenConnection = baseGardenConnection;
-		this.userGardenConnection = userGardenConnection;
+		this.baseSyncerConnection = baseSyncerConnection;
+		this.userSyncerConnection = userSyncerConnection;
 	}
 
 	private getFileInfoFromContent(content: TRepositoryContent, path: string) {
@@ -55,7 +55,7 @@ export class TemplateUpdateChecker {
 	}
 
 	private getFilesToDelete(
-		pluginInfo: DigitalGardenPluginInfo,
+		pluginInfo: QuartzSyncerPluginInfo,
 		userFileList: NonNullable<TRepositoryContent>,
 	) {
 		const filesToDelete = [];
@@ -71,8 +71,8 @@ export class TemplateUpdateChecker {
 		return filesToDelete;
 	}
 	private getPathsToModify(
-		pluginInfo: DigitalGardenPluginInfo,
-		baseGardenFileList: NonNullable<TRepositoryContent>,
+		pluginInfo: QuartzSyncerPluginInfo,
+		baseSyncerFileList: NonNullable<TRepositoryContent>,
 		userFileList: NonNullable<TRepositoryContent>,
 	) {
 		const filesToUpdate = [];
@@ -81,7 +81,7 @@ export class TemplateUpdateChecker {
 			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			const baseFile = this.getFileInfoFromContent(
-				baseGardenFileList,
+				baseSyncerFileList,
 				file,
 			);
 
@@ -94,7 +94,7 @@ export class TemplateUpdateChecker {
 	}
 
 	private getFilesToAdd(
-		pluginInfo: DigitalGardenPluginInfo,
+		pluginInfo: QuartzSyncerPluginInfo,
 		userFileList: NonNullable<TRepositoryContent>,
 	) {
 		const filesToAdd = [];
@@ -112,7 +112,7 @@ export class TemplateUpdateChecker {
 
 	async getTemplateVersion() {
 		const latestRelease =
-			await this.baseGardenConnection.getLatestRelease();
+			await this.baseSyncerConnection.getLatestRelease();
 
 		if (!latestRelease) {
 			throw new Error(
@@ -142,8 +142,8 @@ export class TemplateUpdateChecker {
 		this.newestTemplateVersion = templateVersion;
 
 		return new TemplateUpdater({
-			baseGardenConnection: this.baseGardenConnection,
-			userGardenConnection: this.userGardenConnection,
+			baseSyncerConnection: this.baseSyncerConnection,
+			userSyncerConnection: this.userSyncerConnection,
 			filesToChange: updateInfo,
 			defaultBranch: this.defaultBranch as string,
 			newestTemplateVersion: templateVersion,
@@ -151,15 +151,15 @@ export class TemplateUpdateChecker {
 	}
 
 	async getFilesToUpdate(): Promise<IUpdateInfo | null> {
-		const { baseGardenFileList, pluginInfo } = await this.getPluginInfo(
-			this.baseGardenConnection,
+		const { baseSyncerFileList, pluginInfo } = await this.getPluginInfo(
+			this.baseSyncerConnection,
 		);
 
-		if (!baseGardenFileList) {
+		if (!baseSyncerFileList) {
 			throw new Error("Unable to get base garden file list");
 		}
 
-		const repoInfo = await this.baseGardenConnection.getRepositoryInfo();
+		const repoInfo = await this.baseSyncerConnection.getRepositoryInfo();
 
 		const defaultBranch = repoInfo?.default_branch;
 
@@ -169,7 +169,7 @@ export class TemplateUpdateChecker {
 		this.defaultBranch = defaultBranch;
 
 		const userFileList =
-			await this.userGardenConnection.getContent(defaultBranch);
+			await this.userSyncerConnection.getContent(defaultBranch);
 
 		if (!userFileList) {
 			throw new Error("Unable to get user file list");
@@ -179,7 +179,7 @@ export class TemplateUpdateChecker {
 
 		const filesToUpdate = this.getPathsToModify(
 			pluginInfo,
-			baseGardenFileList,
+			baseSyncerFileList,
 			userFileList,
 		);
 
@@ -200,14 +200,14 @@ export class TemplateUpdateChecker {
 		};
 	}
 
-	private async getPluginInfo(baseGardenConnection: RepositoryConnection) {
+	private async getPluginInfo(baseSyncerConnection: RepositoryConnection) {
 		logger.info("Getting plugin info");
 
 		const pluginInfoResponse =
-			await baseGardenConnection.getFile("plugin-info.json");
+			await baseSyncerConnection.getFile("plugin-info.json");
 
-		const baseGardenFileList =
-			await baseGardenConnection.getContent("main");
+		const baseSyncerFileList =
+			await baseSyncerConnection.getContent("main");
 
 		if (!pluginInfoResponse) {
 			throw new Error("Unable to get plugin info");
@@ -215,7 +215,7 @@ export class TemplateUpdateChecker {
 
 		return {
 			pluginInfo: JSON.parse(Base64.decode(pluginInfoResponse.content)),
-			baseGardenFileList,
+			baseSyncerFileList,
 		};
 	}
 }
@@ -230,21 +230,21 @@ export class TemplateUpdateChecker {
 export class TemplateUpdater {
 	filesToChange: IUpdateInfo;
 	defaultBranch: string;
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseSyncerConnection: RepositoryConnection;
+	userSyncerConnection: RepositoryConnection;
 	newestTemplateVersion: string;
 
 	constructor({
-		baseGardenConnection,
-		userGardenConnection,
+		baseSyncerConnection,
+		userSyncerConnection,
 		filesToChange,
 		defaultBranch,
 		newestTemplateVersion,
 	}: IUpdateProps) {
 		this.filesToChange = filesToChange;
 		this.defaultBranch = defaultBranch;
-		this.baseGardenConnection = baseGardenConnection;
-		this.userGardenConnection = userGardenConnection;
+		this.baseSyncerConnection = baseSyncerConnection;
+		this.userSyncerConnection = userSyncerConnection;
 		this.newestTemplateVersion = newestTemplateVersion;
 	}
 
@@ -268,14 +268,14 @@ export class TemplateUpdater {
 		await this.addOrUpdateFiles(filesToAdd, branchName);
 
 		try {
-			const pr = await this.userGardenConnection.octokit.request(
+			const pr = await this.userSyncerConnection.octokit.request(
 				"POST /repos/{owner}/{repo}/pulls",
 				{
-					...this.userGardenConnection.getBasePayload(),
+					...this.userSyncerConnection.getBasePayload(),
 					title: `Update template to version ${this.newestTemplateVersion}`,
 					head: branchName,
 					base: this.defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
+					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/quartzsyncer/releases/tag/${this.newestTemplateVersion})`,
 				},
 			);
 
@@ -293,13 +293,13 @@ export class TemplateUpdater {
 		const branchName =
 			"update-template-to-v" + this.newestTemplateVersion + "-" + uuid;
 
-		const latestCommit = await this.userGardenConnection.getLatestCommit();
+		const latestCommit = await this.userSyncerConnection.getLatestCommit();
 
 		if (!latestCommit) {
 			throw new Error("Unable to get latest commit");
 		}
 
-		await this.userGardenConnection.createBranch(
+		await this.userSyncerConnection.createBranch(
 			branchName,
 			latestCommit.sha,
 		);
@@ -312,7 +312,7 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToDelete) {
-			await this.userGardenConnection.deleteFile(file.path, {
+			await this.userSyncerConnection.deleteFile(file.path, {
 				branch,
 				sha: file.sha,
 			});
@@ -324,7 +324,7 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToAdd) {
-			const baseTemplateFile = await this.baseGardenConnection.getFile(
+			const baseTemplateFile = await this.baseSyncerConnection.getFile(
 				file.path,
 			);
 
@@ -332,7 +332,7 @@ export class TemplateUpdater {
 				throw new Error(`Unable to get file ${file}`);
 			}
 
-			await this.userGardenConnection.updateFile({
+			await this.userSyncerConnection.updateFile({
 				content: baseTemplateFile.content,
 				path: file.path,
 				branch: branch,

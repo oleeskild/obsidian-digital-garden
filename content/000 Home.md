@@ -20,7 +20,7 @@ Hopefully in the future it can be part of automated testing too! Say, snapshot t
 
 This test vault enables snapshot testing of the garden compilation! To generate the snapshot: 
 
-- run `Generate Garden Snapshot` from the command palette
+- run `Generate Syncer Snapshot` from the command palette
 - Snapshot generation is also run on plugin load. 
 
 

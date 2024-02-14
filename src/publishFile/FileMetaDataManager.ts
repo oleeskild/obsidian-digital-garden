@@ -1,5 +1,5 @@
 import { FrontMatterCache, TFile } from "obsidian";
-import DigitalGardenSettings from "../models/settings";
+import QuartzSyncerSettings from "../models/settings";
 import { DateTime } from "luxon";
 
 // This should soon contain all the magic keys instead of them being hardcoded (with documentation)
@@ -12,12 +12,12 @@ export enum FRONTMATTER_KEYS {
 export class FileMetadataManager {
 	file: TFile;
 	frontmatter: FrontMatterCache;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 
 	constructor(
 		file: TFile,
 		frontmatter: FrontMatterCache,
-		settings: DigitalGardenSettings,
+		settings: QuartzSyncerSettings,
 	) {
 		this.file = file;
 		this.frontmatter = frontmatter;
