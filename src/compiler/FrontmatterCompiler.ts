@@ -11,11 +11,11 @@ import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManage
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
-	"title"?: string;
-	"description"?: string;
-	"aliases"?: string;
-	"permalink"?: string;
-	"draft"?: boolean;
+	title?: string;
+	description?: string;
+	aliases?: string;
+	permalink?: string;
+	draft?: boolean;
 	tags?: string;
 };
 
@@ -42,7 +42,7 @@ export class FrontmatterCompiler {
 		delete fileFrontMatter["position"];
 
 		let publishedFrontMatter: TPublishedFrontMatter = {
-			"publish": true,
+			publish: true,
 		};
 
 		publishedFrontMatter = this.addPermalink(
@@ -98,11 +98,9 @@ export class FrontmatterCompiler {
 		const quartzPath = getSyncerPathForNote(filePath, this.rewriteRules);
 
 		publishedFrontMatter["path"] = quartzPath;
-		
 
 		if (baseFrontMatter && baseFrontMatter["permalink"]) {
-			publishedFrontMatter["permalink"] =
-				baseFrontMatter["permalink"];
+			publishedFrontMatter["permalink"] = baseFrontMatter["permalink"];
 
 			publishedFrontMatter["permalink"] = sanitizePermalink(
 				baseFrontMatter["permalink"],

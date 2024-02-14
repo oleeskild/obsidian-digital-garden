@@ -43,16 +43,16 @@ export default interface QuartzSyncerSettings {
 	contentClassesKey: string;
 
 	defaultNoteSettings: {
-	HomeLink: boolean;
-	PassFrontmatter: boolean;
-	ShowBacklinks: boolean;
-	ShowLocalGraph: boolean;
-	ShowInlineTitle: boolean;
-	ShowFileTree: boolean;
-	EnableSearch: boolean;
-	ShowToc: boolean;
-	LinkPreview: boolean;
-	ShowTags: boolean;
+		HomeLink: boolean;
+		PassFrontmatter: boolean;
+		ShowBacklinks: boolean;
+		ShowLocalGraph: boolean;
+		ShowInlineTitle: boolean;
+		ShowFileTree: boolean;
+		EnableSearch: boolean;
+		ShowToc: boolean;
+		LinkPreview: boolean;
+		ShowTags: boolean;
 	};
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;
