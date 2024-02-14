@@ -11,10 +11,7 @@ import {
 import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
 
 import QuartzSyncerSettings from "../../models/settings";
-import Publisher from "../../publisher/Publisher";
-import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
-import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
 	TemplateUpdater,
@@ -67,7 +64,7 @@ export default class SettingView {
 
 		linkDiv.createEl("a", {
 			text: "here.",
-			href: "https://docs.ole.dev/getting-started/01-getting-started/",
+			href: "https://github.com/saberzero1/quartz-syncer",
 		});
 
 		const githubSettings = this.settingsRootElement.createEl("div", {
@@ -101,121 +98,6 @@ export default class SettingView {
 		if (!updateFailed) {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
-		}
-	}
-
-	private initializeSlugifySetting() {
-		new Setting(this.settingsRootElement)
-			.setName("Slugify Note URL")
-			.setDesc(
-				'Transform the URL from "/My Folder/My Note/" to "/my-folder/my-note". If your note titles contains non-English characters, this should be disabled.',
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.settings.slugifyEnabled)
-					.onChange(async (value) => {
-						this.settings.slugifyEnabled = value;
-						await this.saveSettings();
-					}),
-			);
-	}
-
-	private openPathRewriteRulesModal() {
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
-		const rewriteRulesModal = new Modal(this.app);
-		rewriteRulesModal.open();
-
-		const modalContent: RewriteSettings = new RewriteSettings({
-			target: rewriteRulesModal.contentEl,
-			props: {
-				publisher,
-				settings: this.settings,
-				closeModal: () => rewriteRulesModal.close(),
-			},
-		});
-
-		rewriteRulesModal.onClose = () => {
-			modalContent.$destroy();
-		};
-	}
-
-	private initializeCustomFilterSettings() {
-		const customFilterModal = new Modal(this.app);
-		customFilterModal.titleEl.createEl("h1", { text: "Custom Filters" });
-		customFilterModal.modalEl.style.width = "fit-content";
-
-		new Setting(this.settingsRootElement)
-			.setName("Custom Filters")
-			.setDesc(
-				"Define custom rules to replace parts of the note before publishing.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage Custom Filters");
-
-				cb.onClick(() => {
-					customFilterModal.open();
-				});
-			});
-
-		const rewriteSettingsContainer = customFilterModal.contentEl.createEl(
-			"div",
-			{
-				attr: {
-					class: "",
-					style: "align-items:flex-start; flex-direction: column; margin: 5px;",
-				},
-			},
-		);
-
-		rewriteSettingsContainer.createEl(
-			"div",
-		).innerHTML = `Define regex filters to replace note content before publishing.`;
-
-		rewriteSettingsContainer.createEl("div", {
-			attr: { class: "setting-item-description" },
-		}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
-
-		rewriteSettingsContainer.createEl("div", {
-			attr: {
-				class: "setting-item-description",
-				style: "margin-bottom: 15px",
-			},
-		}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
-
-		const customFilters = this.settings.customFilters;
-
-		new Setting(rewriteSettingsContainer)
-			.setName("Filters")
-			.addButton((button) => {
-				button.setButtonText("Add");
-				button.setTooltip("Add a filter");
-				button.setIcon("plus");
-
-				button.onClick(async () => {
-					const customFilters = this.settings.customFilters;
-
-					customFilters.push({
-						pattern: "",
-						flags: "g",
-						replace: "",
-					});
-					filterList.empty();
-
-					for (let i = 0; i < customFilters.length; i++) {
-						addFilterInput(customFilters[i], filterList, i, this);
-					}
-				});
-			});
-
-		const filterList =
-			rewriteSettingsContainer.createDiv("custom-filter-list");
-
-		for (let i = 0; i < customFilters.length; i++) {
-			addFilterInput(customFilters[i], filterList, i, this);
 		}
 	}
 

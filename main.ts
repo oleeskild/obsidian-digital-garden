@@ -1,8 +1,8 @@
 import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import QuartzSyncerSettings from "./src/models/settings";
+import { bookHeart } from "./src/ui/suggest/constants";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
-import { seedling } from "src/ui/suggest/constants";
 import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
@@ -71,7 +71,7 @@ export default class QuartzSyncer extends Plugin {
 
 		await this.addCommands();
 
-		addIcon("quartz-syncer-icon", seedling);
+		addIcon("quartz-syncer-icon", bookHeart);
 
 		this.addRibbonIcon(
 			"quartz-syncer-icon",
