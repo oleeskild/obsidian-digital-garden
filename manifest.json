@@ -1,11 +1,10 @@
 {
-	"id": "quartz-dataview-converter",
-	"name": "Quartz Dataview Converter",
+	"id": "quartz-syncer",
+	"name": "Quartz Syncer",
 	"version": "1.0.0",
 	"minAppVersion": "0.12.0",
-	"description": "Convert dataview to markdown for Quartz",
-	"author": "Emile Bangma, Ole Eskild Steensen",
-	"authorUrl": "https://dg-docs.ole.dev/",
-	"isDesktopOnly": false,
-	"fundingUrl": "https://ko-fi.com/oleeskild"
+	"description": "Sync Obsidian Markdown for Quartz",
+	"author": "Emile Bangma",
+	"authorUrl": "https://emilebangma.com/",
+	"isDesktopOnly": false
 }

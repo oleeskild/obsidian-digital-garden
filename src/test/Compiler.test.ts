@@ -1,19 +1,19 @@
 import { MetadataCache, TFile, Vault } from "obsidian";
-import DigitalGardenSettings from "../models/settings";
-import { GardenPageCompiler } from "../compiler/GardenPageCompiler";
+import QuartzSyncerSettings from "../models/settings";
+import { SyncerPageCompiler } from "../compiler/SyncerPageCompiler";
 
 jest.mock("obsidian");
 
 describe("Compiler", () => {
 	describe("generateTransclusionHeader", () => {
-		const getTestCompiler = (settings: Partial<DigitalGardenSettings>) => {
-			return new GardenPageCompiler(
+		const getTestCompiler = (settings: Partial<QuartzSyncerSettings>) => {
+			return new SyncerPageCompiler(
 				// TODO add jest-mock-creator
 				{} as Vault,
 				{
 					pathRewriteRules: "",
 					...settings,
-				} as DigitalGardenSettings,
+				} as QuartzSyncerSettings,
 				{} as MetadataCache,
 				jest.fn(),
 			);

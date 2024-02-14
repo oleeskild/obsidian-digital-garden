@@ -5,4 +5,5 @@ main.js
 jest.config.js
 
 .eslintrc.js
-src/dg-testVault/*
+src/testVault/*
+content/*

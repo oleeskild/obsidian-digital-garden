@@ -7,7 +7,7 @@ const oktokitLogger = Logger.get("octokit");
 interface IOctokitterInput {
 	githubToken: string;
 	githubUserName: string;
-	gardenRepository: string;
+	quartzRepository: string;
 }
 
 interface IPutPayload {
@@ -20,28 +20,28 @@ interface IPutPayload {
 
 export class RepositoryConnection {
 	private githubUserName: string;
-	private gardenRepository: string;
+	private quartzRepository: string;
 	octokit: Octokit;
 
 	constructor({
-		gardenRepository,
+		quartzRepository,
 		githubToken,
 		githubUserName,
 	}: IOctokitterInput) {
-		this.gardenRepository = gardenRepository;
+		this.quartzRepository = quartzRepository;
 		this.githubUserName = githubUserName;
 
 		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
 	}
 
 	getRepositoryName() {
-		return this.githubUserName + "/" + this.gardenRepository;
+		return this.githubUserName + "/" + this.quartzRepository;
 	}
 
 	getBasePayload() {
 		return {
 			owner: this.githubUserName,
-			repo: this.gardenRepository,
+			repo: this.quartzRepository,
 		};
 	}
 

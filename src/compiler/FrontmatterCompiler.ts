@@ -1,39 +1,38 @@
 import { FrontMatterCache } from "obsidian";
 import {
-	getGardenPathForNote,
+	getSyncerPathForNote,
 	sanitizePermalink,
 	generateUrlPath,
 	kebabize,
 	getRewriteRules,
 } from "../utils/utils";
-import DigitalGardenSettings from "../models/settings";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSettings from "../models/settings";
+import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
-	"dg-path"?: string;
-	"dg-permalink"?: string;
-	"dg-home"?: boolean;
-	"dg-hide-in-graph"?: boolean;
-	"dg-hide"?: boolean;
-	"dg-pinned"?: boolean;
-	"dg-metatags"?: string;
+	title?: string;
+	description?: string;
+	aliases?: string;
+	permalink?: string;
+	draft?: boolean;
 	tags?: string;
 };
 
 export type TPublishedFrontMatter = Record<string, unknown> & {
+	title?: string;
 	tags?: string[];
-	metatags?: string;
-	pinned?: boolean;
+	description?: string;
+	aliases?: string;
 	permalink?: string;
-	hide?: boolean;
+	draft?: boolean;
 };
 
 export class FrontmatterCompiler {
-	private readonly settings: DigitalGardenSettings;
+	private readonly settings: QuartzSyncerSettings;
 	private readonly rewriteRules: PathRewriteRules;
 
-	constructor(settings: DigitalGardenSettings) {
+	constructor(settings: QuartzSyncerSettings) {
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 	}
@@ -43,7 +42,7 @@ export class FrontmatterCompiler {
 		delete fileFrontMatter["position"];
 
 		let publishedFrontMatter: TPublishedFrontMatter = {
-			"dg-publish": true,
+			publish: true,
 		};
 
 		publishedFrontMatter = this.addPermalink(
@@ -80,7 +79,7 @@ export class FrontmatterCompiler {
 		publishedFrontMatter =
 			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
 
-		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
+		const fullFrontMatter = publishedFrontMatter?.PassFrontmatter
 			? { ...fileFrontMatter, ...publishedFrontMatter }
 			: publishedFrontMatter;
 
@@ -96,25 +95,19 @@ export class FrontmatterCompiler {
 	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 
-		const gardenPath =
-			baseFrontMatter && baseFrontMatter["dg-path"]
-				? baseFrontMatter["dg-path"]
-				: getGardenPathForNote(filePath, this.rewriteRules);
+		const quartzPath = getSyncerPathForNote(filePath, this.rewriteRules);
 
-		if (gardenPath != filePath) {
-			publishedFrontMatter["dg-path"] = gardenPath;
-		}
+		publishedFrontMatter["path"] = quartzPath;
 
-		if (baseFrontMatter && baseFrontMatter["dg-permalink"]) {
-			publishedFrontMatter["dg-permalink"] =
-				baseFrontMatter["dg-permalink"];
+		if (baseFrontMatter && baseFrontMatter["permalink"]) {
+			publishedFrontMatter["permalink"] = baseFrontMatter["permalink"];
 
 			publishedFrontMatter["permalink"] = sanitizePermalink(
-				baseFrontMatter["dg-permalink"],
+				baseFrontMatter["permalink"],
 			);
 		} else {
 			publishedFrontMatter["permalink"] =
-				"/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
+				"/" + generateUrlPath(quartzPath, this.settings.slugifyEnabled);
 		}
 
 		return publishedFrontMatter;
@@ -132,22 +125,8 @@ export class FrontmatterCompiler {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
 
-			if (baseFrontMatter["dg-metatags"]) {
-				publishedFrontMatter["metatags"] =
-					baseFrontMatter["dg-metatags"];
-			}
-
-			if (baseFrontMatter["dg-hide"]) {
-				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
-			}
-
-			if (baseFrontMatter["dg-hide-in-graph"]) {
-				publishedFrontMatter["hideInGraph"] =
-					baseFrontMatter["dg-hide-in-graph"];
-			}
-
-			if (baseFrontMatter["dg-pinned"]) {
-				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
+			if (baseFrontMatter["draft"]) {
+				publishedFrontMatter["draft"] = baseFrontMatter["draft"];
 			}
 		}
 
@@ -166,7 +145,7 @@ export class FrontmatterCompiler {
 					? fileFrontMatter["tags"].split(/,\s*/)
 					: fileFrontMatter["tags"]) || [];
 
-			/*if (fileFrontMatter["dg-home"]) {
+			/*if (fileFrontMatter["home"]) {
 				tags.push("gardenEntry");
 			}*/
 
@@ -234,24 +213,7 @@ export class FrontmatterCompiler {
 			baseFrontMatter = {};
 		}
 
-		//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-		if (
-			!this.settings.showNoteIconInFileTree &&
-			!this.settings.showNoteIconOnInternalLink &&
-			!this.settings.showNoteIconOnTitle &&
-			!this.settings.showNoteIconOnBackLink
-		) {
-			return newFrontMatter;
-		}
-
 		const publishedFrontMatter = { ...newFrontMatter };
-		const noteIconKey = this.settings.noteIconKey;
-
-		if (baseFrontMatter[noteIconKey] !== undefined) {
-			publishedFrontMatter["noteIcon"] = baseFrontMatter[noteIconKey];
-		} else {
-			publishedFrontMatter["noteIcon"] = this.settings.defaultNoteIcon;
-		}
 
 		return publishedFrontMatter;
 	}
@@ -273,11 +235,11 @@ export class FrontmatterCompiler {
 			}
 		}
 
-		const dgPassFrontmatter =
-			this.settings.defaultNoteSettings.dgPassFrontmatter;
+		const PassFrontmatter =
+			this.settings.defaultNoteSettings.PassFrontmatter;
 
-		if (dgPassFrontmatter) {
-			publishedFrontMatter.dgPassFrontmatter = dgPassFrontmatter;
+		if (PassFrontmatter) {
+			publishedFrontMatter.PassFrontmatter = PassFrontmatter;
 		}
 
 		return publishedFrontMatter;

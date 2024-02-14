@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 I'm a list of all files in this folder: 
 

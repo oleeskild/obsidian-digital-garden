@@ -1,5 +1,5 @@
 ---
-dg-publish: false
+publish: false
 ---
 This is as far as we can go! Or is it???
 
