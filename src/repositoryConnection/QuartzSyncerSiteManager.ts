@@ -67,10 +67,7 @@ export default class QuartzSyncerSiteManager {
 	}
 
 	async updateEnv() {
-		const theme = JSON.parse(this.settings.theme);
-		const baseTheme = this.settings.baseTheme;
 		const siteName = this.settings.siteName;
-		const mainLanguage = this.settings.mainLanguage;
 		let quartzBaseUrl = "";
 
 		// check that quartzbaseurl is not an access token wrongly pasted.
@@ -85,25 +82,14 @@ export default class QuartzSyncerSiteManager {
 
 		const envValues = {
 			SITE_NAME_HEADER: siteName,
-			SITE_MAIN_LANGUAGE: mainLanguage,
 			SITE_BASE_URL: quartzBaseUrl,
 			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
 			TIMESTAMP_FORMAT: this.settings.timestampFormat,
 			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
-			NOTE_ICON_DEFAULT: this.settings.defaultNoteIcon,
-			NOTE_ICON_TITLE: this.settings.showNoteIconOnTitle,
-			NOTE_ICON_FILETREE: this.settings.showNoteIconInFileTree,
-			NOTE_ICON_INTERNAL_LINKS: this.settings.showNoteIconOnInternalLink,
-			NOTE_ICON_BACK_LINKS: this.settings.showNoteIconOnBackLink,
 			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
 			STYLE_SETTINGS_BODY_CLASSES: this.settings.styleSettingsBodyClasses,
 			USE_FULL_RESOLUTION_IMAGES: this.settings.useFullResolutionImages,
 		} as Record<string, string | boolean>;
-
-		if (theme.name !== "default") {
-			envValues["THEME"] = theme.cssUrl;
-			envValues["BASE_THEME"] = baseTheme;
-		}
 
 		const keysToSet = {
 			...envValues,

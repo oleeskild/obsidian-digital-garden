@@ -8,10 +8,6 @@ export default interface QuartzSyncerSettings {
 	quartzBaseUrl: string;
 	prHistory: string[];
 
-	theme: string;
-	baseTheme: string;
-	faviconPath: string;
-	mainLanguage: string;
 	useFullResolutionImages: boolean;
 
 	siteName: string;
@@ -19,13 +15,6 @@ export default interface QuartzSyncerSettings {
 	noteSettingsIsInitialized: boolean;
 
 	slugifyEnabled: boolean;
-
-	noteIconKey: string;
-	defaultNoteIcon: string;
-	showNoteIconOnTitle: boolean;
-	showNoteIconInFileTree: boolean;
-	showNoteIconOnInternalLink: boolean;
-	showNoteIconOnBackLink: boolean;
 
 	showCreatedTimestamp: boolean;
 	createdTimestampKey: string;
@@ -45,14 +34,6 @@ export default interface QuartzSyncerSettings {
 	defaultNoteSettings: {
 		HomeLink: boolean;
 		PassFrontmatter: boolean;
-		ShowBacklinks: boolean;
-		ShowLocalGraph: boolean;
-		ShowInlineTitle: boolean;
-		ShowFileTree: boolean;
-		EnableSearch: boolean;
-		ShowToc: boolean;
-		LinkPreview: boolean;
-		ShowTags: boolean;
 	};
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;

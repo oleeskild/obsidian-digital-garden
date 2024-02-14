@@ -213,24 +213,7 @@ export class FrontmatterCompiler {
 			baseFrontMatter = {};
 		}
 
-		//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-		if (
-			!this.settings.showNoteIconInFileTree &&
-			!this.settings.showNoteIconOnInternalLink &&
-			!this.settings.showNoteIconOnTitle &&
-			!this.settings.showNoteIconOnBackLink
-		) {
-			return newFrontMatter;
-		}
-
 		const publishedFrontMatter = { ...newFrontMatter };
-		const noteIconKey = this.settings.noteIconKey;
-
-		if (baseFrontMatter[noteIconKey] !== undefined) {
-			publishedFrontMatter["noteIcon"] = baseFrontMatter[noteIconKey];
-		} else {
-			publishedFrontMatter["noteIcon"] = this.settings.defaultNoteIcon;
-		}
 
 		return publishedFrontMatter;
 	}

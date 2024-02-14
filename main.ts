@@ -18,21 +18,10 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	githubUserName: "",
 	quartzBaseUrl: "",
 	prHistory: [],
-	baseTheme: "dark",
-	theme: '{"name": "default", "modes": ["dark"]}',
-	faviconPath: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
-	siteName: "Quartz Syncer",
-	mainLanguage: "en",
+	siteName: "Quartz",
 	slugifyEnabled: true,
-	// Note Icon Related Settings
-	noteIconKey: "note-icon",
-	defaultNoteIcon: "",
-	showNoteIconOnTitle: false,
-	showNoteIconInFileTree: false,
-	showNoteIconOnInternalLink: false,
-	showNoteIconOnBackLink: false,
 
 	// Timestamp related settings
 	showCreatedTimestamp: false,
@@ -51,14 +40,6 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	defaultNoteSettings: {
 		HomeLink: true,
 		PassFrontmatter: false,
-		ShowBacklinks: false,
-		ShowLocalGraph: false,
-		ShowInlineTitle: false,
-		ShowFileTree: false,
-		EnableSearch: false,
-		ShowToc: false,
-		LinkPreview: false,
-		ShowTags: false,
 	},
 	logLevel: undefined,
 };
