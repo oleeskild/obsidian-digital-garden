@@ -11,22 +11,21 @@ import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManage
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
-	"path"?: string;
+	"title"?: string;
+	"description"?: string;
+	"aliases"?: string;
 	"permalink"?: string;
-	"home"?: boolean;
-	"hide-in-graph"?: boolean;
-	"hide"?: boolean;
-	"pinned"?: boolean;
-	"metatags"?: string;
+	"draft"?: boolean;
 	tags?: string;
 };
 
 export type TPublishedFrontMatter = Record<string, unknown> & {
+	title?: string;
 	tags?: string[];
-	metatags?: string;
-	pinned?: boolean;
+	description?: string;
+	aliases?: string;
 	permalink?: string;
-	hide?: boolean;
+	draft?: boolean;
 };
 
 export class FrontmatterCompiler {
@@ -96,14 +95,10 @@ export class FrontmatterCompiler {
 	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 
-		const quartzPath =
-			baseFrontMatter && baseFrontMatter["path"]
-				? baseFrontMatter["path"]
-				: getSyncerPathForNote(filePath, this.rewriteRules);
+		const quartzPath = getSyncerPathForNote(filePath, this.rewriteRules);
 
-		if (quartzPath != filePath) {
-			publishedFrontMatter["path"] = quartzPath;
-		}
+		publishedFrontMatter["path"] = quartzPath;
+		
 
 		if (baseFrontMatter && baseFrontMatter["permalink"]) {
 			publishedFrontMatter["permalink"] =
@@ -132,22 +127,8 @@ export class FrontmatterCompiler {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
 
-			if (baseFrontMatter["metatags"]) {
-				publishedFrontMatter["metatags"] =
-					baseFrontMatter["metatags"];
-			}
-
-			if (baseFrontMatter["hide"]) {
-				publishedFrontMatter["hide"] = baseFrontMatter["hide"];
-			}
-
-			if (baseFrontMatter["hide-in-graph"]) {
-				publishedFrontMatter["hideInGraph"] =
-					baseFrontMatter["hide-in-graph"];
-			}
-
-			if (baseFrontMatter["pinned"]) {
-				publishedFrontMatter["pinned"] = baseFrontMatter["pinned"];
+			if (baseFrontMatter["draft"]) {
+				publishedFrontMatter["draft"] = baseFrontMatter["draft"];
 			}
 		}
 

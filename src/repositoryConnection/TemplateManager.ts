@@ -275,7 +275,7 @@ export class TemplateUpdater {
 					title: `Update template to version ${this.newestTemplateVersion}`,
 					head: branchName,
 					base: this.defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/quartzsyncer/releases/tag/${this.newestTemplateVersion})`,
+					body: `Update to latest template version.\n [Release Notes](https://github.com/saberzero1/quartz-syncer/releases/tag/${this.newestTemplateVersion})`,
 				},
 			);
 

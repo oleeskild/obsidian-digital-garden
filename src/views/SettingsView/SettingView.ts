@@ -1091,11 +1091,11 @@ export default class SettingView {
 			text: "➕ Recent Pull Request History",
 		});
 		const prsContainer = modal.contentEl.createEl("ul", {});
-		prsContainer.hide();
+		prsContainer.draft();
 
 		header.onClickEvent(() => {
 			if (prsContainer.isShown()) {
-				prsContainer.hide();
+				prsContainer.draft();
 				header.textContent = "➕  Recent Pull Request History";
 			} else {
 				prsContainer.show();

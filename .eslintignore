@@ -6,3 +6,4 @@ jest.config.js
 
 .eslintrc.js
 src/testVault/*
+content/*

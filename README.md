@@ -86,13 +86,13 @@ In the future you will be notified with a visual cue whenever there is an update
 
 ## Local development
 
-NOTE: this plugin contains a testing vault at `src/testVault`, which is recommended for local development.
+NOTE: this plugin contains a testing vault at `content`, which is recommended for local development.
 
 1. Clone this repository
 2. (for best compatability, use node version manager and run `nvm install && nvm use`)
 3. Install dependencies with `npm install`
 4. Run with `npm run dev`
-5. Open the vault from `src/testVault` into obsidian
+5. Open the vault from `content` into obsidian
 
 6. (if you want to develop this plugin with another vault, move it into .obsidian/plugins of that vault)
 

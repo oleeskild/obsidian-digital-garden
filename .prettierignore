@@ -11,6 +11,7 @@ content/*
 
 *.yml
 src/testVault/*
+content/*
 
 package-lock.json
 package.json
