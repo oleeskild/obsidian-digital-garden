@@ -1,11 +1,5 @@
 import type QuartzSyncerSettings from "src/models/settings";
-import { type MetadataCache, Notice, type TFile } from "obsidian";
-import {
-	extractBaseUrl,
-	generateUrlPath,
-	getSyncerPathForNote,
-	getRewriteRules,
-} from "../utils/utils";
+import { type MetadataCache, Notice } from "obsidian";
 import { Base64 } from "js-base64";
 import {
 	RepositoryConnection,
@@ -38,7 +32,6 @@ type ContentTreeItem = {
 export default class QuartzSyncerSiteManager {
 	settings: QuartzSyncerSettings;
 	metadataCache: MetadataCache;
-	rewriteRules: PathRewriteRules;
 	baseSyncerConnection: RepositoryConnection;
 	userSyncerConnection: RepositoryConnection;
 
@@ -46,7 +39,6 @@ export default class QuartzSyncerSiteManager {
 	constructor(metadataCache: MetadataCache, settings: QuartzSyncerSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
-		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
 		this.baseSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
@@ -67,19 +59,6 @@ export default class QuartzSyncerSiteManager {
 	}
 
 	async updateEnv() {
-		const siteName = this.settings.siteName;
-		let quartzBaseUrl = "";
-
-		// check that quartzbaseurl is not an access token wrongly pasted.
-		if (
-			this.settings.quartzBaseUrl &&
-			!this.settings.quartzBaseUrl.startsWith("ghp_") &&
-			!this.settings.quartzBaseUrl.startsWith("github_pat") &&
-			this.settings.quartzBaseUrl.contains(".")
-		) {
-			quartzBaseUrl = this.settings.quartzBaseUrl;
-		}
-
 		const envValues = {
 			SITE_NAME_HEADER: siteName,
 			SITE_BASE_URL: quartzBaseUrl,

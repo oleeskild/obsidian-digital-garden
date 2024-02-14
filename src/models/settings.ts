@@ -5,7 +5,6 @@ export default interface QuartzSyncerSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
-	quartzBaseUrl: string;
 	prHistory: string[];
 
 	useFullResolutionImages: boolean;

@@ -50,7 +50,7 @@ export default class SettingView {
 		return getIcon(name) ?? document.createElement("span");
 	}
 
-	async initialize(prModal: Modal) {
+	async initialize() {
 		this.settingsRootElement.empty();
 
 		this.settingsRootElement.createEl("h1", {
@@ -75,113 +75,6 @@ export default class SettingView {
 		});
 
 		new GithubSettings(this, githubSettings);
-
-		this.settingsRootElement
-			.createEl("h3", { text: "URL" })
-			.prepend(this.getIcon("link"));
-		this.initializeGitHubBaseURLSetting();
-		this.initializeSlugifySetting();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Features" })
-			.prepend(this.getIcon("star"));
-		this.initializeDefaultNoteSettings();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Appearance" })
-			.prepend(this.getIcon("brush"));
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Advanced" })
-			.prepend(this.getIcon("cog"));
-
-		new Setting(this.settingsRootElement)
-			.setName("Path Rewrite Rules")
-			.setDesc(
-				"Define rules to rewrite note folder structure in the garden. See the modal for more information.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage Rewrite Rules");
-
-				cb.onClick(() => {
-					this.openPathRewriteRulesModal();
-				});
-			});
-		this.initializeCustomFilterSettings();
-		prModal.titleEl.createEl("h1", "Site template settings");
-	}
-
-	private async initializeDefaultNoteSettings() {
-		const noteSettingsModal = new Modal(this.app);
-
-		noteSettingsModal.titleEl.createEl("h1", {
-			text: "Default Note Settings",
-		});
-
-		const linkDiv = noteSettingsModal.contentEl.createEl("div", {
-			attr: { style: "margin-bottom: 20px; margin-top: -30px;" },
-		});
-		linkDiv.createEl("span", { text: "Note Setting Docs is available " });
-
-		linkDiv.createEl("a", {
-			text: "here.",
-			href: "https://docs.ole.dev/getting-started/03-note-settings/",
-		});
-
-		// noteSettingsModal.contentEl.createEl("div", { text: `Toggling these settings will update the global default setting for each note.
-		// If you want to enable or disable some of these on single notes, use their corresponding key.
-		// For example will adding 'show-local-graph: false' to the frontmatter of a note, disable the local graph for that particular note. ` });
-
-		new Setting(this.settingsRootElement)
-			.setName("Global Note Settings")
-			.setDesc(
-				`Default settings for each published note. These can be overwritten per note via frontmatter.`,
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage note settings");
-
-				cb.onClick(async () => {
-					noteSettingsModal.open();
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show home link (home-link)")
-			.setDesc(
-				"Determines whether to show a link back to the homepage or not.",
-			)
-			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.HomeLink);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.HomeLink = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Let all frontmatter through (pass-frontmatter)")
-			.setDesc(
-				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
-			)
-			.addToggle((t) => {
-				t.setValue(this.settings.defaultNoteSettings.PassFrontmatter);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.PassFrontmatter = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
-				});
-			});
 	}
 
 	private async saveSiteSettingsAndUpdateEnv(
@@ -209,28 +102,6 @@ export default class SettingView {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
-	}
-
-	private initializeGitHubBaseURLSetting() {
-		new Setting(this.settingsRootElement)
-			.setName("Base URL")
-			.setDesc(
-				`This is optional, but recommended. It is used for the "Copy Syncer URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("https://my-garden.vercel.app")
-					.setValue(this.settings.quartzBaseUrl)
-					.onChange(async (value) => {
-						this.settings.quartzBaseUrl = value;
-
-						this.debouncedSaveAndUpdate(
-							this.app.metadataCache,
-							this.settings,
-							this.saveSettings,
-						);
-					}),
-			);
 	}
 
 	private initializeSlugifySetting() {
