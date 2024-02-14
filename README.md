@@ -6,7 +6,7 @@ Parse, upload and sync your Obsidian notes to your [Quartz](https://github.com/j
 
 ## Initial Setup
 
-Install the plugin by downloading it from the <a href="https://github.com/saberzero1/quartz-syncer/releases">Release Tab</a>, or through the <a href="obsidian://show-plugin?id=obsidian42-brat">Obsidian42 Brat plugin</a>.
+Install the plugin by downloading it from the <a href="https://github.com/saberzero1/quartz-syncer/releases">Release Tab</a>, or through the <a href="https://github.com/TfTHacker/obsidian42-brat">Obsidian42 Brat plugin</a>.
 
 After installing, open the plugin settings in Obsidian and set your Github Username, the name of your fork of [Quartz](https://github.com/jackyzha0/quartz), and the authentication token.
 
