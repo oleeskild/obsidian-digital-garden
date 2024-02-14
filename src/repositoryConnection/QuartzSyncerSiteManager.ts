@@ -60,8 +60,6 @@ export default class QuartzSyncerSiteManager {
 
 	async updateEnv() {
 		const envValues = {
-			SITE_NAME_HEADER: siteName,
-			SITE_BASE_URL: quartzBaseUrl,
 			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
 			TIMESTAMP_FORMAT: this.settings.timestampFormat,
 			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
@@ -99,38 +97,6 @@ export default class QuartzSyncerSiteManager {
 			message: "Update settings",
 			sha: currentFile?.sha,
 		});
-	}
-
-	getNoteUrl(file: TFile): string {
-		if (!this.settings.quartzBaseUrl) {
-			new Notice("Please set the garden base url in the settings");
-
-			// caught in copyUrlToClipboard
-			throw new Error("Syncer base url not set");
-		}
-
-		const baseUrl = `https://${extractBaseUrl(
-			this.settings.quartzBaseUrl,
-		)}`;
-
-		const noteUrlPath = generateUrlPath(
-			getSyncerPathForNote(file.path, this.rewriteRules),
-			this.settings.slugifyEnabled,
-		);
-
-		let urlPath = `/${noteUrlPath}`;
-
-		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
-
-		if (frontMatter && frontMatter["home"] === true) {
-			urlPath = "/";
-		} else if (frontMatter?.permalink) {
-			urlPath = `/${frontMatter.permalink}`;
-		} else if (frontMatter?.["permalink"]) {
-			urlPath = `/${frontMatter["permalink"]}`;
-		}
-
-		return `${baseUrl}${urlPath}`;
 	}
 
 	async getNoteContent(path: string): Promise<string> {
