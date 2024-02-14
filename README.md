@@ -35,4 +35,4 @@ The notes will appear in the `content` folder in your chosen repository.
 
 ## Credits
 
-This repository is a modified version of <a herf="https://github.com/oleeskild">Ole's</a> <a href="https://github.com/oleeskild/obsidian-digital-garden">Digital Garden plugin</a>. If you found this project useful and want to support it, please support him instead: <a href="https://ko-fi.com/oleeskild">Donation link</a>.
+This repository is a modified version of <a href="https://github.com/oleeskild">Ole's</a> <a href="https://github.com/oleeskild/obsidian-digital-garden">Digital Garden plugin</a>. If you found this project useful and want to support it, please support him instead: <a href="https://ko-fi.com/oleeskild">Donation link</a>.
