@@ -1,11 +1,5 @@
-import type DigitalGardenSettings from "src/models/settings";
-import { type MetadataCache, Notice, type TFile } from "obsidian";
-import {
-	extractBaseUrl,
-	generateUrlPath,
-	getGardenPathForNote,
-	getRewriteRules,
-} from "../utils/utils";
+import type QuartzSyncerSettings from "src/models/settings";
+import { type MetadataCache, Notice } from "obsidian";
 import { Base64 } from "js-base64";
 import {
 	RepositoryConnection,
@@ -15,7 +9,7 @@ import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 
-const logger = Logger.get("digital-garden-site-manager");
+const logger = Logger.get("quartz-syncer-site-manager");
 export interface PathRewriteRule {
 	from: string;
 	to: string;
@@ -35,75 +29,44 @@ type ContentTreeItem = {
  * for site changes.
  */
 
-export default class DigitalGardenSiteManager {
-	settings: DigitalGardenSettings;
+export default class QuartzSyncerSiteManager {
+	settings: QuartzSyncerSettings;
 	metadataCache: MetadataCache;
-	rewriteRules: PathRewriteRules;
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseSyncerConnection: RepositoryConnection;
+	userSyncerConnection: RepositoryConnection;
 
 	templateUpdater: TemplateUpdateChecker;
-	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
+	constructor(metadataCache: MetadataCache, settings: QuartzSyncerSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
-		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.baseGardenConnection = new RepositoryConnection({
+		this.baseSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
-			githubUserName: "oleeskild",
-			gardenRepository: "digitalgarden",
+			githubUserName: "saberzero1",
+			quartzRepository: "quartz",
 		});
 
-		this.userGardenConnection = new RepositoryConnection({
+		this.userSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
 			githubUserName: settings.githubUserName,
-			gardenRepository: settings.githubRepo,
+			quartzRepository: settings.githubRepo,
 		});
 
 		this.templateUpdater = new TemplateUpdateChecker({
-			baseGardenConnection: this.baseGardenConnection,
-			userGardenConnection: this.userGardenConnection,
+			baseSyncerConnection: this.baseSyncerConnection,
+			userSyncerConnection: this.userSyncerConnection,
 		});
 	}
 
 	async updateEnv() {
-		const theme = JSON.parse(this.settings.theme);
-		const baseTheme = this.settings.baseTheme;
-		const siteName = this.settings.siteName;
-		const mainLanguage = this.settings.mainLanguage;
-		let gardenBaseUrl = "";
-
-		// check that gardenbaseurl is not an access token wrongly pasted.
-		if (
-			this.settings.gardenBaseUrl &&
-			!this.settings.gardenBaseUrl.startsWith("ghp_") &&
-			!this.settings.gardenBaseUrl.startsWith("github_pat") &&
-			this.settings.gardenBaseUrl.contains(".")
-		) {
-			gardenBaseUrl = this.settings.gardenBaseUrl;
-		}
-
 		const envValues = {
-			SITE_NAME_HEADER: siteName,
-			SITE_MAIN_LANGUAGE: mainLanguage,
-			SITE_BASE_URL: gardenBaseUrl,
 			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
 			TIMESTAMP_FORMAT: this.settings.timestampFormat,
 			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
-			NOTE_ICON_DEFAULT: this.settings.defaultNoteIcon,
-			NOTE_ICON_TITLE: this.settings.showNoteIconOnTitle,
-			NOTE_ICON_FILETREE: this.settings.showNoteIconInFileTree,
-			NOTE_ICON_INTERNAL_LINKS: this.settings.showNoteIconOnInternalLink,
-			NOTE_ICON_BACK_LINKS: this.settings.showNoteIconOnBackLink,
 			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
 			STYLE_SETTINGS_BODY_CLASSES: this.settings.styleSettingsBodyClasses,
 			USE_FULL_RESOLUTION_IMAGES: this.settings.useFullResolutionImages,
 		} as Record<string, string | boolean>;
-
-		if (theme.name !== "default") {
-			envValues["THEME"] = theme.cssUrl;
-			envValues["BASE_THEME"] = baseTheme;
-		}
 
 		const keysToSet = {
 			...envValues,
@@ -116,7 +79,7 @@ export default class DigitalGardenSiteManager {
 
 		const base64Settings = Base64.encode(envSettings);
 
-		const currentFile = await this.userGardenConnection.getFile(".env");
+		const currentFile = await this.userSyncerConnection.getFile(".env");
 
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
@@ -128,7 +91,7 @@ export default class DigitalGardenSiteManager {
 			return;
 		}
 
-		await this.userGardenConnection.updateFile({
+		await this.userSyncerConnection.updateFile({
 			path: ".env",
 			content: base64Settings,
 			message: "Update settings",
@@ -136,44 +99,12 @@ export default class DigitalGardenSiteManager {
 		});
 	}
 
-	getNoteUrl(file: TFile): string {
-		if (!this.settings.gardenBaseUrl) {
-			new Notice("Please set the garden base url in the settings");
-
-			// caught in copyUrlToClipboard
-			throw new Error("Garden base url not set");
-		}
-
-		const baseUrl = `https://${extractBaseUrl(
-			this.settings.gardenBaseUrl,
-		)}`;
-
-		const noteUrlPath = generateUrlPath(
-			getGardenPathForNote(file.path, this.rewriteRules),
-			this.settings.slugifyEnabled,
-		);
-
-		let urlPath = `/${noteUrlPath}`;
-
-		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
-
-		if (frontMatter && frontMatter["dg-home"] === true) {
-			urlPath = "/";
-		} else if (frontMatter?.permalink) {
-			urlPath = `/${frontMatter.permalink}`;
-		} else if (frontMatter?.["dg-permalink"]) {
-			urlPath = `/${frontMatter["dg-permalink"]}`;
-		}
-
-		return `${baseUrl}${urlPath}`;
-	}
-
 	async getNoteContent(path: string): Promise<string> {
 		if (path.startsWith("/")) {
 			path = path.substring(1);
 		}
 
-		const response = await this.userGardenConnection.getFile(
+		const response = await this.userSyncerConnection.getFile(
 			NOTE_PATH_BASE + path,
 		);
 

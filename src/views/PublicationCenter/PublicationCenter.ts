@@ -1,7 +1,7 @@
 import { type App, Modal, getIcon, Vault, TFile } from "obsidian";
-import DigitalGardenSettings from "../../models/settings";
+import QuartzSyncerSettings from "../../models/settings";
 import { PublishFile } from "../../publishFile/PublishFile";
-import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
+import QuartzSyncerSiteManager from "../../repositoryConnection/QuartzSyncerSiteManager";
 import PublishStatusManager from "../../publisher/PublishStatusManager";
 import Publisher from "../../publisher/Publisher";
 import PublicationCenterSvelte from "./PublicationCenter.svelte";
@@ -10,10 +10,10 @@ import * as Diff from "diff";
 
 export class PublicationCenter {
 	modal: Modal;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 	publishStatusManager: PublishStatusManager;
 	publisher: Publisher;
-	siteManager: DigitalGardenSiteManager;
+	siteManager: QuartzSyncerSiteManager;
 	vault: Vault;
 
 	publicationCenterUi!: PublicationCenterSvelte;
@@ -22,8 +22,8 @@ export class PublicationCenter {
 		app: App,
 		publishStatusManager: PublishStatusManager,
 		publisher: Publisher,
-		siteManager: DigitalGardenSiteManager,
-		settings: DigitalGardenSettings,
+		siteManager: QuartzSyncerSiteManager,
+		settings: QuartzSyncerSettings,
 	) {
 		this.modal = new Modal(app);
 		this.settings = settings;

@@ -5,9 +5,9 @@ import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
 } from "../publishFile/Validator";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
-import DigitalGardenSettings from "../models/settings";
-import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
+import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
+import QuartzSyncerSettings from "../models/settings";
+import { Assets, SyncerPageCompiler } from "../compiler/SyncerPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
@@ -26,21 +26,21 @@ export const NOTE_PATH_BASE = "content/";
 export default class Publisher {
 	vault: Vault;
 	metadataCache: MetadataCache;
-	compiler: GardenPageCompiler;
-	settings: DigitalGardenSettings;
+	compiler: SyncerPageCompiler;
+	settings: QuartzSyncerSettings;
 	rewriteRules: PathRewriteRules;
 
 	constructor(
 		vault: Vault,
 		metadataCache: MetadataCache,
-		settings: DigitalGardenSettings,
+		settings: QuartzSyncerSettings,
 	) {
 		this.vault = vault;
 		this.metadataCache = metadataCache;
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.compiler = new GardenPageCompiler(
+		this.compiler = new SyncerPageCompiler(
 			vault,
 			settings,
 			metadataCache,
@@ -102,15 +102,17 @@ export default class Publisher {
 	async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
+		const userSyncerConnection = new RepositoryConnection({
+			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
 		});
 
-		return !!userGardenConnection.deleteFile(path, {
+		const deleted = await userSyncerConnection.deleteFile(path, {
 			sha,
 		});
+
+		return !!deleted;
 	}
 
 	async publish(file: CompiledPublishFile): Promise<boolean> {
@@ -139,14 +141,14 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
+		const userSyncerConnection = new RepositoryConnection({
+			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
 		});
 
 		if (!remoteFileHash) {
-			const file = await userGardenConnection.getFile(path).catch(() => {
+			const file = await userSyncerConnection.getFile(path).catch(() => {
 				// file does not exist
 				Logger.info(`File ${path} does not exist, adding`);
 			});
@@ -157,7 +159,7 @@ export default class Publisher {
 			}
 		}
 
-		return await userGardenConnection.updateFile({
+		return await userSyncerConnection.updateFile({
 			content,
 			path,
 			message,
@@ -172,7 +174,7 @@ export default class Publisher {
 	}
 
 	async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `${IMAGE_PATH_BASE}${filePath}`;
+		const path = `src/site${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 

@@ -1,5 +1,5 @@
 ---
-dg-publish: false
+publish: false
 ---
 There must be a limit!!!
 

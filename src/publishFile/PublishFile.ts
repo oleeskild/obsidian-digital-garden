@@ -1,33 +1,33 @@
 import { MetadataCache, TFile, Vault } from "obsidian";
 import {
-	GardenPageCompiler,
+	SyncerPageCompiler,
 	TCompiledFile,
-} from "../compiler/GardenPageCompiler";
+} from "../compiler/SyncerPageCompiler";
 import {
 	FrontmatterCompiler,
 	TFrontmatter,
 } from "../compiler/FrontmatterCompiler";
-import DigitalGardenSettings from "../models/settings";
+import QuartzSyncerSettings from "../models/settings";
 import { hasPublishFlag } from "./Validator";
 import { FileMetadataManager } from "./FileMetaDataManager";
 
 interface IPublishFileProps {
 	file: TFile;
 	vault: Vault;
-	compiler: GardenPageCompiler;
+	compiler: SyncerPageCompiler;
 	metadataCache: MetadataCache;
-	settings: DigitalGardenSettings;
+	settings: QuartzSyncerSettings;
 }
 
 export class PublishFile {
 	file: TFile;
-	compiler: GardenPageCompiler;
+	compiler: SyncerPageCompiler;
 	vault: Vault;
 	compiledFile?: TCompiledFile;
 	metadataCache: MetadataCache;
 	frontmatter: TFrontmatter;
-	settings: DigitalGardenSettings;
-	// Access dg-props and other file metadata
+	settings: QuartzSyncerSettings;
+	// Access props and other file metadata
 	meta: FileMetadataManager;
 
 	constructor({
@@ -95,7 +95,7 @@ export class PublishFile {
 		return this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 	}
 
-	/** Add other possible sorting logic here, eg if we add dg-sortWeight
+	/** Add other possible sorting logic here, eg if we add sortWeight
 	 * We might also want to sort by meta.getPath for rewritten garden path
 	 */
 	compare(other: PublishFile) {

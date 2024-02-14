@@ -1,5 +1,5 @@
 ---
-dg-publish: true
+publish: true
 ---
 This Subfolder has been rewritten before the rule to rewrite the Path Rewriting folder to root
 
