@@ -141,7 +141,7 @@ This garden should have the following plugins
 002 Hidden page.md
 ==========
 ---
-{"publish":true,"permalink":"/002-hidden-page/","hide":true}
+{"publish":true,"permalink":"/002-hidden-page/","draft":true}
 ---
 
 This page is hidden from the folder tree!
