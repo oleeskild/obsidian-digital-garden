@@ -50,8 +50,8 @@ export default class QuartzSyncerSiteManager {
 
 		this.baseSyncerConnection = new RepositoryConnection({
 			githubToken: settings.githubToken,
-			githubUserName: "oleeskild",
-			quartzRepository: "quartzsyncer",
+			githubUserName: "saberzero1",
+			quartzRepository: "quartz-syncer",
 		});
 
 		this.userSyncerConnection = new RepositoryConnection({
