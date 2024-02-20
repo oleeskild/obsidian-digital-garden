@@ -234,7 +234,10 @@ export class GardenPageCompiler {
 							headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
 					}
 					const fullLinkedFilePath = getLinkpath(linkedFileName);
-
+					
+					if (fullLinkedFilePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						fullLinkedFilePath,
 						file.getPath(),
@@ -297,7 +300,10 @@ export class GardenPageCompiler {
 
 					const transclusionFilePath =
 						getLinkpath(transclusionFileName);
-
+					
+					if (transclusionFilePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						transclusionFilePath,
 						file.getPath(),
@@ -505,7 +511,10 @@ export class GardenPageCompiler {
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
 						.split("|");
 					const imagePath = getLinkpath(imageName);
-
+					
+					if (imagePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -550,6 +559,9 @@ export class GardenPageCompiler {
 						continue;
 					}
 
+					if (imagePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -596,6 +608,9 @@ export class GardenPageCompiler {
 						.split("|");
 					const imagePath = getLinkpath(imageName);
 
+					if (imagePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -631,6 +646,9 @@ export class GardenPageCompiler {
 
 					const decodedImagePath = decodeURI(imagePath);
 
+					if (decodedImagePath === "") {
+						continue;
+					}
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
 						file.getPath(),
@@ -710,6 +728,9 @@ export class GardenPageCompiler {
 
 						const imagePath = getLinkpath(imageName);
 
+						if (imagePath === "") {
+							continue;
+						}
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
 								imagePath,
@@ -783,6 +804,9 @@ export class GardenPageCompiler {
 
 						const decodedImagePath = decodeURI(imagePath);
 
+						if (decodedImagePath === "") {
+							continue;
+						}
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
 								decodedImagePath,
