@@ -85,13 +85,13 @@ export default class Publisher {
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
-		const path = `${this.settings.contentFolder}${vaultFilePath}`;
+		const path = `${this.settings.contentFolder}/${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
 
 	async deleteImage(vaultFilePath: string, sha?: string) {
-		const path = `${this.settings.contentFolder}${vaultFilePath}`;
+		const path = `${this.settings.contentFolder}/${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
@@ -166,12 +166,12 @@ export default class Publisher {
 
 	async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
-		const path = `${this.settings.contentFolder}${filePath}`;
+		const path = `${this.settings.contentFolder}/${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
 	async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `${this.settings.contentFolder}${filePath}`;
+		const path = `${this.settings.contentFolder}/${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 

@@ -104,7 +104,7 @@ export default class QuartzSyncerSiteManager {
 		}
 
 		const response = await this.userSyncerConnection.getFile(
-			this.settings.contentFolder + path,
+			`${this.settings.contentFolder}/${path}`,
 		);
 
 		if (!response) {
@@ -126,7 +126,7 @@ export default class QuartzSyncerSiteManager {
 				typeof x.path === "string" &&
 				x.path.startsWith(this.settings.contentFolder) &&
 				x.type === "blob" &&
-				x.path !== `${this.settings.contentFolder}notes.json`,
+				x.path !== `${this.settings.contentFolder}/notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
