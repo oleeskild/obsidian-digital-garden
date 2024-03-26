@@ -728,7 +728,13 @@ export class SyncerPageCompiler {
 						const image = await this.vault.readBinary(linkedFile);
 						const imageBase64 = arrayBufferToBase64(image);
 
-						const cmsImgPath = `${linkedFile.path}`;
+						let relativeEmbedPrefix = "";
+
+						for (let i = 0; i < filePath.split("/").length - 1; i++) {
+							relativeEmbedPrefix += "../";
+						}
+
+						const cmsImgPath = `${relativeEmbedPrefix}${linkedFile.path}`;
 						let name = "";
 
 						if (metaData && size) {
@@ -800,7 +806,15 @@ export class SyncerPageCompiler {
 						}
 						const image = await this.vault.readBinary(linkedFile);
 						const imageBase64 = arrayBufferToBase64(image);
-						const cmsImgPath = `${linkedFile.path}`;
+
+						let relativeEmbedPrefix = "";
+
+						for (let i = 0; i < filePath.split("/").length - 1; i++) {
+							relativeEmbedPrefix += "../";
+						}
+
+						const cmsImgPath = `${relativeEmbedPrefix}${linkedFile.path}`;
+						
 						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
 						assets.push({ path: cmsImgPath, content: imageBase64 });
 
