@@ -600,7 +600,10 @@ export class SyncerPageCompiler {
 							imageMatch.indexOf("]"),
 						)
 						.split("|");
-					const imagePath = getLinkpath(imageName);
+
+					const actualImagePath = imageName.replace(/\.\.\//g, "");
+
+					const imagePath = getLinkpath(actualImagePath);
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
@@ -635,7 +638,9 @@ export class SyncerPageCompiler {
 						continue;
 					}
 
-					const decodedImagePath = decodeURI(imagePath);
+					const actualImagePath = imagePath.replace(/\.\.\//g, "");
+
+					const decodedImagePath = decodeURI(actualImagePath);
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
