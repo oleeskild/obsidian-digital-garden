@@ -17,9 +17,6 @@ export interface MarkedForPublishing {
 	images: string[];
 }
 
-export const IMAGE_PATH_BASE = "content/";
-export const NOTE_PATH_BASE = "content/";
-
 /**
  * Prepares files to be published and publishes them to Github
  */
@@ -88,13 +85,13 @@ export default class Publisher {
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
-		const path = `${NOTE_PATH_BASE}${vaultFilePath}`;
+		const path = `${this.settings.contentFolder}/${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
 
 	async deleteImage(vaultFilePath: string, sha?: string) {
-		const path = `${IMAGE_PATH_BASE}${vaultFilePath}`;
+		const path = `${this.settings.contentFolder}/${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
@@ -169,12 +166,13 @@ export default class Publisher {
 
 	async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
-		const path = `${NOTE_PATH_BASE}${filePath}`;
+		const path = `${this.settings.contentFolder}/${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
 	async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `src/site${filePath}`;
+		const actualFilePath = filePath.replace(/\.\.\//g, "");
+		const path = `${this.settings.contentFolder}/${actualFilePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 

@@ -600,7 +600,10 @@ export class SyncerPageCompiler {
 							imageMatch.indexOf("]"),
 						)
 						.split("|");
-					const imagePath = getLinkpath(imageName);
+
+					const actualImagePath = imageName.replace(/\.\.\//g, "");
+
+					const imagePath = getLinkpath(actualImagePath);
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
@@ -635,7 +638,9 @@ export class SyncerPageCompiler {
 						continue;
 					}
 
-					const decodedImagePath = decodeURI(imagePath);
+					const actualImagePath = imagePath.replace(/\.\.\//g, "");
+
+					const decodedImagePath = decodeURI(actualImagePath);
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
@@ -728,7 +733,17 @@ export class SyncerPageCompiler {
 						const image = await this.vault.readBinary(linkedFile);
 						const imageBase64 = arrayBufferToBase64(image);
 
-						const cmsImgPath = `/img/user/${linkedFile.path}`;
+						let relativeEmbedPrefix = "";
+
+						for (
+							let i = 0;
+							i < filePath.split("/").length - 1;
+							i++
+						) {
+							relativeEmbedPrefix += "../";
+						}
+
+						const cmsImgPath = `${relativeEmbedPrefix}${linkedFile.path}`;
 						let name = "";
 
 						if (metaData && size) {
@@ -800,7 +815,18 @@ export class SyncerPageCompiler {
 						}
 						const image = await this.vault.readBinary(linkedFile);
 						const imageBase64 = arrayBufferToBase64(image);
-						const cmsImgPath = `/img/user/${linkedFile.path}`;
+
+						let relativeEmbedPrefix = "";
+
+						for (
+							let i = 0;
+							i < filePath.split("/").length - 1;
+							i++
+						) {
+							relativeEmbedPrefix += "../";
+						}
+
+						const cmsImgPath = `${relativeEmbedPrefix}${linkedFile.path}`;
 						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
 						assets.push({ path: cmsImgPath, content: imageBase64 });
 
