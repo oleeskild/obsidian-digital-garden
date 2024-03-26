@@ -22,6 +22,7 @@ const quartzSettings = {
 	siteName: "Quartz Syncer Test Site",
 	mainLanguage: "en",
 	slugifyEnabled: true,
+	contentFolder: "content",
 	noteIconKey: "note-icon",
 	defaultNoteIcon: "",
 	showNoteIconOnTitle: false,

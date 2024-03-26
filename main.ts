@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	noteSettingsIsInitialized: false,
 	siteName: "Quartz",
 	slugifyEnabled: true,
+	contentFolder: "content",
 
 	// Timestamp related settings
 	showCreatedTimestamp: false,

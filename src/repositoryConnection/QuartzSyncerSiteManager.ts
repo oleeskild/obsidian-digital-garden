@@ -7,7 +7,6 @@ import {
 } from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
-import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 
 const logger = Logger.get("quartz-syncer-site-manager");
 export interface PathRewriteRule {
@@ -105,7 +104,7 @@ export default class QuartzSyncerSiteManager {
 		}
 
 		const response = await this.userSyncerConnection.getFile(
-			NOTE_PATH_BASE + path,
+			this.settings.contentFolder + path,
 		);
 
 		if (!response) {
@@ -125,14 +124,17 @@ export default class QuartzSyncerSiteManager {
 		const notes = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(NOTE_PATH_BASE) &&
+				x.path.startsWith(this.settings.contentFolder) &&
 				x.type === "blob" &&
-				x.path !== `${NOTE_PATH_BASE}notes.json`,
+				x.path !== `${this.settings.contentFolder}notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const note of notes) {
-			const vaultPath = note.path.replace(NOTE_PATH_BASE, "");
+			const vaultPath = note.path.replace(
+				this.settings.contentFolder,
+				"",
+			);
 			hashes[vaultPath] = note.sha;
 		}
 
@@ -147,13 +149,15 @@ export default class QuartzSyncerSiteManager {
 		const images = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(IMAGE_PATH_BASE) &&
+				x.path.startsWith(this.settings.contentFolder) &&
 				x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const img of images) {
-			const vaultPath = decodeURI(img.path.replace(IMAGE_PATH_BASE, ""));
+			const vaultPath = decodeURI(
+				img.path.replace(this.settings.contentFolder, ""),
+			);
 			hashes[vaultPath] = img.sha;
 		}
 

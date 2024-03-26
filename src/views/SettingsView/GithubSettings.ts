@@ -88,6 +88,23 @@ export class GithubSettings {
 		}
 	};
 
+	private initializeGitHubContentFolder() {
+		new Setting(this.settingsRootElement)
+			.setName("Quartz content folder name")
+			.setDesc(
+				'The folder where your vault lives inside Quartz. By default "content"',
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("content")
+					.setValue(this.settings.settings.githubRepo)
+					.onChange(async (value) => {
+						this.settings.settings.contentFolder = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
 	private initializeGitHubRepoSetting() {
 		new Setting(this.settingsRootElement)
 			.setName("GitHub repo name")
