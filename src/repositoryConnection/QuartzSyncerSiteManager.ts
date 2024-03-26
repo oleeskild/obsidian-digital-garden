@@ -135,8 +135,7 @@ export default class QuartzSyncerSiteManager {
 				this.settings.contentFolder,
 				"",
 			);
-			const actualVaultPath = vaultPath.startsWith("/") ? vaultPath.substring(1) : vaultPath;	
-			hashes[actualVaultPath] = note.sha;
+			hashes[vaultPath] = note.sha;
 		}
 
 		return hashes;
@@ -159,8 +158,7 @@ export default class QuartzSyncerSiteManager {
 			const vaultPath = decodeURI(
 				img.path.replace(this.settings.contentFolder, ""),
 			);
-			const actualVaultPath = vaultPath.startsWith("/") ? vaultPath.substring(1) : vaultPath;	
-			hashes[actualVaultPath] = img.sha;
+			hashes[vaultPath] = img.sha;
 		}
 
 		return hashes;

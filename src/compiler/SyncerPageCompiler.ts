@@ -730,7 +730,11 @@ export class SyncerPageCompiler {
 
 						let relativeEmbedPrefix = "";
 
-						for (let i = 0; i < filePath.split("/").length - 1; i++) {
+						for (
+							let i = 0;
+							i < filePath.split("/").length - 1;
+							i++
+						) {
 							relativeEmbedPrefix += "../";
 						}
 
@@ -809,12 +813,15 @@ export class SyncerPageCompiler {
 
 						let relativeEmbedPrefix = "";
 
-						for (let i = 0; i < filePath.split("/").length - 1; i++) {
+						for (
+							let i = 0;
+							i < filePath.split("/").length - 1;
+							i++
+						) {
 							relativeEmbedPrefix += "../";
 						}
 
 						const cmsImgPath = `${relativeEmbedPrefix}${linkedFile.path}`;
-						
 						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
 						assets.push({ path: cmsImgPath, content: imageBase64 });
 
