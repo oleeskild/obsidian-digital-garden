@@ -11,7 +11,6 @@ import { Assets, SyncerPageCompiler } from "../compiler/SyncerPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
-import { Settings } from "luxon";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
