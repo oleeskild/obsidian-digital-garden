@@ -171,7 +171,8 @@ export default class Publisher {
 	}
 
 	async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `${this.settings.contentFolder}/${filePath}`;
+		const actualFilePath = filePath.replace(/\.\.\//g, "");
+		const path = `${this.settings.contentFolder}/${actualFilePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
