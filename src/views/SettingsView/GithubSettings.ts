@@ -23,6 +23,7 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
+		this.initializeGitHubContentFolder();
 	}
 
 	initializeHeader = () => {
