@@ -98,7 +98,7 @@ export class GithubSettings {
 			.addText((text) =>
 				text
 					.setPlaceholder("content")
-					.setValue(this.settings.settings.githubRepo)
+					.setValue(this.settings.settings.contentFolder)
 					.onChange(async (value) => {
 						this.settings.settings.contentFolder = value;
 						await this.checkConnectionAndSaveSettings();
