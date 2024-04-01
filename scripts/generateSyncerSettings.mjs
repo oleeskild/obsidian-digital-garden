@@ -51,7 +51,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	contentClassesKey: "content-classes",
 	defaultNoteSettings: {
 	HomeLink: true,
-	PassFrontmatter: false,
+	PassFrontmatter: true,
 	ShowBacklinks: true,
 	ShowLocalGraph: true,
 	ShowInlineTitle: false,
