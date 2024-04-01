@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 
 	defaultNoteSettings: {
 		HomeLink: true,
-		PassFrontmatter: false,
+		PassFrontmatter: true,
 	},
 	logLevel: undefined,
 };
