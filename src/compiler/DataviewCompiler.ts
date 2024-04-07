@@ -169,7 +169,7 @@ export class DataviewCompiler {
 
 		replacedText = replacedText.replace(
 			DATAVIEW_LINK_TARGET_BLANK_REGEX,
-			"$1",
+			"$1$2",
 		);
 
 		return replacedText;
