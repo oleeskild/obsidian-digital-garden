@@ -11,4 +11,4 @@ export const TRANSCLUDED_SVG_REGEX =
 	/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
 
 export const DATAVIEW_LINK_TARGET_BLANK_REGEX =
-	/ ?target=["']_blank["'] *?rel=["']noopener["']/g;
+	/target=["']_blank["'] rel=["']noopener["']/g;
