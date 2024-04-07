@@ -26,6 +26,7 @@ import {
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
 	TRANSCLUDED_SVG_REGEX,
+	DATAVIEW_LINK_TARGET_BLANK_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
