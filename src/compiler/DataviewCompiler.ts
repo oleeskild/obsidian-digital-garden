@@ -3,7 +3,6 @@ import { TCompilerStep } from "./SyncerPageCompiler";
 import { escapeRegExp } from "../utils/utils";
 import { DataviewApi, getAPI } from "obsidian-dataview";
 import { PublishFile } from "src/publishFile/PublishFile";
-import { DATAVIEW_LINK_TARGET_BLANK_REGEX } from "../utils/regexes";
 import Logger from "js-logger";
 
 export class DataviewCompiler {
