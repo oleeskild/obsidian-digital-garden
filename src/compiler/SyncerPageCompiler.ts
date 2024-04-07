@@ -109,6 +109,7 @@ export class SyncerPageCompiler {
 			this.convertLinksToFullPath,
 			this.removeObsidianComments,
 			this.createSvgEmbeds,
+			this.linkTargeting,
 		];
 
 		const compiledText = await this.runCompilerSteps(
@@ -194,6 +195,13 @@ export class SyncerPageCompiler {
 		const dataviewCompiler = new DataviewCompiler();
 
 		return await dataviewCompiler.compile(file)(text);
+	};
+
+	linkTargeting: TCompilerStep = (file) => (text) => {
+		return text.replace(
+			DATAVIEW_LINK_TARGET_BLANK_REGEX,
+			"",
+		);
 	};
 
 	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
