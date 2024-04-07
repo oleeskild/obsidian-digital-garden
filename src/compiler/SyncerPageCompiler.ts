@@ -198,11 +198,8 @@ export class SyncerPageCompiler {
 		return await dataviewCompiler.compile(file)(text);
 	};
 
-	linkTargeting: TCompilerStep = (file) => (text) => {
-		return text.replace(
-			DATAVIEW_LINK_TARGET_BLANK_REGEX,
-			"",
-		);
+	linkTargeting: TCompilerStep = () => (text) => {
+		return text.replace(DATAVIEW_LINK_TARGET_BLANK_REGEX, "");
 	};
 
 	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
