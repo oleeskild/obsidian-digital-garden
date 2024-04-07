@@ -9,3 +9,6 @@ export const EXCALIDRAW_REGEX = /:\[\[(\d*?,\d*?)\],.*?\]\]/g;
 
 export const TRANSCLUDED_SVG_REGEX =
 	/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
+
+export const DATAVIEW_LINK_TARGET_BLANK_REGEX =
+	/(<a[^>]*)target=["']_blank["'] *?rel=["']noopener["']([^>]*>[^<]*<\/a>)/g;
