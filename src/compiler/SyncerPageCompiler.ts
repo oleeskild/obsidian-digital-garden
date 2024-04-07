@@ -26,6 +26,7 @@ import {
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
 	TRANSCLUDED_SVG_REGEX,
+	DATAVIEW_LINK_TARGET_BLANK_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
@@ -109,6 +110,7 @@ export class SyncerPageCompiler {
 			this.convertLinksToFullPath,
 			this.removeObsidianComments,
 			this.createSvgEmbeds,
+			this.linkTargeting,
 		];
 
 		const compiledText = await this.runCompilerSteps(
@@ -194,6 +196,10 @@ export class SyncerPageCompiler {
 		const dataviewCompiler = new DataviewCompiler();
 
 		return await dataviewCompiler.compile(file)(text);
+	};
+
+	linkTargeting: TCompilerStep = () => (text) => {
+		return text.replace(DATAVIEW_LINK_TARGET_BLANK_REGEX, "");
 	};
 
 	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
