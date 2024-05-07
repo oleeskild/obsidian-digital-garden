@@ -99,7 +99,7 @@ export default class Publisher {
 		return await this.delete(path, sha);
 	}
 	/** If provided with sha, garden connection does not need to get it seperately! */
-	async delete(path: string, sha?: string): Promise<boolean> {
+	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
 		const userGardenConnection = new RepositoryConnection({
@@ -115,7 +115,7 @@ export default class Publisher {
 		return !!deleted;
 	}
 
-	async publish(file: CompiledPublishFile): Promise<boolean> {
+	public async publish(file: CompiledPublishFile): Promise<boolean> {
 		if (!isPublishFrontmatterValid(file.frontmatter)) {
 			return false;
 		}
@@ -133,7 +133,55 @@ export default class Publisher {
 		}
 	}
 
-	async uploadToGithub(
+	public async deleteBatch(filePaths: string[]): Promise<boolean> {
+		if (filePaths.length === 0) {
+			return true;
+		}
+
+		try {
+			const userGardenConnection = new RepositoryConnection({
+				gardenRepository: this.settings.githubRepo,
+				githubUserName: this.settings.githubUserName,
+				githubToken: this.settings.githubToken,
+			});
+
+			await userGardenConnection.deleteFiles(filePaths);
+
+			return true;
+		} catch (error) {
+			console.error(error);
+
+			return false;
+		}
+	}
+
+	public async publishBatch(files: CompiledPublishFile[]): Promise<boolean> {
+		const filesToPublish = files.filter((f) =>
+			isPublishFrontmatterValid(f.frontmatter),
+		);
+
+		if (filesToPublish.length === 0) {
+			return true;
+		}
+
+		try {
+			const userGardenConnection = new RepositoryConnection({
+				gardenRepository: this.settings.githubRepo,
+				githubUserName: this.settings.githubUserName,
+				githubToken: this.settings.githubToken,
+			});
+
+			await userGardenConnection.updateFiles(filesToPublish);
+
+			return true;
+		} catch (error) {
+			console.error(error);
+
+			return false;
+		}
+	}
+
+	private async uploadToGithub(
 		path: string,
 		content: string,
 		remoteFileHash?: string,
@@ -167,18 +215,18 @@ export default class Publisher {
 		});
 	}
 
-	async uploadText(filePath: string, content: string, sha?: string) {
+	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
 		const path = `${NOTE_PATH_BASE}${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
-	async uploadImage(filePath: string, content: string, sha?: string) {
+	private async uploadImage(filePath: string, content: string, sha?: string) {
 		const path = `src/site${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
-	async uploadAssets(assets: Assets) {
+	private async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
 			await this.uploadImage(image.path, image.content, image.remoteHash);
