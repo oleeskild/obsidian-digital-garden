@@ -1,8 +1,13 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
+import { CompiledPublishFile } from "src/publishFile/PublishFile";
 
 const logger = Logger.get("repository-connection");
 const oktokitLogger = Logger.get("octokit");
+
+//TODO: Move to global constants
+const IMAGE_PATH_BASE = "src/site/img/user/";
+const NOTE_PATH_BASE = "src/site/notes/";
 
 interface IOctokitterInput {
 	githubToken: string;
@@ -157,10 +162,12 @@ export class RepositoryConnection {
 		}
 	}
 
-	async getLatestCommit(): Promise<{ sha: string } | undefined> {
+	async getLatestCommit(): Promise<
+		{ sha: string; commit: { tree: { sha: string } } } | undefined
+	> {
 		try {
 			const latestCommit = await this.octokit.request(
-				"GET /repos/{owner}/{repo}/commits/HEAD",
+				`GET /repos/{owner}/{repo}/commits/HEAD?cacheBust=${Date.now()}`,
 				this.getBasePayload(),
 			);
 
@@ -192,6 +199,216 @@ export class RepositoryConnection {
 		} catch (error) {
 			logger.error(error);
 		}
+	}
+
+	async deleteFiles(filePaths: string[]) {
+		const latestCommit = await this.getLatestCommit();
+
+		if (!latestCommit) {
+			logger.error("Could not get latest commit");
+
+			return;
+		}
+
+		const normalizePath = (path: string) =>
+			path.startsWith("/") ? path.slice(1) : path;
+
+		const filesToDelete = filePaths.map((path) => {
+			if (path.endsWith(".md")) {
+				return `${NOTE_PATH_BASE}${normalizePath(path)}`;
+			}
+
+			return `${IMAGE_PATH_BASE}${normalizePath(path)}`;
+		});
+
+		const repoDataPromise = this.octokit.request(
+			"GET /repos/{owner}/{repo}",
+			{
+				...this.getBasePayload(),
+			},
+		);
+
+		const latestCommitSha = latestCommit.sha;
+		const baseTreeSha = latestCommit.commit.tree.sha;
+
+		const baseTree = await this.octokit.request(
+			"GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
+			{
+				...this.getBasePayload(),
+				tree_sha: baseTreeSha,
+			},
+		);
+
+		const newTreeEntries = baseTree.data.tree
+			.filter(
+				(item: { path: string }) => !filesToDelete.includes(item.path),
+			) // Exclude files to delete
+			.map(
+				(item: {
+					path: string;
+					mode: string;
+					type: string;
+					sha: string;
+				}) => ({
+					path: item.path,
+					mode: item.mode,
+					type: item.type,
+					sha: item.sha,
+				}),
+			);
+
+		const newTree = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/trees",
+			{
+				...this.getBasePayload(),
+				base_tree: baseTreeSha,
+				tree: newTreeEntries,
+			},
+		);
+
+		const commitMessage = "Deleted multiple files";
+
+		const newCommit = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/commits",
+			{
+				...this.getBasePayload(),
+				message: commitMessage,
+				tree: newTree.data.sha,
+				parents: [latestCommitSha],
+			},
+		);
+
+		const defaultBranch = (await repoDataPromise).data.default_branch;
+
+		await this.octokit.request(
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			{
+				...this.getBasePayload(),
+				branch: defaultBranch,
+				sha: newCommit.data.sha,
+			},
+		);
+	}
+
+	async updateFiles(files: CompiledPublishFile[]) {
+		const latestCommit = await this.getLatestCommit();
+
+		if (!latestCommit) {
+			logger.error("Could not get latest commit");
+
+			return;
+		}
+
+		const repoDataPromise = this.octokit.request(
+			"GET /repos/{owner}/{repo}",
+			{
+				...this.getBasePayload(),
+			},
+		);
+
+		const latestCommitSha = latestCommit.sha;
+		const baseTreeSha = latestCommit.commit.tree.sha;
+
+		const normalizePath = (path: string) =>
+			path.startsWith("/") ? path.slice(1) : path;
+
+		const treePromises = files.map(async (file) => {
+			const [text, _] = file.compiledFile;
+
+			try {
+				const blob = await this.octokit.request(
+					"POST /repos/{owner}/{repo}/git/blobs",
+					{
+						...this.getBasePayload(),
+						content: text,
+						encoding: "utf-8",
+					},
+				);
+
+				return {
+					path: `${NOTE_PATH_BASE}${normalizePath(file.getPath())}`,
+					mode: "100644",
+					type: "blob",
+					sha: blob.data.sha,
+				};
+			} catch (error) {
+				logger.error(error);
+			}
+		});
+
+		const treeAssetPromises = files
+			.flatMap((x) => x.compiledFile[1].images)
+			.map(async (asset) => {
+				try {
+					const blob = await this.octokit.request(
+						"POST /repos/{owner}/{repo}/git/blobs",
+						{
+							...this.getBasePayload(),
+							content: asset.content,
+							encoding: "base64",
+						},
+					);
+
+					return {
+						path: `${IMAGE_PATH_BASE}${normalizePath(asset.path)}`,
+						mode: "100644",
+						type: "blob",
+						sha: blob.data.sha,
+					};
+				} catch (error) {
+					logger.error(error);
+				}
+			});
+		treePromises.push(...treeAssetPromises);
+
+		const treeList = await Promise.all(treePromises);
+
+		//Filter away undefined values
+		const tree = treeList.filter((x) => x !== undefined) as {
+			path?: string | undefined;
+			mode?:
+				| "100644"
+				| "100755"
+				| "040000"
+				| "160000"
+				| "120000"
+				| undefined;
+			type?: "tree" | "blob" | "commit" | undefined;
+			sha?: string | null | undefined;
+			content?: string | undefined;
+		}[];
+
+		const newTree = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/trees",
+			{
+				...this.getBasePayload(),
+				base_tree: baseTreeSha,
+				tree,
+			},
+		);
+
+		const commitMessage = "Published multiple files";
+
+		const newCommit = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/commits",
+			{
+				...this.getBasePayload(),
+				message: commitMessage,
+				tree: newTree.data.sha,
+				parents: [latestCommitSha],
+			},
+		);
+
+		const defaultBranch = (await repoDataPromise).data.default_branch;
+
+		await this.octokit.request(
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			{
+				...this.getBasePayload(),
+				branch: defaultBranch,
+				sha: newCommit.data.sha,
+			},
+		);
 	}
 
 	async getRepositoryInfo() {

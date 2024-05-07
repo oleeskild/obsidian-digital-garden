@@ -238,84 +238,39 @@ export default class DigitalGarden extends Plugin {
 							imagesToDelete.length,
 					);
 
-					let errorFiles = 0;
-					let errorDeleteFiles = 0;
-					let errorDeleteImage = 0;
-
 					new Notice(
 						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`,
 						8000,
 					);
 
-					for (const file of filesToPublish) {
-						try {
-							statusBar.increment();
-							await publisher.publish(file);
-						} catch {
-							errorFiles++;
+					await publisher.publishBatch(filesToPublish);
+					statusBar.incrementMultiple(filesToPublish.length);
 
-							new Notice(
-								`Unable to publish note ${file.file.name}, skipping it.`,
-							);
-						}
-					}
+					await publisher.deleteBatch(
+						filesToDelete.map((f) => f.path),
+					);
+					statusBar.incrementMultiple(filesToDelete.length);
 
-					for (const filePath of filesToDelete) {
-						try {
-							statusBar.increment();
-
-							// TODO: include sha from file.remoteHash to make faster!
-							await publisher.deleteNote(
-								filePath.path,
-								filePath.sha,
-							);
-						} catch {
-							errorDeleteFiles++;
-
-							new Notice(
-								`Unable to delete note ${filePath}, skipping it.`,
-							);
-						}
-					}
-
-					for (const filePath of imagesToDelete) {
-						try {
-							statusBar.increment();
-
-							await publisher.deleteImage(
-								filePath.path,
-								filePath.sha,
-							);
-						} catch {
-							errorDeleteImage++;
-
-							new Notice(
-								`Unable to delete image ${filePath}, skipping it.`,
-							);
-						}
-					}
+					await publisher.deleteBatch(
+						imagesToDelete.map((f) => f.path),
+					);
+					statusBar.incrementMultiple(imagesToDelete.length);
 
 					statusBar.finish(8000);
 
 					new Notice(
-						`Successfully published ${
-							filesToPublish.length - errorFiles
-						} notes to your garden.`,
+						`Successfully published ${filesToPublish.length} notes to your garden.`,
 					);
 
 					if (filesToDelete.length > 0) {
 						new Notice(
-							`Successfully deleted ${
-								filesToDelete.length - errorDeleteFiles
-							} notes from your garden.`,
+							`Successfully deleted ${filesToDelete.length} notes from your garden.`,
 						);
 					}
 
 					if (imagesToDelete.length > 0) {
 						new Notice(
-							`Successfully deleted ${
-								imagesToDelete.length - errorDeleteImage
-							} images from your garden.`,
+							`Successfully deleted ${imagesToDelete.length} images from your garden.`,
 						);
 					}
 				} catch (e) {
