@@ -211,8 +211,10 @@ export class RepositoryConnection {
 			return;
 		}
 
-		const normalizePath = (path: string) =>
+		const normalizePath = (path: string) => {
+			path = path.replace(/\.\.\//g, "");
 			path.startsWith("/") ? path.slice(1) : path;
+		};
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
