@@ -216,10 +216,10 @@ export class RepositoryConnection {
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${this.contentFolder}${normalizePath(path)}`;
+				return `${this.contentFolder}/${normalizePath(path)}`;
 			}
 
-			return `${this.contentFolder}${normalizePath(path)}`;
+			return `${this.contentFolder}/${normalizePath(path)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -327,7 +327,7 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.contentFolder}${normalizePath(
+					path: `${this.contentFolder}/${normalizePath(
 						file.getPath(),
 					)}`,
 					mode: "100644",
@@ -353,7 +353,7 @@ export class RepositoryConnection {
 					);
 
 					return {
-						path: `${this.contentFolder}${normalizePath(
+						path: `${this.contentFolder}/${normalizePath(
 							asset.path,
 						)}`,
 						mode: "100644",
