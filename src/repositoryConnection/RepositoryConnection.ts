@@ -10,6 +10,7 @@ interface IOctokitterInput {
 	githubToken: string;
 	githubUserName: string;
 	quartzRepository: string;
+	settings: QuartzSyncerSettings;
 }
 
 interface IPutPayload {
@@ -30,11 +31,14 @@ export class RepositoryConnection {
 		quartzRepository,
 		githubToken,
 		githubUserName,
+		settings,
 	}: IOctokitterInput) {
 		this.quartzRepository = quartzRepository;
 		this.githubUserName = githubUserName;
 
 		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
+
+		this.settings = settings;
 	}
 
 	getRepositoryName() {
@@ -324,7 +328,9 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.settings.contentFolder}${normalizePath(file.getPath())}`,
+					path: `${this.settings.contentFolder}${normalizePath(
+						file.getPath(),
+					)}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
@@ -348,7 +354,9 @@ export class RepositoryConnection {
 					);
 
 					return {
-						path: `${this.settings.contentFolder}${normalizePath(asset.path)}`,
+						path: `${this.settings.contentFolder}${normalizePath(
+							asset.path,
+						)}`,
 						mode: "100644",
 						type: "blob",
 						sha: blob.data.sha,
