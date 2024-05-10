@@ -1,7 +1,6 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
-import QuartzSyncerSettings from "../models/settings";
 
 const logger = Logger.get("repository-connection");
 const oktokitLogger = Logger.get("octokit");
