@@ -256,5 +256,12 @@ export default class Publisher {
 			);
 			throw {};
 		}
+
+		if (!this.settings.contentFolder) {
+			new Notice(
+				"Config error: You need to define a Content Folder in the plugin settings",
+			);
+			throw {};
+		}
 	}
 }
