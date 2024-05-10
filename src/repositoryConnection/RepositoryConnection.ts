@@ -1,6 +1,5 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
-import { Base64 } from "js-base64";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 
 const logger = Logger.get("repository-connection");
@@ -214,15 +213,17 @@ export class RepositoryConnection {
 
 		const normalizePath = (path: string) => {
 			path = path.replace(/\.\.\//g, "");
-			path.startsWith("/") ? path.slice(1) : path;
+			path.startsWith("/")
+				? `${this.contentFolder}${path}`
+				: `${this.contentFolder}/${path}`;
 		};
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${this.contentFolder}/${normalizePath(path)}`;
+				return normalizePath(path);
 			}
 
-			return `${this.contentFolder}/${normalizePath(path)}`;
+			return normalizePath(path);
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -315,7 +316,9 @@ export class RepositoryConnection {
 
 		const normalizePath = (path: string) => {
 			path = path.replace(/\.\.\//g, "");
-			path.startsWith("/") ? path.slice(1) : path;
+			path.startsWith("/")
+				? `${this.contentFolder}${path}`
+				: `${this.contentFolder}/${path}`;
 		};
 
 		const treePromises = files.map(async (file) => {
@@ -332,9 +335,7 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.contentFolder}/${normalizePath(
-						file.getPath(),
-					)}`,
+					path: normalizePath(file.getPath()),
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
@@ -352,7 +353,7 @@ export class RepositoryConnection {
 						"POST /repos/{owner}/{repo}/git/blobs",
 						{
 							...this.getBasePayload(),
-							content: Base64.encode(asset.content),
+							content: asset.content,
 							encoding: "base64",
 						},
 					);
