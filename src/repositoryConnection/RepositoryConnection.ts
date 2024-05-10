@@ -1,5 +1,6 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
+import { Base64 } from "js-base64";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 
 const logger = Logger.get("repository-connection");
@@ -351,7 +352,7 @@ export class RepositoryConnection {
 						"POST /repos/{owner}/{repo}/git/blobs",
 						{
 							...this.getBasePayload(),
-							content: asset.content,
+							content: Base64.encode(asset.content),
 							encoding: "base64",
 						},
 					);
