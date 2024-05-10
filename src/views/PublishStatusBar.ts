@@ -16,6 +16,11 @@ export class PublishStatusBar {
 		});
 	}
 
+	incrementMultiple(increments: number) {
+		this.counter += increments;
+
+		this.status.innerText = `⌛Publishing files: ${this.counter}/${this.numberOfNotesToPublish}`;
+	}
 	increment() {
 		this.status.innerText = `⌛Publishing files: ${++this.counter}/${
 			this.numberOfNotesToPublish
