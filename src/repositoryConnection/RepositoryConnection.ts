@@ -312,8 +312,10 @@ export class RepositoryConnection {
 		const latestCommitSha = latestCommit.sha;
 		const baseTreeSha = latestCommit.commit.tree.sha;
 
-		const normalizePath = (path: string) =>
+		const normalizePath = (path: string) => {
+			path = path.replace(/\.\.\//g, "");
 			path.startsWith("/") ? path.slice(1) : path;
+		};
 
 		const treePromises = files.map(async (file) => {
 			const [text, _] = file.compiledFile;
