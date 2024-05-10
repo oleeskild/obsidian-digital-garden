@@ -10,7 +10,7 @@ interface IOctokitterInput {
 	githubToken: string;
 	githubUserName: string;
 	quartzRepository: string;
-	settings: QuartzSyncerSettings;
+	contentFolder: string;
 }
 
 interface IPutPayload {
@@ -25,20 +25,20 @@ export class RepositoryConnection {
 	private githubUserName: string;
 	private quartzRepository: string;
 	octokit: Octokit;
-	settings: QuartzSyncerSettings;
+	contentFolder: string;
 
 	constructor({
 		quartzRepository,
 		githubToken,
 		githubUserName,
-		settings,
+		contentFolder,
 	}: IOctokitterInput) {
 		this.quartzRepository = quartzRepository;
 		this.githubUserName = githubUserName;
 
 		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
 
-		this.settings = settings;
+		this.contentFolder = contentFolder;
 	}
 
 	getRepositoryName() {
@@ -217,10 +217,10 @@ export class RepositoryConnection {
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${this.settings.contentFolder}${normalizePath(path)}`;
+				return `${this.contentFolder}${normalizePath(path)}`;
 			}
 
-			return `${this.settings.contentFolder}${normalizePath(path)}`;
+			return `${this.contentFolder}${normalizePath(path)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -328,7 +328,7 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.settings.contentFolder}${normalizePath(
+					path: `${this.contentFolder}${normalizePath(
 						file.getPath(),
 					)}`,
 					mode: "100644",
@@ -354,7 +354,7 @@ export class RepositoryConnection {
 					);
 
 					return {
-						path: `${this.settings.contentFolder}${normalizePath(
+						path: `${this.contentFolder}${normalizePath(
 							asset.path,
 						)}`,
 						mode: "100644",

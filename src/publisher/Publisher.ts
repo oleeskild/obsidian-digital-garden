@@ -103,6 +103,7 @@ export default class Publisher {
 			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
+			contentFolder: this.settings.contentFolder,
 		});
 
 		const deleted = await userSyncerConnection.deleteFile(path, {
@@ -140,6 +141,7 @@ export default class Publisher {
 				quartzRepository: this.settings.githubRepo,
 				githubUserName: this.settings.githubUserName,
 				githubToken: this.settings.githubToken,
+				contentFolder: this.settings.contentFolder,
 			});
 
 			await userGardenConnection.deleteFiles(filePaths);
@@ -166,6 +168,7 @@ export default class Publisher {
 				quartzRepository: this.settings.githubRepo,
 				githubUserName: this.settings.githubUserName,
 				githubToken: this.settings.githubToken,
+				contentFolder: this.settings.contentFolder,
 			});
 
 			await userGardenConnection.updateFiles(filesToPublish);
@@ -190,6 +193,7 @@ export default class Publisher {
 			quartzRepository: this.settings.githubRepo,
 			githubUserName: this.settings.githubUserName,
 			githubToken: this.settings.githubToken,
+			contentFolder: this.settings.contentFolder,
 		});
 
 		if (!remoteFileHash) {
