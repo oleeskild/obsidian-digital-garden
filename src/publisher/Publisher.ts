@@ -137,14 +137,14 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
+			const userQuartzConnection = new RepositoryConnection({
 				quartzRepository: this.settings.githubRepo,
 				githubUserName: this.settings.githubUserName,
 				githubToken: this.settings.githubToken,
 				contentFolder: this.settings.contentFolder,
 			});
 
-			await userGardenConnection.deleteFiles(filePaths);
+			await userQuartzConnection.deleteFiles(filePaths);
 
 			return true;
 		} catch (error) {
@@ -164,14 +164,14 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
+			const userQuartzConnection = new RepositoryConnection({
 				quartzRepository: this.settings.githubRepo,
 				githubUserName: this.settings.githubUserName,
 				githubToken: this.settings.githubToken,
 				contentFolder: this.settings.contentFolder,
 			});
 
-			await userGardenConnection.updateFiles(filesToPublish);
+			await userQuartzConnection.updateFiles(filesToPublish);
 
 			return true;
 		} catch (error) {
