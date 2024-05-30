@@ -30,6 +30,7 @@ import {
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
+import { replaceBlockIDs } from "./replaceBlockIDs";
 
 export interface Asset {
 	path: string;
@@ -144,21 +145,7 @@ export class GardenPageCompiler {
 	};
 
 	createBlockIDs: TCompilerStep = () => (text: string) => {
-		const block_pattern = / \^([\w\d-]+)/g;
-		const complex_block_pattern = /\n\^([\w\d-]+)\n/g;
-
-		text = text.replace(
-			complex_block_pattern,
-			(_match: string, $1: string) => {
-				return `{ #${$1}}\n\n`;
-			},
-		);
-
-		text = text.replace(block_pattern, (match: string, $1: string) => {
-			return `\n{ #${$1}}\n`;
-		});
-
-		return text;
+		return replaceBlockIDs(text);
 	};
 
 	removeObsidianComments: TCompilerStep = () => (text) => {
