@@ -146,11 +146,11 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
-				gardenRepository: this.settings.githubRepo,
-				githubUserName: this.settings.githubUserName,
-				githubToken: this.settings.githubToken,
-			});
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
 
 			await userGardenConnection.deleteFiles(filePaths);
 
@@ -172,11 +172,11 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
-				gardenRepository: this.settings.githubRepo,
-				githubUserName: this.settings.githubUserName,
-				githubToken: this.settings.githubToken,
-			});
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
 
 			await userGardenConnection.updateFiles(filesToPublish);
 
