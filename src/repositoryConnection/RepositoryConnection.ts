@@ -201,6 +201,8 @@ export class RepositoryConnection {
 		}
 	}
 
+	// NB: Do not use this, it does not work for some reason.
+	//TODO: Fix this. For now use deleteNote and deleteImage instead
 	async deleteFiles(filePaths: string[]) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -261,7 +263,6 @@ export class RepositoryConnection {
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				base_tree: baseTreeSha,
 				tree: newTreeEntries,
 			},
 		);
@@ -281,10 +282,10 @@ export class RepositoryConnection {
 		const defaultBranch = (await repoDataPromise).data.default_branch;
 
 		await this.octokit.request(
-			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			"PATCH /repos/{owner}/{repo}/git/refs/{ref}",
 			{
 				...this.getBasePayload(),
-				branch: defaultBranch,
+				ref: `heads/${defaultBranch}`,
 				sha: newCommit.data.sha,
 			},
 		);

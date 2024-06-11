@@ -246,15 +246,15 @@ export default class DigitalGarden extends Plugin {
 					await publisher.publishBatch(filesToPublish);
 					statusBar.incrementMultiple(filesToPublish.length);
 
-					await publisher.deleteBatch(
-						filesToDelete.map((f) => f.path),
-					);
-					statusBar.incrementMultiple(filesToDelete.length);
+					for (const file of filesToDelete) {
+						await publisher.deleteNote(file.path);
+						statusBar.increment();
+					}
 
-					await publisher.deleteBatch(
-						imagesToDelete.map((f) => f.path),
-					);
-					statusBar.incrementMultiple(imagesToDelete.length);
+					for (const image of imagesToDelete) {
+						await publisher.deleteImage(image.path);
+						statusBar.increment();
+					}
 
 					statusBar.finish(8000);
 
