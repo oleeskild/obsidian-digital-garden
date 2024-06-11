@@ -191,14 +191,15 @@
 
 		publishedPaths = [...processingPaths];
 		processingPaths = [];
-		for(const path of notesToDelete) {
+
+		for (const path of notesToDelete) {
 			processingPaths = [...processingPaths, path];
 			await publisher.deleteNote(path);
 			processingPaths = processingPaths.filter((p) => p !== path);
 			publishedPaths = [...publishedPaths, path];
 		}
 
-		for(const path of imagesToDelete) {
+		for (const path of imagesToDelete) {
 			processingPaths = [...processingPaths, path];
 			await publisher.deleteImage(path);
 			processingPaths = processingPaths.filter((p) => p !== path);
