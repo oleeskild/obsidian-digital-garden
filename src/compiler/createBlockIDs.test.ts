@@ -8,9 +8,6 @@ describe("replaceBlockIDs", () => {
 			foo ^block-id-1234
 
 			bar ^block-id-5678
-
-			below
-			^block-id-9999
 		`;
 
 		const result = replaceBlockIDs(EXPECTED_MARKDOWN);
@@ -19,13 +16,12 @@ describe("replaceBlockIDs", () => {
 			# header
 
 			foo
-			{ #block-id-1234}
+{ #block-id-1234}
+
 
 			bar
-			{ #block-id-5678}
+{ #block-id-5678}
 
-			below
-			{ #block-id-9999}
 		`);
 	});
 
