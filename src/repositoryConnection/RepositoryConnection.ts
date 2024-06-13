@@ -5,8 +5,7 @@ import { CompiledPublishFile } from "src/publishFile/PublishFile";
 const logger = Logger.get("repository-connection");
 const oktokitLogger = Logger.get("octokit");
 
-//TODO: Move to global constants
-const IMAGE_PATH_BASE = "src/site/img/user/";
+const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
 
 interface IOctokitterInput {
