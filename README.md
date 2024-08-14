@@ -2,6 +2,9 @@
 
 Publish your notes to the web, for free. In your own personal garden.
 
+![image](https://github.com/user-attachments/assets/101e7558-9d0c-452f-8859-f4bcedd26796)
+
+
 ## Docs
 
 Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole.dev/).
