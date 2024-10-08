@@ -94,14 +94,14 @@
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.publishedNotes.map((note) => note.getPath()),
-			"Published Notes",
+			"Currently Published Notes",
 		);
 
 	$: changedNotesTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.changedNotes.map((note) => note.getPath()),
-			"Changed Notes",
+			"Published Notes With Changes",
 		);
 
 	$: deletedNoteTree =
@@ -111,7 +111,7 @@
 				...publishStatus.deletedNotePaths,
 				...publishStatus.deletedImagePaths,
 			].map((path) => path.path),
-			"Deleted Notes",
+			"Delete Published Notes",
 		);
 
 	$: unpublishedNoteTree =
@@ -245,7 +245,9 @@
 		<hr class="footer-separator" />
 
 		<div class="footer">
-			<button on:click={publishMarkedNotes}>PUBLISH SELECTED</button>
+			<button on:click={publishMarkedNotes}
+				>PUBLISH SELECTED CHANGES</button
+			>
 		</div>
 	{:else}
 		<div>
