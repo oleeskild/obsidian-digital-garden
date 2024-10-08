@@ -95,7 +95,7 @@ export default class Publisher {
 
 		return await this.delete(path, sha);
 	}
-	/** If provided with sha, garden connection does not need to get it seperately! */
+	/** If provided with sha, garden connection does not need to get it separately! */
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
