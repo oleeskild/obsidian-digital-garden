@@ -2,7 +2,7 @@ import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import QuartzSyncerSettings from "./src/models/settings";
 import { bookHeart } from "./src/ui/suggest/constants";
-import { PublishStatusBar } from "./src/views/PublishStatusBar";
+//import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
@@ -98,6 +98,7 @@ export default class QuartzSyncer extends Plugin {
 	}
 
 	async addCommands() {
+		/*
 		this.addCommand({
 			id: "publish-note",
 			name: "Publish Single Note",
@@ -105,6 +106,7 @@ export default class QuartzSyncer extends Plugin {
 				await this.publishSingleNote();
 			},
 		});
+		*/
 
 		if (this.settings["ENABLE_DEVELOPER_TOOLS"] && Platform.isDesktop) {
 			Logger.info("Developer tools enabled");
@@ -133,6 +135,7 @@ export default class QuartzSyncer extends Plugin {
 				});
 		}
 
+		/*
 		this.addCommand({
 			id: "publish-multiple-notes",
 			name: "Publish Multiple Notes",
@@ -234,6 +237,7 @@ export default class QuartzSyncer extends Plugin {
 				}
 			},
 		});
+*/
 
 		this.addCommand({
 			id: "open-publish-modal",
