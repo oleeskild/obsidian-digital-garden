@@ -65,9 +65,7 @@ export default class QuartzSyncer extends Plugin {
 
 		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
 
-		Logger.info(
-			"Digital garden log level set to " + Logger.getLevel().name,
-		);
+		Logger.info("Quartz Syncer log level set to " + Logger.getLevel().name);
 		this.addSettingTab(new QuartzSyncerSettingTab(this.app, this));
 
 		await this.addCommands();
@@ -120,7 +118,7 @@ export default class QuartzSyncer extends Plugin {
 			import("./src/test/snapshot/generateSyncerSnapshot")
 				.then((snapshotGen) => {
 					this.addCommand({
-						id: "generate-garden-snapshot",
+						id: "generate-syncer-snapshot",
 						name: "Generate Syncer Snapshot",
 						callback: async () => {
 							await snapshotGen.generateSyncerSnapshot(

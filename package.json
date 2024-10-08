@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-garden",
-	"version": "1.0.0",
-	"description": "A plugin used for publishing notes to a digital garden",
+	"name": "quartz-syncer",
+	"version": "1.1.7",
+	"description": "A plugin used for publishing notes to Quartz",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
