@@ -190,12 +190,21 @@
 		await publisher.publishBatch(allNotesToPublish);
 
 		publishedPaths = [...processingPaths];
+		processingPaths = [];
 
-		const allNotesToDelete = [...notesToDelete, ...imagesToDelete];
-		processingPaths = [...allNotesToDelete];
+		for (const path of notesToDelete) {
+			processingPaths = [...processingPaths, path];
+			await publisher.deleteNote(path);
+			processingPaths = processingPaths.filter((p) => p !== path);
+			publishedPaths = [...publishedPaths, path];
+		}
 
-		// need to wait for about 1 second to allow github to process the publish request
-		await publisher.deleteBatch(allNotesToDelete);
+		for (const path of imagesToDelete) {
+			processingPaths = [...processingPaths, path];
+			await publisher.deleteImage(path);
+			processingPaths = processingPaths.filter((p) => p !== path);
+			publishedPaths = [...publishedPaths, path];
+		}
 		publishedPaths = [...publishedPaths, ...processingPaths];
 		processingPaths = [];
 	};
