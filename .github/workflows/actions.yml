@@ -8,7 +8,7 @@ jobs:
     lint-and-check-formatting:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - name: "Use node version"
               uses: actions/setup-node@v3
               with:
@@ -23,7 +23,7 @@ jobs:
     build:
       runs-on: ubuntu-latest
       steps:
-          - uses: actions/checkout@v3
+          - uses: actions/checkout@v4
           - name: "Use node version"
             uses: actions/setup-node@v3
             with:
@@ -34,7 +34,7 @@ jobs:
           - name: "Build"
             run: npm run build
           - name: Archive production artifacts
-            uses: actions/upload-artifact@v3
+            uses: actions/upload-artifact@v4
             with:
               name: dist-without-markdown
               path: |
@@ -42,7 +42,7 @@ jobs:
     run-tests:
       runs-on: ubuntu-latest
       steps:
-          - uses: actions/checkout@v3
+          - uses: actions/checkout@v4
           - name: "Use node version"
             uses: actions/setup-node@v3
             with:
@@ -55,7 +55,7 @@ jobs:
     run-typecheck:
       runs-on: ubuntu-latest
       steps:
-          - uses: actions/checkout@v3
+          - uses: actions/checkout@v4
           - name: "Use node version"
             uses: actions/setup-node@v3
             with:
