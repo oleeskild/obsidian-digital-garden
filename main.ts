@@ -2,7 +2,7 @@ import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import QuartzSyncerSettings from "./src/models/settings";
 import { bookHeart } from "./src/ui/suggest/constants";
-import { PublishStatusBar } from "./src/views/PublishStatusBar";
+//import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import ObsidianFrontMatterEngine from "src/publishFile/ObsidianFrontMatterEngine";
@@ -65,9 +65,7 @@ export default class QuartzSyncer extends Plugin {
 
 		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
 
-		Logger.info(
-			"Digital garden log level set to " + Logger.getLevel().name,
-		);
+		Logger.info("Quartz Syncer log level set to " + Logger.getLevel().name);
 		this.addSettingTab(new QuartzSyncerSettingTab(this.app, this));
 
 		await this.addCommands();
@@ -98,6 +96,7 @@ export default class QuartzSyncer extends Plugin {
 	}
 
 	async addCommands() {
+		/*
 		this.addCommand({
 			id: "publish-note",
 			name: "Publish Single Note",
@@ -105,6 +104,7 @@ export default class QuartzSyncer extends Plugin {
 				await this.publishSingleNote();
 			},
 		});
+		*/
 
 		if (this.settings["ENABLE_DEVELOPER_TOOLS"] && Platform.isDesktop) {
 			Logger.info("Developer tools enabled");
@@ -118,7 +118,7 @@ export default class QuartzSyncer extends Plugin {
 			import("./src/test/snapshot/generateSyncerSnapshot")
 				.then((snapshotGen) => {
 					this.addCommand({
-						id: "generate-garden-snapshot",
+						id: "generate-syncer-snapshot",
 						name: "Generate Syncer Snapshot",
 						callback: async () => {
 							await snapshotGen.generateSyncerSnapshot(
@@ -133,6 +133,7 @@ export default class QuartzSyncer extends Plugin {
 				});
 		}
 
+		/*
 		this.addCommand({
 			id: "publish-multiple-notes",
 			name: "Publish Multiple Notes",
@@ -197,15 +198,15 @@ export default class QuartzSyncer extends Plugin {
 					await publisher.publishBatch(filesToPublish);
 					statusBar.incrementMultiple(filesToPublish.length);
 
-					await publisher.deleteBatch(
-						filesToDelete.map((f) => f.path),
-					);
-					statusBar.incrementMultiple(filesToDelete.length);
+					for (const file of filesToDelete) {
+						await publisher.deleteNote(file.path);
+						statusBar.increment();
+					}
 
-					await publisher.deleteBatch(
-						imagesToDelete.map((f) => f.path),
-					);
-					statusBar.incrementMultiple(imagesToDelete.length);
+					for (const image of imagesToDelete) {
+						await publisher.deleteImage(image.path);
+						statusBar.increment();
+					}
 
 					statusBar.finish(8000);
 
@@ -234,6 +235,7 @@ export default class QuartzSyncer extends Plugin {
 				}
 			},
 		});
+*/
 
 		this.addCommand({
 			id: "open-publish-modal",
