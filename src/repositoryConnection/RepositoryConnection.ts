@@ -318,6 +318,7 @@ export class RepositoryConnection {
 
 		const normalizePath = (path: string) => {
 			let previous;
+
 			do {
 				previous = path;
 				path = path.replace(/\.\.\//g, "");
