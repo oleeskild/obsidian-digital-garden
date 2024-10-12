@@ -594,7 +594,19 @@ export class SyncerPageCompiler {
 						)
 						.split("|");
 
-					const actualImagePath = imageName.replace(/\.\.\//g, "");
+					let previous;
+					let actualImageName = imageName;
+
+					do {
+						previous = actualImageName;
+
+						actualImageName = actualImageName.replace(
+							/\.\.\//g,
+							"",
+						);
+					} while (actualImageName !== previous);
+
+					const actualImagePath = actualImageName;
 
 					const imagePath = getLinkpath(actualImagePath);
 
@@ -625,13 +637,20 @@ export class SyncerPageCompiler {
 
 					const pathStart = imageMatch.lastIndexOf("(") + 1;
 					const pathEnd = imageMatch.lastIndexOf(")");
-					const imagePath = imageMatch.substring(pathStart, pathEnd);
+					let imagePath = imageMatch.substring(pathStart, pathEnd);
 
 					if (imagePath.startsWith("http")) {
 						continue;
 					}
 
-					const actualImagePath = imagePath.replace(/\.\.\//g, "");
+					let previous;
+
+					do {
+						previous = imagePath;
+						imagePath = imagePath.replace(/\.\.\//g, "");
+					} while (imagePath !== previous);
+
+					const actualImagePath = imagePath;
 
 					const decodedImagePath = decodeURI(actualImagePath);
 
