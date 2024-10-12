@@ -214,7 +214,12 @@ export class RepositoryConnection {
 		}
 
 		const normalizePath = (path: string) => {
-			path = path.replace(/\.\.\//g, "");
+			let previous;
+
+			do {
+				previous = path;
+				path = path.replace(/\.\.\//g, "");
+			} while (path !== previous);
 
 			return path.startsWith("/")
 				? `${this.contentFolder}${path}`
@@ -317,7 +322,12 @@ export class RepositoryConnection {
 		const baseTreeSha = latestCommit.commit.tree.sha;
 
 		const normalizePath = (path: string) => {
-			path = path.replace(/\.\.\//g, "");
+			let previous;
+
+			do {
+				previous = path;
+				path = path.replace(/\.\.\//g, "");
+			} while (path !== previous);
 
 			return path.startsWith("/")
 				? `${this.contentFolder}${path}`
