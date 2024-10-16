@@ -82,14 +82,17 @@ future conflict when updating the template. Vercel should automatically update y
 
 ## Updating the template
 
-The project uses the [eleventy](https://www.11ty.dev) templating engine. This uses `.eleventy.js` as the main entry-point. Please read the [eleventy docs](https://www.11ty.dev/docs/config/) if you need a quick-start on how this works.
-
 In the setting menu for the plugin there is, in addition to the previously mentioned settings, a setting with the name "Site Template" with a button saying "Manage site template". Clicking this should open up a popup-window with the setting "Update site to latest template" and a button saying "Create PR". Whenever digital garden template receives any updates, this button can be used to update your site. It will create a new branch in your repo with the changes and create a Pull Request to your main branch. The plugin will present you with this URL in the setting view.
 
 If you used the "Deploy to Vercel" button, a Vercel bot will build a preview version of your site which you can visit to see that the changes does not contain any breaking changes. The URL should be visible in the PR.
 When you are ready you can use the "Merge pull request" button on the pull request page to merge the changes into your main branch and make the changes go live.
 
 In the future you will be notified with a visual cue whenever there is an update ready. For now you will need to manually check. If you have the latest version, you will be told so.
+
+### Advanced changes for developers
+The project uses the [eleventy](https://www.11ty.dev) templating engine. This uses `.eleventy.js` as the main entry-point. Please read the [eleventy docs](https://www.11ty.dev/docs/config/) if you need a quick-start on how this works.
+
+If you want to do any changes that aren't overwritten when updating the template, do so in the `src/helpers/userSetup.js` file, which hooks into the elventy setup in .eleventy.js
 
 ---
 
