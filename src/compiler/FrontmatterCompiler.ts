@@ -95,6 +95,10 @@ export class FrontmatterCompiler {
 	) {
 		const publishedFrontMatter = { ...newFrontMatter };
 
+		if (!this.settings.usePermalink) {
+			return publishedFrontMatter;
+		}
+
 		const quartzPath = getSyncerPathForNote(filePath, this.rewriteRules);
 
 		publishedFrontMatter["path"] = quartzPath;

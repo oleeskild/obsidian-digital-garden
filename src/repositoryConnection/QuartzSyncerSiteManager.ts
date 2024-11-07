@@ -43,7 +43,7 @@ export default class QuartzSyncerSiteManager {
 			githubToken: settings.githubToken,
 			githubUserName: "saberzero1",
 			quartzRepository: "quartz",
-			contentFolder: settings.contentFolder,
+			contentFolder: "content",
 		});
 
 		this.userSyncerConnection = new RepositoryConnection({

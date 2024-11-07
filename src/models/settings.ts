@@ -32,6 +32,8 @@ export default interface QuartzSyncerSettings {
 	customFilters: Array<{ pattern: string; flags: string; replace: string }>;
 	contentClassesKey: string;
 
+	usePermalink: boolean;
+
 	defaultNoteSettings: {
 		HomeLink: boolean;
 		PassFrontmatter: boolean;

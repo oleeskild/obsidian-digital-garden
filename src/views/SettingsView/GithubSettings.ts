@@ -24,6 +24,11 @@ export class GithubSettings {
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
 		this.initializeGitHubContentFolder();
+		this.initializeUseFullImageResolutionSetting();
+		this.initializeShowCreatedTimestampSetting();
+		this.initializeShowUpdatedTimestampSetting();
+		this.initializePassFrontmatterSetting();
+		this.initializeUsePermalinkSetting();
 	}
 
 	initializeHeader = () => {
@@ -88,6 +93,86 @@ export class GithubSettings {
 			this.connectionStatusElement.innerText = "❌";
 		}
 	};
+
+	private initializeUseFullImageResolutionSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Use full image resolution")
+			.setDesc(
+				"By default, Quartz Syncer will use a lower resolution image to save space. If you want to use the full resolution image, enable this setting.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.settings.useFullResolutionImages)
+					.onChange(async (value) => {
+						this.settings.settings.useFullResolutionImages = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeShowCreatedTimestampSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Show created timestamp")
+			.setDesc("Show the created timestamp on your notes")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.settings.showCreatedTimestamp)
+					.onChange(async (value) => {
+						this.settings.settings.showCreatedTimestamp = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeShowUpdatedTimestampSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Show updated timestamp")
+			.setDesc("Show the updated timestamp on your notes")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.settings.showUpdatedTimestamp)
+					.onChange(async (value) => {
+						this.settings.settings.showUpdatedTimestamp = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializePassFrontmatterSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Pass frontmatter")
+			.setDesc(
+				"Pass the frontmatter from the notes to Quartz. This will allow you to use frontmatter in your Quartz notes.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.settings.settings.defaultNoteSettings
+							.PassFrontmatter,
+					)
+					.onChange(async (value) => {
+						this.settings.settings.defaultNoteSettings.PassFrontmatter =
+							value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeUsePermalinkSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Use Permalink")
+			.setDesc(
+				"Use the note's permalink as the Quartz note's URL. This will override the default Quartz URL.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.settings.usePermalink)
+					.onChange(async (value) => {
+						this.settings.settings.usePermalink = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
 
 	private initializeGitHubContentFolder() {
 		new Setting(this.settingsRootElement)

@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
 	siteName: "Quartz",
-	slugifyEnabled: true,
+	slugifyEnabled: false,
 	contentFolder: "content",
 
 	// Timestamp related settings
@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	customFilters: [],
 
 	contentClassesKey: "content-classes",
+
+	usePermalink: false,
 
 	defaultNoteSettings: {
 		HomeLink: true,
