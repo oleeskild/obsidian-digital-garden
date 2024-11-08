@@ -55,7 +55,7 @@ export class DataviewCompiler {
 				const block = queryBlock[0];
 				const query = queryBlock[1];
 
-				const { isInsideCallout, finalQuery } =
+				const { isInsideCalloutDepth, finalQuery } =
 					this.sanitizeQuery(query);
 
 				let markdown = await dvApi.tryQueryMarkdown(
@@ -63,8 +63,11 @@ export class DataviewCompiler {
 					file.getPath(),
 				);
 
-				if (isInsideCallout) {
-					markdown = this.surroundWithCalloutBlock(markdown);
+				if (isInsideCalloutDepth > 0) {
+					markdown = this.surroundWithCalloutBlock(
+						markdown,
+						isInsideCalloutDepth,
+					);
 				}
 
 				replacedText = replacedText.replace(block, `${markdown}`);
@@ -175,10 +178,12 @@ export class DataviewCompiler {
 	 * returns all the lines as a single string
 	 *
 	 */
-	surroundWithCalloutBlock(input: string): string {
+	surroundWithCalloutBlock(input: string, depth: number = 1): string {
 		const tmp = input.split("\n");
 
-		return " " + tmp.join("\n> ");
+		const calloutSymbol = "> ".repeat(depth);
+
+		return " " + tmp.join(`\n${calloutSymbol}`);
 	}
 
 	/**
@@ -189,28 +194,37 @@ export class DataviewCompiler {
 	 * @returns
 	 */
 	sanitizeQuery(query: string): {
-		isInsideCallout: boolean;
+		isInsideCalloutDepth: number;
 		finalQuery: string;
 	} {
-		let isInsideCallout = false;
+		let isInsideCalloutDepth = 0;
 		const parts = query.split("\n");
 		const sanitized = [];
 
 		for (const part of parts) {
+			let depthPivot = 0;
+
 			if (part.startsWith(">")) {
-				isInsideCallout = true;
-				sanitized.push(part.substring(1).trim());
+				depthPivot += 1;
+				let intermediate = part.substring(1).trim();
+
+				while (intermediate.startsWith(">")) {
+					intermediate = intermediate.substring(1).trim();
+					depthPivot += 1;
+				}
+				sanitized.push(intermediate);
 			} else {
 				sanitized.push(part);
 			}
+			isInsideCalloutDepth = Math.max(isInsideCalloutDepth, depthPivot);
 		}
 		let finalQuery = query;
 
-		if (isInsideCallout) {
+		if (isInsideCalloutDepth > 0) {
 			finalQuery = sanitized.join("\n");
 		}
 
-		return { isInsideCallout, finalQuery };
+		return { isInsideCalloutDepth, finalQuery };
 	}
 }
 
