@@ -12,6 +12,15 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 
+const defaultTheme = {
+	name: "Red Graphite",
+	author: "SeanWcom",
+	repo: "seanwcom/Red-Graphite-for-Obsidian",
+	screenshot: "thumbnail.png",
+	modes: ["dark", "light"],
+	cssUrl: "https://raw.githubusercontent.com/seanwcom/Red-Graphite-for-Obsidian/HEAD/theme.css",
+};
+
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
 	githubToken: "",
@@ -19,7 +28,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
-	theme: '{"name": "default", "modes": ["dark"]}',
+	// Stringify to be backwards compatible with older versions
+	theme: JSON.stringify(defaultTheme),
 	faviconPath: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
