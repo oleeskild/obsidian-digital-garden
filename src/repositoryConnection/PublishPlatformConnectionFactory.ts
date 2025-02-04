@@ -30,7 +30,8 @@ export default class PublishPlatformConnectionFactory {
 			const token = settings.forestrySettings.apiKey;
 
 			const octoKit = new Octokit({
-				baseUrl: "https://localhost:7035/app/Garden", //TODO: Move base/app to .env
+				baseUrl:
+					"https://wa-forestry-prod-api.azurewebsites.net/app/Garden", //TODO: Move base/app to .env
 				auth: token,
 				log: oktokitLogger,
 			});
