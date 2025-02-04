@@ -26,17 +26,23 @@
 
 	function validateFiles() {
 		problematicFiles = [];
+
 		if (!publishStatus) return;
 
 		// Check for multiple dgHome files
-		const homeFiles = [...publishStatus.publishedNotes, ...publishStatus.unpublishedNotes, ...publishStatus.changedNotes]
-			.filter(note => note.frontmatter && note.frontmatter["dg-home"] === true);
+		const homeFiles = [
+			...publishStatus.publishedNotes,
+			...publishStatus.unpublishedNotes,
+			...publishStatus.changedNotes,
+		].filter(
+			(note) => note.frontmatter && note.frontmatter["dg-home"] === true,
+		);
 
 		if (homeFiles.length > 1) {
-			homeFiles.forEach(file => {
+			homeFiles.forEach((file) => {
 				problematicFiles.push({
 					path: file.getPath(),
-					issue: "Multiple files marked as home page (dg-home: true). Only one file should be marked as home."
+					issue: "Multiple files marked as home page (dg-home: true). Only one file should be marked as home.",
 				});
 			});
 		}
