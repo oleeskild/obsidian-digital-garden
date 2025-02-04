@@ -17,9 +17,29 @@
 
 	let publishStatus: PublishStatus;
 	let showPublishingView: boolean = false;
+	let problematicFiles: { path: string; issue: string }[] = [];
 
 	async function getPublishStatus() {
 		publishStatus = await publishStatusManager.getPublishStatus();
+		validateFiles();
+	}
+
+	function validateFiles() {
+		problematicFiles = [];
+		if (!publishStatus) return;
+
+		// Check for multiple dgHome files
+		const homeFiles = [...publishStatus.publishedNotes, ...publishStatus.unpublishedNotes, ...publishStatus.changedNotes]
+			.filter(note => note.frontmatter && note.frontmatter["dg-home"] === true);
+
+		if (homeFiles.length > 1) {
+			homeFiles.forEach(file => {
+				problematicFiles.push({
+					path: file.getPath(),
+					issue: "Multiple files marked as home page (dg-home: true). Only one file should be marked as home."
+				});
+			});
+		}
 	}
 
 	onMount(getPublishStatus);
@@ -226,6 +246,20 @@
 			<div>Calculating publication status from GitHub</div>
 		</div>
 	{:else if !showPublishingView}
+		{#if problematicFiles.length > 0}
+			<div class="callout warning">
+				<div class="callout-title">⚠️ Warning: Issues Found</div>
+				<div class="callout-content">
+					{#each problematicFiles as file}
+						<div class="problematic-file">
+							<span class="file-path">{file.path}</span>
+							<span class="file-issue">{file.issue}</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<TreeView tree={unpublishedNoteTree ?? emptyNode} {showDiff} />
 
 		<TreeView
@@ -360,5 +394,36 @@
 	}
 	.deleted {
 		color: #ff5757;
+	}
+
+	.warning {
+		background-color: rgba(255, 150, 0, 0.1);
+		border: 1px solid rgba(255, 150, 0, 0.2);
+		border-radius: 4px;
+		padding: 10px;
+		margin-bottom: 15px;
+	}
+
+	.callout-title {
+		font-weight: bold;
+		margin-bottom: 8px;
+	}
+
+	.problematic-file {
+		display: flex;
+		flex-direction: column;
+		margin: 5px 0;
+		padding: 5px 0;
+		border-bottom: 1px solid rgba(255, 150, 0, 0.1);
+	}
+
+	.file-path {
+		font-family: monospace;
+		color: var(--text-muted);
+	}
+
+	.file-issue {
+		font-size: 0.9em;
+		margin-top: 2px;
 	}
 </style>
