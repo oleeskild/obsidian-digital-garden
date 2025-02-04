@@ -5,7 +5,7 @@ export default class ForestryApi {
 	client: AxiosInstance;
 
 	constructor(apiKey: string) {
-		const baseUrl = "https://localhost:7035/app"; //TODO: Get from .env
+		const baseUrl = "https://wa-forestry-prod-api.azurewebsites.net/app"; //TODO: Get from .env
 
 		this.client = axios.create({
 			baseURL: baseUrl,
