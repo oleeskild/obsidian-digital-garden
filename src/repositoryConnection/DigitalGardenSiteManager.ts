@@ -222,7 +222,7 @@ export default class DigitalGardenSiteManager {
 		const hashes: Record<string, string> = {};
 
 		for (const img of images) {
-			const vaultPath = decodeURI(img.path.replace(IMAGE_PATH_BASE, ""));
+			const vaultPath = img.path.replace(IMAGE_PATH_BASE, "");
 			hashes[vaultPath] = img.sha;
 		}
 
