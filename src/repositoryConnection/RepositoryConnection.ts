@@ -300,7 +300,7 @@ export class RepositoryConnection {
 			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				ref: defaultBranch,
+				branch: defaultBranch,
 				sha: newCommit.data.sha,
 			},
 		);
