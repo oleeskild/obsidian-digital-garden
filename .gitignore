@@ -31,3 +31,6 @@ yarn.lock
 .env
 src/testVault/.obsidian/workspace.json
 content/.obsidian/workspace.json
+
+# Documentation
+docs/.obsidian

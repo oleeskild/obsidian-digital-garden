@@ -2,13 +2,6 @@ import { FrontMatterCache, TFile } from "obsidian";
 import QuartzSyncerSettings from "../models/settings";
 import { DateTime } from "luxon";
 
-// This should soon contain all the magic keys instead of them being hardcoded (with documentation)
-export enum FRONTMATTER_KEYS {
-	// The file should be published to the garden
-	PUBLISH = "publish",
-	HOME = "home",
-}
-
 export class FileMetadataManager {
 	file: TFile;
 	frontmatter: FrontMatterCache;
@@ -22,10 +15,6 @@ export class FileMetadataManager {
 		this.file = file;
 		this.frontmatter = frontmatter;
 		this.settings = settings;
-	}
-
-	isHome(): boolean {
-		return !!this.frontmatter[FRONTMATTER_KEYS.HOME];
 	}
 
 	getCreatedAt(): string {

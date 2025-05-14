@@ -4,7 +4,7 @@ import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
 
 /**
- *  Manages the publishing status of notes and images for a digital garden.
+ *  Manages the publishing status of notes and blobs for a digital garden.
  */
 export default class PublishStatusManager implements IPublishStatusManager {
 	siteManager: QuartzSyncerSiteManager;
@@ -16,7 +16,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 	getDeletedNotePaths(): Promise<string[]> {
 		throw new Error("Method not implemented.");
 	}
-	getDeletedImagesPaths(): Promise<string[]> {
+	getDeletedBlobsPaths(): Promise<string[]> {
 		throw new Error("Method not implemented.");
 	}
 
@@ -57,8 +57,8 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const remoteNoteHashes =
 			await this.siteManager.getNoteHashes(contentTree);
 
-		const remoteImageHashes =
-			await this.siteManager.getImageHashes(contentTree);
+		const remoteBlobHashes =
+			await this.siteManager.getBlobHashes(contentTree);
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
@@ -67,7 +67,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			const [content, _] = compiledFile.getCompiledFile();
 
 			const localHash = generateBlobHash(content);
-			const remoteHash = remoteNoteHashes[file.getPath()];
+			const remoteHash = remoteNoteHashes[file.getVaultPath()];
 
 			if (!remoteHash) {
 				unpublishedNotes.push(compiledFile);
@@ -82,12 +82,12 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		const deletedNotePaths = this.generateDeletedContentPaths(
 			remoteNoteHashes,
-			marked.notes.map((f) => f.getPath()),
+			marked.notes.map((f) => f.getVaultPath()),
 		);
 
-		const deletedImagePaths = this.generateDeletedContentPaths(
-			remoteImageHashes,
-			marked.images,
+		const deletedBlobPaths = this.generateDeletedContentPaths(
+			remoteBlobHashes,
+			marked.blobs,
 		);
 		// These might already be sorted, as getFilesMarkedForPublishing sorts already
 		publishedNotes.sort((a, b) => a.compare(b));
@@ -100,7 +100,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			publishedNotes,
 			changedNotes,
 			deletedNotePaths,
-			deletedImagePaths,
+			deletedBlobPaths,
 		};
 	}
 }
@@ -115,7 +115,7 @@ export interface PublishStatus {
 	publishedNotes: Array<CompiledPublishFile>;
 	changedNotes: Array<CompiledPublishFile>;
 	deletedNotePaths: Array<PathToRemove>;
-	deletedImagePaths: Array<PathToRemove>;
+	deletedBlobPaths: Array<PathToRemove>;
 }
 
 export interface IPublishStatusManager {

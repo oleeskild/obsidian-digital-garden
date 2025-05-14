@@ -72,11 +72,14 @@ export class PublishFile {
 	}
 
 	shouldPublish(): boolean {
-		return hasPublishFlag(this.frontmatter);
+		return hasPublishFlag(
+			this.settings.publishFrontmatterKey,
+			this.frontmatter,
+		);
 	}
 
-	async getImageLinks() {
-		return this.compiler.extractImageLinks(this);
+	async getBlobLinks() {
+		return this.compiler.extractBlobLinks(this);
 	}
 
 	async cachedRead() {
@@ -103,6 +106,16 @@ export class PublishFile {
 	}
 
 	getPath = () => this.file.path;
+	getVaultPath = () => {
+		if (
+			this.settings.vaultPath !== "/" &&
+			this.file.path.startsWith(this.settings.vaultPath)
+		) {
+			return this.file.path.replace(this.settings.vaultPath, "");
+		}
+
+		return this.file.path;
+	};
 	getCompiledFrontmatter() {
 		const frontmatterCompiler = new FrontmatterCompiler(this.settings);
 

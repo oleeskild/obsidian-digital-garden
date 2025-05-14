@@ -10,6 +10,7 @@ interface IOctokitterInput {
 	githubUserName: string;
 	quartzRepository: string;
 	contentFolder: string;
+	vaultPath: string;
 }
 
 interface IPutPayload {
@@ -25,12 +26,14 @@ export class RepositoryConnection {
 	private quartzRepository: string;
 	octokit: Octokit;
 	contentFolder: string;
+	vaultPath: string;
 
 	constructor({
 		quartzRepository,
 		githubToken,
 		githubUserName,
 		contentFolder,
+		vaultPath,
 	}: IOctokitterInput) {
 		this.quartzRepository = quartzRepository;
 		this.githubUserName = githubUserName;
@@ -38,6 +41,7 @@ export class RepositoryConnection {
 		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
 
 		this.contentFolder = contentFolder;
+		this.vaultPath = vaultPath;
 	}
 
 	getRepositoryName() {
@@ -49,6 +53,54 @@ export class RepositoryConnection {
 			owner: this.githubUserName,
 			repo: this.quartzRepository,
 		};
+	}
+
+	getRepositoryPath(path: string) {
+		const repositoryPath = path.startsWith(this.contentFolder)
+			? path.replace(this.contentFolder, "")
+			: path;
+
+		return repositoryPath.startsWith("/")
+			? repositoryPath.slice(1)
+			: repositoryPath;
+	}
+
+	getVaultPath(path: string) {
+		const vaultPath = path.startsWith(this.vaultPath)
+			? path.replace(this.vaultPath, "")
+			: path;
+
+		return vaultPath.startsWith("/") ? vaultPath.slice(1) : vaultPath;
+	}
+
+	setRepositoryPath(path: string) {
+		const separator = path.startsWith("/") ? "" : "/";
+
+		const repositoryPath = path.startsWith(this.contentFolder)
+			? path
+			: `${this.contentFolder}${separator}${path}`;
+
+		return repositoryPath.startsWith("/")
+			? repositoryPath.slice(1)
+			: repositoryPath;
+	}
+
+	setVaultPath(path: string) {
+		const separator = path.startsWith("/") ? "" : "/";
+
+		const vaultPath = path.startsWith(this.vaultPath)
+			? path
+			: `${this.vaultPath}${separator}${path}`;
+
+		return vaultPath.startsWith("/") ? vaultPath.slice(1) : vaultPath;
+	}
+
+	repositoryToVaultPath(path: string) {
+		return this.setVaultPath(this.getRepositoryPath(path));
+	}
+
+	repositoryToRepositoryPath(path: string) {
+		return this.setRepositoryPath(this.getVaultPath(path));
 	}
 
 	/** Get filetree with path and sha of each file from repository */
@@ -78,6 +130,10 @@ export class RepositoryConnection {
 	}
 
 	async getFile(path: string, branch?: string) {
+		path = this.setRepositoryPath(
+			this.getVaultPath(this.getRepositoryPath(path)),
+		);
+
 		logger.info(
 			`Getting file ${path} from repository ${this.getRepositoryName()}`,
 		);
@@ -110,6 +166,10 @@ export class RepositoryConnection {
 		path: string,
 		{ branch, sha }: { branch?: string; sha?: string },
 	) {
+		path = this.setRepositoryPath(
+			this.getVaultPath(this.getRepositoryPath(path)),
+		);
+
 		try {
 			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
 
@@ -183,6 +243,10 @@ export class RepositoryConnection {
 	}
 
 	async updateFile({ path, sha, content, branch, message }: IPutPayload) {
+		path = this.setRepositoryPath(
+			this.getVaultPath(this.getRepositoryPath(path)),
+		);
+
 		const payload = {
 			...this.getBasePayload(),
 			path,
@@ -202,8 +266,6 @@ export class RepositoryConnection {
 		}
 	}
 
-	// NB: Do not use this, it does not work for some reason.
-	//TODO: Fix this. For now use deleteNote and deleteImage instead
 	async deleteFiles(filePaths: string[]) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -221,16 +283,14 @@ export class RepositoryConnection {
 				path = path.replace(/\.\.\//g, "");
 			} while (path !== previous);
 
+			path = this.getVaultPath(path);
+
 			return path.startsWith("/")
 				? `${this.contentFolder}${path}`
 				: `${this.contentFolder}/${path}`;
 		};
 
 		const filesToDelete = filePaths.map((path) => {
-			if (path.endsWith(".md")) {
-				return normalizePath(path);
-			}
-
 			return normalizePath(path);
 		});
 
@@ -253,9 +313,9 @@ export class RepositoryConnection {
 		);
 
 		const newTreeEntries = baseTree.data.tree
-			.filter(
-				(item: { path: string }) => !filesToDelete.includes(item.path),
-			) // Exclude files to delete
+			.filter((item: { path: string }) =>
+				filesToDelete.includes(item.path),
+			) // Mark sha of files to be deleted as null
 			.map(
 				(item: {
 					path: string;
@@ -266,15 +326,31 @@ export class RepositoryConnection {
 					path: item.path,
 					mode: item.mode,
 					type: item.type,
-					sha: item.sha,
+					sha: null,
 				}),
 			);
+
+		//eslint-disable-next-line
+		const tree = newTreeEntries.filter((x: any) => x !== undefined) as {
+			path?: string | undefined;
+			mode?:
+				| "100644"
+				| "100755"
+				| "040000"
+				| "160000"
+				| "120000"
+				| undefined;
+			type?: "tree" | "blob" | "commit" | undefined;
+			sha?: string | null | undefined;
+			content?: string | undefined;
+		}[];
 
 		const newTree = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				tree: newTreeEntries,
+				base_tree: baseTreeSha,
+				tree,
 			},
 		);
 
@@ -293,10 +369,10 @@ export class RepositoryConnection {
 		const defaultBranch = (await repoDataPromise).data.default_branch;
 
 		await this.octokit.request(
-			"PATCH /repos/{owner}/{repo}/git/refs/{ref}",
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				ref: `heads/${defaultBranch}`,
+				branch: defaultBranch,
 				sha: newCommit.data.sha,
 			},
 		);
@@ -329,6 +405,8 @@ export class RepositoryConnection {
 				path = path.replace(/\.\.\//g, "");
 			} while (path !== previous);
 
+			path = this.getVaultPath(path);
+
 			return path.startsWith("/")
 				? `${this.contentFolder}${path}`
 				: `${this.contentFolder}/${path}`;
@@ -359,7 +437,7 @@ export class RepositoryConnection {
 		});
 
 		const treeAssetPromises = files
-			.flatMap((x) => x.compiledFile[1].images)
+			.flatMap((x) => x.compiledFile[1].blobs)
 			.map(async (asset) => {
 				try {
 					const blob = await this.octokit.request(

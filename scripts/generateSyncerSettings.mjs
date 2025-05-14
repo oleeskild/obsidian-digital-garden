@@ -23,6 +23,7 @@ const quartzSettings = {
 	mainLanguage: "en",
 	slugifyEnabled: true,
 	contentFolder: "content",
+	vaultPath: "/",
 	noteIconKey: "note-icon",
 	defaultNoteIcon: "",
 	showNoteIconOnTitle: false,
@@ -41,6 +42,7 @@ Path Rewriting/Subfolder2:fun-folder
 Path Rewriting:
 Subfolder:subfolder-rewritten
 Path Rewriting/Subfolder:this-will-never-hit`,
+	publishFrontmatterKey: "publish",
 	customFilters: [
 		{
 			pattern: "❄️",

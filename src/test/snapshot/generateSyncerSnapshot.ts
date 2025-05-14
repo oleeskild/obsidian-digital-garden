@@ -19,7 +19,7 @@ export const generateSyncerSnapshot = async (
 
 	const marked = await publisher.getFilesMarkedForPublishing();
 	let fileString = "IMAGES: \n";
-	fileString += marked.images.map((path) => `${path}\n`);
+	fileString += marked.blobs.map((path) => `${path}\n`);
 
 	const assetPaths = new Set<string>();
 
@@ -30,7 +30,7 @@ export const generateSyncerSnapshot = async (
 
 		const [content, assets] =
 			await publisher.compiler.generateMarkdown(file);
-		assets.images.map((image) => assetPaths.add(image.path));
+		assets.blobs.map((blob) => assetPaths.add(blob.path));
 
 		fileString += `${content}\n`;
 		fileString += Array.from(assetPaths).map((path) => `${path}\n`);

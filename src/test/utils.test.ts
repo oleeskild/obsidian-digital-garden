@@ -4,37 +4,20 @@ import {
 	getRewriteRules,
 	wrapAround,
 } from "../utils/utils";
-import { PathRewriteRules } from "../repositoryConnection/QuartzSyncerSiteManager";
+import { PathRewriteRule } from "../repositoryConnection/QuartzSyncerSiteManager";
 
 describe("utils", () => {
 	describe("getSyncerPathForNote", () => {
 		const TESTS: Array<{
 			name: string;
-			input: { quartzPath: string; rules: PathRewriteRules };
+			input: { quartzPath: string; rule: PathRewriteRule };
 			expected: string;
 		}> = [
 			{
 				name: "replaces a path according to rules",
 				input: {
 					quartzPath: "defaultSyncerPath/content/note.md",
-					rules: [{ from: "defaultSyncerPath", to: "quartzPath" }],
-				},
-				expected: "quartzPath/content/note.md",
-			},
-			{
-				name: "replaces a path according to the first rule found",
-				input: {
-					quartzPath: "defaultSyncerPath/content/note.md",
-					rules: [
-						{
-							from: "defaultSyncerPath",
-							to: "quartzPath",
-						},
-						{
-							from: "defaultSyncerPath/content",
-							to: "gargamel",
-						},
-					],
+					rule: { from: "defaultSyncerPath", to: "quartzPath" },
 				},
 				expected: "quartzPath/content/note.md",
 			},
@@ -45,7 +28,7 @@ describe("utils", () => {
 				assert.strictEqual(
 					getSyncerPathForNote(
 						test.input.quartzPath,
-						test.input.rules,
+						test.input.rule,
 					),
 					test.expected,
 				);
@@ -53,12 +36,13 @@ describe("utils", () => {
 		}
 
 		it("handles rewrites to base path correctly", () => {
-			const rewriteRules: PathRewriteRules = [
-				{ from: "defaultSyncerPath", to: "" },
-			];
+			const rewriteRule: PathRewriteRule = {
+				from: "defaultSyncerPath",
+				to: "",
+			};
 			const quartzPath = "defaultSyncerPath/content/note.md";
 
-			const result = getSyncerPathForNote(quartzPath, rewriteRules);
+			const result = getSyncerPathForNote(quartzPath, rewriteRule);
 
 			expect(result).toBe("content/note.md");
 		});
@@ -68,36 +52,17 @@ describe("utils", () => {
 		const TESTS: Array<{
 			name: string;
 			input: string;
-			expected: PathRewriteRules;
+			expected: PathRewriteRule;
 		}> = [
 			{
 				name: "returns an empty array when no rules are provided",
 				input: "",
-				expected: [],
+				expected: { from: "", to: "/" },
 			},
 			{
 				name: "parses a single rewrite rule",
-				input: "defaultSyncerPath:quartzPath",
-				expected: [{ from: "defaultSyncerPath", to: "quartzPath" }],
-			},
-			{
-				name: "parses multiple rewrite rules",
-				input: "defaultSyncerPath:quartzPath\ndefaultSyncerPath/content:gargamel",
-				expected: [
-					{
-						from: "defaultSyncerPath",
-						to: "quartzPath",
-					},
-					{
-						from: "defaultSyncerPath/content",
-						to: "gargamel",
-					},
-				],
-			},
-			{
-				name: "skips lines without a colon",
-				input: "defaultSyncerPath:quartzPath\nnoColon",
-				expected: [{ from: "defaultSyncerPath", to: "quartzPath" }],
+				input: "defaultSyncerPath",
+				expected: { from: "defaultSyncerPath", to: "/" },
 			},
 		];
 

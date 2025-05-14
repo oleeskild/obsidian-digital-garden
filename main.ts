@@ -1,7 +1,7 @@
 import { Notice, Platform, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import QuartzSyncerSettings from "./src/models/settings";
-import { bookHeart } from "./src/ui/suggest/constants";
+import { quartzSyncerIcon } from "./src/ui/suggest/constants";
 //import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
@@ -10,7 +10,6 @@ import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteMa
 import { QuartzSyncerSettingTab } from "./src/views/QuartzSyncerSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
-import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 
 const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	githubRepo: "",
@@ -22,6 +21,7 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	siteName: "Quartz",
 	slugifyEnabled: false,
 	contentFolder: "content",
+	vaultPath: "/",
 
 	// Timestamp related settings
 	showCreatedTimestamp: false,
@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS: QuartzSyncerSettings = {
 	contentClassesKey: "content-classes",
 
 	usePermalink: false,
+
+	publishFrontmatterKey: "publish",
 
 	defaultNoteSettings: {
 		HomeLink: true,
@@ -72,7 +74,7 @@ export default class QuartzSyncer extends Plugin {
 
 		await this.addCommands();
 
-		addIcon("quartz-syncer-icon", bookHeart);
+		addIcon("quartz-syncer-icon", quartzSyncerIcon);
 
 		this.addRibbonIcon(
 			"quartz-syncer-icon",
@@ -171,12 +173,12 @@ export default class QuartzSyncer extends Plugin {
 						publishStatus.unpublishedNotes,
 					);
 					const filesToDelete = publishStatus.deletedNotePaths;
-					const imagesToDelete = publishStatus.deletedImagePaths;
+					const blobsToDelete = publishStatus.deletedBlobPaths;
 
 					const totalItems =
 						filesToPublish.length +
 						filesToDelete.length +
-						imagesToDelete.length;
+						blobsToDelete.length;
 
 					if (totalItems === 0) {
 						new Notice("Syncer is already fully synced!");
@@ -189,11 +191,11 @@ export default class QuartzSyncer extends Plugin {
 						statusBarItem,
 						filesToPublish.length +
 							filesToDelete.length +
-							imagesToDelete.length,
+							blobsToDelete.length,
 					);
 
 					new Notice(
-						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`,
+						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${blobsToDelete.length} blobs. See the status bar in lower right corner for progress.`,
 						8000,
 					);
 
@@ -205,8 +207,8 @@ export default class QuartzSyncer extends Plugin {
 						statusBar.increment();
 					}
 
-					for (const image of imagesToDelete) {
-						await publisher.deleteImage(image.path);
+					for (const blob of blobsToDelete) {
+						await publisher.deleteBlob(blob.path);
 						statusBar.increment();
 					}
 
@@ -222,9 +224,9 @@ export default class QuartzSyncer extends Plugin {
 						);
 					}
 
-					if (imagesToDelete.length > 0) {
+					if (blobsToDelete.length > 0) {
 						new Notice(
-							`Successfully deleted ${imagesToDelete.length} images from your garden.`,
+							`Successfully deleted ${blobsToDelete.length} blobs from your garden.`,
 						);
 					}
 				} catch (e) {
@@ -349,7 +351,7 @@ export default class QuartzSyncer extends Plugin {
 			this.app.metadataCache,
 			activeFile,
 		);
-		engine.set(FRONTMATTER_KEYS.PUBLISH, value).apply();
+		engine.set(this.settings.publishFrontmatterKey, value).apply();
 	}
 	async togglePublishFlag() {
 		const activeFile = this.getActiveFile(this.app.workspace);
@@ -366,8 +368,8 @@ export default class QuartzSyncer extends Plugin {
 
 		engine
 			.set(
-				FRONTMATTER_KEYS.PUBLISH,
-				!engine.get(FRONTMATTER_KEYS.PUBLISH),
+				this.settings.publishFrontmatterKey,
+				!engine.get(this.settings.publishFrontmatterKey),
 			)
 			.apply();
 	}

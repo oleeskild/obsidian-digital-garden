@@ -1,5 +1,6 @@
-import { Setting, debounce } from "obsidian";
+import { Setting, App, debounce } from "obsidian";
 import SettingView from "./SettingView";
+import { FolderSuggest } from "../../ui/suggest/file-suggest";
 import { Octokit } from "@octokit/core";
 
 export class GithubSettings {
@@ -19,19 +20,22 @@ export class GithubSettings {
 			"span",
 			{ cls: "connection-status" },
 		);
-		this.initializeHeader();
+		this.initializeGitHubHeader();
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
 		this.initializeGitHubContentFolder();
-		this.initializeUseFullImageResolutionSetting();
+		this.initializeGitHubVaultFolder(this.settings.app);
+		this.initializeQuartzHeader();
+		this.initializePublishFrontmatterKeySetting();
+		this.initializeUseFullBlobResolutionSetting();
 		this.initializeShowCreatedTimestampSetting();
 		this.initializeShowUpdatedTimestampSetting();
 		this.initializePassFrontmatterSetting();
 		this.initializeUsePermalinkSetting();
 	}
 
-	initializeHeader = () => {
+	initializeGitHubHeader = () => {
 		this.connectionStatusElement.style.cssText = "margin-left: 10px;";
 		this.checkConnectionAndSaveSettings();
 
@@ -42,6 +46,21 @@ export class GithubSettings {
 		githubSettingsHeader.prepend(this.settings.getIcon("github"));
 
 		this.settingsRootElement.prepend(githubSettingsHeader);
+	};
+
+	initializeQuartzHeader = () => {
+		this.connectionStatusElement.style.cssText = "margin-left: 10px;";
+
+		const quartzSettingsHeader = createEl("h3", {
+			text: "Quartz Settings",
+		});
+		//quartzSettingsHeader.append(this.connectionStatusElement);
+
+		quartzSettingsHeader.prepend(
+			this.settings.getIcon("quartz-syncer-icon"),
+		);
+
+		this.settingsRootElement.append(quartzSettingsHeader);
 	};
 
 	checkConnectionAndSaveSettings = async () => {
@@ -94,11 +113,11 @@ export class GithubSettings {
 		}
 	};
 
-	private initializeUseFullImageResolutionSetting() {
+	private initializeUseFullBlobResolutionSetting() {
 		new Setting(this.settingsRootElement)
 			.setName("Use full image resolution")
 			.setDesc(
-				"By default, Quartz Syncer will use a lower resolution image to save space. If you want to use the full resolution image, enable this setting.",
+				"By default, Quartz Syncer will use a lower resolution image to save space. If you want to use the full resolution blob, enable this setting.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -191,13 +210,54 @@ export class GithubSettings {
 			);
 	}
 
+	private initializeGitHubVaultFolder(app: App) {
+		new Setting(this.settingsRootElement)
+			.setName("Vault root folder name")
+			.setDesc(
+				'The folder in your vault that should be used as the website root folder. By default "/" (the root of your vault).',
+			)
+			.addSearch((text) => {
+				new FolderSuggest(app, text.inputEl);
+
+				text.setPlaceholder("/")
+					.setValue(this.settings.settings.vaultPath)
+					.onChange(async (value) => {
+						if (value.length === 0 || !value.endsWith("/")) {
+							value += "/";
+						}
+						this.settings.settings.vaultPath = value;
+						await this.checkConnectionAndSaveSettings();
+					});
+			});
+	}
+
+	private initializePublishFrontmatterKeySetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Publish frontmatter key")
+			.setDesc(
+				'Frontmatter key used to mark a note as eligible to publish. By default "publish".',
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("publish")
+					.setValue(this.settings.settings.publishFrontmatterKey)
+					.onChange(async (value) => {
+						if (value.length === 0) {
+							value = "publish";
+						}
+						this.settings.settings.publishFrontmatterKey = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
 	private initializeGitHubRepoSetting() {
 		new Setting(this.settingsRootElement)
 			.setName("GitHub repo name")
 			.setDesc("The name of the GitHub repository")
 			.addText((text) =>
 				text
-					.setPlaceholder("myquartzsyncer")
+					.setPlaceholder("quartz")
 					.setValue(this.settings.settings.githubRepo)
 					.onChange(async (value) => {
 						this.settings.settings.githubRepo = value;
@@ -212,7 +272,7 @@ export class GithubSettings {
 			.setDesc("Your GitHub Username")
 			.addText((text) =>
 				text
-					.setPlaceholder("myusername")
+					.setPlaceholder("username")
 					.setValue(this.settings.settings.githubUserName)
 					.onChange(async (value) => {
 						this.settings.settings.githubUserName = value;
@@ -226,12 +286,12 @@ export class GithubSettings {
 
 		desc.createEl("span", undefined, (span) => {
 			span.innerText =
-				"A GitHub token with repo permissions. You can generate it ";
+				"A GitHub token with Contents permissions. You can find instructions to generate it by ";
 
 			span.createEl("a", undefined, (link) => {
 				link.href =
-					"https://github.com/settings/tokens/new?scopes=repo";
-				link.innerText = "here!";
+					"https://saberzero1.github.io/quartz-syncer-docs/Guides/Generating-an-access-token";
+				link.innerText = "clicking here!";
 			});
 		});
 

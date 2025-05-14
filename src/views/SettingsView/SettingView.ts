@@ -19,7 +19,7 @@ import {
 import Logger from "js-logger";
 
 export default class SettingView {
-	private app: App;
+	app: App;
 	settings: QuartzSyncerSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
