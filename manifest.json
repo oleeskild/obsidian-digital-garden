@@ -1,7 +1,7 @@
 {
 	"id": "quartz-syncer",
 	"name": "Quartz Syncer",
-	"version": "1.4.0",
+	"version": "1.4.1",
 	"minAppVersion": "1.8.10",
 	"description": "Sync Obsidian Markdown for Quartz",
 	"author": "Emile Bangma",
