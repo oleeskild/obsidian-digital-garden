@@ -48,4 +48,20 @@ export class FileMetadataManager {
 
 		return DateTime.fromMillis(this.file.stat.mtime).toISO() as string;
 	}
+
+	getPublishedAt(): string {
+		const publishedKey = this.settings.publishedTimestampKey;
+
+		if (publishedKey) {
+			const customPublishedDate = this.frontmatter[publishedKey];
+
+			if (!customPublishedDate) {
+				return "";
+			}
+
+			return customPublishedDate;
+		}
+
+		return DateTime.fromMillis(this.file.stat.mtime).toISO() as string;
+	}
 }

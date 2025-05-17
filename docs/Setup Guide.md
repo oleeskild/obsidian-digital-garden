@@ -1,8 +1,8 @@
 ---
 title: Setup Guide
 description: Instructions for setting up Quartz Syncer plugin.
-created: 2004-05-25T00:00:00+02:00
-date: 2025-05-14T11:37:13+02:00
+created: 2025-05-05T12:00:00Z+0200
+modified: 2025-05-17T21:29:20Z+0200
 publish: true
 ---
 
@@ -130,18 +130,21 @@ If you haven't already, set up Quartz to automatically deploy on push:
 > > [!EXAMPLE]- Option 2: Quartz with Quartz Themes
 > > For using an Obsidian Theme with Quartz.
 > >
-> > > [!IMPORTANT] Don't forget to replace `THEME-NAME` with your Obsidian theme of choice
+> > > [!IMPORTANT] Don't forget to replace `THEME_NAME` with your Obsidian theme of choice
 > > > A list of theme options can be [found here](https://github.com/saberzero1/quartz-themes?tab=readme-ov-file#supported-themes).
 > >
 > > Add the following script as `.github/workflows/deploy.yaml`:
 > >
-> > ```yaml title=".github/workflows/deploy.yaml" {30}
+> > ```yaml title=".github/workflows/deploy.yaml" {9}
 > > name: Deploy Quartz site to GitHub Pages
 > > 
 > > on:
 > >   push:
 > >     branches:
 > >       - v4
+> > 
+> > env:
+> >   THEME_NAME: tokyo-night
 > > 
 > > permissions:
 > >   contents: read
@@ -165,7 +168,7 @@ If you haven't already, set up Quartz to automatically deploy on push:
 > >       - name: Install Dependencies
 > >         run: npm ci
 > >       - name: Fetch Quartz Theme
-> >         run: curl -s -S https://raw.githubusercontent.com/saberzero1/quartz-themes/master/action.sh | bash -s -- THEME-NAME 
+> >         run: curl -s -S https://raw.githubusercontent.com/saberzero1/quartz-themes/master/action.sh | bash -s -- $THEME_NAME 
 > >       - name: Build Quartz
 > >         run: npx quartz build
 > >       - name: Upload artifact
@@ -200,10 +203,11 @@ In Obsidian, open `Settings > Community Plugins > Quartz Syncer > Options` and c
 > [!EXAMPLE]- Configuration Example
 > Using the original Quartz repository as an example:
 >
-> The repository is hosted at https://github.com/jackyzha0/quartz.
+> The repository is hosted at <https://github.com/jackyzha0/quartz>.
+>
 > - *Repository name*: `quartz`
 > - *Username*: `jackyzha0`
-> - *GitHub token*: generated token. usually starts with `ghp_`.
+> - *GitHub token*: generated token. usually starts with `github_pat_` or `ghp_`.
 
 After setting all three fields, you should get a green checkmark in the Quartz Syncer options. If not, check [[Authentication|the relevant troubleshooting page]] for help.
 

@@ -1,27 +1,6 @@
-import { Base64 } from "js-base64";
 import slugify from "@sindresorhus/slugify";
 import sha1 from "crypto-js/sha1";
 import { PathRewriteRule } from "../repositoryConnection/QuartzSyncerSiteManager";
-import QuartzSyncerSettings from "src/models/settings";
-
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-	let binary = "";
-	const bytes = new Uint8Array(buffer);
-	const len = bytes.byteLength;
-
-	for (let i = 0; i < len; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-
-	return Base64.btoa(binary);
-}
-
-function extractBaseUrl(url: string) {
-	return (
-		url &&
-		url.replace("https://", "").replace("http://", "").replace(/\/$/, "")
-	);
-}
 
 function generateUrlPath(filePath: string, slugifyPath = true): string {
 	if (!filePath) {
@@ -50,17 +29,6 @@ function generateBlobHash(content: string) {
 	const gitBlob = header + content;
 
 	return sha1(gitBlob).toString();
-}
-
-function kebabize(str: string) {
-	return str
-		.split("")
-		.map((letter, idx) => {
-			return letter.toUpperCase() === letter
-				? `${idx !== 0 ? "-" : ""}${letter.toLowerCase()}`
-				: letter;
-		})
-		.join("");
 }
 
 const wrapAround = (value: number, size: number): number => {
@@ -111,8 +79,8 @@ function fixSvgForXmlSerializer(svgElement: SVGSVGElement): void {
 }
 
 function sanitizePermalink(permalink: string): string {
-	if (!permalink.endsWith("/")) {
-		permalink += "/";
+	if (permalink.endsWith("/")) {
+		permalink.slice(0, -1);
 	}
 
 	if (!permalink.startsWith("/")) {
@@ -122,25 +90,13 @@ function sanitizePermalink(permalink: string): string {
 	return permalink;
 }
 
-function resolvePath(path: string, settings: QuartzSyncerSettings): string {
-	if (settings.vaultPath !== "/" && settings.vaultPath !== "") {
-		path = path.replace(settings.vaultPath, "");
-	}
-
-	return `${settings.contentFolder}/${path}`;
-}
-
 export {
-	arrayBufferToBase64,
-	extractBaseUrl,
 	generateUrlPath,
 	generateBlobHash,
-	kebabize,
 	wrapAround,
 	getRewriteRules,
 	getSyncerPathForNote,
 	escapeRegExp,
 	fixSvgForXmlSerializer,
 	sanitizePermalink,
-	resolvePath,
 };

@@ -24,13 +24,19 @@
 	}
 
 	.added {
-		background-color: rgba(170, 255, 170, 0.5);
+		background-color: var(
+			--text-success,
+			var(--color-green, rgba(170, 255, 170, 0.5))
+		);
 		color: var(--text-on-accent);
 		text-decoration: overline;
 	}
 
 	.removed {
-		background-color: rgba(255, 170, 170, 0.5);
+		background-color: var(
+			--text-error,
+			var(--color-red, rgba(255, 170, 170, 0.5))
+		);
 		color: var(--text-on-accent);
 		text-decoration: line-through;
 	}

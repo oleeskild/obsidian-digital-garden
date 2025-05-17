@@ -41,6 +41,7 @@ export interface Asset {
 	// not set yet
 	remoteHash?: string;
 }
+
 export interface Assets {
 	blobs: Array<Asset>;
 }
@@ -93,13 +94,15 @@ export class SyncerPageCompiler {
 
 		const vaultFileText = await file.cachedRead();
 
-		if (file.file.name.endsWith(".excalidraw.md")) {
-			return [
-				await this.excalidrawCompiler.compileMarkdown({
-					includeExcaliDrawJs: true,
-				})(file)(vaultFileText),
-				assets,
-			];
+		if (this.settings.useExcalidraw) {
+			if (file.file.name.endsWith(".excalidraw.md")) {
+				return [
+					await this.excalidrawCompiler.compileMarkdown({
+						includeExcaliDrawJs: true,
+					})(file)(vaultFileText),
+					assets,
+				];
+			}
 		}
 
 		// ORDER MATTERS!
@@ -189,6 +192,10 @@ export class SyncerPageCompiler {
 	};
 
 	convertDataViews: TCompilerStep = (file) => async (text) => {
+		if (!this.settings.useDataview) {
+			return text;
+		}
+
 		const dataviewCompiler = new DataviewCompiler();
 
 		return await dataviewCompiler.compile(file)(text);

@@ -17,3 +17,12 @@ prod:
 
 lint:
 	npm run format
+
+test:
+	npm run test
+
+check:
+	npm run lint
+	npm run test
+	npm run check-formatting
+	npm run typecheck

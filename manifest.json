@@ -1,10 +1,10 @@
 {
 	"id": "quartz-syncer",
 	"name": "Quartz Syncer",
-	"version": "1.4.1",
+	"version": "1.5.0",
 	"minAppVersion": "1.8.10",
-	"description": "Sync Obsidian Markdown for Quartz",
+	"description": "Manage and publish your notes to Quartz. Supports Dataview.",
 	"author": "Emile Bangma",
-	"authorUrl": "https://github.com/saberzero1/quartz-syncer",
+	"authorUrl": "https://github.com/saberzero1",
 	"isDesktopOnly": false
 }

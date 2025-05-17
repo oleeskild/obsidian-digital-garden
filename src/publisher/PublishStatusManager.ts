@@ -9,13 +9,16 @@ import { CompiledPublishFile } from "../publishFile/PublishFile";
 export default class PublishStatusManager implements IPublishStatusManager {
 	siteManager: QuartzSyncerSiteManager;
 	publisher: Publisher;
+
 	constructor(siteManager: QuartzSyncerSiteManager, publisher: Publisher) {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
 	}
+
 	getDeletedNotePaths(): Promise<string[]> {
 		throw new Error("Method not implemented.");
 	}
+
 	getDeletedBlobsPaths(): Promise<string[]> {
 		throw new Error("Method not implemented.");
 	}
@@ -42,6 +45,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		return pathsWithSha;
 	}
+
 	async getPublishStatus(): Promise<PublishStatus> {
 		const unpublishedNotes: Array<CompiledPublishFile> = [];
 		const publishedNotes: Array<CompiledPublishFile> = [];

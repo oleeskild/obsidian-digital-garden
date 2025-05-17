@@ -1,22 +1,8 @@
-import {
-	App,
-	ButtonComponent,
-	debounce,
-	getIcon,
-	MetadataCache,
-	Modal,
-	Notice,
-	Setting,
-} from "obsidian";
+import { App, debounce, getIcon, MetadataCache, Notice } from "obsidian";
 import QuartzSyncerSiteManager from "src/repositoryConnection/QuartzSyncerSiteManager";
 
 import QuartzSyncerSettings from "../../models/settings";
 import { GithubSettings } from "./GithubSettings";
-import {
-	hasUpdates,
-	TemplateUpdater,
-} from "../../repositoryConnection/TemplateManager";
-import Logger from "js-logger";
 
 export default class SettingView {
 	app: App;
@@ -38,7 +24,7 @@ export default class SettingView {
 	) {
 		this.app = app;
 		this.settingsRootElement = settingsRootElement;
-		this.settingsRootElement.classList.add("settings");
+		this.settingsRootElement.classList.add("quartz-syncer-settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
 	}
@@ -59,12 +45,43 @@ export default class SettingView {
 		});
 
 		linkDiv.createEl("span", {
-			text: "Remember to read the setup guide if you haven't already. It can be found ",
+			text: "Remember to read the ",
 		});
 
 		linkDiv.createEl("a", {
-			text: "here.",
-			href: "https://github.com/saberzero1/quartz-syncer",
+			text: "documentation",
+			href: "https://saberzero1.github.io/quartz-syncer-docs/",
+		});
+
+		linkDiv.createEl("span", {
+			text: " if you haven't already. A ",
+		});
+
+		linkDiv.createEl("a", {
+			text: "setup guide",
+			href: "https://saberzero1.github.io/quartz-syncer-docs/Setup-Guide",
+		});
+
+		linkDiv.createEl("span", {
+			text: " and a ",
+		});
+
+		linkDiv.createEl("a", {
+			text: "usage guide",
+			href: "https://saberzero1.github.io/quartz-syncer-docs/Usage-Guide",
+		});
+
+		linkDiv.createEl("span", {
+			text: " are also available. If you encounter any issues, please see the ",
+		});
+
+		linkDiv.createEl("a", {
+			text: "troubleshooting section",
+			href: "https://saberzero1.github.io/quartz-syncer-docs/Troubleshooting/",
+		});
+
+		linkDiv.createEl("span", {
+			text: " for help.",
 		});
 
 		const githubSettings = this.settingsRootElement.createEl("div", {
@@ -99,117 +116,5 @@ export default class SettingView {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
-	}
-
-	async renderCreatePr(
-		modal: Modal,
-		handlePR: (
-			button: ButtonComponent,
-			updater: TemplateUpdater,
-		) => Promise<void>,
-		siteManager: QuartzSyncerSiteManager,
-	) {
-		this.settingsRootElement
-			.createEl("h3", { text: "Update site" })
-			.prepend(getIcon("sync") ?? "");
-
-		Logger.time("checkForUpdate");
-
-		const updater = await siteManager.templateUpdater.checkForUpdates();
-		Logger.timeEnd("checkForUpdate");
-
-		const updateAvailable = hasUpdates(updater);
-
-		new Setting(this.settingsRootElement)
-			.setName("Site Template")
-			.setDesc(
-				"Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.",
-			)
-			.addButton(async (button) => {
-				button.setButtonText(`Checking...`);
-				Logger.time("checkForUpdate");
-
-				if (updateAvailable) {
-					button.setButtonText(
-						`Update to ${updater.newestTemplateVersion}`,
-					);
-				} else {
-					button.setButtonText("Already up to date!");
-					button.setDisabled(true);
-				}
-
-				button.onClick(() => {
-					modal.open();
-				});
-			});
-		modal.titleEl.createEl("h2", { text: "Update site" });
-
-		new Setting(modal.contentEl)
-			.setName("Update site to latest template")
-			.setDesc(
-				`
-				This will create a pull request with the latest template changes, which you'll need to use all plugin features. 
-				It will not publish any changes before you approve them.
-			`,
-			)
-			.addButton((button) =>
-				button
-					.setButtonText("Create PR")
-					.onClick(() =>
-						handlePR(button, updater as TemplateUpdater),
-					),
-			);
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Support" })
-			.prepend(this.getIcon("heart"));
-
-		this.settingsRootElement
-			.createDiv({
-				attr: {
-					style: "display:flex; align-items:center; justify-content:center; margin-top: 20px;",
-				},
-			})
-			.createEl("a", {
-				attr: { href: "https://ko-fi.com/oleeskild", target: "_blank" },
-			})
-			.createEl("img", {
-				attr: {
-					src: "https://cdn.ko-fi.com/cdn/kofi3.png?v=3",
-					width: "200",
-				},
-			});
-	}
-
-	renderPullRequestHistory(modal: Modal, previousPrUrls: string[]) {
-		if (previousPrUrls.length === 0) {
-			return;
-		}
-
-		const header = modal.contentEl.createEl("h2", {
-			text: "➕ Recent Pull Request History",
-		});
-		const prsContainer = modal.contentEl.createEl("ul", {});
-		prsContainer.hide();
-
-		header.onClickEvent(() => {
-			if (prsContainer.isShown()) {
-				prsContainer.hide();
-				header.textContent = "➕  Recent Pull Request History";
-			} else {
-				prsContainer.show();
-				header.textContent = "➖ Recent Pull Request History";
-			}
-		});
-
-		previousPrUrls.map((prUrl) => {
-			const li = prsContainer.createEl("li", {
-				attr: { style: "margin-bottom: 10px" },
-			});
-			const prUrlElement = document.createElement("a");
-			prUrlElement.href = prUrl;
-			prUrlElement.textContent = prUrl;
-			li.appendChild(prUrlElement);
-		});
 	}
 }

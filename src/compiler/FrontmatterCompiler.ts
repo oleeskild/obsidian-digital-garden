@@ -1,13 +1,6 @@
 import { FrontMatterCache } from "obsidian";
-import {
-	getSyncerPathForNote,
-	sanitizePermalink,
-	generateUrlPath,
-	kebabize,
-	getRewriteRules,
-} from "../utils/utils";
+import { sanitizePermalink } from "../utils/utils";
 import QuartzSyncerSettings from "../models/settings";
-import { PathRewriteRule } from "../repositoryConnection/QuartzSyncerSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
 
 export type TFrontmatter = Record<string, unknown> & {
@@ -30,11 +23,9 @@ export type TPublishedFrontMatter = Record<string, unknown> & {
 
 export class FrontmatterCompiler {
 	private readonly settings: QuartzSyncerSettings;
-	private readonly rewriteRule: PathRewriteRule;
 
 	constructor(settings: QuartzSyncerSettings) {
 		this.settings = settings;
-		this.rewriteRule = getRewriteRules(settings.vaultPath);
 	}
 
 	compile(file: PublishFile, frontmatter: FrontMatterCache): string {
@@ -45,10 +36,9 @@ export class FrontmatterCompiler {
 			publish: true,
 		};
 
-		publishedFrontMatter = this.addPermalink(
+		publishedFrontMatter = this.addPermalink(file)(
 			fileFrontMatter,
 			publishedFrontMatter,
-			file.getPath(),
 		);
 
 		publishedFrontMatter = this.addDefaultPassThrough(
@@ -56,31 +46,28 @@ export class FrontmatterCompiler {
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addContentClasses(
+		publishedFrontMatter = this.addTimestampsFrontmatter(file)(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addPageTags(
+		publishedFrontMatter = this.addTags(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addFrontMatterSettings(
+		publishedFrontMatter = this.addCSSClasses(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addNoteIconFrontMatter(
+		publishedFrontMatter = this.addSocialImage(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter =
-			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
-
-		const fullFrontMatter = publishedFrontMatter?.PassFrontmatter
-			? { ...fileFrontMatter, ...publishedFrontMatter }
+		const fullFrontMatter = this.settings.includeAllFrontmatter
+			? { ...publishedFrontMatter, ...fileFrontMatter }
 			: publishedFrontMatter;
 
 		const frontMatterString = JSON.stringify(fullFrontMatter);
@@ -88,35 +75,68 @@ export class FrontmatterCompiler {
 		return `---\n${frontMatterString}\n---\n`;
 	}
 
-	private addPermalink(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-		filePath: string,
-	) {
-		const publishedFrontMatter = { ...newFrontMatter };
+	/**
+	 * Adds the permalink to the compiled frontmatter if specified in user settings
+	 */
+	private addPermalink =
+		(file: PublishFile) =>
+		(
+			baseFrontMatter: TFrontmatter,
+			newFrontMatter: TPublishedFrontMatter,
+		) => {
+			const publishedFrontMatter = { ...newFrontMatter };
 
-		if (!this.settings.usePermalink) {
+			if (
+				!this.settings.usePermalink &&
+				!this.settings.includeAllFrontmatter
+			) {
+				return publishedFrontMatter;
+			}
+
+			if (baseFrontMatter) {
+				if (baseFrontMatter["permalink"]) {
+					publishedFrontMatter["permalink"] =
+						baseFrontMatter["permalink"];
+				} else if (this.settings.usePermalink) {
+					publishedFrontMatter["permalink"] = sanitizePermalink(
+						baseFrontMatter["permalink"] ?? file.getVaultPath(),
+					);
+				}
+
+				if (baseFrontMatter["aliases"] || baseFrontMatter["alias"]) {
+					publishedFrontMatter["aliases"] = "";
+
+					if (typeof baseFrontMatter["aliases"] === "string") {
+						publishedFrontMatter["aliases"] = baseFrontMatter[
+							"aliases"
+						]
+							.split(/,?\s*/)
+							.join(" ");
+					}
+
+					if (Array.isArray(baseFrontMatter["aliases"])) {
+						publishedFrontMatter["aliases"] =
+							baseFrontMatter["aliases"].join(" ");
+					}
+
+					if (typeof baseFrontMatter["alias"] === "string") {
+						publishedFrontMatter[
+							"aliases"
+						] += ` ${baseFrontMatter["alias"]}`;
+					} else if (Array.isArray(baseFrontMatter["alias"])) {
+						publishedFrontMatter["aliases"] += ` ${baseFrontMatter[
+							"alias"
+						].join(" ")}`;
+					}
+				}
+			}
+
 			return publishedFrontMatter;
-		}
+		};
 
-		const quartzPath = getSyncerPathForNote(filePath, this.rewriteRule);
-
-		publishedFrontMatter["path"] = quartzPath;
-
-		if (baseFrontMatter && baseFrontMatter["permalink"]) {
-			publishedFrontMatter["permalink"] = baseFrontMatter["permalink"];
-
-			publishedFrontMatter["permalink"] = sanitizePermalink(
-				baseFrontMatter["permalink"],
-			);
-		} else {
-			publishedFrontMatter["permalink"] =
-				"/" + generateUrlPath(quartzPath, this.settings.slugifyEnabled);
-		}
-
-		return publishedFrontMatter;
-	}
-
+	/**
+	 * Adds the default pass-throughs to the compiled frontmatter
+	 */
 	private addDefaultPassThrough(
 		baseFrontMatter: TFrontmatter,
 		newFrontMatter: TPublishedFrontMatter,
@@ -129,15 +149,36 @@ export class FrontmatterCompiler {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
 			}
 
+			if (baseFrontMatter["description"]) {
+				publishedFrontMatter["description"] =
+					baseFrontMatter["description"];
+			}
+
 			if (baseFrontMatter["draft"]) {
 				publishedFrontMatter["draft"] = baseFrontMatter["draft"];
+			}
+
+			if (baseFrontMatter["comments"]) {
+				publishedFrontMatter["comments"] = baseFrontMatter["comments"];
+			}
+
+			if (baseFrontMatter["lang"]) {
+				publishedFrontMatter["lang"] = baseFrontMatter["lang"];
+			}
+
+			if (baseFrontMatter["enableToc"]) {
+				publishedFrontMatter["enableToc"] =
+					baseFrontMatter["enableToc"];
 			}
 		}
 
 		return publishedFrontMatter;
 	}
 
-	private addPageTags(
+	/**
+	 * Adds the tags to the compiled frontmatter if specified in user settings
+	 */
+	private addTags(
 		fileFrontMatter: TFrontmatter,
 		publishedFrontMatterWithoutTags: TPublishedFrontMatter,
 	) {
@@ -146,39 +187,24 @@ export class FrontmatterCompiler {
 		if (fileFrontMatter) {
 			const tags =
 				(typeof fileFrontMatter["tags"] === "string"
-					? fileFrontMatter["tags"].split(/,\s*/)
+					? fileFrontMatter["tags"].split(/,?\s*/)
 					: fileFrontMatter["tags"]) || [];
-
-			/*if (fileFrontMatter["home"]) {
-				tags.push("gardenEntry");
-			}*/
 
 			if (tags.length > 0) {
 				publishedFrontMatter["tags"] = tags;
 			}
-		}
 
-		return publishedFrontMatter;
-	}
-
-	private addContentClasses(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-	) {
-		const publishedFrontMatter = { ...newFrontMatter };
-
-		if (baseFrontMatter) {
-			const contentClassesKey = this.settings.contentClassesKey;
-			const contentClasses = baseFrontMatter[contentClassesKey];
-
-			if (contentClassesKey && contentClasses) {
-				if (typeof contentClasses == "string") {
-					publishedFrontMatter["contentClasses"] = contentClasses;
-				} else if (Array.isArray(contentClasses)) {
-					publishedFrontMatter["contentClasses"] =
-						contentClasses.join(" ");
-				} else {
-					publishedFrontMatter["contentClasses"] = "";
+			if (fileFrontMatter["tag"] !== undefined) {
+				if (typeof fileFrontMatter["tag"] === "string") {
+					publishedFrontMatter["tags"] = [
+						...(publishedFrontMatter["tags"] ?? []),
+						fileFrontMatter["tag"],
+					];
+				} else if (Array.isArray(fileFrontMatter["tag"])) {
+					publishedFrontMatter["tags"] = [
+						...(publishedFrontMatter["tags"] ?? []),
+						...fileFrontMatter["tag"],
+					];
 				}
 			}
 		}
@@ -187,65 +213,141 @@ export class FrontmatterCompiler {
 	}
 
 	/**
-	 * Adds the created and updated timestamps to the compiled frontmatter if specified in user settings
+	 * Adds the css classes to the compiled frontmatter if specified in user settings
 	 */
-	private addTimestampsFrontmatter =
-		(file: PublishFile) => (newFrontMatter: TPublishedFrontMatter) => {
-			//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-			const { showCreatedTimestamp, showUpdatedTimestamp } =
-				this.settings;
+	private addCSSClasses(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+	) {
+		const publishedFrontMatter = { ...newFrontMatter };
 
-			const updatedAt = file.meta.getUpdatedAt();
-			const createdAt = file.meta.getCreatedAt();
+		publishedFrontMatter["cssclasses"] =
+			publishedFrontMatter["cssclasses"] ?? "";
 
-			if (createdAt && showCreatedTimestamp) {
-				newFrontMatter["created"] = createdAt;
+		if (baseFrontMatter) {
+			if (baseFrontMatter["cssclasses"] !== undefined) {
+				if (typeof baseFrontMatter["cssclasses"] === "string") {
+					publishedFrontMatter["cssclasses"] +=
+						baseFrontMatter["cssclasses"];
+				} else if (Array.isArray(baseFrontMatter["cssclasses"])) {
+					publishedFrontMatter["cssclasses"] +=
+						baseFrontMatter["cssclasses"].join(" ");
+				}
 			}
 
-			if (updatedAt && showUpdatedTimestamp) {
-				newFrontMatter["updated"] = updatedAt;
+			if (baseFrontMatter["cssclass"] !== undefined) {
+				if (typeof baseFrontMatter["cssclass"] === "string") {
+					publishedFrontMatter["cssclasses"] +=
+						baseFrontMatter["cssclass"];
+				} else if (Array.isArray(baseFrontMatter["cssclass"])) {
+					publishedFrontMatter["cssclasses"] +=
+						baseFrontMatter["cssclass"].join(" ");
+				}
+			}
+		}
+
+		// remove duplicates
+		if (publishedFrontMatter["cssclasses"]) {
+			if (typeof publishedFrontMatter["cssclasses"] === "string") {
+				publishedFrontMatter["cssclasses"] =
+					publishedFrontMatter["cssclasses"].split(" ");
+			}
+
+			if (Array.isArray(publishedFrontMatter["cssclasses"])) {
+				publishedFrontMatter["cssclasses"] = [
+					...new Set(publishedFrontMatter["cssclasses"]),
+				];
+			}
+		}
+
+		// convert to string
+		if (typeof publishedFrontMatter["cssclasses"] !== "string") {
+			// If it's an array, join it with spaces
+			if (Array.isArray(publishedFrontMatter["cssclasses"])) {
+				publishedFrontMatter["cssclasses"] =
+					publishedFrontMatter["cssclasses"].join(" ");
+			}
+		}
+
+		return publishedFrontMatter;
+	}
+
+	/**
+	 * Adds the social image to the compiled frontmatter if specified in user settings
+	 */
+	private addSocialImage(
+		baseFrontMatter: TFrontmatter,
+		newFrontMatter: TPublishedFrontMatter,
+	) {
+		const publishedFrontMatter = { ...newFrontMatter };
+
+		if (baseFrontMatter) {
+			const socialImage =
+				baseFrontMatter["socialImage"] ??
+				baseFrontMatter["image"] ??
+				baseFrontMatter["cover"] ??
+				"";
+
+			const socialDescription =
+				baseFrontMatter["socialDescription"] ?? "";
+
+			if (socialImage && socialImage !== "") {
+				publishedFrontMatter["socialImage"] = socialImage;
+			}
+
+			if (socialDescription && socialDescription !== "") {
+				publishedFrontMatter["socialDescription"] = socialDescription;
+			}
+		}
+
+		return publishedFrontMatter;
+	}
+
+	/**
+	 * Adds the created, updated, and published timestamps to the compiled frontmatter if specified in user settings
+	 */
+	private addTimestampsFrontmatter =
+		(file: PublishFile) =>
+		(
+			baseFrontMatter: TFrontmatter,
+			newFrontMatter: TPublishedFrontMatter,
+		) => {
+			const {
+				showCreatedTimestamp,
+				showUpdatedTimestamp,
+				showPublishedTimestamp,
+			} = this.settings;
+
+			const overridden = this.settings.includeAllFrontmatter;
+
+			const createdAt = file.meta.getCreatedAt();
+			const updatedAt = file.meta.getUpdatedAt();
+			const publishedAt = file.meta.getPublishedAt();
+
+			if (createdAt && (showCreatedTimestamp || overridden)) {
+				newFrontMatter["created"] =
+					baseFrontMatter["created"] ??
+					baseFrontMatter["date"] ??
+					createdAt;
+			}
+
+			if (updatedAt && (showUpdatedTimestamp || overridden)) {
+				newFrontMatter["modified"] =
+					baseFrontMatter["modified"] ??
+					baseFrontMatter["lastmod"] ??
+					baseFrontMatter["updated"] ??
+					baseFrontMatter["last-modified"] ??
+					updatedAt;
+			}
+
+			if (publishedAt && (showPublishedTimestamp || overridden)) {
+				newFrontMatter["published"] =
+					baseFrontMatter["published"] ??
+					baseFrontMatter["publishDate"] ??
+					baseFrontMatter["date"] ??
+					updatedAt;
 			}
 
 			return newFrontMatter;
 		};
-
-	private addNoteIconFrontMatter(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-	) {
-		if (!baseFrontMatter) {
-			baseFrontMatter = {};
-		}
-
-		const publishedFrontMatter = { ...newFrontMatter };
-
-		return publishedFrontMatter;
-	}
-
-	private addFrontMatterSettings(
-		baseFrontMatter: Record<string, unknown>,
-		newFrontMatter: Record<string, unknown>,
-	) {
-		if (!baseFrontMatter) {
-			baseFrontMatter = {};
-		}
-		const publishedFrontMatter = { ...newFrontMatter };
-
-		for (const key of Object.keys(this.settings.defaultNoteSettings)) {
-			const settingValue = baseFrontMatter[kebabize(key)];
-
-			if (settingValue) {
-				publishedFrontMatter[key] = settingValue;
-			}
-		}
-
-		const PassFrontmatter =
-			this.settings.defaultNoteSettings.PassFrontmatter;
-
-		if (PassFrontmatter) {
-			publishedFrontMatter.PassFrontmatter = PassFrontmatter;
-		}
-
-		return publishedFrontMatter;
-	}
 }

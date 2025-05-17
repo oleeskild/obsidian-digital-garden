@@ -75,14 +75,14 @@
 
 	const rotatingCog = () => {
 		let cog = getIcon("cog");
-		cog?.classList.add("rotate");
+		cog?.classList.add("quartz-syncer-rotate");
 		cog?.style.setProperty("margin-right", "3px");
 
 		return cog;
 	};
 	const bigRotatingCog = () => {
 		let cog = getIcon("cog");
-		cog?.classList.add("rotate");
+		cog?.classList.add("quartz-syncer-rotate");
 		cog?.style.setProperty("margin-right", "3px");
 		cog?.style.setProperty("width", "40px");
 		cog?.style.setProperty("height", "40px");
@@ -94,14 +94,14 @@
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.publishedNotes.map((note) => note.getVaultPath()),
-			"Currently Published Notes",
+			"Currently published notes",
 		);
 
 	$: changedNotesTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.changedNotes.map((note) => note.getVaultPath()),
-			"Published Notes With Changes",
+			"Changed notes",
 		);
 
 	$: deletedNoteTree =
@@ -111,14 +111,14 @@
 				...publishStatus.deletedNotePaths,
 				...publishStatus.deletedBlobPaths,
 			].map((path) => path.path),
-			"Delete Published Notes",
+			"Unchanged notes (select to unpublish)",
 		);
 
 	$: unpublishedNoteTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.unpublishedNotes.map((note) => note.getVaultPath()),
-			"Unpublished Notes",
+			"Unpublished notes",
 		);
 
 	$: publishProgress =

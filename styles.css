@@ -22,18 +22,82 @@ button:disabled {
 	margin-left: 10px;
 }
 
-.settings > h1,
-h2,
-h3,
-h4 {
+.quartz-syncer-settings-enabled
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " (plugin enabled)";
+	color: var(--text-success, var(--color-green, green));
+	font-weight: bold;
+}
+
+.quartz-syncer-settings-disabled > .setting-item-info > .setting-item-name {
+	color: var(--text-error, var(--color-red, red));
+}
+
+.quartz-syncer-settings-disabled
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " (plugin disabled)";
+	color: var(--text-error, var(--color-red, red));
+	font-weight: bold;
+}
+
+.quartz-syncer-settings-disabled > .setting-item-control > .checkbox-container {
+	background-color: var(--text-error, var(--color-red, red));
+}
+
+.quartz-syncer-settings-upcoming
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " (plugin support upcoming)";
+	color: var(--text-warning, var(--color-orange, orange));
+	font-weight: bold;
+}
+
+.quartz-syncer-settings-overridable
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " *";
+	color: var(--text-warning, var(--color-orange, orange));
+}
+
+.quartz-syncer-settings-overrider
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " (enabling this setting will override marked settings (*))";
+	color: var(--text-warning, var(--color-orange, orange));
+	font-weight: bold;
+}
+
+.quartz-syncer-settings-overridden {
+	color: var(--text-muted, grey);
+}
+
+.quartz-syncer-settings-overridden
+	> .setting-item-control
+	> .setting-item-control {
+	display: none;
+}
+
+.quartz-syncer-settings-overridden
+	> .setting-item-info
+	> .setting-item-name:after {
+	content: " (setting overridden)";
+	color: var(--text-warning, var(--color-orange, orange));
+}
+
+.quartz-syncer-settings > h1,
+.quartz-syncer-settings h2,
+.quartz-syncer-settings h3,
+.quartz-syncer-settings h4 {
 	margin-top: 40px;
 }
 
-.settings .svg-icon {
+.quartz-syncer-settings .svg-icon {
 	margin-right: 10px;
 }
 
-@keyframes rotate {
+@keyframes quartz-syncer-rotate-animation {
 	0% {
 		transform: rotate(0deg);
 	}
@@ -43,6 +107,6 @@ h4 {
 	}
 }
 
-.rotate {
-	animation: rotate 4s linear infinite;
+.quartz-syncer-rotate {
+	animation: quartz-syncer-rotate-animation 4s linear infinite;
 }

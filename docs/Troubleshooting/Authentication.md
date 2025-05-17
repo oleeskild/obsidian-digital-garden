@@ -1,8 +1,8 @@
 ---
 title: Authentication
-description: Documentation related to GitHub authentication.
-created: 2004-05-25T00:00:00+02:00
-date: 2025-05-11T17:35:44+02:00
+description: Troubleshooting issues related to GitHub authentication.
+created: 2025-05-05T00:00:00Z+0200
+modified: 2025-05-17T18:47:50Z+0200
 publish: true
 ---
 
@@ -13,7 +13,7 @@ publish: true
 
 ## My Authentication Token is correct, but I get an error when publishing
 
-Please ensure you have the proper rights to the repository.
+Please ensure you have the proper rights to your Quartz repository.
 
 If you're on a university network connection or similar network that is shared with many other users, your connection to GitHub might be rate-limited.
 
