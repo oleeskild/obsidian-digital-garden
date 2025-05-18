@@ -10,7 +10,8 @@ Alternatively, install the plugin by downloading it from the [Release Tab](https
 
 ## Setup
 
-> [!TIP] Quartz Syncer documentation
+> [!TIP]
+> **Quartz Syncer documentation**
 >
 > For the most up-to-date information on Quartz Syncer, please refer to the [official documentation](https://saberzero1.github.io/quartz-syncer-docs/).
 
@@ -26,7 +27,8 @@ For more advanced usages of Quartz Syncer, check the [[Guides/index|guides secti
 
 ## Troubleshooting
 
-> [!INFO] Quartz-related questions
+> [!INFO]
+> **Quartz-related questions**
 >
 > For issue or questions related to Quartz, not Quartz Syncer, please consult the [Quartz documentation](https://quartz.jzhao.xyz/) or reach out through the communication channels provided there.
 
