@@ -98,10 +98,7 @@ export class DataviewCompiler {
 					counter++;
 				}
 
-				const serializer = new XMLSerializer();
-				const queryResult = serializer.serializeToString(div);
-
-				replacedText = replacedText.replace(block, queryResult ?? "");
+				replacedText = replacedText.replace(block, div.innerHTML ?? "");
 			} catch (e) {
 				console.log(e);
 
@@ -278,10 +275,7 @@ async function tryExecuteJs(
 		counter++;
 	}
 
-	const serializer = new XMLSerializer();
-	const queryResult = serializer.serializeToString(div);
-
-	return queryResult ?? "";
+	return div.innerHTML;
 }
 
 //delay async function
