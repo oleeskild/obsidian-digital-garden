@@ -2,21 +2,13 @@
 title: Roadmap
 description: Changelog and feature roadmap for Quartz Syncer.
 created: 2025-05-16T12:59:31Z+0200
-modified: 2025-05-17T22:39:48Z+0200
+modified: 2025-05-18T12:41:44Z+0200
 publish: true
 ---
 
 ## Upcoming
 
-### Version 1.5.0
-
-- Added to Obsidian Community Plugin list.
-- Added separate settings for configuring note properties/frontmatter.
-- Added option to only pass valid Quartz properties.
-	- This can be overridden by setting the new `Include all properties` option.
-- Updated publication center headings to better reflect functionality.
-- Cleaned up all unused and redundant functions.
-- Finished up all of the essential documentation.
+*Awaiting Obsidian release feedback before working on next update.*
 
 ## Planned
 
@@ -31,6 +23,25 @@ publish: true
 - Manage Quartz plugins.
 
 ## Released
+
+### Version 1.5.2
+
+- Restored use of `innerHTML` in the Dataview compiler.
+	- This only affects `dataviewjs` queries. These are an optional, opt-in component of the Dataview plugin. See [Dataview JavaScript API documentation](https://blacksmithgu.github.io/obsidian-dataview/api/intro/) for details.
+
+### Version 1.5.1
+
+- Addressed Obsidian's automated feedback.
+
+### Version 1.5.0
+
+- Added to Obsidian Community Plugin list.
+- Added separate settings for configuring note properties/frontmatter.
+- Added option to only pass valid Quartz properties.
+	- This can be overridden by setting the new `Include all properties` option.
+- Updated publication center headings to better reflect functionality.
+- Cleaned up all unused and redundant functions.
+- Finished up all of the essential documentation.
 
 ### Version 1.4.1
 
