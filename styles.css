@@ -97,6 +97,10 @@ button:disabled {
 	margin-right: 10px;
 }
 
+.quartz-syncer-svg-icon {
+	margin-right: 4px;
+}
+
 @keyframes quartz-syncer-rotate-animation {
 	0% {
 		transform: rotate(0deg);

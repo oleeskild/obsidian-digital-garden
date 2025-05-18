@@ -41,7 +41,7 @@ export class PublicationCenter {
 		const icon = getIcon(name) ?? document.createElement("span");
 
 		if (icon instanceof SVGSVGElement) {
-			icon.style.marginRight = "4px";
+			icon.addClass("quartz-syncer-svg-icon");
 		}
 
 		return icon;
@@ -65,15 +65,15 @@ export class PublicationCenter {
 
 			const localFile = this.vault.getAbstractFileByPath(localNotePath);
 
-			const localPublishFile = new PublishFile({
-				file: localFile as TFile,
-				vault: this.vault,
-				compiler: this.publisher.compiler,
-				metadataCache: this.publisher.metadataCache,
-				settings: this.settings,
-			});
-
 			if (localFile instanceof TFile) {
+				const localPublishFile = new PublishFile({
+					file: localFile,
+					vault: this.vault,
+					compiler: this.publisher.compiler,
+					metadataCache: this.publisher.metadataCache,
+					settings: this.settings,
+				});
+
 				const [localContent, _] =
 					await this.publisher.compiler.generateMarkdown(
 						localPublishFile,

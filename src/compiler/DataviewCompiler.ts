@@ -98,7 +98,10 @@ export class DataviewCompiler {
 					counter++;
 				}
 
-				replacedText = replacedText.replace(block, div.innerHTML ?? "");
+				replacedText = replacedText.replace(
+					block,
+					div.textContent ?? "",
+				);
 			} catch (e) {
 				console.log(e);
 
@@ -275,7 +278,7 @@ async function tryExecuteJs(
 		counter++;
 	}
 
-	return div.innerHTML;
+	return div.textContent ?? "";
 }
 
 //delay async function

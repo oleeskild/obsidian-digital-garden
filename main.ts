@@ -60,10 +60,11 @@ export default class QuartzSyncer extends Plugin {
 	async onload() {
 		this.appVersion = this.manifest.version;
 
-		console.log("Initializing QuartzSyncer plugin v" + this.appVersion);
 		await this.loadSettings();
 
 		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
+
+		Logger.info("Initializing QuartzSyncer plugin v" + this.appVersion);
 
 		Logger.info("Quartz Syncer log level set to " + Logger.getLevel().name);
 		this.addSettingTab(new QuartzSyncerSettingTab(this.app, this));
