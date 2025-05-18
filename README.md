@@ -27,7 +27,7 @@ For more advanced usages of Quartz Syncer, check the [[Guides/index|guides secti
 
 ## Troubleshooting
 
-> [!INFO]
+> [!IMPORTANT]
 > **Quartz-related questions**
 >
 > For issue or questions related to Quartz, not Quartz Syncer, please consult the [Quartz documentation](https://quartz.jzhao.xyz/) or reach out through the communication channels provided there.
