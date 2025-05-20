@@ -2,8 +2,9 @@
 title: Setup Guide
 description: Instructions for setting up Quartz Syncer plugin.
 created: 2025-05-05T12:00:00Z+0200
-modified: 2025-05-17T21:29:20Z+0200
+modified: 2025-05-20T12:01:36Z+0200
 publish: true
+tags: [guides]
 ---
 
 > [!WARNING]- A GitHub account is required to use Quartz and Quartz Syncer

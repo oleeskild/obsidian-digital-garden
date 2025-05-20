@@ -2,8 +2,9 @@
 title: Dataview
 description: Troubleshooting issues related to using the Dataview Obsidian plugin.
 created: 2025-05-05T00:00:00Z+0200
-modified: 2025-05-17T18:47:50Z+0200
+modified: 2025-05-20T20:31:59Z+0200
 publish: true
+tags: [dataview]
 ---
 
 > [!INFO] Dataview usage

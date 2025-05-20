@@ -2,8 +2,9 @@
 title: Configuring a specific folder for Quartz content
 description: Guide on how to configure a specific folder in your vault for Quartz instead of your entire vault.
 created: 2025-05-16T11:22:39Z+0200
-modified: 2025-05-17T18:47:50Z+0200
+modified: 2025-05-20T12:00:57Z+0200
 publish: true
+tags: [guides]
 ---
 
 > [!IMPORTANT] Mixed content vaults

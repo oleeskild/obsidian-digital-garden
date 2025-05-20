@@ -90,6 +90,14 @@ function sanitizePermalink(permalink: string): string {
 	return permalink;
 }
 
+function hideEl(el: HTMLElement) {
+	el.addClass("quartz-syncer-visually-hidden");
+}
+
+function unhideEl(el: HTMLElement) {
+	el.removeClass("quartz-syncer-visually-hidden");
+}
+
 export {
 	generateUrlPath,
 	generateBlobHash,
@@ -99,4 +107,6 @@ export {
 	escapeRegExp,
 	fixSvgForXmlSerializer,
 	sanitizePermalink,
+	hideEl,
+	unhideEl,
 };

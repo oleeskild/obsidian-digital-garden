@@ -33,8 +33,11 @@ export class PublicationCenter {
 		this.vault = app.vault;
 
 		this.modal.titleEl
-			.createEl("span", { text: "Publication Center" })
+			.createEl("span", { text: "Publication center" })
 			.prepend(this.getIcon("quartz-syncer-icon"));
+
+		this.modal.titleEl.addClass("quartz-syncer-modal-title");
+		this.modal.contentEl.addClass("quartz-syncer-modal-content");
 	}
 
 	getIcon(name: string): Node {

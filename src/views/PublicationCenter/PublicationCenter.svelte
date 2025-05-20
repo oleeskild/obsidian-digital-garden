@@ -80,6 +80,7 @@
 
 		return cog;
 	};
+	//TODO: move to class
 	const bigRotatingCog = () => {
 		let cog = getIcon("cog");
 		cog?.classList.add("quartz-syncer-rotate");
@@ -94,14 +95,28 @@
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.publishedNotes.map((note) => note.getVaultPath()),
-			"Currently published notes",
+			"Unchanged notes" +
+				(publishStatus.publishedNotes.length > 0
+					? ` (${
+							publishStatus.publishedNotes.length === 1
+								? "1 note"
+								: `${publishStatus.publishedNotes.length} notes`
+					  })`
+					: ""),
 		);
 
 	$: changedNotesTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.changedNotes.map((note) => note.getVaultPath()),
-			"Changed notes",
+			"Changed notes" +
+				(publishStatus.changedNotes.length > 0
+					? ` (${
+							publishStatus.changedNotes.length === 1
+								? "1 note"
+								: `${publishStatus.changedNotes.length} notes`
+					  })`
+					: ""),
 		);
 
 	$: deletedNoteTree =
@@ -111,14 +126,35 @@
 				...publishStatus.deletedNotePaths,
 				...publishStatus.deletedBlobPaths,
 			].map((path) => path.path),
-			"Unchanged notes (select to unpublish)",
+			"Published notes (select to unpublish)" +
+				(publishStatus.changedNotes.length +
+					publishStatus.publishedNotes.length >
+				0
+					? ` (${
+							publishStatus.changedNotes.length +
+								publishStatus.publishedNotes.length ===
+							1
+								? "1 note"
+								: `${
+										publishStatus.changedNotes.length +
+										publishStatus.publishedNotes.length
+								  } notes`
+					  })`
+					: ""),
 		);
 
 	$: unpublishedNoteTree =
 		publishStatus &&
 		filePathsToTree(
 			publishStatus.unpublishedNotes.map((note) => note.getVaultPath()),
-			"Unpublished notes",
+			"Unpublished notes" +
+				(publishStatus.unpublishedNotes.length > 0
+					? ` (${
+							publishStatus.unpublishedNotes.length === 1
+								? "1 note"
+								: `${publishStatus.unpublishedNotes.length} notes`
+					  })`
+					: ""),
 		);
 
 	$: publishProgress =

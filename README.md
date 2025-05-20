@@ -48,6 +48,7 @@ Quartz Syncer would not have been build without the following:
 
 - [Obsidian Digital Garden](https://dg-docs.ole.dev/), on top of which most of this plugin was initially built.
 - [Quartz](https://quartz.jzhao.xyz/), for the amazing and welcoming community. Come say hi in the Discord server sometimes.
+- [Obsidian Linter](https://github.com/platers/obsidian-linter), for inspiring the tabbed settings UI.
 - [Dataview](https://blacksmithgu.github.io/obsidian-dataview/), for their great API integration, allowing me to properly integrate it in Quartz.
 - [Obsidian Publish](https://obsidian.md/publish), for inspiring me to create a similar solution for Quartz.
 - The entire Obsidian community, for all your weird and amazing creations. Keep it up.

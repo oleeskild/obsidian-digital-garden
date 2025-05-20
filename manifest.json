@@ -1,7 +1,7 @@
 {
 	"id": "quartz-syncer",
 	"name": "Quartz Syncer",
-	"version": "1.5.2",
+	"version": "1.5.3",
 	"minAppVersion": "1.8.10",
 	"description": "Manage and publish your notes to Quartz. Supports Dataview.",
 	"author": "Emile Bangma",
