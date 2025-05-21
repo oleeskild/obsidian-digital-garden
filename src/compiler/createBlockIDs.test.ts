@@ -15,13 +15,9 @@ describe("replaceBlockIDs", () => {
 		expect(result).toBe(`
 			# header
 
-			foo
-{ #block-id-1234}
+			foo ^block-id-1234
 
-
-			bar
-{ #block-id-5678}
-
+			bar ^block-id-5678
 		`);
 	});
 
@@ -54,12 +50,8 @@ and for fun, here's another: ^block-id-5678
 \`\`\`
 
 additionally, block IDs outside of code blocks should be replaced
-for example,
-{ #block-id-9999}
-
-and
-{ #block-id-0000}
-
+for example, ^block-id-9999
+and ^block-id-0000
 		`);
 	});
 });

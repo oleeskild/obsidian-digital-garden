@@ -33,7 +33,6 @@ import {
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
-import { replaceBlockIDs } from "./replaceBlockIDs";
 
 export interface Asset {
 	path: string;
@@ -108,7 +107,6 @@ export class SyncerPageCompiler {
 		// ORDER MATTERS!
 		const COMPILE_STEPS: TCompilerStep[] = [
 			this.convertFrontMatter,
-			this.createBlockIDs,
 			this.createTranscludedText(0),
 			this.convertDataViews,
 			this.convertLinksToFullPath,
@@ -156,10 +154,6 @@ export class SyncerPageCompiler {
 		}
 
 		return text;
-	};
-
-	createBlockIDs: TCompilerStep = () => (text: string) => {
-		return replaceBlockIDs(text);
 	};
 
 	removeObsidianComments: TCompilerStep = () => (text) => {
@@ -299,6 +293,10 @@ export class SyncerPageCompiler {
 				return text;
 			}
 
+			if (!this.settings.applyEmbeds) {
+				return text;
+			}
+
 			const { notes: publishedFiles } =
 				await this.getFilesMarkedForPublishing();
 
@@ -310,12 +308,20 @@ export class SyncerPageCompiler {
 
 			for (const transclusionMatch of transclusionMatches ?? []) {
 				try {
-					const [transclusionFileName, headerName] = transclusionMatch
+					const [transclusionFileNameInitial, _] = transclusionMatch
 						.substring(
 							transclusionMatch.indexOf("[") + 2,
 							transclusionMatch.indexOf("]"),
 						)
 						.split("|");
+
+					const transclusionFileName =
+						transclusionFileNameInitial.endsWith("\\")
+							? transclusionFileNameInitial.substring(
+									0,
+									transclusionFileNameInitial.length - 1,
+							  )
+							: transclusionFileNameInitial;
 
 					const transclusionFilePath =
 						getLinkpath(transclusionFileName);
@@ -339,7 +345,6 @@ export class SyncerPageCompiler {
 						vault: this.vault,
 						settings: this.settings,
 					});
-					let sectionID = "";
 
 					if (linkedFile.name.endsWith(".excalidraw.md")) {
 						numberOfExcaliDraws++;
@@ -367,11 +372,6 @@ export class SyncerPageCompiler {
 							// Transclude Block
 							const refBlock =
 								transclusionFileName.split("#^")[1];
-
-							sectionID = `#${slugify(refBlock, {
-								separator: "-",
-								lowercase: false,
-							})}`;
 
 							const blockInFile =
 								publishLinkedFile.getBlock(refBlock);
@@ -405,11 +405,6 @@ export class SyncerPageCompiler {
 										lowercase: false,
 									}) === headerSlug,
 							);
-
-							sectionID = `#${slugify(refHeader, {
-								separator: "-",
-								lowercase: false,
-							})}`;
 
 							if (headerInFile && metadata?.headings) {
 								const headerPosition =
@@ -454,16 +449,6 @@ export class SyncerPageCompiler {
 						// Remove block reference
 						fileText = fileText.replace(BLOCKREF_REGEX, "");
 
-						const header = this.generateTransclusionHeader(
-							headerName,
-							linkedFile,
-						);
-
-						const headerSection = header
-							? `<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
-							: "";
-						let embedded_link = "";
-
 						const publishedFilesContainsLinkedFile =
 							publishedFiles.find(
 								(f) => f.getPath() == linkedFile.path,
@@ -498,14 +483,7 @@ export class SyncerPageCompiler {
 									"",
 								);
 							}
-
-							embedded_link = `<a class="markdown-embed-link" href="${quartzPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
 						}
-
-						fileText =
-							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
-							fileText +
-							"\n\n</div></div>\n";
 
 						if (fileText.match(transcludedRegex)) {
 							fileText = await this.createTranscludedText(

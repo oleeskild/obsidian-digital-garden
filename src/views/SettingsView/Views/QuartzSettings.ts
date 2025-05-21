@@ -12,6 +12,7 @@ export class QuartzSettings {
 		this.initializeQuartzHeader();
 		this.initializeQuartzContentFolder();
 		this.initializeUseFullImageResolutionSetting();
+		this.initializeApplyEmbedsSetting();
 	}
 
 	initializeQuartzHeader = () => {
@@ -34,6 +35,22 @@ export class QuartzSettings {
 					.setValue(this.settings.settings.useFullResolutionImages)
 					.onChange(async (value) => {
 						this.settings.settings.useFullResolutionImages = value;
+						await this.settings.saveSettings();
+					}),
+			);
+	}
+
+	private initializeApplyEmbedsSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Apply embeds")
+			.setDesc(
+				"By default, Quartz Syncer will apply embeds directly to your notes. If you want to let Quartz embeds, disable this setting.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.settings.applyEmbeds)
+					.onChange(async (value) => {
+						this.settings.settings.applyEmbeds = value;
 						await this.settings.saveSettings();
 					}),
 			);

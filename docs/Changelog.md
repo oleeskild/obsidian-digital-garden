@@ -2,7 +2,7 @@
 title: Roadmap
 description: Changelog and feature roadmap for Quartz Syncer.
 created: 2025-05-16T12:59:31Z+0200
-modified: 2025-05-20T20:21:59Z+0200
+modified: 2025-05-21T11:45:34Z+0200
 publish: true
 ---
 
@@ -21,6 +21,16 @@ publish: true
 - Manage Quartz plugins.
 
 ## Released
+
+### Version 1.6.0
+
+- Fixed embedding issues when embedding blocks.
+- Embeddings are now handles by Quartz Syncer instead of Quartz.
+	- This behavior can be configured in the settings `Quartz > Apply embeds`.
+- Added settings menu for Quartz Themes.
+	- This currently does nothing, but will be used for managing and applying Obsidian themes to Quartz.
+- Fixed some minor typos.
+- Updated documentation.
 
 ### Version 1.5.3
 

@@ -137,7 +137,7 @@ export class GithubSettings {
 		new Setting(this.settingsRootElement)
 			.setName("Vault root folder name")
 			.setDesc(
-				'The folder in your Obsidian vault that Quartz Syncer should consider as your Quartz website root folder. Useful for Obsidian vualts that are not exclusively used for Quartz. By default "/" (the root of your Obsidian vault).',
+				'The folder in your Obsidian vault that Quartz Syncer should consider as your Quartz website root folder. Useful for Obsidian vaults that are not exclusively used for Quartz. By default "/" (the root of your Obsidian vault).',
 			)
 			.addSearch((text) => {
 				new FolderSuggest(app, text.inputEl);
@@ -192,7 +192,7 @@ export class GithubSettings {
 
 		desc.createEl("span", undefined, (span) => {
 			span.innerText =
-				"A GitHub access token with Contents permissions. You can find instructions to generate it in ";
+				'A GitHub access token with "contents" permissions. You can find instructions to generate it in ';
 
 			span.createEl("a", undefined, (link) => {
 				link.href =

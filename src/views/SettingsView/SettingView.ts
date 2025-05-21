@@ -5,6 +5,7 @@ import { GithubSettings } from "./Views/GithubSettings";
 import { QuartzSettings } from "./Views/QuartzSettings";
 import { FrontmatterSettings } from "./Views/FrontmatterSettings";
 import { IntegrationSettings } from "./Views/IntegrationSettings";
+import { ThemesSettings } from "./Views/ThemesSettings";
 
 export default class SettingView {
 	app: App;
@@ -102,11 +103,13 @@ export default class SettingView {
 		const quartzTab = this.createTab("Quartz", "quartz-syncer-icon");
 		const frontmatterTab = this.createTab("Frontmatter", "archive");
 		const integrationTab = this.createTab("Integration", "cable");
+		const themesTab = this.createTab("Themes", "palette");
 
 		headerTabGroup.appendChild(githubTab);
 		headerTabGroup.appendChild(quartzTab);
 		headerTabGroup.appendChild(frontmatterTab);
 		headerTabGroup.appendChild(integrationTab);
+		headerTabGroup.appendChild(themesTab);
 
 		const content = this.settingsRootElement.createEl("div", {
 			cls: "quartz-syncer-setting-content",
@@ -124,6 +127,8 @@ export default class SettingView {
 			this,
 			this.createSettingsTab(content, "Integration"),
 		);
+
+		new ThemesSettings(this, this.createSettingsTab(content, "Themes"));
 
 		const tabs = this.settingsRootElement.querySelectorAll(
 			"[data-quartz-syncer-tab]",

@@ -2,7 +2,7 @@
 title: Quartz Syncer Documentation
 description: Quartz Syncer allows you to manage your Quartz site content from Obsidian.
 created: 2025-04-20T00:00:00Z+0200
-modified: 2025-05-20T21:11:11Z+0200
+modified: 2025-05-20T23:46:17Z+0200
 publish: true
 ---
 
@@ -20,11 +20,11 @@ New to Quartz Syncer? please follow the [[Setup Guide|setup guide]] to get start
 
 ## Usage
 
-Unsure on how to use Quartz Syncer, or just curious about its usage? Check the [[Usage Guide|usage guide]].
+Unsure on how to use Quartz Syncer, or just curious about its usage? Check out the [[Usage Guide|usage guide]].
 
 ## Advanced usage
 
-For more advanced usages of Quartz Syncer, check the [[Guides/index|guides section]].
+For more advanced use-cases of Quartz Syncer, check the [[Guides/index|guides section]].
 
 ## Troubleshooting
 

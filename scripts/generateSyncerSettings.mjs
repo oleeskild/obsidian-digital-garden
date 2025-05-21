@@ -20,7 +20,12 @@ const quartzSettings = {
 	vaultPath: "/",
 	useDataview: true,
 	useExcalidraw: false,
+
+	useThemes: false,
+
 	includeAllFrontmatter: false,
+
+	applyEmbeds: true,
 
 	showCreatedTimestamp: true,
 	createdTimestampKey: "created",

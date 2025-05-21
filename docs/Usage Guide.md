@@ -11,7 +11,7 @@ tags: [guides]
 >
 > Quartz Syncer applies changes to your notes when they are pushed to your Quartz repository, like parsing [[Settings/Integrations/Dataview|Dataview]] queries and filtering [[Settings/Note properties/index|note properties]] to ensure your notes are fully Quartz-compatible. This means the notes in your Quartz repository should be considered a one-way sync (Obsidian to Quartz.)
 >
-> For syncing notes between devices, consider using [Obsidian Sync](https://obsidian.md/sync) or one of many [community plugins](https://obsidian.md/plugins?search=sync).
+> For syncing notes between devices, consider using [Obsidian Sync](https://obsidian.md/sync) or one of the many [community plugins](https://obsidian.md/plugins?search=sync).
 
 ## Opening the publication center
 

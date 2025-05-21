@@ -18,12 +18,12 @@ export function replaceBlockIDs(markdown: string) {
 	markdown = markdown.replace(
 		complex_block_pattern,
 		(_match: string, $1: string) => {
-			return `{ #${$1}}\n\n`;
+			return `\n^${$1}\n`;
 		},
 	);
 
 	markdown = markdown.replace(block_pattern, (_match: string, $1: string) => {
-		return `\n{ #${$1}}\n`;
+		return ` ^${$1}`;
 	});
 
 	// Reinsert code blocks
