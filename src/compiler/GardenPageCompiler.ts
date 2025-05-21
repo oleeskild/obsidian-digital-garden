@@ -26,6 +26,8 @@ import {
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
 	TRANSCLUDED_SVG_REGEX,
+	PDF_REGEX,
+	TRANSCLUDED_PDF_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
@@ -234,10 +236,11 @@ export class GardenPageCompiler {
 							headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
 					}
 					const fullLinkedFilePath = getLinkpath(linkedFileName);
-					
+
 					if (fullLinkedFilePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						fullLinkedFilePath,
 						file.getPath(),
@@ -300,10 +303,11 @@ export class GardenPageCompiler {
 
 					const transclusionFilePath =
 						getLinkpath(transclusionFileName);
-					
+
 					if (transclusionFilePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						transclusionFilePath,
 						file.getPath(),
@@ -512,10 +516,11 @@ export class GardenPageCompiler {
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
 						.split("|");
 					const imagePath = getLinkpath(imageName);
-					
+
 					if (imagePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -563,6 +568,7 @@ export class GardenPageCompiler {
 					if (imagePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -586,7 +592,6 @@ export class GardenPageCompiler {
 
 		return text;
 	};
-
 	extractImageLinks = async (file: PublishFile) => {
 		const text = await file.cachedRead();
 		const assets = [];
@@ -612,6 +617,7 @@ export class GardenPageCompiler {
 					if (imagePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						imagePath,
 						file.getPath(),
@@ -650,6 +656,7 @@ export class GardenPageCompiler {
 					if (decodedImagePath === "") {
 						continue;
 					}
+
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
 						decodedImagePath,
 						file.getPath(),
@@ -732,6 +739,7 @@ export class GardenPageCompiler {
 						if (imagePath === "") {
 							continue;
 						}
+
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
 								imagePath,
@@ -782,7 +790,6 @@ export class GardenPageCompiler {
 				for (let i = 0; i < imageMatches.length; i++) {
 					try {
 						const imageMatch = imageMatches[i];
-
 						const nameStart = imageMatch.indexOf("[") + 1;
 						const nameEnd = imageMatch.indexOf("]");
 
@@ -790,7 +797,6 @@ export class GardenPageCompiler {
 							nameStart,
 							nameEnd,
 						);
-
 						const pathStart = imageMatch.lastIndexOf("(") + 1;
 						const pathEnd = imageMatch.lastIndexOf(")");
 
@@ -808,6 +814,7 @@ export class GardenPageCompiler {
 						if (decodedImagePath === "") {
 							continue;
 						}
+
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
 								decodedImagePath,
@@ -820,18 +827,385 @@ export class GardenPageCompiler {
 						const image = await this.vault.readBinary(linkedFile);
 						const imageBase64 = arrayBufferToBase64(image);
 						const cmsImgPath = `/img/user/${linkedFile.path}`;
-						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
+
+						const imageMarkdown = `![${imageName}](${encodeURI(
+							cmsImgPath,
+						)})`;
 						assets.push({ path: cmsImgPath, content: imageBase64 });
 
 						imageText = imageText.replace(
 							imageMatch,
 							imageMarkdown,
 						);
-					} catch {
+					} catch (e) {
+						Logger.warn("Error processing image link:", e);
 						continue;
 					}
 				}
 			}
+
+			// PDF LINKS
+			// ![[mypdf.pdf]]
+			const transcludedPdfRegex = TRANSCLUDED_PDF_REGEX;
+			const transcludedPdfMatches = text.match(transcludedPdfRegex);
+			console.log(`[PDF DEBUG] Processing note: ${filePath}`);
+
+			console.log(
+				`[PDF DEBUG] Transcluded PDF Regex: ${transcludedPdfRegex}`,
+			);
+
+			console.log(
+				`[PDF DEBUG] Found transcluded PDF matches:`,
+				transcludedPdfMatches,
+			);
+
+			if (transcludedPdfMatches) {
+				for (let i = 0; i < transcludedPdfMatches.length; i++) {
+					const pdfMatch = transcludedPdfMatches[i];
+
+					console.log(
+						`[PDF DEBUG] Transcluded Match ${i}: ${pdfMatch}`,
+					);
+
+					try {
+						const [pdfNameFromFile, ...metadataParts] = pdfMatch
+							.substring(
+								pdfMatch.indexOf("[") + 2,
+								pdfMatch.indexOf("]"),
+							)
+							.split("|");
+
+						const altText =
+							metadataParts.join("|") || pdfNameFromFile;
+
+						console.log(
+							`[PDF DEBUG] Transcluded: pdfNameFromFile='${pdfNameFromFile}', altText='${altText}'`,
+						);
+
+						const pdfPath = getLinkpath(pdfNameFromFile);
+
+						console.log(
+							`[PDF DEBUG] Transcluded: getLinkpath result='${pdfPath}'`,
+						);
+
+						if (pdfPath === "") {
+							console.log(
+								`[PDF DEBUG] Transcluded: pdfPath is empty. Fallback to wikilink.`,
+							);
+
+							imageText = imageText.replace(
+								pdfMatch,
+								`[[${pdfNameFromFile}${
+									metadataParts.length > 0
+										? "|" + metadataParts.join("|")
+										: ""
+								}]]`,
+							);
+							continue;
+						}
+
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								pdfPath,
+								filePath, // context path for resolving the link
+							) as TFile;
+
+						console.log(
+							`[PDF DEBUG] Transcluded: linkedFile for '${pdfPath}' (context: '${filePath}'):`,
+							linkedFile
+								? {
+										name: linkedFile.name,
+										path: linkedFile.path,
+										extension: linkedFile.extension,
+										size: linkedFile.stat.size,
+								  }
+								: null,
+						);
+
+						if (!linkedFile || linkedFile.extension !== "pdf") {
+							console.log(
+								`[PDF DEBUG] Transcluded: linkedFile not found or not a PDF. Fallback to wikilink. Is linkedFile valid? ${!!linkedFile}. Extension: ${linkedFile?.extension}`,
+							);
+
+							const fallbackMarkdown = `[[${pdfNameFromFile}${
+								metadataParts.length > 0
+									? "|" + metadataParts.join("|")
+									: ""
+							}]]`;
+
+							imageText = imageText.replace(
+								pdfMatch,
+								fallbackMarkdown,
+							);
+							continue;
+						}
+
+						if (linkedFile.stat.size > 20 * 1024 * 1024) {
+							// 20MB
+							console.log(
+								`[PDF DEBUG] Transcluded: PDF '${linkedFile.name}' too large (${linkedFile.stat.size} bytes). Fallback to wikilink.`,
+							);
+
+							new Notice(
+								`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
+							);
+
+							const fallbackWikilink = `[[${pdfNameFromFile}\\|PDF too large to publish${
+								metadataParts.length > 0
+									? "|" + metadataParts.join("|")
+									: ""
+							}]]`;
+
+							imageText = imageText.replace(
+								pdfMatch,
+								fallbackWikilink,
+							);
+							continue;
+						}
+
+						console.log(
+							`[PDF DEBUG] Transcluded: All checks passed for '${linkedFile.name}'. Proceeding to embed with iframe.`,
+						);
+
+						const pdfBinary =
+							await this.vault.readBinary(linkedFile);
+						const pdfBase64 = arrayBufferToBase64(pdfBinary);
+						const cmsPdfPath = `/img/user/${linkedFile.path}`;
+
+						const pdfEmbedHTML = `<iframe src="${encodeURI(
+							cmsPdfPath,
+						)}" width="100%" height="600px" title="${altText}" style="border:1px solid #ccc;"></iframe>`;
+
+						console.log(
+							`[PDF DEBUG] Transcluded: Generated iframe HTML: ${pdfEmbedHTML}`,
+						);
+
+						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						imageText = imageText.replace(pdfMatch, pdfEmbedHTML);
+					} catch (e) {
+						console.error(
+							"[PDF DEBUG] Transcluded: Error processing transcluded PDF link:",
+							pdfMatch,
+							e,
+						);
+
+						// matches
+						if (transcludedPdfMatches && transcludedPdfMatches[i]) {
+							const currentPdfMatch = transcludedPdfMatches[i];
+
+							const [pdfNameFromFile, ...metadataParts] =
+								currentPdfMatch
+									.substring(
+										currentPdfMatch.indexOf("[") + 2,
+										currentPdfMatch.indexOf("]"),
+									)
+									.split("|");
+
+							const fallbackMarkdown = `[[${pdfNameFromFile}${
+								metadataParts.length > 0
+									? "|" + metadataParts.join("|")
+									: ""
+							}]]`;
+
+							imageText = imageText.replace(
+								currentPdfMatch,
+								fallbackMarkdown,
+							);
+						}
+						continue;
+					}
+				}
+			}
+
+			// ![](mypdf.pdf)
+			const pdfRegex = PDF_REGEX;
+			const pdfMatches = text.match(pdfRegex);
+			console.log(`[PDF DEBUG] Standard PDF Regex: ${pdfRegex}`);
+			console.log(`[PDF DEBUG] Found standard PDF matches:`, pdfMatches);
+
+			if (pdfMatches) {
+				for (let i = 0; i < pdfMatches.length; i++) {
+					const pdfMatch = pdfMatches[i];
+					console.log(`[PDF DEBUG] Standard Match ${i}: ${pdfMatch}`);
+
+					try {
+						const nameStart = pdfMatch.indexOf("[") + 1;
+						const nameEnd = pdfMatch.indexOf("]");
+						const pdfName = pdfMatch.substring(nameStart, nameEnd);
+
+						const pathStart = pdfMatch.lastIndexOf("(") + 1;
+						const pathEnd = pdfMatch.lastIndexOf(")");
+						const pdfPath = pdfMatch.substring(pathStart, pathEnd);
+
+						console.log(
+							`[PDF DEBUG] Standard: pdfName='${pdfName}', pdfPath='${pdfPath}'`,
+						);
+
+						if (pdfPath.startsWith("http")) {
+							console.log(
+								`[PDF DEBUG] Standard: HTTP path. Embedding directly.`,
+							);
+
+							const httpPdfEmbedHTML = `<iframe src="${encodeURI(
+								pdfPath,
+							)}" width="100%" height="600px" title="${
+								pdfName || "External PDF"
+							}" style="border:1px solid #ccc;"></iframe>`;
+
+							console.log(
+								`[PDF DEBUG] Standard HTTP: Generated iframe HTML: ${httpPdfEmbedHTML}`,
+							);
+
+							imageText = imageText.replace(
+								pdfMatch,
+								httpPdfEmbedHTML,
+							);
+							continue;
+						}
+
+						const decodedPdfPath = decodeURI(pdfPath);
+
+						console.log(
+							`[PDF DEBUG] Standard: decodedPdfPath='${decodedPdfPath}'`,
+						);
+
+						if (decodedPdfPath === "") {
+							console.log(
+								`[PDF DEBUG] Standard: decodedPdfPath is empty. Fallback to link.`,
+							);
+
+							const fallbackMarkdown = `[${
+								pdfName || "Invalid PDF Link"
+							}](${encodeURI(pdfPath)})`;
+
+							imageText = imageText.replace(
+								pdfMatch,
+								fallbackMarkdown,
+							);
+							continue;
+						}
+
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								decodedPdfPath,
+								filePath, // context path
+							) as TFile;
+
+						console.log(
+							`[PDF DEBUG] Standard: linkedFile for '${decodedPdfPath}' (context: '${filePath}'):`,
+							linkedFile
+								? {
+										name: linkedFile.name,
+										path: linkedFile.path,
+										extension: linkedFile.extension,
+										size: linkedFile.stat.size,
+								  }
+								: null,
+						);
+
+						if (!linkedFile || linkedFile.extension !== "pdf") {
+							console.log(
+								`[PDF DEBUG] Standard: linkedFile not found or not a PDF. Fallback to link. Is linkedFile valid? ${!!linkedFile}. Extension: ${linkedFile?.extension}`,
+							);
+
+							const fallbackMarkdown = `[${
+								pdfName || decodedPdfPath
+							}](${encodeURI(pdfPath)})`;
+
+							imageText = imageText.replace(
+								pdfMatch,
+								fallbackMarkdown,
+							);
+							continue;
+						}
+
+						if (linkedFile.stat.size > 20 * 1024 * 1024) {
+							// 20MB
+							console.log(
+								`[PDF DEBUG] Standard: PDF '${linkedFile.name}' too large (${linkedFile.stat.size} bytes). Fallback to link.`,
+							);
+
+							new Notice(
+								`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
+							);
+
+							const fallbackLink = `[${
+								pdfName || linkedFile.name
+							} (PDF too large to embed)](${encodeURI(pdfPath)})`;
+
+							imageText = imageText.replace(
+								pdfMatch,
+								fallbackLink,
+							);
+							continue;
+						}
+
+						console.log(
+							`[PDF DEBUG] Standard: All checks passed for '${linkedFile.name}'. Proceeding to embed with iframe.`,
+						);
+
+						const pdfBinary =
+							await this.vault.readBinary(linkedFile);
+						const pdfBase64 = arrayBufferToBase64(pdfBinary);
+						const cmsPdfPath = `/img/user/${linkedFile.path}`;
+
+						const pdfEmbedHTML = `<iframe src="${encodeURI(
+							cmsPdfPath,
+						)}" width="100%" height="600px" title="${
+							pdfName || linkedFile.basename
+						}" style="border:1px solid #ccc;"></iframe>`;
+
+						console.log(
+							`[PDF DEBUG] Standard: Generated iframe HTML: ${pdfEmbedHTML}`,
+						);
+
+						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						imageText = imageText.replace(pdfMatch, pdfEmbedHTML);
+					} catch (e) {
+						console.error(
+							"[PDF DEBUG] Standard: Error processing PDF link:",
+							pdfMatch,
+							e,
+						);
+
+						if (pdfMatches && pdfMatches[i]) {
+							const currentPdfMatch = pdfMatches[i];
+							const nameStart = currentPdfMatch.indexOf("[") + 1;
+							const nameEnd = currentPdfMatch.indexOf("]");
+
+							const pdfName = currentPdfMatch.substring(
+								nameStart,
+								nameEnd,
+							);
+
+							const pathStart =
+								currentPdfMatch.lastIndexOf("(") + 1;
+							const pathEnd = currentPdfMatch.lastIndexOf(")");
+
+							const pdfPath = currentPdfMatch.substring(
+								pathStart,
+								pathEnd,
+							);
+
+							const fallbackMarkdown = `[${
+								pdfName || "Problematic PDF Link"
+							}](${encodeURI(pdfPath)})`;
+
+							imageText = imageText.replace(
+								currentPdfMatch,
+								fallbackMarkdown,
+							);
+						}
+						continue;
+					}
+				}
+			}
+
+			console.log(
+				`[PDF DEBUG] Final imageText before return:`,
+				imageText.substring(0, 500) +
+					(imageText.length > 500 ? "..." : ""),
+			); // Log a snippet
 
 			return [imageText, assets];
 		};
