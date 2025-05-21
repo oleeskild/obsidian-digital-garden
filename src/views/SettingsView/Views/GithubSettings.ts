@@ -1,6 +1,6 @@
 import { Setting, debounce } from "obsidian";
 import SettingView from "../SettingView";
-import { FolderSuggest } from "../../../ui/suggest/file-suggest";
+import { FolderSuggest } from "../../../ui/suggest/folder";
 import { Octokit } from "@octokit/core";
 
 export class GithubSettings {

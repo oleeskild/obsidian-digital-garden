@@ -75,18 +75,19 @@
 
 	const rotatingCog = () => {
 		let cog = getIcon("cog");
-		cog?.classList.add("quartz-syncer-rotate");
-		cog?.style.setProperty("margin-right", "3px");
+		cog?.classList.add("quartz-syncer-rotate", "quartz-syncer-cog");
 
 		return cog;
 	};
 	//TODO: move to class
 	const bigRotatingCog = () => {
 		let cog = getIcon("cog");
-		cog?.classList.add("quartz-syncer-rotate");
-		cog?.style.setProperty("margin-right", "3px");
-		cog?.style.setProperty("width", "40px");
-		cog?.style.setProperty("height", "40px");
+
+		cog?.classList.add(
+			"quartz-syncer-rotate",
+			"quartz-syncer-cog",
+			"quartz-syncer-cog-big",
+		);
 
 		return cog;
 	};

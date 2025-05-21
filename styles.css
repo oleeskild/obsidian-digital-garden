@@ -1,4 +1,5 @@
-button:disabled {
+.quurtz-syncer-settings button:disabled,
+.quartz-syncer-publish-status-view button:disabled {
 	pointer-events: none;
 	opacity: 0.4;
 }
@@ -128,6 +129,7 @@ button:disabled {
 	color: var(--text-warning, var(--color-orange, orange));
 }
 
+/* Cog animation */
 @keyframes quartz-syncer-rotate-animation {
 	0% {
 		transform: rotate(0deg);
@@ -142,11 +144,30 @@ button:disabled {
 	animation: quartz-syncer-rotate-animation 4s linear infinite;
 }
 
+.quartz-syncer-cog {
+	margin-left: 3px;
+}
+
+.quartz-syncer-cog-big {
+	width: 40px;
+	height: 40px;
+}
+
 /* Publication center */
 .quartz-syncer-modal-title {
 }
 .quartz-syncer-modal-content:first-child {
 	width: 100%;
+}
+
+/* Folder select */
+.quartz-syncer-settings .search-input-container::before {
+	display: none;
+}
+.quartz-syncer-settings .search-input-container input {
+	width: unset;
+	padding-inline-start: 0px;
+	padding: 4px 8px;
 }
 
 /* Settings tabs */
