@@ -80,8 +80,8 @@ You can now start adding links as you usually would in Obisidan, with double squ
 
 ## Modifying the template/site
 
-The code for the website is available in the repo you created in step 3, and this is yours to modify however you want. If you know some css I encourage you to change the default styling to make the site your own. Please modify the custom-style.scss when doing so to avoid
-future conflict when updating the template. Vercel should automatically update your site when you make changes to the code.
+The code for the website is available in the repo you created in step 3, and this is yours to modify however you want.  
+Any css/scss files placed under src/site/styles/user will automatically be linked into the head right after all other styling. Meaning that the styling added here will take presedence over everything else.
 
 ## Updating the template
 
@@ -105,7 +105,7 @@ If you want to do any changes that aren't overwritten when updating the template
 NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.
 
 1. Clone this repository
-2. (for best compatability, use node version manager and run `nvm install && nvm use`)
+2. (for best compatibility, use node version manager and run `nvm install && nvm use`)
 3. Install dependencies with `npm install`
 4. Run with `npm run dev`
 5. Open the vault from `src/dg-testVault` into obsidian
