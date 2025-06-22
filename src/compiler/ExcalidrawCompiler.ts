@@ -56,7 +56,7 @@ export class ExcalidrawCompiler {
 			}
 
 			// Set zoom level to 1
-			excaliDrawJson!.appState!.zoom = { value: 1};
+			excaliDrawJson!.appState!.zoom = { value: 1 };
 
 			excaliDrawCode += excalidraw(
 				JSON.stringify(excaliDrawJson),
