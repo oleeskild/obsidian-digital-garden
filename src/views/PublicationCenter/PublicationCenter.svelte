@@ -218,19 +218,21 @@
 		publishedPaths = [...processingPaths];
 		processingPaths = [];
 
-		for (const path of notesToDelete) {
-			processingPaths = [...processingPaths, path];
-			await publisher.deleteNote(path);
-			processingPaths = processingPaths.filter((p) => p !== path);
-			publishedPaths = [...publishedPaths, path];
-		}
+		processingPaths = [...notesToDelete, ...imagesToDelete];
+		await publisher.deleteBatch(notesToDelete);
 
-		for (const path of imagesToDelete) {
-			processingPaths = [...processingPaths, path];
-			await publisher.deleteImage(path);
-			processingPaths = processingPaths.filter((p) => p !== path);
-			publishedPaths = [...publishedPaths, path];
-		}
+		processingPaths = processingPaths.filter(
+			(p) => !notesToDelete.includes(p),
+		);
+		publishedPaths = [...publishedPaths, ...notesToDelete];
+
+		processingPaths = [...imagesToDelete];
+		await publisher.deleteBatch(imagesToDelete);
+
+		processingPaths = processingPaths.filter(
+			(p) => !imagesToDelete.includes(p),
+		);
+		publishedPaths = [...publishedPaths, ...imagesToDelete];
 		publishedPaths = [...publishedPaths, ...processingPaths];
 		processingPaths = [];
 	};
