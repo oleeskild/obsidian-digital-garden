@@ -3,7 +3,11 @@ import Logger from "js-logger";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import DigitalGardenSettings from "src/models/settings";
+
 const oktokitLogger = Logger.get("octokit");
+
+// Default base URL to use as fallback
+const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
 export default class PublishPlatformConnectionFactory {
 	static createBaseGardenConnection(): IPublishPlatformConnection {
@@ -29,9 +33,12 @@ export default class PublishPlatformConnectionFactory {
 			const userName = "Forestry";
 			const token = settings.forestrySettings.apiKey;
 
+			// Read from environment variable with fallback to default
+			const baseUrl =
+				process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL;
+
 			const octoKit = new Octokit({
-				baseUrl:
-					"https://wa-forestry-prod-api.azurewebsites.net/app/Garden", //TODO: Move base/app to .env
+				baseUrl: `${baseUrl}/Garden`,
 				auth: token,
 				log: oktokitLogger,
 			});

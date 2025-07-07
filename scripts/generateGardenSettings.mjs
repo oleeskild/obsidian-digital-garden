@@ -50,10 +50,6 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	],
 	contentClassesKey: "dg-content-classes",
 	publishPlatform: "ForestryMd",
-	forestrySettings: {
-		forestryPageName: process.env.FORESTRY_PAGE_NAME || "digital-garden",
-		apiKey:  process.env.FORESTRY_API_KEY || "forestry-api-key",
-	},
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
