@@ -262,7 +262,7 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					for (const image of imagesToDelete) {
-						await publisher.deleteImage(image.path);
+						await publisher.deleteMediaItem(image.path);
 						statusBar.increment();
 					}
 
