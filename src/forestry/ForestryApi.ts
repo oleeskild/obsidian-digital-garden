@@ -1,11 +1,17 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import IPageInfoResponse from "src/models/PageInfo";
 import Logger from "js-logger";
+
+// Default base URL to use as fallback
+const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
+
 export default class ForestryApi {
 	client: AxiosInstance;
 
 	constructor(apiKey: string) {
-		const baseUrl = "https://wa-forestry-prod-api.azurewebsites.net/app"; //TODO: Get from .env
+		// Read from environment variable with fallback to default
+		const baseUrl =
+			process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL;
 
 		this.client = axios.create({
 			baseURL: baseUrl,

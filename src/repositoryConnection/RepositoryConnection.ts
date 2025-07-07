@@ -8,12 +8,6 @@ const logger = Logger.get("repository-connection");
 const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
 
-interface IOctokitterInput {
-	githubToken: string;
-	githubUserName: string;
-	gardenRepository: string;
-}
-
 interface IPutPayload {
 	path: string;
 	sha?: string;

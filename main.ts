@@ -13,6 +13,9 @@ import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
 
+// Process environment variables are provided through esbuild's define feature
+// See esbuild.config.mjs
+
 const defaultTheme = {
 	name: "Red Graphite",
 	author: "SeanWcom",

@@ -119,6 +119,10 @@ GITHUB_REPO=
 GITHUB_TOKEN=
 GITHUB_USERNAME=
 
+# Forestry.md settings (if you're using Forestry.md)
+FORESTRY_BASE_URL=https://wa-forestry-prod-api.azurewebsites.net/app
+FORESTRY_PAGE_NAME=
+FORESTRY_API_KEY=
 ```
 
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
