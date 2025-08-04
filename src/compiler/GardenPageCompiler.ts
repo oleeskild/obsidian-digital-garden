@@ -918,7 +918,7 @@ export class GardenPageCompiler {
 						const audioBase64 = arrayBufferToBase64(audio);
 
 						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
-						const audioMarkdown = `!()[${encodeURI(cmsAudioPath)}]`;
+						const audioMarkdown = `![](${encodeURI(cmsAudioPath)})`;
 
 						assets.push({
 							path: cmsAudioPath,
@@ -971,7 +971,7 @@ export class GardenPageCompiler {
 						const audio = await this.vault.readBinary(linkedFile);
 						const audioBase64 = arrayBufferToBase64(audio);
 						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
-						const audioMarkdown = `!()[${encodeURI(cmsAudioPath)}]`;
+						const audioMarkdown = `![](${encodeURI(cmsAudioPath)})`;
 
 						assets.push({
 							path: cmsAudioPath,
