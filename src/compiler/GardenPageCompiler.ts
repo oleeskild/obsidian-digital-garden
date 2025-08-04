@@ -918,13 +918,7 @@ export class GardenPageCompiler {
 						const audioBase64 = arrayBufferToBase64(audio);
 
 						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
-
-						// Generate HTML5 audio element instead of markdown
-						const audioHtml = `<audio controls><source src="${encodeURI(
-							cmsAudioPath,
-						)}" type="audio/${
-							linkedFile.extension
-						}">Your browser does not support the audio element.</audio>`;
+						const audioMarkdown = `!()[${encodeURI(cmsAudioPath)}]`;
 
 						assets.push({
 							path: cmsAudioPath,
@@ -932,7 +926,10 @@ export class GardenPageCompiler {
 							type: "audio" as const,
 						});
 
-						audioText = audioText.replace(audioMatch, audioHtml);
+						audioText = audioText.replace(
+							audioMatch,
+							audioMarkdown,
+						);
 					} catch (e) {
 						continue;
 					}
@@ -974,9 +971,7 @@ export class GardenPageCompiler {
 						const audio = await this.vault.readBinary(linkedFile);
 						const audioBase64 = arrayBufferToBase64(audio);
 						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
-
-						// Generate HTML5 audio element instead of markdown
-						const audioHtml = `<audio controls><source src="${cmsAudioPath}" type="audio/${linkedFile.extension}">Your browser does not support the audio element.</audio>`;
+						const audioMarkdown = `!()[${encodeURI(cmsAudioPath)}]`;
 
 						assets.push({
 							path: cmsAudioPath,
@@ -984,7 +979,10 @@ export class GardenPageCompiler {
 							type: "audio" as const,
 						});
 
-						audioText = audioText.replace(audioMatch, audioHtml);
+						audioText = audioText.replace(
+							audioMatch,
+							audioMarkdown,
+						);
 					} catch {
 						continue;
 					}
