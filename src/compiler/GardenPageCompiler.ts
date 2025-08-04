@@ -39,7 +39,7 @@ export interface Asset {
 	remoteHash?: string;
 }
 export interface Assets {
-	mediaItems: Array<Asset>;
+	images: Array<Asset>;
 }
 
 export type TCompiledFile = [string, Assets];
@@ -87,7 +87,7 @@ export class GardenPageCompiler {
 		};
 
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
-		const assets: Assets = { mediaItems: [] };
+		const assets: Assets = { images: [] };
 
 		const vaultFileText = await file.cachedRead();
 
@@ -117,10 +117,9 @@ export class GardenPageCompiler {
 			COMPILE_STEPS,
 		)(vaultFileText);
 
-		const [text, mediaItems] =
-			await this.convertMediaLinks(file)(compiledText);
+		const [text, images] = await this.convertImageLinks(file)(compiledText);
 
-		return [text, { mediaItems }];
+		return [text, { images }];
 	}
 
 	convertCustomFilters: TCompilerStep = () => (text) => {
@@ -568,7 +567,7 @@ export class GardenPageCompiler {
 		return text;
 	};
 
-	extractMediaLinks = async (file: PublishFile) => {
+	extractImageLinks = async (file: PublishFile) => {
 		const text = await file.cachedRead();
 		const assets = [];
 
@@ -644,37 +643,33 @@ export class GardenPageCompiler {
 		return assets;
 	};
 
-	convertMediaLinks =
+	convertImageLinks =
 		(file: PublishFile) =>
 		async (text: string): Promise<[string, Array<Asset>]> => {
 			const filePath = file.getPath();
-			const assets: Array<Asset> = [];
+			const assets = [];
 
-			let mediaItemText = text;
+			let imageText = text;
 
 			//![[image.png]]
-			const transcludedMediaItemRegex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|mp3|wav|ogg|m4a))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|mp3))\]\]/g;
+			const transcludedImageRegex =
+				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+			const transcludedImageMatches = text.match(transcludedImageRegex);
 
-			const transcludedMediaItemMatches = text.match(
-				transcludedMediaItemRegex,
-			);
-
-			if (transcludedMediaItemMatches) {
-				for (let i = 0; i < transcludedMediaItemMatches.length; i++) {
+			if (transcludedImageMatches) {
+				for (let i = 0; i < transcludedImageMatches.length; i++) {
 					try {
-						const mediaItemMatch = transcludedMediaItemMatches[i];
+						const imageMatch = transcludedImageMatches[i];
 
 						//Alt 1: [image.png|100]
 						//Alt 2: [image.png|meta1 meta2|100]
 						//Alt 3: [image.png|meta1 meta2]
-						const [mediaItemName, ...metaDataAndSize] =
-							mediaItemMatch
-								.substring(
-									mediaItemMatch.indexOf("[") + 2,
-									mediaItemMatch.indexOf("]"),
-								)
-								.split("|");
+						const [imageName, ...metaDataAndSize] = imageMatch
+							.substring(
+								imageMatch.indexOf("[") + 2,
+								imageMatch.indexOf("]"),
+							)
+							.split("|");
 
 						const lastValue =
 							metaDataAndSize[metaDataAndSize.length - 1];
@@ -706,51 +701,42 @@ export class GardenPageCompiler {
 							metaData = `${lastValue}`;
 						}
 
-						const mediaItemPath = getLinkpath(mediaItemName);
+						const imagePath = getLinkpath(imageName);
 
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
-								mediaItemPath,
+								imagePath,
 								filePath,
 							);
 
 						if (!linkedFile) {
 							continue;
 						}
-						const mediaItem =
-							await this.vault.readBinary(linkedFile);
-						const mediaItemBase64 = arrayBufferToBase64(mediaItem);
+						const image = await this.vault.readBinary(linkedFile);
+						const imageBase64 = arrayBufferToBase64(image);
 
-						const isAudio = linkedFile.extension === "mp3";
-
-						const basePath = isAudio
-							? `/audio/user/`
-							: `/img/user/`;
-						const cmsPath = `${basePath}${linkedFile.path}`;
+						const cmsImgPath = `/img/user/${linkedFile.path}`;
 						let name = "";
 
 						if (metaData && size) {
-							name = `${mediaItemName}|${metaData}|${size}`;
+							name = `${imageName}|${metaData}|${size}`;
 						} else if (size) {
-							name = `${mediaItemName}|${size}`;
+							name = `${imageName}|${size}`;
 						} else if (metaData && metaData !== "") {
-							name = `${mediaItemName}|${metaData}`;
+							name = `${imageName}|${metaData}`;
 						} else {
-							name = mediaItemName;
+							name = imageName;
 						}
 
-						const mediaItemMarkdown = `![${name}](${encodeURI(
-							cmsPath,
+						const imageMarkdown = `![${name}](${encodeURI(
+							cmsImgPath,
 						)})`;
 
-						assets.push({
-							path: cmsPath,
-							content: mediaItemBase64,
-						});
+						assets.push({ path: cmsImgPath, content: imageBase64 });
 
-						mediaItemText = mediaItemText.replace(
-							mediaItemMatch,
-							mediaItemMarkdown,
+						imageText = imageText.replace(
+							imageMatch,
+							imageMarkdown,
 						);
 					} catch (e) {
 						continue;
@@ -759,64 +745,55 @@ export class GardenPageCompiler {
 			}
 
 			//![](image.png)
-			const mediaItemRegex =
-				/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|mp3))\)/g;
-			const mediaItemMatches = text.match(mediaItemRegex);
+			const imageRegex =
+				/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
+			const imageMatches = text.match(imageRegex);
 
-			if (mediaItemMatches) {
-				for (let i = 0; i < mediaItemMatches.length; i++) {
+			if (imageMatches) {
+				for (let i = 0; i < imageMatches.length; i++) {
 					try {
-						const mediaItemMatch = mediaItemMatches[i];
+						const imageMatch = imageMatches[i];
 
-						const nameStart = mediaItemMatch.indexOf("[") + 1;
-						const nameEnd = mediaItemMatch.indexOf("]");
+						const nameStart = imageMatch.indexOf("[") + 1;
+						const nameEnd = imageMatch.indexOf("]");
 
-						const mediaItemName = mediaItemMatch.substring(
+						const imageName = imageMatch.substring(
 							nameStart,
 							nameEnd,
 						);
 
-						const pathStart = mediaItemMatch.lastIndexOf("(") + 1;
-						const pathEnd = mediaItemMatch.lastIndexOf(")");
+						const pathStart = imageMatch.lastIndexOf("(") + 1;
+						const pathEnd = imageMatch.lastIndexOf(")");
 
-						const mediaItemPath = mediaItemMatch.substring(
+						const imagePath = imageMatch.substring(
 							pathStart,
 							pathEnd,
 						);
 
-						if (mediaItemPath.startsWith("http")) {
+						if (imagePath.startsWith("http")) {
 							continue;
 						}
 
-						const decodedMediaItemPath = decodeURI(mediaItemPath);
+						const decodedImagePath = decodeURI(imagePath);
 
 						const linkedFile =
 							this.metadataCache.getFirstLinkpathDest(
-								decodedMediaItemPath,
+								decodedImagePath,
 								filePath,
 							);
 
 						if (!linkedFile) {
 							continue;
 						}
-						const mediaItem =
-							await this.vault.readBinary(linkedFile);
-						const mediaItemBase64 = arrayBufferToBase64(mediaItem);
-						const isAudio = linkedFile.extension === "mp3";
+						const image = await this.vault.readBinary(linkedFile);
+						const imageBase64 = arrayBufferToBase64(image);
+						const cmsImgPath = `/img/user/${linkedFile.path}`;
+						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
+						assets.push({ path: cmsImgPath, content: imageBase64 });
 
-						const basePath = isAudio
-							? `/audio/user/`
-							: `/img/user/`;
-						const cmsPath = `${basePath}${linkedFile.path}`;
-						const mediaItemMarkdown = `![${mediaItemName}](${cmsPath})`;
-						assets.push({
-							path: cmsPath,
-							content: mediaItemBase64,
-						});
-
-						mediaItemText = mediaItemText.replace(
-							mediaItemMatch,
-							mediaItemMarkdown,
+						imageText = imageText.replace(
+							imageMatch,
+							imageMarkdown,
 						);
 					} catch {
 						continue;
@@ -824,7 +801,7 @@ export class GardenPageCompiler {
 				}
 			}
 
-			return [mediaItemText, assets];
+			return [imageText, assets];
 		};
 
 	generateTransclusionHeader(

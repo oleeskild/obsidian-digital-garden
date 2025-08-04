@@ -13,11 +13,7 @@ import {
 } from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
-import {
-	NOTE_PATH_BASE,
-	IMAGE_PATH_BASE,
-	AUDIO_PATH_BASE,
-} from "../publisher/Publisher";
+import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -212,25 +208,22 @@ export default class DigitalGardenSiteManager {
 		return hashes;
 	}
 
-	async getMediaHashes(
+	async getImageHashes(
 		contentTree: NonNullable<TRepositoryContent>,
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree ?? [];
 
-		const medias = files.filter(
+		const images = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				(x.path.startsWith(IMAGE_PATH_BASE) ||
-					x.path.startsWith(AUDIO_PATH_BASE)) &&
+				x.path.startsWith(IMAGE_PATH_BASE) &&
 				x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 
-		for (const media of medias) {
-			const vaultPath = media.path
-				.replace(IMAGE_PATH_BASE, "")
-				.replace(AUDIO_PATH_BASE, "");
-			hashes[vaultPath] = media.sha;
+		for (const img of images) {
+			const vaultPath = img.path.replace(IMAGE_PATH_BASE, "");
+			hashes[vaultPath] = img.sha;
 		}
 
 		return hashes;

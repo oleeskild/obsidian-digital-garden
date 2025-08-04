@@ -57,8 +57,8 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const remoteNoteHashes =
 			await this.siteManager.getNoteHashes(contentTree);
 
-		const remoteMediaHashes =
-			await this.siteManager.getMediaHashes(contentTree);
+		const remoteImageHashes =
+			await this.siteManager.getImageHashes(contentTree);
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
@@ -86,8 +86,8 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		);
 
 		const deletedImagePaths = this.generateDeletedContentPaths(
-			remoteMediaHashes,
-			marked.mediaItems,
+			remoteImageHashes,
+			marked.images,
 		);
 		// These might already be sorted, as getFilesMarkedForPublishing sorts already
 		publishedNotes.sort((a, b) => a.compare(b));

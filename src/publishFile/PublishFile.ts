@@ -75,8 +75,8 @@ export class PublishFile {
 		return hasPublishFlag(this.frontmatter);
 	}
 
-	async getMediaLinks() {
-		return this.compiler.extractMediaLinks(this);
+	async getImageLinks() {
+		return this.compiler.extractImageLinks(this);
 	}
 
 	async cachedRead() {

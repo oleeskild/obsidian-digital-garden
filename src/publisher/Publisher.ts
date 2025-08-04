@@ -14,11 +14,10 @@ import { RepositoryConnection } from "../repositoryConnection/RepositoryConnecti
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
-	mediaItems: string[];
+	images: string[];
 }
 
 export const IMAGE_PATH_BASE = "src/site/img/user/";
-export const AUDIO_PATH_BASE = "src/site/audio/user/";
 export const NOTE_PATH_BASE = "src/site/notes/";
 
 /**
@@ -58,7 +57,7 @@ export default class Publisher {
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
 		const files = this.vault.getMarkdownFiles();
 		const notesToPublish: PublishFile[] = [];
-		const mediaItemsToPublish: Set<string> = new Set();
+		const imagesToPublish: Set<string> = new Set();
 
 		for (const file of files) {
 			try {
@@ -73,11 +72,9 @@ export default class Publisher {
 
 					notesToPublish.push(publishFile);
 
-					const mediaItems = await publishFile.getMediaLinks();
+					const images = await publishFile.getImageLinks();
 
-					mediaItems.forEach((i: string) =>
-						mediaItemsToPublish.add(i),
-					);
+					images.forEach((i) => imagesToPublish.add(i));
 				}
 			} catch (e) {
 				Logger.error(e);
@@ -86,7 +83,7 @@ export default class Publisher {
 
 		return {
 			notes: notesToPublish.sort((a, b) => a.compare(b)),
-			mediaItems: Array.from(mediaItemsToPublish),
+			images: Array.from(imagesToPublish),
 		};
 	}
 
@@ -96,14 +93,8 @@ export default class Publisher {
 		return await this.delete(path, sha);
 	}
 
-	async deleteMediaItem(vaultFilePath: string, sha?: string) {
-		const isAudio =
-			vaultFilePath.endsWith(".mp3") ||
-			vaultFilePath.endsWith(".wav") ||
-			vaultFilePath.endsWith(".ogg") ||
-			vaultFilePath.endsWith(".m4a");
-		const basePath = isAudio ? AUDIO_PATH_BASE : IMAGE_PATH_BASE;
-		const path = `${basePath}${vaultFilePath}`;
+	async deleteImage(vaultFilePath: string, sha?: string) {
+		const path = `${IMAGE_PATH_BASE}${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
@@ -230,15 +221,15 @@ export default class Publisher {
 		await this.uploadToGithub(path, content, sha);
 	}
 
-	private async uploadMedia(filePath: string, content: string, sha?: string) {
+	private async uploadImage(filePath: string, content: string, sha?: string) {
 		const path = `src/site${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 
 	private async uploadAssets(assets: Assets) {
-		for (let idx = 0; idx < assets.mediaItems.length; idx++) {
-			const asset = assets.mediaItems[idx];
-			await this.uploadMedia(asset.path, asset.content, asset.remoteHash);
+		for (let idx = 0; idx < assets.images.length; idx++) {
+			const image = assets.images[idx];
+			await this.uploadImage(image.path, image.content, image.remoteHash);
 		}
 	}
 

@@ -5,7 +5,7 @@ import { CompiledPublishFile } from "src/publishFile/PublishFile";
 const logger = Logger.get("repository-connection");
 const oktokitLogger = Logger.get("octokit");
 
-const MEDIA_PATH_BASE = "src/site/";
+const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
 
 interface IOctokitterInput {
@@ -219,7 +219,7 @@ export class RepositoryConnection {
 				return `${NOTE_PATH_BASE}${normalizePath(path)}`;
 			}
 
-			return `${MEDIA_PATH_BASE}${normalizePath(path)}`;
+			return `${IMAGE_PATH_BASE}${normalizePath(path)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -337,7 +337,7 @@ export class RepositoryConnection {
 		});
 
 		const treeAssetPromises = files
-			.flatMap((x) => x.compiledFile[1].mediaItems)
+			.flatMap((x) => x.compiledFile[1].images)
 			.map(async (asset) => {
 				try {
 					const blob = await this.octokit.request(
@@ -350,7 +350,7 @@ export class RepositoryConnection {
 					);
 
 					return {
-						path: `${MEDIA_PATH_BASE}${normalizePath(asset.path)}`,
+						path: `${IMAGE_PATH_BASE}${normalizePath(asset.path)}`,
 						mode: "100644",
 						type: "blob",
 						sha: blob.data.sha,
