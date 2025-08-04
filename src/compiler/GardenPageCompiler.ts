@@ -32,14 +32,36 @@ import { DataviewCompiler } from "./DataviewCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
 import { replaceBlockIDs } from "./replaceBlockIDs";
 
+// File type constants
+export const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp"];
+export const AUDIO_EXTENSIONS = ["webp", "mp3", "wav", "ogg", "m4a"];
+
+const buildTranscludedMediaRegex = (extensions: string[]): RegExp => {
+	return new RegExp(
+		`!\\[\\[(.*?)(\\.(${extensions.join(
+			"|",
+		)}))\\|(.*?)\\]\\]|!\\[\\[(.*?)(\\.(${extensions.join("|")}))\\]\\]`,
+		"g",
+	);
+};
+
+const buildLinkedMediaRegex = (extensions: string[]): RegExp => {
+	return new RegExp(
+		`!\\[(.*?)\\]\\((.*?)(\\.(${extensions.join("|")}))\\)`,
+		"g",
+	);
+};
+
 export interface Asset {
 	path: string;
 	content: string;
+	type: "image" | "audio";
 	// not set yet
 	remoteHash?: string;
 }
 export interface Assets {
 	images: Array<Asset>;
+	audios: Array<Asset>;
 }
 
 export type TCompiledFile = [string, Assets];
@@ -87,7 +109,7 @@ export class GardenPageCompiler {
 		};
 
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
-		const assets: Assets = { images: [] };
+		const assets: Assets = { images: [], audios: [] };
 
 		const vaultFileText = await file.cachedRead();
 
@@ -117,9 +139,13 @@ export class GardenPageCompiler {
 			COMPILE_STEPS,
 		)(vaultFileText);
 
-		const [text, images] = await this.convertImageLinks(file)(compiledText);
+		const [textAfterImages, images] =
+			await this.convertImageLinks(file)(compiledText);
 
-		return [text, { images }];
+		const [finalText, audios] =
+			await this.convertAudioLinks(file)(textAfterImages);
+
+		return [finalText, { images, audios }];
 	}
 
 	convertCustomFilters: TCompilerStep = () => (text) => {
@@ -597,7 +623,7 @@ export class GardenPageCompiler {
 
 		//![[image.png]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+			buildTranscludedMediaRegex(IMAGE_EXTENSIONS);
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -634,7 +660,7 @@ export class GardenPageCompiler {
 		}
 
 		//![](image.png)
-		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
+		const imageRegex = buildLinkedMediaRegex(IMAGE_EXTENSIONS);
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -675,6 +701,47 @@ export class GardenPageCompiler {
 		return assets;
 	};
 
+	extractAudioLinks = async (file: PublishFile) => {
+		const text = await file.cachedRead();
+		const assets = [];
+
+		//![[audio.mp3]]
+		const transcludedAudioRegex =
+			buildTranscludedMediaRegex(AUDIO_EXTENSIONS);
+		const transcludedAudioMatches = text.match(transcludedAudioRegex);
+
+		if (transcludedAudioMatches) {
+			for (let i = 0; i < transcludedAudioMatches.length; i++) {
+				try {
+					const audioMatch = transcludedAudioMatches[i];
+
+					const [audioName, _] = audioMatch
+						.substring(
+							audioMatch.indexOf("[") + 2,
+							audioMatch.indexOf("]"),
+						)
+						.split("|");
+					const audioPath = getLinkpath(audioName);
+
+					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+						audioPath,
+						file.getPath(),
+					);
+
+					if (!linkedFile) {
+						continue;
+					}
+
+					assets.push(linkedFile.path);
+				} catch (e) {
+					continue;
+				}
+			}
+		}
+
+		return assets;
+	};
+
 	convertImageLinks =
 		(file: PublishFile) =>
 		async (text: string): Promise<[string, Array<Asset>]> => {
@@ -685,7 +752,7 @@ export class GardenPageCompiler {
 
 			//![[image.png]]
 			const transcludedImageRegex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+				buildTranscludedMediaRegex(IMAGE_EXTENSIONS);
 			const transcludedImageMatches = text.match(transcludedImageRegex);
 
 			if (transcludedImageMatches) {
@@ -768,7 +835,11 @@ export class GardenPageCompiler {
 							cmsImgPath,
 						)})`;
 
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							type: "image" as const,
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -781,8 +852,7 @@ export class GardenPageCompiler {
 			}
 
 			//![](image.png)
-			const imageRegex =
-				/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
+			const imageRegex = buildLinkedMediaRegex(IMAGE_EXTENSIONS);
 			const imageMatches = text.match(imageRegex);
 
 			if (imageMatches) {
@@ -829,7 +899,12 @@ export class GardenPageCompiler {
 						const imageBase64 = arrayBufferToBase64(image);
 						const cmsImgPath = `/img/user/${linkedFile.path}`;
 						const imageMarkdown = `![${imageName}](${cmsImgPath})`;
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							type: "image" as const,
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -842,6 +917,119 @@ export class GardenPageCompiler {
 			}
 
 			return [imageText, assets];
+		};
+
+	convertAudioLinks =
+		(file: PublishFile) =>
+		async (text: string): Promise<[string, Array<Asset>]> => {
+			const filePath = file.getPath();
+			const assets = [];
+
+			let audioText = text;
+
+			//![[audio.mp3]]
+			const transcludedAudioRegex =
+				buildTranscludedMediaRegex(AUDIO_EXTENSIONS);
+			const transcludedAudioMatches = text.match(transcludedAudioRegex);
+
+			if (transcludedAudioMatches) {
+				for (let i = 0; i < transcludedAudioMatches.length; i++) {
+					try {
+						const audioMatch = transcludedAudioMatches[i];
+
+						// [audio.mp3]
+						const audioName = audioMatch.substring(
+							audioMatch.indexOf("[") + 2,
+							audioMatch.indexOf("]"),
+						);
+
+						const audioPath = getLinkpath(audioName);
+
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								audioPath,
+								filePath,
+							);
+
+						if (!linkedFile) {
+							continue;
+						}
+						const audio = await this.vault.readBinary(linkedFile);
+						const audioBase64 = arrayBufferToBase64(audio);
+
+						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
+						const audioMarkdown = `![](${encodeURI(cmsAudioPath)})`;
+
+						assets.push({
+							path: cmsAudioPath,
+							content: audioBase64,
+							type: "audio" as const,
+						});
+
+						audioText = audioText.replace(
+							audioMatch,
+							audioMarkdown,
+						);
+					} catch (e) {
+						continue;
+					}
+				}
+			}
+
+			//![](audio.mp3)
+			const audioRegex = buildLinkedMediaRegex(AUDIO_EXTENSIONS);
+			const audioMatches = text.match(audioRegex);
+
+			if (audioMatches) {
+				for (let i = 0; i < audioMatches.length; i++) {
+					try {
+						const audioMatch = audioMatches[i];
+
+						const pathStart = audioMatch.lastIndexOf("(") + 1;
+						const pathEnd = audioMatch.lastIndexOf(")");
+
+						const audioPath = audioMatch.substring(
+							pathStart,
+							pathEnd,
+						);
+
+						if (audioPath.startsWith("http")) {
+							continue;
+						}
+
+						const decodedAudioPath = decodeURI(audioPath);
+
+						const linkedFile =
+							this.metadataCache.getFirstLinkpathDest(
+								decodedAudioPath,
+								filePath,
+							);
+
+						if (!linkedFile) {
+							continue;
+						}
+						const audio = await this.vault.readBinary(linkedFile);
+						const audioBase64 = arrayBufferToBase64(audio);
+						const cmsAudioPath = `/audio/user/${linkedFile.path}`;
+						const audioMarkdown = `![](${encodeURI(cmsAudioPath)})`;
+
+						assets.push({
+							path: cmsAudioPath,
+							content: audioBase64,
+							type: "audio" as const,
+						});
+
+						audioText = audioText.replace(
+							audioMatch,
+							audioMarkdown,
+						);
+					} catch {
+						continue;
+					}
+				}
+			}
+
+			return [audioText, assets];
 		};
 
 	generateTransclusionHeader(

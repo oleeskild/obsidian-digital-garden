@@ -228,11 +228,13 @@ export default class DigitalGarden extends Plugin {
 					);
 					const filesToDelete = publishStatus.deletedNotePaths;
 					const imagesToDelete = publishStatus.deletedImagePaths;
+					const audiosToDelete = publishStatus.deletedAudioPaths;
 
 					const totalItems =
 						filesToPublish.length +
 						filesToDelete.length +
-						imagesToDelete.length;
+						imagesToDelete.length +
+						audiosToDelete.length;
 
 					if (totalItems === 0) {
 						new Notice("Garden is already fully synced!");
@@ -245,11 +247,12 @@ export default class DigitalGarden extends Plugin {
 						statusBarItem,
 						filesToPublish.length +
 							filesToDelete.length +
-							imagesToDelete.length,
+							imagesToDelete.length +
+							audiosToDelete.length,
 					);
 
 					new Notice(
-						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`,
+						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes, ${imagesToDelete.length} images and ${audiosToDelete.length} audios. See the status bar in lower right corner for progress.`,
 						8000,
 					);
 
@@ -263,6 +266,11 @@ export default class DigitalGarden extends Plugin {
 
 					for (const image of imagesToDelete) {
 						await publisher.deleteImage(image.path);
+						statusBar.increment();
+					}
+
+					for (const audio of audiosToDelete) {
+						await publisher.deleteAudio(audio.path);
 						statusBar.increment();
 					}
 
@@ -281,6 +289,12 @@ export default class DigitalGarden extends Plugin {
 					if (imagesToDelete.length > 0) {
 						new Notice(
 							`Successfully deleted ${imagesToDelete.length} images from your garden.`,
+						);
+					}
+
+					if (audiosToDelete.length > 0) {
+						new Notice(
+							`Successfully deleted ${audiosToDelete.length} audios from your garden.`,
 						);
 					}
 				} catch (e) {
