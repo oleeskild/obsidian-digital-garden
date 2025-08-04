@@ -79,6 +79,10 @@ export class PublishFile {
 		return this.compiler.extractImageLinks(this);
 	}
 
+	async getAudioLinks() {
+		return this.compiler.extractAudioLinks(this);
+	}
+
 	async cachedRead() {
 		return this.vault.cachedRead(this.file);
 	}

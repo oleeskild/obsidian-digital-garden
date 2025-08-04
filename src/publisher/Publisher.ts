@@ -15,9 +15,11 @@ import { RepositoryConnection } from "../repositoryConnection/RepositoryConnecti
 export interface MarkedForPublishing {
 	notes: PublishFile[];
 	images: string[];
+	audios: string[];
 }
 
 export const IMAGE_PATH_BASE = "src/site/img/user/";
+export const AUDIO_PATH_BASE = "src/site/audio/user/";
 export const NOTE_PATH_BASE = "src/site/notes/";
 
 /**
@@ -58,6 +60,7 @@ export default class Publisher {
 		const files = this.vault.getMarkdownFiles();
 		const notesToPublish: PublishFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
+		const audiosToPublish: Set<string> = new Set();
 
 		for (const file of files) {
 			try {
@@ -73,8 +76,10 @@ export default class Publisher {
 					notesToPublish.push(publishFile);
 
 					const images = await publishFile.getImageLinks();
+					const audios = await publishFile.getAudioLinks();
 
 					images.forEach((i) => imagesToPublish.add(i));
+					audios.forEach((a) => audiosToPublish.add(a));
 				}
 			} catch (e) {
 				Logger.error(e);
@@ -84,6 +89,7 @@ export default class Publisher {
 		return {
 			notes: notesToPublish.sort((a, b) => a.compare(b)),
 			images: Array.from(imagesToPublish),
+			audios: Array.from(audiosToPublish),
 		};
 	}
 
@@ -98,6 +104,13 @@ export default class Publisher {
 
 		return await this.delete(path, sha);
 	}
+
+	async deleteAudio(vaultFilePath: string, sha?: string) {
+		const path = `${AUDIO_PATH_BASE}${vaultFilePath}`;
+
+		return await this.delete(path, sha);
+	}
+
 	/** If provided with sha, garden connection does not need to get it seperately! */
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
@@ -226,10 +239,20 @@ export default class Publisher {
 		await this.uploadToGithub(path, content, sha);
 	}
 
+	private async uploadAudio(filePath: string, content: string, sha?: string) {
+		const path = `src/site${filePath}`;
+		await this.uploadToGithub(path, content, sha);
+	}
+
 	private async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
 			await this.uploadImage(image.path, image.content, image.remoteHash);
+		}
+
+		for (let idx = 0; idx < assets.audios.length; idx++) {
+			const audio = assets.audios[idx];
+			await this.uploadAudio(audio.path, audio.content, audio.remoteHash);
 		}
 	}
 
