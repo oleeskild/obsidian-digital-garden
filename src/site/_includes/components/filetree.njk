@@ -1,0 +1,56 @@
+{% macro menuItem(fileOrFolderName, fileOrFolder, step, currentPath) %}
+    {%if fileOrFolder.isNote or fileOrFolder.isFolder%}
+        <div x-show="isOpen" style="display:none" class="{{'filelist' if step>0}}">
+            {%if fileOrFolder.isNote and not fileOrFolder.hide %}
+                <div @click.stop class="notelink {{ 'active-note' if fileOrFolder.permalink === permalink}}">
+                    {%- if not meta.noteIconsSettings.filetree -%}<i icon-name="sticky-note" aria-hidden="true"></i>{%- endif -%}
+                    <a data-note-icon="{{fileOrFolder.noteIcon}}" style="text-decoration: none;" class="filename" href="{{fileOrFolder.permalink}}">{{fileOrFolder.name}} </a>
+                </div>
+            {% elif fileOrFolder.isFolder%}
+                <div class="folder inner-folder"  x-data="{isOpen: $persist(false).as('{{currentPath}}')}" @click.stop="isOpen=!isOpen">
+                    <div class="foldername-wrapper align-icon">
+                    <i x-show="isOpen" style="display: none;"  icon-name="chevron-down"></i>
+                    <i x-show="!isOpen"  icon-name="chevron-right"></i>
+                    <span class="foldername">{{fileOrFolderName}}</span>
+                    </div>
+                    {% for fileOrFolderName, child in fileOrFolder %}
+                        {{menuItem(fileOrFolderName, child, step+1, (currentPath+"/"+fileOrFolderName))}}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {%endif%}
+    {% endmacro %}
+    
+    <div x-init="isDesktop = (window.innerWidth>=1400) ? true: false;" 
+            x-on:resize.window="isDesktop = (window.innerWidth>=1400) ? true : false;" 
+            x-data="{isDesktop: true, showFilesMobile: false}">
+
+        <div x-show.important="!isDesktop" style="display: none;">
+            {%include "components/filetreeNavbar.njk"%}
+        </div>
+        
+        <div x-show="showFilesMobile && !isDesktop" @click="showFilesMobile = false" style="display:none;" class="fullpage-overlay"></div>
+
+      <nav class="filetree-sidebar"  x-show.important="isDesktop || showFilesMobile" style="display: none;">
+        {% for imp in dynamics.filetree.beforeTitle %}
+            {% include imp %}
+        {% endfor %}
+         <a href="/" style="text-decoration: none;">
+               <h1 style="text-align:center;">{{meta.siteName}}</h1>
+         </a>
+         {% for imp in dynamics.filetree.afterTitle %}
+            {% include imp %}
+        {% endfor %}
+        {% if settings.dgEnableSearch === true%}
+            <div style="display: flex; justify-content: center;">
+                {% include "components/searchButton.njk" %}
+            </div>
+        {%endif%}
+         <div class="folder" x-data="{isOpen: true}">
+               {%- for fileOrFolderName, fileOrFolder in filetree -%}
+                  {{menuItem(fileOrFolderName, fileOrFolder, 0, fileOrFolderName)}}
+               {%- endfor -%}
+         </div>
+      </nav>
+    </div>
