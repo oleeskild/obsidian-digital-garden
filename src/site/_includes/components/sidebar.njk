@@ -1,0 +1,69 @@
+<aside>
+      <div class="sidebar">
+            <div class="sidebar-container">
+                  {% for imp in dynamics.sidebar.top %}
+                        {% include imp %}
+                  {% endfor %}
+                  {%if settings.dgShowLocalGraph === true%}
+                        {%include "components/graphScript.njk"%}
+                  {%endif%}
+
+                  {%if settings.dgShowToc === true%}
+                        {%set tocHtml= (content and (content|toc)) %}
+                        {%if tocHtml %}
+                              <div class="toc">
+                                    <div class="toc-title-container">
+                                          <div class="toc-title">
+                                                On this page
+                                          </div>
+                                    </div>
+                                    <div class="toc-container">
+                                          {{ tocHtml | safe }}
+                                    </div>
+                              </div>
+                        {%endif%}
+
+                  {%endif%}
+
+                        {%if settings.dgShowBacklinks === true %}
+                              {%if settings.dgShowBacklinks === true %}
+                              <div class="backlinks">
+                                    <div class="backlink-title" style="margin: 4px 0 !important;">Pages mentioning this page</div>
+                                          <div class="backlink-list">
+                                          {%- if page.url == "/" -%}
+                                                {%- if graph.nodes[graph.homeAlias].backLinks.length === 0 -%}
+                                                      <div class="backlink-card">
+                                                            <span class="no-backlinks-message">No other pages mentions this page</span>
+                                                      </div>
+                                                {%- endif -%}
+                                          {%- for backlink in graph.nodes[graph.homeAlias].backLinks -%}
+                                                {%- if graph.nodes[backlink].url != graph.homeAlias -%}
+                                                <div class="backlink-card">
+                                                      {%- if not meta.noteIconsSettings.backlinks -%}<i  icon-name="link"></i> {%- endif -%}<a href="{{graph.nodes[backlink].url}}" data-note-icon="{{graph.nodes[backlink].noteIcon}}" class="backlink">{{graph.nodes[backlink].title}}</a>
+                                                </div>
+                                                {%- endif -%}
+                                          {%- endfor -%}
+                                          {%- else -%}
+                                                {%- if graph.nodes[page.url].backLinks.length === 0 -%}
+                                                      <div class="backlink-card">
+                                                            <span class="no-backlinks-message">No other pages mentions this page</span>
+                                                      </div>
+                                                {%- endif -%}
+                                          {%- for backlink in graph.nodes[page.url].backLinks -%}
+                                                {%- if graph.nodes[backlink].url != page.url -%}
+                                                <div class="backlink-card">
+                                                      {%- if not meta.noteIconsSettings.backlinks -%}<i  icon-name="link"></i> {%- endif -%}<a href="{{graph.nodes[backlink].url}}" data-note-icon="{{graph.nodes[backlink].noteIcon}}" class="backlink">{{graph.nodes[backlink].title}}</a>
+                                                </div>
+                                                {%- endif -%}
+                                          {%- endfor -%}
+                                    {%- endif -%}
+                                    </div>
+                              </div>
+                        {%endif%}
+                  {%endif%}
+                  {% for imp in dynamics.sidebar.bottom %}
+                        {% include imp %}
+                  {% endfor %}
+            </div>
+      </div>
+</aside>
