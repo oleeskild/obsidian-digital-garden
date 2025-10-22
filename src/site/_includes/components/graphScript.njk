@@ -1,0 +1,214 @@
+<script>
+    async function fetchGraphData() {
+        const graphData = await fetch('/graph.json').then(res => res.json());
+        const fullGraphData  = filterFullGraphData(graphData);
+        return {graphData, fullGraphData}
+    }
+
+    function getNextLevelNeighbours(existing, remaining) {
+        const keys = Object.values(existing).map((n) => n.neighbors).flat();
+        const n_remaining = Object.keys(remaining).reduce((acc, key) => {
+                if (keys.indexOf(key) != -1) {
+                    if (!remaining[key].hide) {
+                        existing[key] = remaining[key];
+                    }
+                } else {
+                    acc[key] = remaining[key];
+                }
+                return acc;
+            }, {});
+        return existing, n_remaining;
+    }
+
+    function filterLocalGraphData(graphData, depth) {
+        if (graphData == null) {
+            return null;
+        }
+        let remaining = JSON.parse(JSON.stringify(graphData.nodes));
+        let links = JSON.parse(JSON.stringify(graphData.links));
+        let currentLink = decodeURI(window.location.pathname);
+        let currentNode = remaining[currentLink] || Object.values(remaining).find((v) => v.home);
+        delete remaining[currentNode.url];
+        if (!currentNode.home) {
+            let home = Object.values(remaining).find((v) => v.home);
+            delete remaining[home.url];
+        }
+        currentNode.current = true;
+        let existing = {};
+        existing[currentNode.url] = currentNode;
+        for (let i = 0; i < depth; i++) {
+            existing, remaining = getNextLevelNeighbours(existing, remaining);
+        }
+        nodes = Object.values(existing);
+        if (!currentNode.home) {
+            nodes = nodes.filter(n => !n.home);
+        }
+        let ids = nodes.map((n) => n.id);
+        return {
+            nodes,
+            links: links.filter(function (con) {
+                return ids.indexOf(con.target) > -1 && ids.indexOf(con.source) > -1;
+            }),
+        }
+    }
+
+    function getCssVar(variable) {return getComputedStyle(document.body).getPropertyValue(variable)}
+
+    function htmlDecode(input) {
+        var doc = new DOMParser().parseFromString(input, "text/html");
+        return doc.documentElement.textContent;
+    }
+
+    function renderGraph(graphData, id, delay, fullScreen) {
+        if (graphData == null) {
+            return;
+        }
+        const el = document.getElementById(id);
+        width = el.offsetWidth;
+        height = el.offsetHeight;
+        const highlightNodes = new Set();
+        let hoverNode = null;
+        const color = getCssVar("--graph-main");
+        const mutedColor = getCssVar("--graph-muted");
+        let Graph = ForceGraph()
+        (el)
+            .graphData(graphData)
+            .nodeId('id')
+            .nodeLabel('title')
+            .linkSource('source')
+            .linkTarget('target')
+            .d3AlphaDecay(0.10)
+            .width(width)
+            .height(height)
+            .linkDirectionalArrowLength(2)
+            .linkDirectionalArrowRelPos(0.5)
+            .autoPauseRedraw(false)
+            .linkColor((link) => {
+                if (hoverNode == null) {
+                    return color;
+                }
+                if (link.source.id == hoverNode.id || link.target.id == hoverNode.id) {
+                    return color;
+                } else {
+                    return mutedColor;
+                }
+                
+            })
+            .nodeCanvasObject((node, ctx) => {
+                const numberOfNeighbours = (node.neighbors && node.neighbors.length) || 2;
+                const nodeR = Math.min(7, Math.max(numberOfNeighbours / 2, 2));
+                
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, nodeR, 0, 2 * Math.PI, false);
+                if (hoverNode == null) {
+                    ctx.fillStyle = color;
+                } else {
+                    if (node == hoverNode || highlightNodes.has(node.url)) {
+                        ctx.fillStyle = color;
+                    } else {
+                        ctx.fillStyle = mutedColor;
+                    }
+                }
+                 
+                ctx.fill();
+                
+                if (node.current) {
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, nodeR + 1, 0, 2 * Math.PI, false);
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeStyle = color;
+                    ctx.stroke();
+                }
+
+                const label = htmlDecode(node.title)
+                const fontSize = 3.5;
+                ctx.font = `${fontSize}px Sans-Serif`;
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(label, node.x, node.y + nodeR + 2);
+            })
+            .onNodeClick(node => {
+                window.location = node.url;
+            })
+            .onNodeHover(node => {
+                highlightNodes.clear();
+                if (node) {
+                highlightNodes.add(node);
+                node.neighbors.forEach(neighbor => highlightNodes.add(neighbor));
+                }
+                hoverNode = node || null;
+                
+            });
+            if (fullScreen || (delay != null && graphData.nodes.length > 4)) {
+                setTimeout(() => {
+                    Graph.zoomToFit(5, 75);
+                }, delay || 200);
+            }
+        return Graph;
+    }
+
+    function renderLocalGraph(graphData, depth, fullScreen) {
+        if (window.graph){
+            window.graph._destructor();
+        }
+        const data = filterLocalGraphData(graphData, depth);
+        return renderGraph(data, 'link-graph', null, fullScreen);
+    }
+
+    function filterFullGraphData(graphData) {
+        if (graphData == null) {
+            return null;
+        }
+        graphData = JSON.parse(JSON.stringify(graphData));
+        const hiddens = Object.values(graphData.nodes).filter((n) => n.hide).map((n) => n.id);
+        const data = {
+            links: JSON.parse(JSON.stringify(graphData.links)).filter((l) => hiddens.indexOf(l.source) == -1 && hiddens.indexOf(l.target) == -1),
+            nodes: [...Object.values(graphData.nodes).filter((n) => !n.hide)]
+        }
+        return data
+    }
+
+    function openFullGraph(fullGraphData) {
+        lucide.createIcons({
+                attrs: {
+                    class: ["svg-icon"]
+                }
+            });
+        return renderGraph(fullGraphData, "full-graph-container", 200, false);;
+    }
+
+    function closefullGraph(fullGraph) {
+        if (fullGraph) {
+            fullGraph._destructor();
+        }
+        return null;
+    }
+</script>
+<div  x-init="{graphData, fullGraphData} = await fetchGraphData();" x-data="{ graphData: null, depth: 1, graph: null, fullGraph: null, showFullGraph: false, fullScreen: false, fullGraphData: null}" id="graph-component" x-bind:class="fullScreen ? 'graph graph-fs' : 'graph'" v-scope>
+    <div class="graph-title-container">
+        <div class="graph-title">Connected Pages</div>
+        <div id="graph-controls">
+                <div class="depth-control">
+                    <label for="graph-depth">Depth</label>
+                    <div class="slider">
+                            <input x-model.number="depth" name="graph-depth" list="depthmarkers" type="range" step="1" min="1" max="3" id="graph-depth"/>
+                    <datalist id="depthmarkers">
+                            <option value="1" label="1"></option>
+                            <option value="2" label="2"></option>
+                            <option value="3" label="3"></option>
+                    </datalist>
+                    </div>
+                    <span id="depth-display" x-text="depth"></span>
+                </div>
+                <div class="ctrl-right">
+                    <span id="global-graph-btn" x-on:click="showFullGraph = true; setTimeout(() => {fullGraph = openFullGraph(fullGraphData)}, 100)"><i  icon-name="globe" aria-hidden="true"></i></span>
+                    <span  id="graph-fs-btn"  x-on:click="fullScreen = !fullScreen"><i  icon-name="expand" aria-hidden="true"></i></span>
+                </div>
+        </div>
+    </div>
+    <div x-effect="window.graph = renderLocalGraph(graphData, depth, fullScreen)" id="link-graph" ></div>
+    <div x-show="showFullGraph" id="full-graph" class="show" style="display: none;">
+        <span id="full-graph-close" x-on:click="fullGraph = closefullGraph(fullGraph); showFullGraph = false;"><i icon-name="x" aria-hidden="true"></i></span><div id="full-graph-container"></div>
+    </div>
+</div>
