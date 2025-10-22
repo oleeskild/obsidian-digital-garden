@@ -1,0 +1,23 @@
+<div class="search-container" id="globalsearch" onclick="toggleSearch()">
+    <div class="search-box">
+        <input type="search" id="term" placeholder="Start typing...">
+        <div id="search-results"></div>
+        <footer class="search-box-footer">
+            <div class="navigation-hint">
+                <span>Enter to select</span>
+            </div>
+
+            <div class="navigation-hint align-icon">
+                <i  icon-name="arrow-up" aria-hidden="true"></i>
+                <i  icon-name="arrow-down" aria-hidden="true"></i>
+                <span>to navigate</span>
+            </div>
+
+            <div class="navigation-hint">
+                <span>ESC to close</span>
+            </div>
+
+        </footer>
+    </div>
+</div>
+{%include "components/searchScript.njk"%}
