@@ -1,0 +1,156 @@
+<!-- Credit for the link preview implementation goes to https://github.com/maximevaillancourt/digital-garden-jekyll-template/blob/master/_includes/link-previews.html -->
+<style>
+#tooltip-wrapper {
+  background: var(--background-primary);
+  padding: 1em;
+  border-radius: 4px;
+  overflow: hidden;
+  position: fixed;
+  width: 80%;
+  max-width: 400px;
+  height: auto;
+  max-height: 300px;
+  font-size: 0.8em;
+  box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+  opacity: 0;
+  transition: opacity 100ms;
+  unicode-bidi: plaintext;
+  overflow-y: scroll;
+  z-index: 10;
+}
+
+#tooltip-wrapper:after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  width: 100%;
+  unicode-bidi: plaintext;
+  height: 75px;
+}
+</style>
+<div style="opacity: 0; display: none;" id='tooltip-wrapper'>
+  <div id='tooltip-content'>
+  </div>
+</div>
+
+<iframe style="display: none; height: 0; width: 0;" id='link-preview-iframe' src="">
+</iframe>
+
+<script>
+  var opacityTimeout;
+  var contentTimeout;
+  var transitionDurationMs = 100;
+
+  var iframe = document.getElementById('link-preview-iframe')
+  var tooltipWrapper = document.getElementById('tooltip-wrapper')
+  var tooltipContent = document.getElementById('tooltip-content')
+
+  var linkHistories = {};
+
+  function hideTooltip() {
+    opacityTimeout = setTimeout(function () {
+      tooltipWrapper.style.opacity = 0;
+      contentTimeout = setTimeout(function () {
+        tooltipContent.innerHTML = '';
+        tooltipWrapper.style.display = 'none';
+      }, transitionDurationMs + 1);
+    }, transitionDurationMs)
+  }
+
+  function showTooltip(event) {
+    var elem = event.target;
+    var elem_props = elem.getClientRects()[elem.getClientRects().length - 1];
+    var top = window.pageYOffset || document.documentElement.scrollTop;
+    var url = event.target.getAttribute("href");
+    if (url.indexOf("http") === -1 || url.indexOf(window.location.host) !== -1) {
+      let contentURL = url.split('#')[0]
+      if (!linkHistories[contentURL]) {
+        iframe.src = contentURL
+        iframe.onload = function () {
+          tooltipContentHtml = ''
+          tooltipContentHtml += '<div style="font-weight: bold; unicode-bidi: plaintext;">' + iframe.contentWindow.document.querySelector('h1').innerHTML + '</div>'
+          tooltipContentHtml += iframe.contentWindow.document.querySelector('.content').innerHTML
+          tooltipContent.innerHTML = tooltipContentHtml
+          linkHistories[contentURL] = tooltipContentHtml
+          tooltipWrapper.style.display = 'block';
+          tooltipWrapper.scrollTop = 0;
+          setTimeout(function () {
+            tooltipWrapper.style.opacity = 1;
+            if (url.indexOf("#") != -1) {
+              let id = url.split('#')[1];
+              const focus = tooltipWrapper.querySelector(`[id='${id}']`);
+              focus.classList.add('referred');
+              console.log(focus);
+              focus.scrollIntoView({behavior: 'smooth'}, true)
+            } else {
+              tooltipWrapper.scroll(0, 0);
+            }
+          }, 1)
+        }
+      } else {
+        tooltipContent.innerHTML = linkHistories[contentURL]
+        tooltipWrapper.style.display = 'block';
+        setTimeout(function () {
+          tooltipWrapper.style.opacity = 1;
+          if (url.indexOf("#") != -1) {
+              let id = url.split('#')[1];
+              const focus = tooltipWrapper.querySelector(`[id='${id}']`);
+              focus.classList.add('referred');
+              focus.scrollIntoView({behavior: 'smooth'}, true)
+          } else {
+              tooltipWrapper.scroll(0, 0);
+          }
+        }, 1)
+      }
+
+      function getInnerWidth(elem) {
+        var style = window.getComputedStyle(elem);
+        return elem.offsetWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - parseFloat(style.borderLeft) - parseFloat(style.borderRight) - parseFloat(style.marginLeft) - parseFloat(style.marginRight);
+      }
+
+      tooltipWrapper.style.left = elem_props.left - (tooltipWrapper.offsetWidth / 2) + (elem_props.width / 2) + "px";
+
+      if ((window.innerHeight - elem_props.top) < (tooltipWrapper.offsetHeight)) {
+        tooltipWrapper.style.top = elem_props.top + top - tooltipWrapper.offsetHeight - 10 + "px";
+      } else if ((window.innerHeight - elem_props.top) > (tooltipWrapper.offsetHeight)) {
+        tooltipWrapper.style.top = elem_props.top + top + 35 + "px";
+      }
+
+      if ((elem_props.left + (elem_props.width / 2)) < (tooltipWrapper.offsetWidth / 2)) {
+        tooltipWrapper.style.left = "10px";
+      } else if ((document.body.clientWidth - elem_props.left - (elem_props.width / 2)) < (tooltipWrapper.offsetWidth / 2)) {
+        tooltipWrapper.style.left = document.body.clientWidth - tooltipWrapper.offsetWidth - 20 + "px";
+      }
+    }
+  }
+
+  function setupListeners(linkElement) {
+    linkElement.addEventListener('mouseleave', function (_event) {
+      hideTooltip();
+    });
+
+    tooltipWrapper.addEventListener('mouseleave', function (_event) {
+      hideTooltip();
+    });
+
+    linkElement.addEventListener('mouseenter', function (event) {
+      clearTimeout(opacityTimeout);
+      clearTimeout(contentTimeout);
+      showTooltip(event);
+    });
+
+    tooltipWrapper.addEventListener('mouseenter', function (event) {
+      clearTimeout(opacityTimeout);
+      clearTimeout(contentTimeout);
+    });
+  }
+
+  window.addEventListener("load", function(event) 
+  {
+    document.querySelectorAll('.internal-link').forEach(setupListeners);
+    document.querySelectorAll('.backlink-card a').forEach(setupListeners);
+  });
+</script>
