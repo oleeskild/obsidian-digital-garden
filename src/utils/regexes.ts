@@ -9,3 +9,7 @@ export const EXCALIDRAW_REGEX = /:\[\[(\d*?,\d*?)\],.*?\]\]/g;
 
 export const TRANSCLUDED_SVG_REGEX =
 	/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
+
+export const PDF_REGEX = /!\[(.*?)\]\((.*?)(\.pdf)\)/g;
+export const TRANSCLUDED_PDF_REGEX =
+	/!\[\[(.*?)(\.pdf)\|(.*?)\]\]|!\[\[(.*?)(\.pdf)\]\]/g;
