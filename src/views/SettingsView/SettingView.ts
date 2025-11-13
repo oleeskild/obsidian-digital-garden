@@ -188,7 +188,7 @@ export default class SettingView {
 				props: {
 					settings: this.settings,
 					saveSettings: this.saveSettings,
-					onAuthorize: async () => {
+					onConnect: async () => {
 						this.reInitializeSettings();
 					},
 				},

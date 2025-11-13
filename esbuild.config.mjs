@@ -37,6 +37,6 @@ esbuild.build({
 		}),
 	],
 	define: {
-		'process.env.FORESTRY_BASE_URL': JSON.stringify(process.env.FORESTRY_BASE_URL || "https://wa-forestry-prod-api.azurewebsites.net/app"),
+		'process.env.FORESTRY_BASE_URL': JSON.stringify(process.env.FORESTRY_BASE_URL || "https://api.forestry.md/app"),
 	},
 }).catch(() => process.exit(1));

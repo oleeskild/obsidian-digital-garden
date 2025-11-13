@@ -8,14 +8,14 @@
 
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
-	export let onAuthorize: () => Promise<void>;
+	export let onConnect: () => Promise<void>;
 	let apiKey: string = settings.forestrySettings.apiKey;
 
-	const authorize = async () => {
+	const connect = async () => {
 		let pageInfo = await getPageInfo();
 
 		if (!pageInfo) {
-			new Notice("Invalid API token");
+			new Notice("Invalid Garden Key");
 
 			return;
 		}
@@ -24,7 +24,7 @@
 		settings.forestrySettings.apiKey = apiKey;
 		await saveSettings();
 		unique = {};
-		onAuthorize();
+		onConnect();
 	};
 
 	const disconnect = async () => {
@@ -47,44 +47,99 @@
 	</h3>
 	{#key unique}
 		{#if !settings.forestrySettings.apiKey}
-			<label>
-				Forestry API Key
-				<input type="text" bind:value={apiKey} />
-			</label>
-			<button on:click={authorize}>Authorize</button>
+			<div class="setting-item">
+				<div class="setting-item-info">
+					<div class="setting-item-name">Garden Key</div>
+					<div class="setting-item-description">
+						Enter your Garden Key from <a
+							href="https://dashboard.forestry.md">Forestry.md</a
+						> to connect your digital garden
+					</div>
+				</div>
+				<div class="setting-item-control">
+					<input
+						type="text"
+						bind:value={apiKey}
+						placeholder="Enter your Garden Key"
+						style="margin-right: 8px; min-width: 250px;"
+					/>
+					<button class="mod-cta" on:click={connect}>Connect</button>
+				</div>
+			</div>
 		{:else}
 			{#await getPageInfo()}
-				<div>Loading Forestry.md settings...</div>
+				<div class="setting-item">
+					<div class="setting-item-info">
+						<div class="setting-item-name">
+							Loading Forestry.md settings...
+						</div>
+					</div>
+				</div>
 			{:then pageInfo}
 				{#if pageInfo}
 					<div class="setting-item">
 						<div class="setting-item-info">
 							<div
 								class="setting-item-name"
-								style="display: flex; align-items: center;"
+								style="display: flex; align-items: center; gap: 8px;"
 							>
-								<Icon name="cloud" /> Connected to page: {pageInfo
+								<Icon name="check-circle" /> Connected to: {pageInfo
 									.value.pageName ?? "Unknown"}
 							</div>
-							<div class="setting-item-description"></div>
+							<div class="setting-item-description">
+								Your digital garden is connected to Forestry.md
+							</div>
 						</div>
 
 						<div class="setting-item-control">
 							<button on:click={disconnect}>Disconnect</button>
 						</div>
 					</div>
-					<a href="https://dashboard.forestry.md" target="_blank">
-						Open Forestry dashboard
-					</a>
-				{:else}
-					<div>
-						Something went wrong when connecting to Forestry.md
+					<div style="margin-top: 12px; margin-left: 0;">
+						<a
+							href="https://dashboard.forestry.md"
+							target="_blank"
+							style="display: inline-flex; align-items: center; gap: 4px;"
+						>
+							<Icon name="external-link" /> Open Forestry.md Dashboard
+						</a>
 					</div>
-					<button on:click={disconnect}>Disconnect</button>
+				{:else}
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div
+								class="setting-item-name"
+								style="color: var(--text-error);"
+							>
+								Connection Error
+							</div>
+							<div class="setting-item-description">
+								Something went wrong when connecting to
+								Forestry.md
+							</div>
+						</div>
+						<div class="setting-item-control">
+							<button on:click={disconnect}>Disconnect</button>
+						</div>
+					</div>
 				{/if}
 			{:catch}
-				<div>Something went wrong when connecting to Forestry.md</div>
-				<button on:click={disconnect}>Disconnect</button>
+				<div class="setting-item">
+					<div class="setting-item-info">
+						<div
+							class="setting-item-name"
+							style="color: var(--text-error);"
+						>
+							Connection Error
+						</div>
+						<div class="setting-item-description">
+							Something went wrong when connecting to Forestry.md
+						</div>
+					</div>
+					<div class="setting-item-control">
+						<button on:click={disconnect}>Disconnect</button>
+					</div>
+				</div>
 			{/await}
 		{/if}
 	{/key}
