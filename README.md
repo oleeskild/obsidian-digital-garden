@@ -120,7 +120,7 @@ GITHUB_TOKEN=
 GITHUB_USERNAME=
 
 # Forestry.md settings (if you're using Forestry.md)
-FORESTRY_BASE_URL=https://wa-forestry-prod-api.azurewebsites.net/app
+FORESTRY_BASE_URL=https://api.forestry.md/app
 FORESTRY_PAGE_NAME=
 FORESTRY_API_KEY=
 ```

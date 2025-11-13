@@ -129,8 +129,6 @@ export default class DigitalGarden extends Plugin {
 				this.openPublishModal();
 			},
 		);
-
-		this.registerHandlers();
 	}
 
 	onunload() {}
@@ -364,19 +362,6 @@ export default class DigitalGarden extends Plugin {
 		});
 	}
 
-	registerHandlers() {
-		// this.registerObsidianProtocolHandler("digital-garden", async (e) => {
-		// const parameters = e as unknown as OAuthCallbackParameters;
-		//TODO: Get ApiKey from parameters
-		// await auth0.handleRedirectCallback(
-		// 	`obsidian://digital-garden?${Object.entries(parameters)
-		// 		.map(([key, value]) => `${key}=${value}`)
-		// 		.join("&")}`,
-		// );
-		//TODO: Reload settings tab
-		// });
-	}
-
 	private getActiveFile(workspace: Workspace) {
 		const activeFile = workspace.getActiveFile();
 
@@ -454,10 +439,7 @@ export default class DigitalGarden extends Plugin {
 				settings: this.settings,
 			}).compile();
 
-			const publishSuccessful = await publisher.publish(
-				publishFile,
-				false,
-			);
+			const publishSuccessful = await publisher.publish(publishFile);
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
