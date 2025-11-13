@@ -1,15 +1,3 @@
-/* @settings
-
-name: Testing seomthang
-id: a-unique-dg-id
-settings:
-    - 
-        id: my-dg-css-class
-        title: My Toggle
-        description: Adds my-css-class to the body element
-        type: class-toggle
-
-*/
 button:disabled {
 	pointer-events: none;
 	opacity: 0.4;

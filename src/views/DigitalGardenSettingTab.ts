@@ -5,6 +5,7 @@ import SettingView from "./SettingsView/SettingView";
 import { UpdateGardenRepositoryModal } from "./UpdateGardenRepositoryModal";
 import Logger from "js-logger";
 import { TemplateUpdater } from "../repositoryConnection/TemplateManager";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
@@ -71,11 +72,17 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 				prModal.renderError();
 			}
 		};
-		settingView.renderCreatePr(prModal, handlePR, siteManager);
 
-		settingView.renderPullRequestHistory(
-			prModal,
-			this.plugin.settings.prHistory.reverse().slice(0, 10),
-		);
+		// Only show template update section for self-hosted (GitHub) platform
+		if (
+			this.plugin.settings.publishPlatform === PublishPlatform.SelfHosted
+		) {
+			settingView.renderCreatePr(prModal, handlePR, siteManager);
+
+			settingView.renderPullRequestHistory(
+				prModal,
+				this.plugin.settings.prHistory.reverse().slice(0, 10),
+			);
+		}
 	}
 }
