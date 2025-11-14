@@ -12,6 +12,7 @@ import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import { PublishPlatform } from "../models/PublishPlatform";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -237,25 +238,36 @@ export default class Publisher {
 	}
 
 	validateSettings() {
-		if (!this.settings.githubRepo) {
-			new Notice(
-				"Config error: You need to define a GitHub repo in the plugin settings",
-			);
-			throw {};
-		}
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			// For forestry.md, validate forestry settings instead of GitHub
+			if (!this.settings.forestrySettings.apiKey) {
+				new Notice(
+					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
+				);
+				throw {};
+			}
+		} else {
+			// For SelfHosted, validate GitHub settings
+			if (!this.settings.githubRepo) {
+				new Notice(
+					"Config error: You need to define a GitHub repo in the plugin settings",
+				);
+				throw {};
+			}
 
-		if (!this.settings.githubUserName) {
-			new Notice(
-				"Config error: You need to define a GitHub Username in the plugin settings",
-			);
-			throw {};
-		}
+			if (!this.settings.githubUserName) {
+				new Notice(
+					"Config error: You need to define a GitHub Username in the plugin settings",
+				);
+				throw {};
+			}
 
-		if (!this.settings.githubToken) {
-			new Notice(
-				"Config error: You need to define a GitHub Token in the plugin settings",
-			);
-			throw {};
+			if (!this.settings.githubToken) {
+				new Notice(
+					"Config error: You need to define a GitHub Token in the plugin settings",
+				);
+				throw {};
+			}
 		}
 	}
 }
