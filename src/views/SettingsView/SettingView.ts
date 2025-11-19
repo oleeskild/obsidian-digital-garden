@@ -10,8 +10,10 @@ import {
 	Notice,
 	Setting,
 	TFile,
+	ToggleComponent,
 } from "obsidian";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
+import { Base64 } from "js-base64";
 
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
@@ -198,6 +200,10 @@ export default class SettingView {
 
 	private async initializeDefaultNoteSettings() {
 		const noteSettingsModal = new Modal(this.app);
+		let hasUnsavedChanges = false;
+
+		// Store toggle references for updating after fetch
+		const toggles: Record<string, ToggleComponent> = {};
 
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
@@ -213,10 +219,6 @@ export default class SettingView {
 			href: "https://dg-docs.ole.dev/getting-started/03-note-settings/",
 		});
 
-		// noteSettingsModal.contentEl.createEl("div", { text: `Toggling these settings will update the global default setting for each note.
-		// If you want to enable or disable some of these on single notes, use their corresponding key.
-		// For example will adding 'dg-show-local-graph: false' to the frontmatter of a note, disable the local graph for that particular note. ` });
-
 		new Setting(this.settingsRootElement)
 			.setName("Global Note Settings")
 			.setDesc(
@@ -226,9 +228,114 @@ export default class SettingView {
 				cb.setButtonText("Manage note settings");
 
 				cb.onClick(async () => {
+					hasUnsavedChanges = false;
+					updateApplyButton();
 					noteSettingsModal.open();
+
+					// Load remote settings when modal opens
+					await loadRemoteSettings();
 				});
 			});
+
+		// Helper to mark settings as changed
+		const markAsChanged = () => {
+			hasUnsavedChanges = true;
+			updateApplyButton();
+		};
+
+		// Apply button container - styled to stand out
+		const applyContainer = noteSettingsModal.contentEl.createDiv({
+			cls: "dg-apply-settings-container",
+		});
+
+		// Status indicator for unsaved changes
+		const statusEl = applyContainer.createDiv({
+			cls: "dg-apply-settings-status",
+		});
+
+		const applyButton = applyContainer.createEl("button", {
+			text: "Apply changes to site",
+			cls: "mod-cta dg-apply-settings-button",
+		});
+
+		applyButton.addEventListener("click", async () => {
+			if (!hasUnsavedChanges) return;
+
+			await this.saveSiteSettingsAndUpdateEnv(
+				this.app.metadataCache,
+				this.settings,
+				this.saveSettings,
+			);
+			hasUnsavedChanges = false;
+			updateApplyButton();
+		});
+
+		const updateApplyButton = () => {
+			if (hasUnsavedChanges) {
+				statusEl.setText("You have unsaved changes");
+				statusEl.style.color = "var(--text-warning)";
+				applyContainer.classList.add("has-changes");
+				applyButton.disabled = false;
+			} else {
+				statusEl.setText("Change a setting to apply");
+				statusEl.style.color = "var(--text-muted)";
+				applyContainer.classList.remove("has-changes");
+				applyButton.disabled = true;
+			}
+		};
+
+		// Load settings from remote .env file
+		const loadRemoteSettings = async () => {
+			statusEl.setText("Loading settings from site...");
+			applyContainer.classList.remove("has-changes");
+
+			try {
+				const gardenManager = new DigitalGardenSiteManager(
+					this.app.metadataCache,
+					this.settings,
+				);
+
+				const connection =
+					await gardenManager.getUserGardenConnection();
+				const envFile = await connection.getFile(".env");
+
+				if (envFile?.content) {
+					const envContent = Base64.decode(envFile.content);
+					const remoteSettings = this.parseEnvSettings(envContent);
+
+					// Update toggles with remote values
+					for (const [key, toggle] of Object.entries(toggles)) {
+						if (key in remoteSettings) {
+							const remoteValue = remoteSettings[key] === "true";
+							toggle.setValue(remoteValue);
+
+							// Also update local settings to match
+							(
+								this.settings.defaultNoteSettings as Record<
+									string,
+									boolean
+								>
+							)[key] = remoteValue;
+						}
+					}
+				}
+
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			} catch (error) {
+				console.error("Failed to load remote settings:", error);
+				statusEl.setText("Could not load remote settings");
+				statusEl.style.color = "var(--text-error)";
+
+				setTimeout(() => {
+					statusEl.style.color = "";
+					hasUnsavedChanges = false;
+					updateApplyButton();
+				}, 3000);
+			}
+		};
+
+		updateApplyButton();
 
 		new Setting(noteSettingsModal.contentEl)
 			.setName("Show home link (dg-home-link)")
@@ -236,16 +343,12 @@ export default class SettingView {
 				"Determines whether to show a link back to the homepage or not.",
 			)
 			.addToggle((t) => {
+				toggles["dgHomeLink"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgHomeLink);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgHomeLink = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -255,16 +358,12 @@ export default class SettingView {
 				"When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
 			.addToggle((t) => {
+				toggles["dgShowLocalGraph"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -274,16 +373,12 @@ export default class SettingView {
 				"When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.",
 			)
 			.addToggle((t) => {
+				toggles["dgShowBacklinks"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowBacklinks = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -293,16 +388,12 @@ export default class SettingView {
 				"When turned on, notes will show all headers as a table of content in a sidebar on desktop. It will not be shown on mobile devices.",
 			)
 			.addToggle((t) => {
+				toggles["dgShowToc"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowToc);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowToc = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -312,16 +403,12 @@ export default class SettingView {
 				"When turned on, the title of the note will show on top of the page.",
 			)
 			.addToggle((t) => {
+				toggles["dgShowInlineTitle"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -329,16 +416,12 @@ export default class SettingView {
 			.setName("Show filetree sidebar (dg-show-file-tree)")
 			.setDesc("When turned on, a filetree will be shown on your site.")
 			.addToggle((t) => {
+				toggles["dgShowFileTree"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowFileTree);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowFileTree = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -348,16 +431,12 @@ export default class SettingView {
 				"When turned on, users will be able to search through the content of your site.",
 			)
 			.addToggle((t) => {
+				toggles["dgEnableSearch"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgEnableSearch);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgEnableSearch = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -367,16 +446,12 @@ export default class SettingView {
 				"When turned on, hovering over links to notes in your garden shows a scrollable preview.",
 			)
 			.addToggle((t) => {
+				toggles["dgLinkPreview"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgLinkPreview);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgLinkPreview = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -386,16 +461,12 @@ export default class SettingView {
 				"When turned on, tags in your frontmatter will be displayed on each note. If search is enabled, clicking on a tag will bring up a search for all notes containing that tag.",
 			)
 			.addToggle((t) => {
+				toggles["dgShowTags"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgShowTags);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowTags = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 
@@ -405,16 +476,12 @@ export default class SettingView {
 				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
 			)
 			.addToggle((t) => {
+				toggles["dgPassFrontmatter"] = t;
 				t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter);
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-
-					this.saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						this.saveSettings,
-					);
+					markAsChanged();
 				});
 			});
 	}
@@ -858,6 +925,24 @@ export default class SettingView {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
+	}
+
+	private parseEnvSettings(envContent: string): Record<string, string> {
+		const settings: Record<string, string> = {};
+
+		for (const line of envContent.split("\n")) {
+			const trimmedLine = line.trim();
+
+			if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+
+			const [key, ...valueParts] = trimmedLine.split("=");
+
+			if (key) {
+				settings[key.trim()] = valueParts.join("=").trim();
+			}
+		}
+
+		return settings;
 	}
 
 	private async addFavicon(octokit: Octokit) {
