@@ -104,6 +104,7 @@ export default class DigitalGarden extends Plugin {
 	appVersion!: string;
 
 	publishModal!: PublicationCenter;
+	isPublishing: boolean = false;
 
 	async onload() {
 		this.appVersion = this.manifest.version;
@@ -216,6 +217,15 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish All Notes Marked for Publish",
 			// TODO: move to publisher?
 			callback: async () => {
+				if (this.isPublishing) {
+					new Notice(
+						"A publish operation is already in progress. Please wait for it to complete.",
+					);
+
+					return;
+				}
+
+				this.isPublishing = true;
 				const statusBarItem = this.addStatusBarItem();
 
 				try {
@@ -256,6 +266,7 @@ export default class DigitalGarden extends Plugin {
 					if (totalItems === 0) {
 						new Notice("Garden is already fully synced!");
 						statusBarItem.remove();
+						this.isPublishing = false;
 
 						return;
 					}
@@ -302,8 +313,11 @@ export default class DigitalGarden extends Plugin {
 							`Successfully deleted ${imagesToDelete.length} images from your garden.`,
 						);
 					}
+
+					this.isPublishing = false;
 				} catch (e) {
 					statusBarItem.remove();
+					this.isPublishing = false;
 					console.error(e);
 
 					new Notice(
