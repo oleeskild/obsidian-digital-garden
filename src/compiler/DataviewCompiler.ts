@@ -10,7 +10,7 @@ export class DataviewCompiler {
 
 	compile: TCompilerStep = (file) => async (text) => {
 		let replacedText = text;
-		const dataViewRegex = /```dataview\s(.+?)```/gms;
+		const dataViewRegex = /```\s*dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
 
 		if (!dvApi) return replacedText;
@@ -19,7 +19,7 @@ export class DataviewCompiler {
 		const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
 
 		const dataViewJsRegex = new RegExp(
-			"```" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```",
+			"```\\s*" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```",
 			"gsm",
 		);
 		const dataviewJsMatches = text.matchAll(dataViewJsRegex);
