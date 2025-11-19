@@ -249,7 +249,7 @@
 	{#if !publishStatus}
 		<div class="loading-msg">
 			{@html bigRotatingCog()?.outerHTML}
-			<div>Calculating publication status from GitHub</div>
+			<div>Calculating publication status</div>
 		</div>
 	{:else if !showPublishingView}
 		{#if problematicFiles.length > 0}
