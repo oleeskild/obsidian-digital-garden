@@ -1,18 +1,12 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
+import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 
 const logger = Logger.get("repository-connection");
-const oktokitLogger = Logger.get("octokit");
 
 const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
-
-interface IOctokitterInput {
-	githubToken: string;
-	githubUserName: string;
-	gardenRepository: string;
-}
 
 interface IPutPayload {
 	path: string;
@@ -23,29 +17,24 @@ interface IPutPayload {
 }
 
 export class RepositoryConnection {
-	private githubUserName: string;
-	private gardenRepository: string;
+	private userName: string;
+	private pageName: string;
 	octokit: Octokit;
 
-	constructor({
-		gardenRepository,
-		githubToken,
-		githubUserName,
-	}: IOctokitterInput) {
-		this.gardenRepository = gardenRepository;
-		this.githubUserName = githubUserName;
-
-		this.octokit = new Octokit({ auth: githubToken, log: oktokitLogger });
+	constructor({ octoKit, userName, pageName }: IPublishPlatformConnection) {
+		this.pageName = pageName;
+		this.userName = userName;
+		this.octokit = octoKit;
 	}
 
 	getRepositoryName() {
-		return this.githubUserName + "/" + this.gardenRepository;
+		return this.userName + "/" + this.pageName;
 	}
 
 	getBasePayload() {
 		return {
-			owner: this.githubUserName,
-			repo: this.gardenRepository,
+			owner: this.userName,
+			repo: this.pageName,
 		};
 	}
 

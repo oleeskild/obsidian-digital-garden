@@ -46,3 +46,93 @@ h4 {
 .dg-rotate {
 	animation: dg-rotate 4s linear infinite;
 }
+
+/* GitHub settings layout */
+#github-settings {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+
+#github-settings h3 {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	row-gap: 4px;
+}
+
+#github-settings h3 .connection-status {
+	flex-basis: 100%;
+	margin-left: -9px;
+}
+
+/* Connection status styles */
+.connection-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+	padding: 2px 8px;
+	border-radius: 4px;
+	vertical-align: middle;
+}
+
+.connection-status-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.connection-status-text {
+	white-space: nowrap;
+}
+
+.connection-status-loading {
+	color: var(--text-muted);
+}
+
+.connection-status-loading .connection-status-icon {
+	animation: dg-rotate 2s linear infinite;
+}
+
+.connection-status-connected {
+	color: var(--color-green);
+}
+
+.connection-status-error {
+	color: var(--color-red);
+}
+
+/* Apply settings container */
+.dg-apply-settings-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 16px;
+	margin-bottom: 16px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-apply-settings-container.has-changes {
+	border-color: var(--color-yellow);
+	background: var(--background-secondary-alt);
+}
+
+.dg-apply-settings-button {
+	padding: 8px 24px;
+	font-size: 1em;
+	font-weight: 600;
+}
+
+.dg-apply-settings-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dg-apply-settings-status {
+	color: var(--text-warning);
+	font-size: 0.9em;
+	min-height: 1.2em;
+}

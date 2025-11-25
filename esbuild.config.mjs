@@ -3,6 +3,10 @@ import process from "process";
 import builtins from 'builtin-modules'
 import esbuildSvelte from "esbuild-svelte";
 import sveltePreprocess from "svelte-preprocess";
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const banner =
 `/*
@@ -31,5 +35,8 @@ esbuild.build({
 		  compilerOptions: { css: 'injected'},
 		  preprocess: sveltePreprocess(),
 		}),
-	  ],
+	],
+	define: {
+		'process.env.FORESTRY_BASE_URL': JSON.stringify(process.env.FORESTRY_BASE_URL || "https://api.forestry.md/app"),
+	},
 }).catch(() => process.exit(1));

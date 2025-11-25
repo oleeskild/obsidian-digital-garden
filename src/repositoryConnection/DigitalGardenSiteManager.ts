@@ -14,6 +14,8 @@ import {
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
+import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -40,30 +42,41 @@ export default class DigitalGardenSiteManager {
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
 	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
 
-	templateUpdater: TemplateUpdateChecker;
+	private userGardenConnection: RepositoryConnection | null;
+	private templateUpdater: TemplateUpdateChecker | null;
 	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.baseGardenConnection = new RepositoryConnection({
-			githubToken: settings.githubToken,
-			githubUserName: "oleeskild",
-			gardenRepository: "digitalgarden",
-		});
+		this.baseGardenConnection = new RepositoryConnection(
+			PublishPlatformConnectionFactory.createBaseGardenConnection(),
+		);
+		this.userGardenConnection = null;
+		this.templateUpdater = null;
+	}
 
-		this.userGardenConnection = new RepositoryConnection({
-			githubToken: settings.githubToken,
-			githubUserName: settings.githubUserName,
-			gardenRepository: settings.githubRepo,
-		});
+	async getTemplateUpdater() {
+		if (!this.templateUpdater) {
+			this.templateUpdater = new TemplateUpdateChecker({
+				baseGardenConnection: this.baseGardenConnection,
+				userGardenConnection: await this.getUserGardenConnection(),
+			});
+		}
 
-		this.templateUpdater = new TemplateUpdateChecker({
-			baseGardenConnection: this.baseGardenConnection,
-			userGardenConnection: this.userGardenConnection,
-		});
+		return this.templateUpdater;
+	}
+	async getUserGardenConnection() {
+		if (!this.userGardenConnection) {
+			this.userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
+		}
+
+		return this.userGardenConnection;
 	}
 
 	async updateEnv() {
@@ -116,7 +129,9 @@ export default class DigitalGardenSiteManager {
 
 		const base64Settings = Base64.encode(envSettings);
 
-		const currentFile = await this.userGardenConnection.getFile(".env");
+		const currentFile = await (
+			await this.getUserGardenConnection()
+		).getFile(".env");
 
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
@@ -128,7 +143,9 @@ export default class DigitalGardenSiteManager {
 			return;
 		}
 
-		await this.userGardenConnection.updateFile({
+		await (
+			await this.getUserGardenConnection()
+		).updateFile({
 			path: ".env",
 			content: base64Settings,
 			message: "Update settings",
@@ -137,16 +154,19 @@ export default class DigitalGardenSiteManager {
 	}
 
 	getNoteUrl(file: TFile): string {
-		if (!this.settings.gardenBaseUrl) {
+		const savedBaseUrl =
+			this.settings.publishPlatform === PublishPlatform.SelfHosted
+				? this.settings.gardenBaseUrl
+				: this.settings.forestrySettings.baseUrl;
+
+		if (!savedBaseUrl) {
 			new Notice("Please set the garden base url in the settings");
 
 			// caught in copyUrlToClipboard
 			throw new Error("Garden base url not set");
 		}
 
-		const baseUrl = `https://${extractBaseUrl(
-			this.settings.gardenBaseUrl,
-		)}`;
+		const baseUrl = `https://${extractBaseUrl(savedBaseUrl)}`;
 
 		const noteUrlPath = generateUrlPath(
 			getGardenPathForNote(file.path, this.rewriteRules),
@@ -173,9 +193,9 @@ export default class DigitalGardenSiteManager {
 			path = path.substring(1);
 		}
 
-		const response = await this.userGardenConnection.getFile(
-			NOTE_PATH_BASE + path,
-		);
+		const response = await (
+			await this.getUserGardenConnection()
+		).getFile(NOTE_PATH_BASE + path);
 
 		if (!response) {
 			return "";

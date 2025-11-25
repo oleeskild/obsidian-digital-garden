@@ -1,10 +1,12 @@
 import { ILogLevel } from "js-logger";
+import { PublishPlatform } from "./PublishPlatform";
 
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
+
 	gardenBaseUrl: string;
 	prHistory: string[];
 
@@ -41,6 +43,13 @@ export default interface DigitalGardenSettings {
 	pathRewriteRules: string;
 	customFilters: Array<{ pattern: string; flags: string; replace: string }>;
 	contentClassesKey: string;
+
+	publishPlatform: PublishPlatform;
+	forestrySettings: {
+		forestryPageName: string;
+		apiKey: string;
+		baseUrl: string;
+	};
 
 	defaultNoteSettings: {
 		dgHomeLink: boolean;

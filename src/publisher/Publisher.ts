@@ -11,6 +11,8 @@ import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
+import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import { PublishPlatform } from "../models/PublishPlatform";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -102,11 +104,11 @@ export default class Publisher {
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
-			githubUserName: this.settings.githubUserName,
-			githubToken: this.settings.githubToken,
-		});
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			),
+		);
 
 		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
@@ -122,6 +124,7 @@ export default class Publisher {
 
 		try {
 			const [text, assets] = file.compiledFile;
+
 			await this.uploadText(file.getPath(), text, file?.remoteHash);
 			await this.uploadAssets(assets);
 
@@ -139,11 +142,11 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
-				gardenRepository: this.settings.githubRepo,
-				githubUserName: this.settings.githubUserName,
-				githubToken: this.settings.githubToken,
-			});
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
 
 			await userGardenConnection.deleteFiles(filePaths);
 
@@ -165,11 +168,11 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection({
-				gardenRepository: this.settings.githubRepo,
-				githubUserName: this.settings.githubUserName,
-				githubToken: this.settings.githubToken,
-			});
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
 
 			await userGardenConnection.updateFiles(filesToPublish);
 
@@ -189,11 +192,11 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection = new RepositoryConnection({
-			gardenRepository: this.settings.githubRepo,
-			githubUserName: this.settings.githubUserName,
-			githubToken: this.settings.githubToken,
-		});
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			),
+		);
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {
@@ -229,30 +232,42 @@ export default class Publisher {
 	private async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
+
 			await this.uploadImage(image.path, image.content, image.remoteHash);
 		}
 	}
 
 	validateSettings() {
-		if (!this.settings.githubRepo) {
-			new Notice(
-				"Config error: You need to define a GitHub repo in the plugin settings",
-			);
-			throw {};
-		}
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			// For forestry.md, validate forestry settings instead of GitHub
+			if (!this.settings.forestrySettings.apiKey) {
+				new Notice(
+					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
+				);
+				throw {};
+			}
+		} else {
+			// For SelfHosted, validate GitHub settings
+			if (!this.settings.githubRepo) {
+				new Notice(
+					"Config error: You need to define a GitHub repo in the plugin settings",
+				);
+				throw {};
+			}
 
-		if (!this.settings.githubUserName) {
-			new Notice(
-				"Config error: You need to define a GitHub Username in the plugin settings",
-			);
-			throw {};
-		}
+			if (!this.settings.githubUserName) {
+				new Notice(
+					"Config error: You need to define a GitHub Username in the plugin settings",
+				);
+				throw {};
+			}
 
-		if (!this.settings.githubToken) {
-			new Notice(
-				"Config error: You need to define a GitHub Token in the plugin settings",
-			);
-			throw {};
+			if (!this.settings.githubToken) {
+				new Notice(
+					"Config error: You need to define a GitHub Token in the plugin settings",
+				);
+				throw {};
+			}
 		}
 	}
 }

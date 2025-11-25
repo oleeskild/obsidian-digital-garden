@@ -47,8 +47,9 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const publishedNotes: Array<CompiledPublishFile> = [];
 		const changedNotes: Array<CompiledPublishFile> = [];
 
-		const contentTree =
-			await this.siteManager.userGardenConnection.getContent("HEAD");
+		const contentTree = await (
+			await this.siteManager.getUserGardenConnection()
+		).getContent("HEAD");
 
 		if (!contentTree) {
 			throw new Error("Could not get content tree from base garden");
