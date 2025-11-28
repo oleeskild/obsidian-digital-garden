@@ -136,3 +136,44 @@ h4 {
 	font-size: 0.9em;
 	min-height: 1.2em;
 }
+
+/* Apply button container for appearance settings */
+.dg-apply-button-container {
+	margin-top: 16px;
+	margin-bottom: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-apply-button-container .setting-item-control {
+	width: 100%;
+}
+
+.dg-apply-button-container .setting-item-info {
+	display: none;
+}
+
+/* Settings sections */
+.dg-settings-section {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 16px;
+	margin-bottom: 16px;
+}
+
+.dg-settings-section h3 {
+	margin-top: 0 !important;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dg-settings-section .dg-apply-button-container {
+	margin-bottom: 0;
+	background: transparent;
+	border: none;
+	padding: 12px 0 0 0;
+}
