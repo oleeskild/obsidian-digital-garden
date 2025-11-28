@@ -525,8 +525,88 @@ export default class SettingView {
 		// Status indicator for loading remote settings
 		const statusEl = themeModal.contentEl.createDiv({
 			cls: "dg-appearance-status",
-			attr: { style: "margin-bottom: 10px; color: var(--text-muted);" },
 		});
+
+		// Mapping of env keys to control keys and settings keys
+		const settingsMap: Array<{
+			envKey: string;
+			controlKey: keyof typeof controls;
+			settingsKey: keyof typeof this.settings;
+			isBoolean: boolean;
+		}> = [
+			{
+				envKey: "BASE_THEME",
+				controlKey: "baseTheme",
+				settingsKey: "baseTheme",
+				isBoolean: false,
+			},
+			{
+				envKey: "SITE_NAME_HEADER",
+				controlKey: "siteName",
+				settingsKey: "siteName",
+				isBoolean: false,
+			},
+			{
+				envKey: "SITE_MAIN_LANGUAGE",
+				controlKey: "mainLanguage",
+				settingsKey: "mainLanguage",
+				isBoolean: false,
+			},
+			{
+				envKey: "USE_FULL_RESOLUTION_IMAGES",
+				controlKey: "useFullResolutionImages",
+				settingsKey: "useFullResolutionImages",
+				isBoolean: true,
+			},
+			{
+				envKey: "TIMESTAMP_FORMAT",
+				controlKey: "timestampFormat",
+				settingsKey: "timestampFormat",
+				isBoolean: false,
+			},
+			{
+				envKey: "SHOW_CREATED_TIMESTAMP",
+				controlKey: "showCreatedTimestamp",
+				settingsKey: "showCreatedTimestamp",
+				isBoolean: true,
+			},
+			{
+				envKey: "SHOW_UPDATED_TIMESTAMP",
+				controlKey: "showUpdatedTimestamp",
+				settingsKey: "showUpdatedTimestamp",
+				isBoolean: true,
+			},
+			{
+				envKey: "NOTE_ICON_DEFAULT",
+				controlKey: "defaultNoteIcon",
+				settingsKey: "defaultNoteIcon",
+				isBoolean: false,
+			},
+			{
+				envKey: "NOTE_ICON_TITLE",
+				controlKey: "showNoteIconOnTitle",
+				settingsKey: "showNoteIconOnTitle",
+				isBoolean: true,
+			},
+			{
+				envKey: "NOTE_ICON_FILETREE",
+				controlKey: "showNoteIconInFileTree",
+				settingsKey: "showNoteIconInFileTree",
+				isBoolean: true,
+			},
+			{
+				envKey: "NOTE_ICON_INTERNAL_LINKS",
+				controlKey: "showNoteIconOnInternalLink",
+				settingsKey: "showNoteIconOnInternalLink",
+				isBoolean: true,
+			},
+			{
+				envKey: "NOTE_ICON_BACK_LINKS",
+				controlKey: "showNoteIconOnBackLink",
+				settingsKey: "showNoteIconOnBackLink",
+				isBoolean: true,
+			},
+		];
 
 		// Load settings from remote .env file
 		const loadRemoteSettings = async () => {
@@ -546,132 +626,22 @@ export default class SettingView {
 					const envContent = Base64.decode(envFile.content);
 					const remoteSettings = this.parseEnvSettings(envContent);
 
-					// Update controls with remote values
-					if ("BASE_THEME" in remoteSettings && controls.baseTheme) {
-						controls.baseTheme.setValue(
-							remoteSettings["BASE_THEME"],
-						);
-						this.settings.baseTheme = remoteSettings["BASE_THEME"];
-					}
+					// Update controls with remote values using the mapping
+					for (const mapping of settingsMap) {
+						const control = controls[mapping.controlKey];
 
-					if (
-						"SITE_NAME_HEADER" in remoteSettings &&
-						controls.siteName
-					) {
-						controls.siteName.setValue(
-							remoteSettings["SITE_NAME_HEADER"],
-						);
+						if (mapping.envKey in remoteSettings && control) {
+							const rawValue = remoteSettings[mapping.envKey];
 
-						this.settings.siteName =
-							remoteSettings["SITE_NAME_HEADER"];
-					}
+							const value = mapping.isBoolean
+								? rawValue === "true"
+								: rawValue;
+							control.setValue(value as never);
 
-					if (
-						"SITE_MAIN_LANGUAGE" in remoteSettings &&
-						controls.mainLanguage
-					) {
-						controls.mainLanguage.setValue(
-							remoteSettings["SITE_MAIN_LANGUAGE"],
-						);
-
-						this.settings.mainLanguage =
-							remoteSettings["SITE_MAIN_LANGUAGE"];
-					}
-
-					if (
-						"USE_FULL_RESOLUTION_IMAGES" in remoteSettings &&
-						controls.useFullResolutionImages
-					) {
-						const val =
-							remoteSettings["USE_FULL_RESOLUTION_IMAGES"] ===
-							"true";
-						controls.useFullResolutionImages.setValue(val);
-						this.settings.useFullResolutionImages = val;
-					}
-
-					if (
-						"TIMESTAMP_FORMAT" in remoteSettings &&
-						controls.timestampFormat
-					) {
-						controls.timestampFormat.setValue(
-							remoteSettings["TIMESTAMP_FORMAT"],
-						);
-
-						this.settings.timestampFormat =
-							remoteSettings["TIMESTAMP_FORMAT"];
-					}
-
-					if (
-						"SHOW_CREATED_TIMESTAMP" in remoteSettings &&
-						controls.showCreatedTimestamp
-					) {
-						const val =
-							remoteSettings["SHOW_CREATED_TIMESTAMP"] === "true";
-						controls.showCreatedTimestamp.setValue(val);
-						this.settings.showCreatedTimestamp = val;
-					}
-
-					if (
-						"SHOW_UPDATED_TIMESTAMP" in remoteSettings &&
-						controls.showUpdatedTimestamp
-					) {
-						const val =
-							remoteSettings["SHOW_UPDATED_TIMESTAMP"] === "true";
-						controls.showUpdatedTimestamp.setValue(val);
-						this.settings.showUpdatedTimestamp = val;
-					}
-
-					if (
-						"NOTE_ICON_DEFAULT" in remoteSettings &&
-						controls.defaultNoteIcon
-					) {
-						controls.defaultNoteIcon.setValue(
-							remoteSettings["NOTE_ICON_DEFAULT"],
-						);
-
-						this.settings.defaultNoteIcon =
-							remoteSettings["NOTE_ICON_DEFAULT"];
-					}
-
-					if (
-						"NOTE_ICON_TITLE" in remoteSettings &&
-						controls.showNoteIconOnTitle
-					) {
-						const val =
-							remoteSettings["NOTE_ICON_TITLE"] === "true";
-						controls.showNoteIconOnTitle.setValue(val);
-						this.settings.showNoteIconOnTitle = val;
-					}
-
-					if (
-						"NOTE_ICON_FILETREE" in remoteSettings &&
-						controls.showNoteIconInFileTree
-					) {
-						const val =
-							remoteSettings["NOTE_ICON_FILETREE"] === "true";
-						controls.showNoteIconInFileTree.setValue(val);
-						this.settings.showNoteIconInFileTree = val;
-					}
-
-					if (
-						"NOTE_ICON_INTERNAL_LINKS" in remoteSettings &&
-						controls.showNoteIconOnInternalLink
-					) {
-						const val =
-							remoteSettings["NOTE_ICON_INTERNAL_LINKS"] ===
-							"true";
-						controls.showNoteIconOnInternalLink.setValue(val);
-						this.settings.showNoteIconOnInternalLink = val;
-					}
-
-					if (
-						"NOTE_ICON_BACK_LINKS" in remoteSettings &&
-						controls.showNoteIconOnBackLink
-					) {
-						const val =
-							remoteSettings["NOTE_ICON_BACK_LINKS"] === "true";
-						controls.showNoteIconOnBackLink.setValue(val);
-						this.settings.showNoteIconOnBackLink = val;
+							(this.settings as Record<string, unknown>)[
+								mapping.settingsKey
+							] = value;
+						}
 					}
 
 					statusEl.setText("Settings loaded from site");
@@ -686,11 +656,11 @@ export default class SettingView {
 					error,
 				);
 				statusEl.setText("Could not load settings from site");
-				statusEl.style.color = "var(--text-error)";
+				statusEl.addClass("is-error");
 
 				setTimeout(() => {
 					statusEl.setText("");
-					statusEl.style.color = "var(--text-muted)";
+					statusEl.removeClass("is-error");
 				}, 3000);
 			}
 		};
@@ -698,8 +668,6 @@ export default class SettingView {
 		const handleSaveSettingsButton = (cb: ButtonComponent) => {
 			cb.setButtonText("Apply settings to site");
 			cb.setCta();
-			cb.buttonEl.style.width = "100%";
-			cb.buttonEl.style.marginTop = "8px";
 
 			cb.onClick(async (_ev) => {
 				const octokit = new Octokit({
@@ -836,43 +804,26 @@ export default class SettingView {
 		// Current theme display
 		const currentThemeDisplay = themePickerContainer.createDiv({
 			cls: "dg-current-theme",
-			attr: {
-				style: "margin-bottom: 12px; padding: 8px; background: var(--background-secondary); border-radius: 6px;",
-			},
 		});
 
 		const updateCurrentThemeDisplay = () => {
 			const currentTheme = JSON.parse(this.settings.theme);
 			currentThemeDisplay.empty();
-
-			currentThemeDisplay.createEl("span", {
-				text: "Current theme: ",
-				attr: { style: "color: var(--text-muted);" },
-			});
+			currentThemeDisplay.createEl("span", { text: "Current theme: " });
 			currentThemeDisplay.createEl("strong", { text: currentTheme.name });
 		};
 		updateCurrentThemeDisplay();
 
 		// Search input
-		const searchContainer = themePickerContainer.createDiv({
-			attr: { style: "margin-bottom: 12px;" },
-		});
-
-		const searchInput = searchContainer.createEl("input", {
+		const searchInput = themePickerContainer.createEl("input", {
 			type: "text",
 			placeholder: "Search themes...",
 			cls: "dg-theme-search",
-			attr: {
-				style: "width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary);",
-			},
 		});
 
 		// Theme grid
 		const themeGrid = themePickerContainer.createDiv({
 			cls: "dg-theme-grid",
-			attr: {
-				style: "display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding: 4px;",
-			},
 		});
 
 		const createThemeCard = (
@@ -890,37 +841,18 @@ export default class SettingView {
 						}`,
 				  });
 
+			const isSelected = this.settings.theme === themeValue;
+
 			const card = themeGrid.createDiv({
-				cls: "dg-theme-card",
-				attr: {
-					style: `
-						cursor: pointer;
-						border-radius: 6px;
-						overflow: hidden;
-						border: 2px solid var(--background-modifier-border);
-						transition: border-color 0.15s ease;
-						background: var(--background-secondary);
-					`.replace(/\s+/g, " "),
-				},
+				cls: `dg-theme-card${isSelected ? " is-selected" : ""}`,
 			});
 
-			// Highlight selected theme
-			if (this.settings.theme === themeValue) {
-				card.style.borderColor = "var(--interactive-accent)";
-			}
-
-			// Screenshot
-			const imgContainer = card.createDiv({
-				attr: {
-					style: "width: 100%; height: 80px; overflow: hidden; background: var(--background-primary);",
-				},
-			});
+			// Screenshot container
+			const imgContainer = card.createDiv({ cls: "dg-theme-card-image" });
 
 			if (isDefault) {
 				imgContainer.createDiv({
-					attr: {
-						style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted);",
-					},
+					cls: "dg-theme-card-placeholder",
 					text: "Default",
 				});
 			} else {
@@ -929,7 +861,6 @@ export default class SettingView {
 						src: `https://raw.githubusercontent.com/${theme.repo}/${
 							theme.branch || "HEAD"
 						}/${theme.screenshot}`,
-						style: "width: 100%; height: 100%; object-fit: cover;",
 						loading: "lazy",
 					},
 				});
@@ -938,9 +869,7 @@ export default class SettingView {
 					img.style.display = "none";
 
 					imgContainer.createDiv({
-						attr: {
-							style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;",
-						},
+						cls: "dg-theme-card-placeholder",
 						text: "No preview",
 					});
 				};
@@ -948,10 +877,8 @@ export default class SettingView {
 
 			// Theme name
 			card.createDiv({
+				cls: "dg-theme-card-name",
 				text: isDefault ? "Default" : theme.name,
-				attr: {
-					style: "padding: 6px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
-				},
 			});
 
 			card.addEventListener("click", async () => {
@@ -959,28 +886,11 @@ export default class SettingView {
 				await this.saveSettings();
 				updateCurrentThemeDisplay();
 
-				// Update all card borders
+				// Update selection state on all cards
 				themeGrid
 					.querySelectorAll(".dg-theme-card")
-					.forEach((c: HTMLElement) => {
-						c.style.borderColor =
-							"var(--background-modifier-border)";
-					});
-				card.style.borderColor = "var(--interactive-accent)";
-			});
-
-			card.addEventListener("mouseenter", () => {
-				if (this.settings.theme !== themeValue) {
-					card.style.borderColor =
-						"var(--background-modifier-border-hover)";
-				}
-			});
-
-			card.addEventListener("mouseleave", () => {
-				card.style.borderColor =
-					this.settings.theme === themeValue
-						? "var(--interactive-accent)"
-						: "var(--background-modifier-border)";
+					.forEach((c) => c.removeClass("is-selected"));
+				card.addClass("is-selected");
 			});
 
 			return card;
@@ -1219,7 +1129,7 @@ export default class SettingView {
 			.prepend(this.getIcon("image"));
 
 		noteIconsSection
-			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
+			.createEl("div", { cls: "dg-docs-link" })
 			.createEl("a", {
 				text: "Documentation on note icons",
 				href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons",
