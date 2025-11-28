@@ -4,11 +4,13 @@ import {
 	App,
 	ButtonComponent,
 	debounce,
+	DropdownComponent,
 	getIcon,
 	MetadataCache,
 	Modal,
 	Notice,
 	Setting,
+	TextComponent,
 	TFile,
 	ToggleComponent,
 } from "obsidian";
@@ -491,6 +493,208 @@ export default class SettingView {
 		themeModal.containerEl.addClass("dg-settings");
 		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
 
+		// Store control references for updating after fetch
+		const controls: {
+			baseTheme: DropdownComponent | null;
+			siteName: TextComponent | null;
+			mainLanguage: TextComponent | null;
+			useFullResolutionImages: ToggleComponent | null;
+			timestampFormat: TextComponent | null;
+			showCreatedTimestamp: ToggleComponent | null;
+			showUpdatedTimestamp: ToggleComponent | null;
+			defaultNoteIcon: TextComponent | null;
+			showNoteIconOnTitle: ToggleComponent | null;
+			showNoteIconInFileTree: ToggleComponent | null;
+			showNoteIconOnInternalLink: ToggleComponent | null;
+			showNoteIconOnBackLink: ToggleComponent | null;
+		} = {
+			baseTheme: null,
+			siteName: null,
+			mainLanguage: null,
+			useFullResolutionImages: null,
+			timestampFormat: null,
+			showCreatedTimestamp: null,
+			showUpdatedTimestamp: null,
+			defaultNoteIcon: null,
+			showNoteIconOnTitle: null,
+			showNoteIconInFileTree: null,
+			showNoteIconOnInternalLink: null,
+			showNoteIconOnBackLink: null,
+		};
+
+		// Status indicator for loading remote settings
+		const statusEl = themeModal.contentEl.createDiv({
+			cls: "dg-appearance-status",
+			attr: { style: "margin-bottom: 10px; color: var(--text-muted);" },
+		});
+
+		// Load settings from remote .env file
+		const loadRemoteSettings = async () => {
+			statusEl.setText("Loading settings from site...");
+
+			try {
+				const gardenManager = new DigitalGardenSiteManager(
+					this.app.metadataCache,
+					this.settings,
+				);
+
+				const connection =
+					await gardenManager.getUserGardenConnection();
+				const envFile = await connection.getFile(".env");
+
+				if (envFile?.content) {
+					const envContent = Base64.decode(envFile.content);
+					const remoteSettings = this.parseEnvSettings(envContent);
+
+					// Update controls with remote values
+					if ("BASE_THEME" in remoteSettings && controls.baseTheme) {
+						controls.baseTheme.setValue(
+							remoteSettings["BASE_THEME"],
+						);
+						this.settings.baseTheme = remoteSettings["BASE_THEME"];
+					}
+
+					if (
+						"SITE_NAME_HEADER" in remoteSettings &&
+						controls.siteName
+					) {
+						controls.siteName.setValue(
+							remoteSettings["SITE_NAME_HEADER"],
+						);
+
+						this.settings.siteName =
+							remoteSettings["SITE_NAME_HEADER"];
+					}
+
+					if (
+						"SITE_MAIN_LANGUAGE" in remoteSettings &&
+						controls.mainLanguage
+					) {
+						controls.mainLanguage.setValue(
+							remoteSettings["SITE_MAIN_LANGUAGE"],
+						);
+
+						this.settings.mainLanguage =
+							remoteSettings["SITE_MAIN_LANGUAGE"];
+					}
+
+					if (
+						"USE_FULL_RESOLUTION_IMAGES" in remoteSettings &&
+						controls.useFullResolutionImages
+					) {
+						const val =
+							remoteSettings["USE_FULL_RESOLUTION_IMAGES"] ===
+							"true";
+						controls.useFullResolutionImages.setValue(val);
+						this.settings.useFullResolutionImages = val;
+					}
+
+					if (
+						"TIMESTAMP_FORMAT" in remoteSettings &&
+						controls.timestampFormat
+					) {
+						controls.timestampFormat.setValue(
+							remoteSettings["TIMESTAMP_FORMAT"],
+						);
+
+						this.settings.timestampFormat =
+							remoteSettings["TIMESTAMP_FORMAT"];
+					}
+
+					if (
+						"SHOW_CREATED_TIMESTAMP" in remoteSettings &&
+						controls.showCreatedTimestamp
+					) {
+						const val =
+							remoteSettings["SHOW_CREATED_TIMESTAMP"] === "true";
+						controls.showCreatedTimestamp.setValue(val);
+						this.settings.showCreatedTimestamp = val;
+					}
+
+					if (
+						"SHOW_UPDATED_TIMESTAMP" in remoteSettings &&
+						controls.showUpdatedTimestamp
+					) {
+						const val =
+							remoteSettings["SHOW_UPDATED_TIMESTAMP"] === "true";
+						controls.showUpdatedTimestamp.setValue(val);
+						this.settings.showUpdatedTimestamp = val;
+					}
+
+					if (
+						"NOTE_ICON_DEFAULT" in remoteSettings &&
+						controls.defaultNoteIcon
+					) {
+						controls.defaultNoteIcon.setValue(
+							remoteSettings["NOTE_ICON_DEFAULT"],
+						);
+
+						this.settings.defaultNoteIcon =
+							remoteSettings["NOTE_ICON_DEFAULT"];
+					}
+
+					if (
+						"NOTE_ICON_TITLE" in remoteSettings &&
+						controls.showNoteIconOnTitle
+					) {
+						const val =
+							remoteSettings["NOTE_ICON_TITLE"] === "true";
+						controls.showNoteIconOnTitle.setValue(val);
+						this.settings.showNoteIconOnTitle = val;
+					}
+
+					if (
+						"NOTE_ICON_FILETREE" in remoteSettings &&
+						controls.showNoteIconInFileTree
+					) {
+						const val =
+							remoteSettings["NOTE_ICON_FILETREE"] === "true";
+						controls.showNoteIconInFileTree.setValue(val);
+						this.settings.showNoteIconInFileTree = val;
+					}
+
+					if (
+						"NOTE_ICON_INTERNAL_LINKS" in remoteSettings &&
+						controls.showNoteIconOnInternalLink
+					) {
+						const val =
+							remoteSettings["NOTE_ICON_INTERNAL_LINKS"] ===
+							"true";
+						controls.showNoteIconOnInternalLink.setValue(val);
+						this.settings.showNoteIconOnInternalLink = val;
+					}
+
+					if (
+						"NOTE_ICON_BACK_LINKS" in remoteSettings &&
+						controls.showNoteIconOnBackLink
+					) {
+						const val =
+							remoteSettings["NOTE_ICON_BACK_LINKS"] === "true";
+						controls.showNoteIconOnBackLink.setValue(val);
+						this.settings.showNoteIconOnBackLink = val;
+					}
+
+					statusEl.setText("Settings loaded from site");
+
+					setTimeout(() => {
+						statusEl.setText("");
+					}, 2000);
+				}
+			} catch (error) {
+				console.error(
+					"Failed to load remote appearance settings:",
+					error,
+				);
+				statusEl.setText("Could not load settings from site");
+				statusEl.style.color = "var(--text-error)";
+
+				setTimeout(() => {
+					statusEl.setText("");
+					statusEl.style.color = "var(--text-muted)";
+				}, 3000);
+			}
+		};
+
 		const handleSaveSettingsButton = (cb: ButtonComponent) => {
 			cb.setButtonText("Apply settings to site");
 			cb.setClass("mod-cta");
@@ -513,6 +717,7 @@ export default class SettingView {
 
 				cb.onClick(async () => {
 					themeModal.open();
+					await loadRemoteSettings();
 				});
 			});
 
@@ -633,10 +838,10 @@ export default class SettingView {
 			});
 		});
 
-		//should get theme settings from env in github, not settings
 		new Setting(themeModal.contentEl)
 			.setName("Base theme")
 			.addDropdown((dd) => {
+				controls.baseTheme = dd;
 				dd.addOption("dark", "Dark");
 				dd.addOption("light", "Light");
 				dd.setValue(this.settings.baseTheme);
@@ -652,28 +857,32 @@ export default class SettingView {
 			.setDesc(
 				"The name of your site. This will be displayed as the site header.",
 			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.siteName)
-					.onChange(async (value) => {
+			.addText((text) => {
+				controls.siteName = text;
+
+				text.setValue(this.settings.siteName).onChange(
+					async (value) => {
 						this.settings.siteName = value;
 						await this.saveSettings();
-					}),
-			);
+					},
+				);
+			});
 
 		new Setting(themeModal.contentEl)
 			.setName("Main language")
 			.setDesc(
 				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
 			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.mainLanguage)
-					.onChange(async (value) => {
+			.addText((text) => {
+				controls.mainLanguage = text;
+
+				text.setValue(this.settings.mainLanguage).onChange(
+					async (value) => {
 						this.settings.mainLanguage = value;
 						await this.saveSettings();
-					}),
-			);
+					},
+				);
+			});
 
 		new Setting(themeModal.contentEl)
 			.setName("Favicon")
@@ -697,6 +906,7 @@ export default class SettingView {
 				"By default, the images on your site are compressed to make your site load faster. If you instead want to use the full resolution images, enable this setting.",
 			)
 			.addToggle((toggle) => {
+				controls.useFullResolutionImages = toggle;
 				toggle.setValue(this.settings.useFullResolutionImages);
 
 				toggle.onChange(async (val) => {
@@ -716,18 +926,22 @@ export default class SettingView {
 			.setDesc(
 				"The format string to render timestamp on the garden. Must be luxon compatible",
 			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.timestampFormat)
-					.onChange(async (value) => {
+			.addText((text) => {
+				controls.timestampFormat = text;
+
+				text.setValue(this.settings.timestampFormat).onChange(
+					async (value) => {
 						this.settings.timestampFormat = value;
 						await this.saveSettings();
-					}),
-			);
+					},
+				);
+			});
 
 		new Setting(themeModal.contentEl)
 			.setName("Show created timestamp")
 			.addToggle((t) => {
+				controls.showCreatedTimestamp = t;
+
 				t.setValue(this.settings.showCreatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showCreatedTimestamp = value;
@@ -753,6 +967,8 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Show updated timestamp")
 			.addToggle((t) => {
+				controls.showUpdatedTimestamp = t;
+
 				t.setValue(this.settings.showUpdatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showUpdatedTimestamp = value;
@@ -824,6 +1040,8 @@ export default class SettingView {
 			.setName("Default note icon Value")
 			.setDesc("The default value for note icon if not specified")
 			.addText((text) => {
+				controls.defaultNoteIcon = text;
+
 				text.setValue(this.settings.defaultNoteIcon).onChange(
 					async (value) => {
 						this.settings.defaultNoteIcon = value;
@@ -835,6 +1053,8 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Show note icon on Title")
 			.addToggle((t) => {
+				controls.showNoteIconOnTitle = t;
+
 				t.setValue(this.settings.showNoteIconOnTitle).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnTitle = value;
@@ -846,6 +1066,8 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Show note icon in FileTree")
 			.addToggle((t) => {
+				controls.showNoteIconInFileTree = t;
+
 				t.setValue(this.settings.showNoteIconInFileTree).onChange(
 					async (value) => {
 						this.settings.showNoteIconInFileTree = value;
@@ -857,6 +1079,8 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Show note icon on Internal Links")
 			.addToggle((t) => {
+				controls.showNoteIconOnInternalLink = t;
+
 				t.setValue(this.settings.showNoteIconOnInternalLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnInternalLink = value;
@@ -868,6 +1092,8 @@ export default class SettingView {
 		new Setting(themeModal.contentEl)
 			.setName("Show note icon on Backlinks")
 			.addToggle((t) => {
+				controls.showNoteIconOnBackLink = t;
+
 				t.setValue(this.settings.showNoteIconOnBackLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnBackLink = value;
