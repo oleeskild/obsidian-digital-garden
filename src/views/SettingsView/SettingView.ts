@@ -697,7 +697,9 @@ export default class SettingView {
 
 		const handleSaveSettingsButton = (cb: ButtonComponent) => {
 			cb.setButtonText("Apply settings to site");
-			cb.setClass("mod-cta");
+			cb.setCta();
+			cb.buttonEl.style.width = "100%";
+			cb.buttonEl.style.marginTop = "8px";
 
 			cb.onClick(async (_ev) => {
 				const octokit = new Octokit({
@@ -729,18 +731,23 @@ export default class SettingView {
 				// @ts-expect-error see above
 				this.app.plugins.plugins["obsidian-style-settings"]._loaded
 			) {
-				themeModal.contentEl
-					.createEl("h2", { text: "Style Settings Plugin" })
+				// Style Settings Plugin Section
+				const styleSettingsSection = themeModal.contentEl.createDiv({
+					cls: "dg-settings-section",
+				});
+
+				styleSettingsSection
+					.createEl("h3", { text: "Style Settings Plugin" })
 					.prepend(this.getIcon("paintbrush"));
 
-				new Setting(themeModal.contentEl)
+				new Setting(styleSettingsSection)
 					.setName("Apply current style settings to site")
 					.setDesc(
 						"Click the apply button to use the current style settings from the Style Settings Plugin on your site. (The plugin looks at the currently APPLIED settings. Meaning you need to have the theme you are using in the garden selected in Obsidian before applying)",
 					)
 					.addButton((btn) => {
 						btn.setButtonText("Apply Style Settings");
-						btn.setClass("mod-cta");
+						btn.setCta();
 
 						btn.onClick(async (_ev) => {
 							new Notice("Applying Style Settings...");
@@ -804,55 +811,228 @@ export default class SettingView {
 			console.error("Error loading style settings plugin");
 		}
 
-		themeModal.contentEl
-			.createEl("h2", { text: "Theme Settings" })
+		// Theme Settings Section
+		const themeSection = themeModal.contentEl.createDiv({
+			cls: "dg-settings-section",
+		});
+
+		themeSection
+			.createEl("h3", { text: "Theme Settings" })
 			.prepend(this.getIcon("palette"));
 
 		const themesListResponse =
 			await axios.get<IObsidianTheme[]>(OBSIDIAN_THEME_URL);
 
-		new Setting(themeModal.contentEl).setName("Theme").addDropdown((dd) => {
-			dd.addOption('{"name": "default", "modes": ["dark"]}', "Default");
+		const sortedThemes = themesListResponse.data.sort(
+			(a: { name: string }, b: { name: string }) =>
+				a.name.localeCompare(b.name),
+		);
 
-			const sortedThemes = themesListResponse.data.sort(
-				(a: { name: string }, b: { name: string }) =>
-					a.name.localeCompare(b.name),
-			);
+		// Theme picker container
+		const themePickerContainer = themeSection.createDiv({
+			cls: "dg-theme-picker-container",
+		});
 
-			sortedThemes.map((x) => {
-				dd.addOption(
-					JSON.stringify({
-						...x,
-						cssUrl: `https://raw.githubusercontent.com/${x.repo}/${
-							x.branch || "HEAD"
-						}/${x.legacy ? "obsidian.css" : "theme.css"}`,
-					}),
-					x.name,
-				);
-				dd.setValue(this.settings.theme);
+		// Current theme display
+		const currentThemeDisplay = themePickerContainer.createDiv({
+			cls: "dg-current-theme",
+			attr: {
+				style: "margin-bottom: 12px; padding: 8px; background: var(--background-secondary); border-radius: 6px;",
+			},
+		});
 
-				dd.onChange(async (val: string) => {
-					this.settings.theme = val;
-					await this.saveSettings();
+		const updateCurrentThemeDisplay = () => {
+			const currentTheme = JSON.parse(this.settings.theme);
+			currentThemeDisplay.empty();
+
+			currentThemeDisplay.createEl("span", {
+				text: "Current theme: ",
+				attr: { style: "color: var(--text-muted);" },
+			});
+			currentThemeDisplay.createEl("strong", { text: currentTheme.name });
+		};
+		updateCurrentThemeDisplay();
+
+		// Search input
+		const searchContainer = themePickerContainer.createDiv({
+			attr: { style: "margin-bottom: 12px;" },
+		});
+
+		const searchInput = searchContainer.createEl("input", {
+			type: "text",
+			placeholder: "Search themes...",
+			cls: "dg-theme-search",
+			attr: {
+				style: "width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary);",
+			},
+		});
+
+		// Theme grid
+		const themeGrid = themePickerContainer.createDiv({
+			cls: "dg-theme-grid",
+			attr: {
+				style: "display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding: 4px;",
+			},
+		});
+
+		const createThemeCard = (
+			theme: IObsidianTheme & { cssUrl?: string },
+			isDefault = false,
+		) => {
+			const themeValue = isDefault
+				? '{"name": "default", "modes": ["dark"]}'
+				: JSON.stringify({
+						...theme,
+						cssUrl: `https://raw.githubusercontent.com/${
+							theme.repo
+						}/${theme.branch || "HEAD"}/${
+							theme.legacy ? "obsidian.css" : "theme.css"
+						}`,
+				  });
+
+			const card = themeGrid.createDiv({
+				cls: "dg-theme-card",
+				attr: {
+					style: `
+						cursor: pointer;
+						border-radius: 6px;
+						overflow: hidden;
+						border: 2px solid var(--background-modifier-border);
+						transition: border-color 0.15s ease;
+						background: var(--background-secondary);
+					`.replace(/\s+/g, " "),
+				},
+			});
+
+			// Highlight selected theme
+			if (this.settings.theme === themeValue) {
+				card.style.borderColor = "var(--interactive-accent)";
+			}
+
+			// Screenshot
+			const imgContainer = card.createDiv({
+				attr: {
+					style: "width: 100%; height: 80px; overflow: hidden; background: var(--background-primary);",
+				},
+			});
+
+			if (isDefault) {
+				imgContainer.createDiv({
+					attr: {
+						style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted);",
+					},
+					text: "Default",
 				});
+			} else {
+				const img = imgContainer.createEl("img", {
+					attr: {
+						src: `https://raw.githubusercontent.com/${theme.repo}/${
+							theme.branch || "HEAD"
+						}/${theme.screenshot}`,
+						style: "width: 100%; height: 100%; object-fit: cover;",
+						loading: "lazy",
+					},
+				});
+
+				img.onerror = () => {
+					img.style.display = "none";
+
+					imgContainer.createDiv({
+						attr: {
+							style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px;",
+						},
+						text: "No preview",
+					});
+				};
+			}
+
+			// Theme name
+			card.createDiv({
+				text: isDefault ? "Default" : theme.name,
+				attr: {
+					style: "padding: 6px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
+				},
+			});
+
+			card.addEventListener("click", async () => {
+				this.settings.theme = themeValue;
+				await this.saveSettings();
+				updateCurrentThemeDisplay();
+
+				// Update all card borders
+				themeGrid
+					.querySelectorAll(".dg-theme-card")
+					.forEach((c: HTMLElement) => {
+						c.style.borderColor =
+							"var(--background-modifier-border)";
+					});
+				card.style.borderColor = "var(--interactive-accent)";
+			});
+
+			card.addEventListener("mouseenter", () => {
+				if (this.settings.theme !== themeValue) {
+					card.style.borderColor =
+						"var(--background-modifier-border-hover)";
+				}
+			});
+
+			card.addEventListener("mouseleave", () => {
+				card.style.borderColor =
+					this.settings.theme === themeValue
+						? "var(--interactive-accent)"
+						: "var(--background-modifier-border)";
+			});
+
+			return card;
+		};
+
+		// Render theme cards
+		const renderThemes = (filter = "") => {
+			themeGrid.empty();
+
+			// Add default theme first
+			const defaultTheme = {
+				name: "Default",
+				author: "",
+				screenshot: "",
+				modes: ["dark"],
+				repo: "",
+				legacy: false,
+			};
+
+			if ("default".includes(filter.toLowerCase())) {
+				createThemeCard(defaultTheme, true);
+			}
+
+			// Add filtered themes
+			sortedThemes
+				.filter((t) =>
+					t.name.toLowerCase().includes(filter.toLowerCase()),
+				)
+				.forEach((theme) => createThemeCard(theme));
+		};
+
+		renderThemes();
+
+		// Search functionality
+		searchInput.addEventListener("input", (e) => {
+			const target = e.target as HTMLInputElement;
+			renderThemes(target.value);
+		});
+
+		new Setting(themeSection).setName("Base theme").addDropdown((dd) => {
+			controls.baseTheme = dd;
+			dd.addOption("dark", "Dark");
+			dd.addOption("light", "Light");
+			dd.setValue(this.settings.baseTheme);
+
+			dd.onChange(async (val: string) => {
+				this.settings.baseTheme = val;
+				await this.saveSettings();
 			});
 		});
 
-		new Setting(themeModal.contentEl)
-			.setName("Base theme")
-			.addDropdown((dd) => {
-				controls.baseTheme = dd;
-				dd.addOption("dark", "Dark");
-				dd.addOption("light", "Light");
-				dd.setValue(this.settings.baseTheme);
-
-				dd.onChange(async (val: string) => {
-					this.settings.baseTheme = val;
-					await this.saveSettings();
-				});
-			});
-
-		new Setting(themeModal.contentEl)
+		new Setting(themeSection)
 			.setName("Sitename")
 			.setDesc(
 				"The name of your site. This will be displayed as the site header.",
@@ -868,7 +1048,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(themeSection)
 			.setName("Main language")
 			.setDesc(
 				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
@@ -884,7 +1064,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(themeSection)
 			.setName("Favicon")
 			.setDesc(
 				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default. Must be square! (eg. 16x16)",
@@ -900,7 +1080,7 @@ export default class SettingView {
 				new SvgFileSuggest(this.app, tc.inputEl);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(themeSection)
 			.setName("Use full resolution images")
 			.setDesc(
 				"By default, the images on your site are compressed to make your site load faster. If you instead want to use the full resolution images, enable this setting.",
@@ -915,13 +1095,20 @@ export default class SettingView {
 				});
 			});
 
-		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
+		new Setting(themeSection)
+			.setClass("dg-apply-button-container")
+			.addButton(handleSaveSettingsButton);
 
-		themeModal.contentEl
-			.createEl("h2", { text: "Timestamps Settings" })
+		// Timestamps Settings Section
+		const timestampsSection = themeModal.contentEl.createDiv({
+			cls: "dg-settings-section",
+		});
+
+		timestampsSection
+			.createEl("h3", { text: "Timestamps Settings" })
 			.prepend(this.getIcon("calendar-clock"));
 
-		new Setting(themeModal.contentEl)
+		new Setting(timestampsSection)
 			.setName("Timestamp format")
 			.setDesc(
 				"The format string to render timestamp on the garden. Must be luxon compatible",
@@ -937,7 +1124,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(timestampsSection)
 			.setName("Show created timestamp")
 			.addToggle((t) => {
 				controls.showCreatedTimestamp = t;
@@ -950,7 +1137,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(timestampsSection)
 			.setName("Created timestamp Frontmatter Key")
 			.setDesc(
 				"Key to get the created timestamp from the frontmatter. Leave blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.",
@@ -964,7 +1151,7 @@ export default class SettingView {
 					}),
 			);
 
-		new Setting(themeModal.contentEl)
+		new Setting(timestampsSection)
 			.setName("Show updated timestamp")
 			.addToggle((t) => {
 				controls.showUpdatedTimestamp = t;
@@ -977,7 +1164,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(timestampsSection)
 			.setName("Updated timestamp Frontmatter Key")
 			.setDesc(
 				"Key to get the updated timestamp from the frontmatter. Leave blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.",
@@ -991,13 +1178,20 @@ export default class SettingView {
 					}),
 			);
 
-		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
+		new Setting(timestampsSection)
+			.setClass("dg-apply-button-container")
+			.addButton(handleSaveSettingsButton);
 
-		themeModal.contentEl
-			.createEl("h2", { text: "CSS settings" })
+		// CSS Settings Section
+		const cssSection = themeModal.contentEl.createDiv({
+			cls: "dg-settings-section",
+		});
+
+		cssSection
+			.createEl("h3", { text: "CSS settings" })
 			.prepend(this.getIcon("code"));
 
-		new Setting(themeModal.contentEl)
+		new Setting(cssSection)
 			.setName("Body Classes Key")
 			.setDesc(
 				"Key for setting css-classes to the note body from the frontmatter.",
@@ -1011,20 +1205,27 @@ export default class SettingView {
 					}),
 			);
 
-		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
+		new Setting(cssSection)
+			.setClass("dg-apply-button-container")
+			.addButton(handleSaveSettingsButton);
 
-		themeModal.contentEl
-			.createEl("h2", { text: "Note icons Settings" })
+		// Note Icons Settings Section
+		const noteIconsSection = themeModal.contentEl.createDiv({
+			cls: "dg-settings-section",
+		});
+
+		noteIconsSection
+			.createEl("h3", { text: "Note icons Settings" })
 			.prepend(this.getIcon("image"));
 
-		themeModal.contentEl
+		noteIconsSection
 			.createEl("div", { attr: { style: "margin-bottom: 10px;" } })
 			.createEl("a", {
 				text: "Documentation on note icons",
 				href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons",
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Note icon Frontmatter Key")
 			.setDesc("Key to get the note icon value from the frontmatter")
 			.addText((text) =>
@@ -1036,7 +1237,7 @@ export default class SettingView {
 					}),
 			);
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Default note icon Value")
 			.setDesc("The default value for note icon if not specified")
 			.addText((text) => {
@@ -1050,7 +1251,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Show note icon on Title")
 			.addToggle((t) => {
 				controls.showNoteIconOnTitle = t;
@@ -1063,7 +1264,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Show note icon in FileTree")
 			.addToggle((t) => {
 				controls.showNoteIconInFileTree = t;
@@ -1076,7 +1277,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Show note icon on Internal Links")
 			.addToggle((t) => {
 				controls.showNoteIconOnInternalLink = t;
@@ -1089,7 +1290,7 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl)
+		new Setting(noteIconsSection)
 			.setName("Show note icon on Backlinks")
 			.addToggle((t) => {
 				controls.showNoteIconOnBackLink = t;
@@ -1102,7 +1303,9 @@ export default class SettingView {
 				);
 			});
 
-		new Setting(themeModal.contentEl).addButton(handleSaveSettingsButton);
+		new Setting(noteIconsSection)
+			.setClass("dg-apply-button-container")
+			.addButton(handleSaveSettingsButton);
 	}
 
 	private async saveSettingsAndUpdateEnv() {
