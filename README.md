@@ -2,7 +2,7 @@
 
 Publish your notes to the web, for free. In your own personal garden.
 
-![image](https://github.com/user-attachments/assets/101e7558-9d0c-452f-8859-f4bcedd26796)
+<img width="3030" height="2070" alt="image" src="https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd" />
 
 
 ## Docs
