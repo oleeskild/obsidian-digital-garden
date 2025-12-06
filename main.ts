@@ -99,6 +99,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		searchNavigateHint: "",
 		searchCloseHint: "",
 		searchNoResults: "",
+		searchPreviewPlaceholder: "",
 	},
 
 	logLevel: undefined,

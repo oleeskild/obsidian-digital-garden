@@ -73,6 +73,7 @@ export default interface DigitalGardenSettings {
 		searchNavigateHint: string;
 		searchCloseHint: string;
 		searchNoResults: string;
+		searchPreviewPlaceholder: string;
 	};
 
 	ENABLE_DEVELOPER_TOOLS?: boolean;

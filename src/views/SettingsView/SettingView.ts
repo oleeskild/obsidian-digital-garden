@@ -621,6 +621,11 @@ export default class SettingView {
 				controlKey: "searchNoResults",
 				settingsKey: "searchNoResults",
 			},
+			{
+				envKey: "UI_SEARCH_PREVIEW_PLACEHOLDER",
+				controlKey: "searchPreviewPlaceholder",
+				settingsKey: "searchPreviewPlaceholder",
+			},
 		];
 
 		// Load settings from remote .env file
@@ -791,6 +796,22 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNoResults ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNoResults = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Preview placeholder text")
+			.setDesc('Default: "Select a result to preview"')
+			.addText((text) => {
+				textControls["searchPreviewPlaceholder"] = text;
+
+				text.setPlaceholder("Select a result to preview")
+					.setValue(
+						this.settings.uiStrings?.searchPreviewPlaceholder ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.searchPreviewPlaceholder = val;
 						markAsChanged();
 					});
 			});
