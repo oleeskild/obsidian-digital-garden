@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App, Modal, getIcon } from "obsidian";
 
 export class UpdateGardenRepositoryModal extends Modal {
 	loading: HTMLElement | undefined;
@@ -7,26 +7,46 @@ export class UpdateGardenRepositoryModal extends Modal {
 
 	constructor(app: App) {
 		super(app);
-		this.progressViewTop = this.contentEl.createDiv();
+		this.modalEl.addClass("dg-update-modal");
+
+		this.progressViewTop = this.contentEl.createDiv({
+			cls: "dg-update-progress",
+		});
 	}
 
 	renderLoading() {
-		this.loading = this.progressViewTop.createDiv();
+		this.loading = this.progressViewTop.createDiv({
+			cls: "dg-update-loading",
+		});
 		this.loading.show();
-		const text = "Creating PR. This should take about 30-60 seconds";
 
-		const loadingText = this.loading?.createEl("h5", { text });
+		// Spinner icon
+		const spinnerContainer = this.loading.createDiv({
+			cls: "dg-update-spinner",
+		});
+		const spinnerIcon = getIcon("loader-2");
+
+		if (spinnerIcon) {
+			spinnerContainer.appendChild(spinnerIcon);
+		}
+
+		const loadingText = this.loading.createEl("p", {
+			cls: "dg-update-loading-text",
+			text: "Creating pull request...",
+		});
+
+		this.loading.createEl("p", {
+			cls: "dg-update-loading-subtext",
+			text: "This usually takes 30-60 seconds",
+		});
+
+		let dots = 0;
 
 		this.loadingInterval = setInterval(() => {
-			if (loadingText.innerText === `${text}`) {
-				loadingText.innerText = `${text}.`;
-			} else if (loadingText.innerText === `${text}.`) {
-				loadingText.innerText = `${text}..`;
-			} else if (loadingText.innerText === `${text}..`) {
-				loadingText.innerText = `${text}...`;
-			} else {
-				loadingText.innerText = `${text}`;
-			}
+			dots = (dots + 1) % 4;
+
+			loadingText.textContent =
+				"Creating pull request" + ".".repeat(dots);
 		}, 400);
 	}
 
@@ -34,28 +54,85 @@ export class UpdateGardenRepositoryModal extends Modal {
 		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
-		const successmessage = prUrl
-			? { text: `🎉 Done! Approve your PR to make the changes go live.` }
-			: {
-					text: "You already have the latest template 🎉 No need to create a PR.",
-			  };
-		const linkText = { text: `${prUrl}`, href: prUrl };
-		this.progressViewTop.createEl("h2", successmessage);
+		const successContainer = this.progressViewTop.createDiv({
+			cls: "dg-update-success",
+		});
+
+		// Success icon
+		const iconContainer = successContainer.createDiv({
+			cls: "dg-update-icon dg-update-icon-success",
+		});
+		const checkIcon = getIcon("check-circle");
+
+		if (checkIcon) {
+			iconContainer.appendChild(checkIcon);
+		}
 
 		if (prUrl) {
-			this.progressViewTop.createEl("a", linkText);
+			successContainer.createEl("h3", {
+				text: "Pull request created!",
+				cls: "dg-update-title",
+			});
+
+			successContainer.createEl("p", {
+				text: "Approve the PR to make the changes go live.",
+				cls: "dg-update-message",
+			});
+
+			const linkContainer = successContainer.createDiv({
+				cls: "dg-update-link-container",
+			});
+
+			const link = linkContainer.createEl("a", {
+				text: "Open Pull Request",
+				href: prUrl,
+				cls: "dg-update-link",
+			});
+
+			const externalIcon = getIcon("external-link");
+
+			if (externalIcon) {
+				link.appendChild(externalIcon);
+			}
+		} else {
+			successContainer.createEl("h3", {
+				text: "Already up to date!",
+				cls: "dg-update-title",
+			});
+
+			successContainer.createEl("p", {
+				text: "Your site template is already on the latest version.",
+				cls: "dg-update-message",
+			});
 		}
-		this.progressViewTop.createEl("br");
 	}
 
 	renderError() {
 		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
-		const errorMsg = {
-			text: "❌ Something went wrong. Try deleting the branch in GitHub.",
-			attr: {},
-		};
-		this.progressViewTop.createEl("p", errorMsg);
+		const errorContainer = this.progressViewTop.createDiv({
+			cls: "dg-update-error",
+		});
+
+		// Error icon
+		const iconContainer = errorContainer.createDiv({
+			cls: "dg-update-icon dg-update-icon-error",
+		});
+		const alertIcon = getIcon("alert-circle");
+
+		if (alertIcon) {
+			iconContainer.appendChild(alertIcon);
+		}
+
+		errorContainer.createEl("h3", {
+			text: "Something went wrong",
+			cls: "dg-update-title",
+		});
+
+		errorContainer.createEl("p", {
+			text: 'Try deleting the "update-template" branch in your GitHub repository and try again.',
+			cls: "dg-update-message",
+		});
 	}
 }

@@ -274,3 +274,235 @@ h4 {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+/* Update Modal Styles */
+.dg-update-modal .modal-content {
+	padding: 0;
+}
+
+.dg-modal-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dg-modal-title .svg-icon {
+	width: 20px;
+	height: 20px;
+}
+
+.dg-update-section {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.dg-update-info {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	margin-bottom: 16px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-update-info .svg-icon {
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.dg-update-info-text {
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.dg-update-button-container {
+	display: flex;
+	justify-content: center;
+}
+
+.dg-update-button-container button {
+	padding: 10px 24px;
+	font-size: 1em;
+}
+
+/* Update Progress States */
+.dg-update-progress {
+	margin-top: 16px;
+}
+
+.dg-update-loading,
+.dg-update-success,
+.dg-update-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: 24px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.dg-update-spinner {
+	margin-bottom: 16px;
+}
+
+.dg-update-spinner .svg-icon {
+	width: 32px;
+	height: 32px;
+	color: var(--interactive-accent);
+	animation: dg-rotate 1.5s linear infinite;
+}
+
+.dg-update-loading-text {
+	font-size: 1.1em;
+	font-weight: 500;
+	margin: 0 0 4px 0;
+}
+
+.dg-update-loading-subtext {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin: 0;
+}
+
+.dg-update-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+}
+
+.dg-update-icon .svg-icon {
+	width: 28px;
+	height: 28px;
+}
+
+.dg-update-icon-success {
+	background: rgba(var(--color-green-rgb), 0.15);
+}
+
+.dg-update-icon-success .svg-icon {
+	color: var(--color-green);
+}
+
+.dg-update-icon-error {
+	background: rgba(var(--color-red-rgb), 0.15);
+}
+
+.dg-update-icon-error .svg-icon {
+	color: var(--color-red);
+}
+
+.dg-update-title {
+	margin: 0 0 8px 0;
+	font-size: 1.2em;
+}
+
+.dg-update-message {
+	color: var(--text-muted);
+	margin: 0 0 16px 0;
+}
+
+.dg-update-link-container {
+	margin-top: 8px;
+}
+
+.dg-update-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-radius: 6px;
+	text-decoration: none;
+	font-weight: 500;
+	transition: opacity 0.15s ease;
+}
+
+.dg-update-link:hover {
+	opacity: 0.9;
+	text-decoration: none;
+	color: var(--text-on-accent);
+}
+
+.dg-update-link .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* PR History Styles */
+.dg-pr-history {
+	margin-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 16px;
+}
+
+.dg-pr-history-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	padding: 8px;
+	border-radius: 6px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	transition: background 0.15s ease;
+}
+
+.dg-pr-history-header:hover {
+	background: var(--background-secondary);
+}
+
+.dg-pr-history-header .svg-icon {
+	width: 16px;
+	height: 16px;
+	transition: transform 0.2s ease;
+}
+
+.dg-pr-history-header .svg-icon.is-expanded {
+	transform: rotate(90deg);
+}
+
+.dg-pr-history-list {
+	padding: 8px 0 0 24px;
+}
+
+.dg-pr-history-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border-radius: 4px;
+	margin-bottom: 4px;
+}
+
+.dg-pr-history-item:hover {
+	background: var(--background-secondary);
+}
+
+.dg-pr-history-item .svg-icon {
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+}
+
+.dg-pr-history-link {
+	color: var(--text-normal);
+	text-decoration: none;
+}
+
+.dg-pr-history-link:hover {
+	color: var(--interactive-accent);
+	text-decoration: underline;
+}

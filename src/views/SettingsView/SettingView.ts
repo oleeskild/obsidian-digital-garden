@@ -1851,6 +1851,7 @@ export default class SettingView {
 					button.setButtonText(
 						`Update to ${updater.newestTemplateVersion}`,
 					);
+					button.setCta();
 				} else {
 					button.setButtonText("Already up to date!");
 					button.setDisabled(true);
@@ -1860,23 +1861,57 @@ export default class SettingView {
 					modal.open();
 				});
 			});
-		modal.titleEl.createEl("h2", { text: "Update site" });
 
-		new Setting(modal.contentEl)
-			.setName("Update site to latest template")
-			.setDesc(
-				`
-				This will create a pull request with the latest template changes, which you'll need to use all plugin features. 
-				It will not publish any changes before you approve them.
-			`,
-			)
-			.addButton((button) =>
-				button
-					.setButtonText("Create PR")
-					.onClick(() =>
-						handlePR(button, updater as TemplateUpdater),
-					),
+		// Modal title
+		modal.titleEl.empty();
+
+		const titleContainer = modal.titleEl.createDiv({
+			cls: "dg-modal-title",
+		});
+		const syncIcon = getIcon("refresh-cw");
+
+		if (syncIcon) {
+			titleContainer.appendChild(syncIcon);
+		}
+		titleContainer.createSpan({ text: "Update Site Template" });
+
+		// Modal content
+		const updateSection = modal.contentEl.createDiv({
+			cls: "dg-update-section",
+		});
+
+		const infoContainer = updateSection.createDiv({
+			cls: "dg-update-info",
+		});
+
+		const infoIcon = getIcon("info");
+
+		if (infoIcon) {
+			infoContainer.appendChild(infoIcon);
+		}
+
+		infoContainer.createDiv({
+			cls: "dg-update-info-text",
+			text: "This will create a pull request with the latest template changes. Your site won't be updated until you approve the PR.",
+		});
+
+		const buttonContainer = updateSection.createDiv({
+			cls: "dg-update-button-container",
+		});
+
+		const createPrButton = buttonContainer.createEl("button", {
+			text: "Create Pull Request",
+			cls: "mod-cta",
+		});
+
+		createPrButton.addEventListener("click", () => {
+			handlePR(
+				{
+					setDisabled: (d) => (createPrButton.disabled = d),
+				} as ButtonComponent,
+				updater as TemplateUpdater,
 			);
+		});
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Support" })
@@ -1904,30 +1939,59 @@ export default class SettingView {
 			return;
 		}
 
-		const header = modal.contentEl.createEl("h2", {
-			text: "➕ Recent Pull Request History",
+		const historySection = modal.contentEl.createDiv({
+			cls: "dg-pr-history",
 		});
-		const prsContainer = modal.contentEl.createEl("ul", {});
+
+		const header = historySection.createDiv({
+			cls: "dg-pr-history-header",
+		});
+
+		const chevronIcon = getIcon("chevron-right");
+
+		if (chevronIcon) {
+			header.appendChild(chevronIcon);
+		}
+
+		header.createSpan({ text: "Recent Pull Requests" });
+
+		const prsContainer = historySection.createDiv({
+			cls: "dg-pr-history-list",
+		});
 		prsContainer.hide();
 
-		header.onClickEvent(() => {
+		header.addEventListener("click", () => {
+			const chevron = header.querySelector(".svg-icon");
+
 			if (prsContainer.isShown()) {
 				prsContainer.hide();
-				header.textContent = "➕  Recent Pull Request History";
+				chevron?.removeClass("is-expanded");
 			} else {
 				prsContainer.show();
-				header.textContent = "➖ Recent Pull Request History";
+				chevron?.addClass("is-expanded");
 			}
 		});
 
-		previousPrUrls.map((prUrl) => {
-			const li = prsContainer.createEl("li", {
-				attr: { style: "margin-bottom: 10px" },
+		previousPrUrls.forEach((prUrl) => {
+			const prItem = prsContainer.createDiv({
+				cls: "dg-pr-history-item",
 			});
-			const prUrlElement = document.createElement("a");
-			prUrlElement.href = prUrl;
-			prUrlElement.textContent = prUrl;
-			li.appendChild(prUrlElement);
+
+			const gitPrIcon = getIcon("git-pull-request");
+
+			if (gitPrIcon) {
+				prItem.appendChild(gitPrIcon);
+			}
+
+			// Extract PR number from URL for display
+			const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
+			const displayText = prNumber ? `Pull Request #${prNumber}` : prUrl;
+
+			prItem.createEl("a", {
+				text: displayText,
+				href: prUrl,
+				cls: "dg-pr-history-link",
+			});
 		});
 	}
 }
