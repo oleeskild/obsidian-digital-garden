@@ -63,6 +63,18 @@ export default interface DigitalGardenSettings {
 		dgLinkPreview: boolean;
 		dgShowTags: boolean;
 	};
+
+	uiStrings: {
+		backlinkHeader: string;
+		noBacklinksMessage: string;
+		searchButtonText: string;
+		searchPlaceholder: string;
+		searchEnterHint: string;
+		searchNavigateHint: string;
+		searchCloseHint: string;
+		searchNoResults: string;
+	};
+
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;
 	logLevel?: ILogLevel;

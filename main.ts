@@ -89,6 +89,18 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
+
+	uiStrings: {
+		backlinkHeader: "",
+		noBacklinksMessage: "",
+		searchButtonText: "",
+		searchPlaceholder: "",
+		searchEnterHint: "",
+		searchNavigateHint: "",
+		searchCloseHint: "",
+		searchNoResults: "",
+	},
+
 	logLevel: undefined,
 };
 

@@ -111,6 +111,34 @@ export default class DigitalGardenSiteManager {
 			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
 			STYLE_SETTINGS_BODY_CLASSES: this.settings.styleSettingsBodyClasses,
 			USE_FULL_RESOLUTION_IMAGES: this.settings.useFullResolutionImages,
+			// UI Strings - only include if not empty (empty = use template default)
+			...(this.settings.uiStrings?.backlinkHeader && {
+				UI_BACKLINK_HEADER: this.settings.uiStrings.backlinkHeader,
+			}),
+			...(this.settings.uiStrings?.noBacklinksMessage && {
+				UI_NO_BACKLINKS_MESSAGE:
+					this.settings.uiStrings.noBacklinksMessage,
+			}),
+			...(this.settings.uiStrings?.searchButtonText && {
+				UI_SEARCH_BUTTON_TEXT: this.settings.uiStrings.searchButtonText,
+			}),
+			...(this.settings.uiStrings?.searchPlaceholder && {
+				UI_SEARCH_PLACEHOLDER:
+					this.settings.uiStrings.searchPlaceholder,
+			}),
+			...(this.settings.uiStrings?.searchEnterHint && {
+				UI_SEARCH_ENTER_HINT: this.settings.uiStrings.searchEnterHint,
+			}),
+			...(this.settings.uiStrings?.searchNavigateHint && {
+				UI_SEARCH_NAVIGATE_HINT:
+					this.settings.uiStrings.searchNavigateHint,
+			}),
+			...(this.settings.uiStrings?.searchCloseHint && {
+				UI_SEARCH_CLOSE_HINT: this.settings.uiStrings.searchCloseHint,
+			}),
+			...(this.settings.uiStrings?.searchNoResults && {
+				UI_SEARCH_NO_RESULTS: this.settings.uiStrings.searchNoResults,
+			}),
 		} as Record<string, string | boolean>;
 
 		if (theme.name !== "default") {

@@ -162,6 +162,11 @@ export default class SettingView {
 		this.initializeThemesSettings();
 
 		this.settingsRootElement
+			.createEl("h3", { text: "Localization" })
+			.prepend(this.getIcon("languages"));
+		this.initializeUIStringsSettings();
+
+		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
 			.prepend(this.getIcon("cog"));
 
@@ -485,6 +490,309 @@ export default class SettingView {
 					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
 					markAsChanged();
 				});
+			});
+	}
+
+	private async initializeUIStringsSettings() {
+		const uiStringsModal = new Modal(this.app);
+		uiStringsModal.containerEl.addClass("dg-settings");
+		let hasUnsavedChanges = false;
+
+		// Store text control references for updating after fetch
+		const textControls: Record<string, TextComponent> = {};
+
+		uiStringsModal.titleEl.createEl("h1", {
+			text: "UI Text Settings",
+		});
+
+		const descDiv = uiStringsModal.contentEl.createEl("div", {
+			attr: { style: "margin-bottom: 20px; margin-top: -30px;" },
+		});
+
+		descDiv.createEl("span", {
+			text: "Customize text displayed on your garden. Leave empty to use defaults.",
+		});
+
+		new Setting(this.settingsRootElement)
+			.setName("UI Text / Localization")
+			.setDesc(
+				"Customize labels and messages shown on your garden (Search, Backlinks, etc.)",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Manage UI text");
+
+				cb.onClick(async () => {
+					hasUnsavedChanges = false;
+					updateApplyButton();
+					uiStringsModal.open();
+					await loadRemoteSettings();
+				});
+			});
+
+		// Helper to mark settings as changed
+		const markAsChanged = () => {
+			hasUnsavedChanges = true;
+			updateApplyButton();
+		};
+
+		// Apply button container
+		const applyContainer = uiStringsModal.contentEl.createDiv({
+			cls: "dg-apply-settings-container",
+		});
+
+		const statusEl = applyContainer.createDiv({
+			cls: "dg-apply-settings-status",
+		});
+
+		const applyButton = applyContainer.createEl("button", {
+			text: "Apply changes to site",
+			cls: "mod-cta dg-apply-settings-button",
+		});
+
+		applyButton.addEventListener("click", async () => {
+			if (!hasUnsavedChanges) return;
+
+			await this.saveSiteSettingsAndUpdateEnv(
+				this.app.metadataCache,
+				this.settings,
+				this.saveSettings,
+			);
+			hasUnsavedChanges = false;
+			updateApplyButton();
+		});
+
+		const updateApplyButton = () => {
+			if (hasUnsavedChanges) {
+				statusEl.setText("You have unsaved changes");
+				statusEl.style.color = "var(--text-warning)";
+				applyContainer.classList.add("has-changes");
+				applyButton.disabled = false;
+			} else {
+				statusEl.setText("Change a setting to apply");
+				statusEl.style.color = "var(--text-muted)";
+				applyContainer.classList.remove("has-changes");
+				applyButton.disabled = true;
+			}
+		};
+
+		// Mapping of env keys to control keys and settings keys
+		const uiStringsMap: Array<{
+			envKey: string;
+			controlKey: string;
+			settingsKey: keyof typeof this.settings.uiStrings;
+		}> = [
+			{
+				envKey: "UI_BACKLINK_HEADER",
+				controlKey: "backlinkHeader",
+				settingsKey: "backlinkHeader",
+			},
+			{
+				envKey: "UI_NO_BACKLINKS_MESSAGE",
+				controlKey: "noBacklinksMessage",
+				settingsKey: "noBacklinksMessage",
+			},
+			{
+				envKey: "UI_SEARCH_BUTTON_TEXT",
+				controlKey: "searchButtonText",
+				settingsKey: "searchButtonText",
+			},
+			{
+				envKey: "UI_SEARCH_PLACEHOLDER",
+				controlKey: "searchPlaceholder",
+				settingsKey: "searchPlaceholder",
+			},
+			{
+				envKey: "UI_SEARCH_ENTER_HINT",
+				controlKey: "searchEnterHint",
+				settingsKey: "searchEnterHint",
+			},
+			{
+				envKey: "UI_SEARCH_NAVIGATE_HINT",
+				controlKey: "searchNavigateHint",
+				settingsKey: "searchNavigateHint",
+			},
+			{
+				envKey: "UI_SEARCH_CLOSE_HINT",
+				controlKey: "searchCloseHint",
+				settingsKey: "searchCloseHint",
+			},
+			{
+				envKey: "UI_SEARCH_NO_RESULTS",
+				controlKey: "searchNoResults",
+				settingsKey: "searchNoResults",
+			},
+		];
+
+		// Load settings from remote .env file
+		const loadRemoteSettings = async () => {
+			statusEl.setText("Loading settings from site...");
+			applyContainer.classList.remove("has-changes");
+
+			try {
+				const gardenManager = new DigitalGardenSiteManager(
+					this.app.metadataCache,
+					this.settings,
+				);
+
+				const connection =
+					await gardenManager.getUserGardenConnection();
+				const envFile = await connection.getFile(".env");
+
+				if (envFile?.content) {
+					const envContent = Base64.decode(envFile.content);
+					const remoteSettings = this.parseEnvSettings(envContent);
+
+					// Update controls with remote values
+					for (const mapping of uiStringsMap) {
+						const control = textControls[mapping.controlKey];
+
+						if (mapping.envKey in remoteSettings && control) {
+							const value = remoteSettings[mapping.envKey];
+							control.setValue(value);
+
+							this.settings.uiStrings[mapping.settingsKey] =
+								value;
+						}
+					}
+				}
+
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			} catch (error) {
+				console.error("Failed to load remote UI strings:", error);
+				statusEl.setText("Could not load remote settings");
+				statusEl.style.color = "var(--text-error)";
+
+				setTimeout(() => {
+					statusEl.style.color = "";
+					hasUnsavedChanges = false;
+					updateApplyButton();
+				}, 3000);
+			}
+		};
+
+		updateApplyButton();
+
+		// Backlinks Section
+		uiStringsModal.contentEl
+			.createEl("h3", { text: "Backlinks" })
+			.prepend(this.getIcon("link"));
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Backlink header")
+			.setDesc('Default: "Pages mentioning this page"')
+			.addText((text) => {
+				textControls["backlinkHeader"] = text;
+
+				text.setPlaceholder("Pages mentioning this page")
+					.setValue(this.settings.uiStrings?.backlinkHeader ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.backlinkHeader = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("No backlinks message")
+			.setDesc('Default: "No other pages mentions this page"')
+			.addText((text) => {
+				textControls["noBacklinksMessage"] = text;
+
+				text.setPlaceholder("No other pages mentions this page")
+					.setValue(this.settings.uiStrings?.noBacklinksMessage ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.noBacklinksMessage = val;
+						markAsChanged();
+					});
+			});
+
+		// Search Section
+		uiStringsModal.contentEl
+			.createEl("h3", { text: "Search" })
+			.prepend(this.getIcon("search"));
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Search button text")
+			.setDesc('Default: "Search"')
+			.addText((text) => {
+				textControls["searchButtonText"] = text;
+
+				text.setPlaceholder("Search")
+					.setValue(this.settings.uiStrings?.searchButtonText ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchButtonText = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Search placeholder")
+			.setDesc('Default: "Start typing..."')
+			.addText((text) => {
+				textControls["searchPlaceholder"] = text;
+
+				text.setPlaceholder("Start typing...")
+					.setValue(this.settings.uiStrings?.searchPlaceholder ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchPlaceholder = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Enter to select hint")
+			.setDesc('Default: "Enter to select"')
+			.addText((text) => {
+				textControls["searchEnterHint"] = text;
+
+				text.setPlaceholder("Enter to select")
+					.setValue(this.settings.uiStrings?.searchEnterHint ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchEnterHint = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Navigate hint")
+			.setDesc('Default: "to navigate"')
+			.addText((text) => {
+				textControls["searchNavigateHint"] = text;
+
+				text.setPlaceholder("to navigate")
+					.setValue(this.settings.uiStrings?.searchNavigateHint ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchNavigateHint = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Close hint")
+			.setDesc('Default: "ESC to close"')
+			.addText((text) => {
+				textControls["searchCloseHint"] = text;
+
+				text.setPlaceholder("ESC to close")
+					.setValue(this.settings.uiStrings?.searchCloseHint ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchCloseHint = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("No results message")
+			.setDesc('Default: "No results for"')
+			.addText((text) => {
+				textControls["searchNoResults"] = text;
+
+				text.setPlaceholder("No results for")
+					.setValue(this.settings.uiStrings?.searchNoResults ?? "")
+					.onChange((val) => {
+						this.settings.uiStrings.searchNoResults = val;
+						markAsChanged();
+					});
 			});
 	}
 
