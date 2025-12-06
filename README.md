@@ -13,25 +13,48 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 
 ## Features
 
+### Content Support
 -   Basic Markdown Syntax
 -   Links to other notes
 -   Dataview queries (as codeblocks, inline and dataviewjs)
--   Backlinks
--   Obsidian Themes
--   Style settings
--   Local graph
--   Filetree navigation
--   Global search
--   Callouts/Admonitions
+-   Transcluded/embedded notes
 -   Embedded/Transcluded Excalidraw drawings
 -   Embedded/Transcluded Images
--   Transcluded notes
+-   Embedded PDFs (up to 20MB, rendered inline)
+-   Callouts/Admonitions
 -   Code Blocks
 -   MathJax
 -   Highlighted text
 -   Footnotes
 -   Mermaid diagrams
 -   PlantUML diagrams
+
+### Navigation & Discovery
+-   Global search with live preview
+-   Filetree navigation
+-   Backlinks
+-   Local graph
+-   Table of contents
+-   Link previews on hover
+
+### Customization
+-   Obsidian Themes
+-   Style Settings plugin support
+-   Customizable via CSS variables
+-   Custom filters (regex-based content transformation)
+-   Note icons
+-   Timestamps (created/updated)
+-   Customizable UI text (search placeholders, backlink headers, etc.)
+
+### Privacy & Control
+-   **Selective publishing** - Only notes explicitly marked with `dg-publish: true` are published
+-   **No accidental leaks** - Linked notes are never auto-published; you decide what goes public
+-   **Full control** - Your private notes stay private until you choose to share them
+
+### Hosting Options
+-   **Vercel** - One-click deploy, automatic builds
+-   **Netlify** - Alternative hosting with similar features
+-   **[Forestry.md](https://forestry.md)** - Managed hosting for non-technical users (no GitHub setup required)
 
 ## Initial Setup
 
@@ -78,10 +101,34 @@ You can now start adding links as you usually would in Obisidan, with double squ
 
 ![new-note-demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/new-note-demo.gif)
 
+## Alternative: Forestry.md (No GitHub Required)
+
+If you prefer a simpler setup without managing GitHub repositories, you can use [Forestry.md](https://forestry.md) - a managed hosting service for digital gardens:
+
+1. Create an account at [forestry.md](https://forestry.md)
+2. Get your Garden Key from the Forestry.md dashboard
+3. In Obsidian, open Digital Garden settings and enter your Garden Key in the Forestry.md section
+4. Start publishing notes directly - no GitHub or Vercel setup needed
+
+This is ideal for non-technical users who want a working digital garden without dealing with GitHub tokens, repositories, or deployment pipelines.
+
 ## Modifying the template/site
 
-The code for the website is available in the repo you created in step 3, and this is yours to modify however you want.  
-Any css/scss files placed under src/site/styles/user will automatically be linked into the head right after all other styling. Meaning that the styling added here will take presedence over everything else.
+The code for the website is available in the repo you created in step 3, and this is yours to modify however you want.
+
+### CSS Customization
+
+Any CSS/SCSS files placed under `src/site/styles/user` will automatically be linked into the head right after all other styling, meaning that the styling added here will take precedence over everything else.
+
+The template exposes many CSS variables that you can override, including:
+- Colors (background, text, links, etc.)
+- Typography (fonts, sizes, line heights)
+- Spacing and layout
+- Component-specific styling (graph, search, sidebar)
+
+### Custom Components
+
+You can add custom components to your garden by creating Nunjucks templates in `src/site/_includes/components/user/`. These can be included in your notes or layouts to add interactive elements, custom widgets, or specialized content displays.
 
 ## Updating the template
 
