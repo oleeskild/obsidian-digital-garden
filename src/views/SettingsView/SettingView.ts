@@ -506,7 +506,7 @@ export default class SettingView {
 		});
 
 		const descDiv = uiStringsModal.contentEl.createEl("div", {
-			attr: { style: "margin-bottom: 20px; margin-top: -30px;" },
+			attr: { style: "margin-bottom: 20px;" },
 		});
 
 		descDiv.createEl("span", {
