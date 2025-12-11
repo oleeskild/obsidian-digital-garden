@@ -20,7 +20,10 @@ import { Base64 } from "js-base64";
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import { arrayBufferToBase64 } from "../../utils/utils";
-import { SvgFileSuggest } from "../../ui/suggest/file-suggest";
+import {
+	ImageFileSuggest,
+	SvgFileSuggest,
+} from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
@@ -1005,6 +1008,7 @@ export default class SettingView {
 				new Notice("Applying settings to site...");
 				await this.saveSettingsAndUpdateEnv();
 				await this.addFavicon(octokit);
+				await this.addLogo(octokit);
 			});
 		};
 
@@ -1285,6 +1289,22 @@ export default class SettingView {
 						await this.saveSettings();
 					},
 				);
+			});
+
+		new Setting(themeSection)
+			.setName("Logo")
+			.setDesc(
+				"Path to an image in your vault to use as a logo instead of the sitename. Leave blank to show sitename text.",
+			)
+			.addText((tc) => {
+				tc.setPlaceholder("mylogo.png");
+				tc.setValue(this.settings.logoPath);
+
+				tc.onChange(async (val) => {
+					this.settings.logoPath = val;
+					await this.saveSettings();
+				});
+				new ImageFileSuggest(this.app, tc.inputEl);
 			});
 
 		new Setting(themeSection)
@@ -1679,6 +1699,111 @@ export default class SettingView {
 				content: base64SettingsFaviconContent,
 				// @ts-expect-error TODO: abstract octokit response
 				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
+			});
+		}
+	}
+
+	private async addLogo(octokit: Octokit) {
+		const logoBasePath = "src/site/logo";
+
+		// First, try to delete any existing logo files
+		const logoExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
+
+		for (const ext of logoExtensions) {
+			try {
+				const existingLogo = await octokit.request(
+					"GET /repos/{owner}/{repo}/contents/{path}",
+					{
+						owner: this.settings.githubUserName,
+						repo: this.settings.githubRepo,
+						path: `${logoBasePath}.${ext}`,
+					},
+				);
+
+				// Delete the existing logo if we're either clearing it or uploading a different format
+				if (existingLogo.data) {
+					const currentPath = this.settings.logoPath;
+
+					const currentExt = currentPath
+						? currentPath.split(".").pop()?.toLowerCase()
+						: null;
+
+					// Delete if no logo path set, or if the extension is different
+					if (!currentPath || currentExt !== ext) {
+						await octokit.request(
+							"DELETE /repos/{owner}/{repo}/contents/{path}",
+							{
+								owner: this.settings.githubUserName,
+								repo: this.settings.githubRepo,
+								path: `${logoBasePath}.${ext}`,
+								message: `Remove logo.${ext}`,
+								// @ts-expect-error TODO: abstract octokit response
+								sha: existingLogo.data.sha,
+							},
+						);
+					}
+				}
+			} catch {
+				// File doesn't exist, continue
+			}
+		}
+
+		// If no logo path is set, we're done (logo removed)
+		if (!this.settings.logoPath) {
+			return;
+		}
+
+		const logoFile = this.app.vault.getAbstractFileByPath(
+			this.settings.logoPath,
+		);
+
+		if (!(logoFile instanceof TFile)) {
+			new Notice(`${this.settings.logoPath} is not a valid file.`);
+
+			return;
+		}
+
+		const logoContent = await this.app.vault.readBinary(logoFile);
+		const base64LogoContent = arrayBufferToBase64(logoContent);
+		const logoExtension = logoFile.extension.toLowerCase();
+		const logoPath = `${logoBasePath}.${logoExtension}`;
+
+		let logoExists = true;
+		let logosAreIdentical = false;
+		let currentLogoOnSite = null;
+
+		try {
+			currentLogoOnSite = await octokit.request(
+				"GET /repos/{owner}/{repo}/contents/{path}",
+				{
+					owner: this.settings.githubUserName,
+					repo: this.settings.githubRepo,
+					path: logoPath,
+				},
+			);
+
+			logosAreIdentical =
+				// @ts-expect-error TODO: abstract octokit response
+				currentLogoOnSite.data.content === base64LogoContent;
+
+			if (logosAreIdentical) {
+				Logger.info("Logos are identical, skipping update");
+
+				return;
+			}
+		} catch {
+			logoExists = false;
+		}
+
+		if (!logoExists || !logosAreIdentical) {
+			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+				owner: this.settings.githubUserName,
+				repo: this.settings.githubRepo,
+				path: logoPath,
+				message: `Update logo.${logoExtension}`,
+				content: base64LogoContent,
+				// @ts-expect-error TODO: abstract octokit response
+				sha: logoExists ? currentLogoOnSite.data.sha : null,
 			});
 		}
 	}

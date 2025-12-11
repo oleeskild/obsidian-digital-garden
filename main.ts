@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	// Stringify to be backwards compatible with older versions
 	theme: JSON.stringify(defaultTheme),
 	faviconPath: "",
+	logoPath: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
