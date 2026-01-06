@@ -139,6 +139,15 @@ export default class DigitalGardenSiteManager {
 			...(this.settings.uiStrings?.searchNoResults && {
 				UI_SEARCH_NO_RESULTS: this.settings.uiStrings.searchNoResults,
 			}),
+			...(this.settings.uiStrings?.canvasDragHint && {
+				UI_CANVAS_DRAG_HINT: this.settings.uiStrings.canvasDragHint,
+			}),
+			...(this.settings.uiStrings?.canvasZoomHint && {
+				UI_CANVAS_ZOOM_HINT: this.settings.uiStrings.canvasZoomHint,
+			}),
+			...(this.settings.uiStrings?.canvasResetHint && {
+				UI_CANVAS_RESET_HINT: this.settings.uiStrings.canvasResetHint,
+			}),
 		} as Record<string, string | boolean>;
 
 		if (theme.name !== "default") {

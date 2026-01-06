@@ -75,6 +75,9 @@ export default interface DigitalGardenSettings {
 		searchCloseHint: string;
 		searchNoResults: string;
 		searchPreviewPlaceholder: string;
+		canvasDragHint: string;
+		canvasZoomHint: string;
+		canvasResetHint: string;
 	};
 
 	ENABLE_DEVELOPER_TOOLS?: boolean;

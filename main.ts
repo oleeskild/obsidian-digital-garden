@@ -442,9 +442,12 @@ export default class DigitalGarden extends Plugin {
 				return;
 			}
 
-			if (activeFile.extension !== "md") {
+			if (
+				activeFile.extension !== "md" &&
+				activeFile.extension !== "canvas"
+			) {
 				new Notice(
-					"The current file is not a markdown file. Please open a markdown file and try again.",
+					"The current file is not a markdown or canvas file. Please open a supported file and try again.",
 				);
 
 				return;

@@ -56,14 +56,45 @@ export default class Publisher {
 		return hasPublishFlag(frontMatter);
 	}
 
+	/**
+	 * Check if a canvas file should be published by reading its JSON metadata.
+	 * Canvas files store frontmatter in the metadata.frontmatter field.
+	 */
+	async shouldPublishCanvas(file: TFile): Promise<boolean> {
+		if (file.extension !== "canvas") {
+			return this.shouldPublish(file);
+		}
+
+		try {
+			const content = await this.vault.cachedRead(file);
+			const canvasData = JSON.parse(content);
+			const frontMatter = canvasData?.metadata?.frontmatter;
+
+			return hasPublishFlag(frontMatter);
+		} catch {
+			return false;
+		}
+	}
+
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
-		const files = this.vault.getMarkdownFiles();
+		// Get both markdown and canvas files
+		const markdownFiles = this.vault.getMarkdownFiles();
+		const allFiles = this.vault.getFiles();
+		const canvasFiles = allFiles.filter((f) => f.extension === "canvas");
+		const files = [...markdownFiles, ...canvasFiles];
+
 		const notesToPublish: PublishFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
 
 		for (const file of files) {
 			try {
-				if (this.shouldPublish(file)) {
+				// Use async check for canvas files (they store frontmatter in JSON)
+				const shouldPublish =
+					file.extension === "canvas"
+						? await this.shouldPublishCanvas(file)
+						: this.shouldPublish(file);
+
+				if (shouldPublish) {
 					const publishFile = new PublishFile({
 						file,
 						vault: this.vault,
@@ -74,9 +105,11 @@ export default class Publisher {
 
 					notesToPublish.push(publishFile);
 
-					const images = await publishFile.getImageLinks();
-
-					images.forEach((i) => imagesToPublish.add(i));
+					// Only extract image links from markdown files
+					if (file.extension === "md") {
+						const images = await publishFile.getImageLinks();
+						images.forEach((i) => imagesToPublish.add(i));
+					}
 				}
 			} catch (e) {
 				Logger.error(e);

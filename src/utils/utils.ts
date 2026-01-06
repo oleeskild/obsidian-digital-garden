@@ -29,20 +29,23 @@ function generateUrlPath(filePath: string, slugifyPath = true): string {
 		return filePath;
 	}
 
+	// Keep .canvas extension in URLs for canvas files
+	const isCanvas = filePath.endsWith(".canvas");
+
 	const extensionLessPath = filePath.contains(".")
 		? filePath.substring(0, filePath.lastIndexOf("."))
 		: filePath;
 
 	if (!slugifyPath) {
-		return extensionLessPath + "/";
+		return extensionLessPath + (isCanvas ? ".canvas/" : "/");
 	}
 
-	return (
-		extensionLessPath
-			.split("/")
-			.map((x) => slugify(x))
-			.join("/") + "/"
-	);
+	const slugifiedPath = extensionLessPath
+		.split("/")
+		.map((x) => slugify(x))
+		.join("/");
+
+	return slugifiedPath + (isCanvas ? ".canvas/" : "/");
 }
 
 function generateBlobHash(content: string) {

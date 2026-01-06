@@ -31,6 +31,7 @@ import {
 } from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
+import { CanvasCompiler, ITextNodeProcessor } from "./CanvasCompiler";
 
 // PDF embedding constants
 const PDF_MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
@@ -57,10 +58,11 @@ export type TCompilerStep = (
 	| ((partiallyCompiledContent: string) => Promise<string>)
 	| ((partiallyCompiledContent: string) => string);
 
-export class GardenPageCompiler {
+export class GardenPageCompiler implements ITextNodeProcessor {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
 	private excalidrawCompiler: ExcalidrawCompiler;
+	private canvasCompiler: CanvasCompiler;
 	private metadataCache: MetadataCache;
 	private readonly getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"];
 
@@ -77,7 +79,39 @@ export class GardenPageCompiler {
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
 		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
+
+		this.canvasCompiler = new CanvasCompiler(
+			vault,
+			metadataCache,
+			settings,
+		);
+		this.canvasCompiler.setTextNodeProcessor(this);
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
+	}
+
+	/**
+	 * Process text content from canvas text nodes through the same pipeline as notes.
+	 * This enables wiki-links, transclusions, dataview, etc. in canvas text nodes.
+	 */
+	async processTextNodeContent(
+		file: PublishFile,
+		text: string,
+	): Promise<string> {
+		// Apply compile steps relevant to text node content
+		// Note: We skip frontmatter conversion since text nodes don't have frontmatter
+		const CANVAS_TEXT_COMPILE_STEPS: TCompilerStep[] = [
+			this.convertCustomFilters,
+			this.createBlockIDs,
+			this.createTranscludedText(0),
+			this.convertDataViews,
+			this.convertLinksToFullPath,
+			this.removeObsidianComments,
+		];
+
+		return await this.runCompilerSteps(
+			file,
+			CANVAS_TEXT_COMPILE_STEPS,
+		)(text);
 	}
 
 	runCompilerSteps =
@@ -102,6 +136,15 @@ export class GardenPageCompiler {
 			return [
 				await this.excalidrawCompiler.compileMarkdown({
 					includeExcaliDrawJs: true,
+				})(file)(vaultFileText),
+				assets,
+			];
+		}
+
+		if (file.file.extension === "canvas") {
+			return [
+				await this.canvasCompiler.compileMarkdown({
+					assets: assets.images,
 				})(file)(vaultFileText),
 				assets,
 			];
@@ -260,15 +303,24 @@ export class GardenPageCompiler {
 						continue;
 					}
 
-					if (linkedFile.extension === "md") {
+					if (
+						linkedFile.extension === "md" ||
+						linkedFile.extension === "canvas"
+					) {
 						const extensionlessPath = linkedFile.path.substring(
 							0,
 							linkedFile.path.lastIndexOf("."),
 						);
 
+						// Keep .canvas extension in links for canvas files
+						const linkPath =
+							linkedFile.extension === "canvas"
+								? `${extensionlessPath}.canvas`
+								: extensionlessPath;
+
 						convertedText = convertedText.replace(
 							linkMatch,
-							`[[${extensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
+							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
 						);
 					}
 				} catch (e) {

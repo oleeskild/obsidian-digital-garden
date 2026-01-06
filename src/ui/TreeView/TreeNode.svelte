@@ -128,7 +128,7 @@
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				<span on:click={toggleExpansion}>{tree.name}</span>
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				{#if enableShowDiff}
+				{#if enableShowDiff && !tree.path.endsWith(".canvas")}
 					<span title="Show changes" class="diff" on:click={showDiff}>
 						<Icon name="file-diff" />
 					</span>

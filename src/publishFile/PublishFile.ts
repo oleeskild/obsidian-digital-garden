@@ -62,10 +62,13 @@ export class PublishFile {
 		);
 	}
 
-	// TODO: This doesn't work yet, but file should be able to tell it's type
-	getType(): "excalidraw" | "markdown" {
-		if (this.file.name.endsWith(".excalidraw")) {
+	getType(): "excalidraw" | "canvas" | "markdown" {
+		if (this.file.name.endsWith(".excalidraw.md")) {
 			return "excalidraw";
+		}
+
+		if (this.file.extension === "canvas") {
+			return "canvas";
 		}
 
 		return "markdown";
@@ -93,6 +96,25 @@ export class PublishFile {
 
 	getFrontmatter() {
 		return this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
+	}
+
+	/**
+	 * For canvas files, frontmatter is stored in the JSON metadata field.
+	 * This method reads it directly from the file content.
+	 */
+	async getCanvasFrontmatter(): Promise<Record<string, unknown>> {
+		if (this.file.extension !== "canvas") {
+			return this.getFrontmatter();
+		}
+
+		try {
+			const content = await this.vault.cachedRead(this.file);
+			const canvasData = JSON.parse(content);
+
+			return canvasData?.metadata?.frontmatter ?? {};
+		} catch {
+			return {};
+		}
 	}
 
 	/** Add other possible sorting logic here, eg if we add dg-sortWeight
