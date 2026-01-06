@@ -24,12 +24,17 @@ interface CanvasColor {
 	color?: string; // hex or "1"-"6" for presets
 }
 
+interface CanvasStyleAttributes {
+	textAlign?: "left" | "center" | "right";
+}
+
 interface CanvasNodeBase extends CanvasColor {
 	id: string;
 	x: number;
 	y: number;
 	width: number;
 	height: number;
+	styleAttributes?: CanvasStyleAttributes;
 }
 
 interface CanvasTextNode extends CanvasNodeBase {
@@ -275,9 +280,17 @@ export class CanvasCompiler {
 		// Store processed markdown in base64 data attribute for 11ty to render at build time
 		const base64Markdown = Buffer.from(processedText).toString("base64");
 
-		return `<div class="canvas-node canvas-node-text ${colorClass}" data-node-id="${node.id}" style="${baseStyle}">
+		// Apply text alignment from styleAttributes
+		const textAlign = node.styleAttributes?.textAlign;
+		const contentStyle = textAlign ? `text-align: ${textAlign};` : "";
+
+		return `<div class="canvas-node canvas-node-text ${colorClass}" data-node-id="${
+			node.id
+		}" style="${baseStyle}">
 	<div class="canvas-node-container">
-		<div class="canvas-node-content markdown-rendered">
+		<div class="canvas-node-content markdown-rendered"${
+			contentStyle ? ` style="${contentStyle}"` : ""
+		}>
 			<div class="canvas-node-text-content" data-markdown="${base64Markdown}"></div>
 		</div>
 	</div>
