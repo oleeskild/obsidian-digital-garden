@@ -17,6 +17,7 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 -   Basic Markdown Syntax
 -   Links to other notes
 -   Dataview queries (as codeblocks, inline and dataviewjs)
+-   Canvas
 -   Transcluded/embedded notes
 -   Embedded/Transcluded Excalidraw drawings
 -   Embedded/Transcluded Images
