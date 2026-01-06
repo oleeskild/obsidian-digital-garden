@@ -76,6 +76,61 @@ export default class Publisher {
 		}
 	}
 
+	/**
+	 * Extract asset paths (images and PDFs) from a canvas file.
+	 * Canvas files can reference assets via file nodes and group backgrounds.
+	 */
+	async extractCanvasAssets(file: TFile): Promise<string[]> {
+		const images: string[] = [];
+
+		const imageExtensions = [
+			"png",
+			"jpg",
+			"jpeg",
+			"gif",
+			"webp",
+			"svg",
+			"bmp",
+			"pdf",
+		];
+
+		try {
+			const content = await this.vault.cachedRead(file);
+			const canvasData = JSON.parse(content);
+
+			if (!canvasData.nodes || !Array.isArray(canvasData.nodes)) {
+				return images;
+			}
+
+			for (const node of canvasData.nodes) {
+				// File nodes can reference images
+				if (node.type === "file" && node.file) {
+					const ext = node.file.split(".").pop()?.toLowerCase();
+
+					if (ext && imageExtensions.includes(ext)) {
+						images.push(node.file);
+					}
+				}
+
+				// Group nodes can have background images
+				if (node.type === "group" && node.background) {
+					const ext = node.background.split(".").pop()?.toLowerCase();
+
+					if (ext && imageExtensions.includes(ext)) {
+						images.push(node.background);
+					}
+				}
+			}
+		} catch (e) {
+			Logger.error(
+				`Failed to extract images from canvas ${file.path}`,
+				e,
+			);
+		}
+
+		return images;
+	}
+
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
 		// Get both markdown and canvas files
 		const markdownFiles = this.vault.getMarkdownFiles();
@@ -105,10 +160,16 @@ export default class Publisher {
 
 					notesToPublish.push(publishFile);
 
-					// Only extract image links from markdown files
+					// Extract image links from markdown files
 					if (file.extension === "md") {
 						const images = await publishFile.getImageLinks();
 						images.forEach((i) => imagesToPublish.add(i));
+					}
+
+					// Extract asset links (images and PDFs) from canvas files
+					if (file.extension === "canvas") {
+						const assets = await this.extractCanvasAssets(file);
+						assets.forEach((i) => imagesToPublish.add(i));
 					}
 				}
 			} catch (e) {

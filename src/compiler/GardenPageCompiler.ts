@@ -669,9 +669,9 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		const text = await file.cachedRead();
 		const assets = [];
 
-		//![[image.png]]
+		//![[image.png]] or ![[file.pdf]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -707,8 +707,9 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			}
 		}
 
-		//![](image.png)
-		const imageRegex = /!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
+		//![](image.png) or ![](file.pdf)
+		const imageRegex =
+			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\)/g;
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -850,6 +851,32 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						);
 					} catch (e) {
 						continue;
+					}
+				}
+			}
+
+			// ![](youtubelink)
+			const youtubeRegex =
+				/!\[([^\]]*)\]\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)[^)]+)\)/g;
+			const youtubeMatches = text.match(youtubeRegex);
+
+			if (youtubeMatches) {
+				for (let i = 0; i < youtubeMatches.length; i++) {
+					const youtubeMatch = youtubeMatches[i];
+
+					const urlStart = youtubeMatch.lastIndexOf("(") + 1;
+					const urlEnd = youtubeMatch.lastIndexOf(")");
+					const url = youtubeMatch.substring(urlStart, urlEnd);
+
+					const youtubeId = this.extractYouTubeId(url);
+
+					if (youtubeId) {
+						const youtubeEmbed = `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+
+						imageText = imageText.replace(
+							youtubeMatch,
+							youtubeEmbed,
+						);
 					}
 				}
 			}
