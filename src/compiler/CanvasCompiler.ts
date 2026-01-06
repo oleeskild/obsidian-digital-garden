@@ -382,6 +382,21 @@ export class CanvasCompiler {
 		colorClass: string,
 	): string {
 		const url = node.url;
+
+		// Check if it's a YouTube video
+		const youtubeId = this.extractYouTubeId(url);
+
+		if (youtubeId) {
+			return `<div class="canvas-node canvas-node-link canvas-node-youtube ${colorClass}" data-node-id="${node.id}" style="${baseStyle}">
+	<div class="canvas-node-label">YouTube</div>
+	<div class="canvas-node-container">
+		<div class="canvas-node-content">
+			<iframe src="https://www.youtube.com/embed/${youtubeId}" class="canvas-youtube-iframe" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+		</div>
+	</div>
+</div>`;
+		}
+
 		// Extract domain for label
 		let label = url;
 
@@ -404,6 +419,23 @@ export class CanvasCompiler {
 		</div>
 	</div>
 </div>`;
+	}
+
+	private extractYouTubeId(url: string): string | null {
+		const patterns = [
+			/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+			/youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+		];
+
+		for (const pattern of patterns) {
+			const match = url.match(pattern);
+
+			if (match && match[1]) {
+				return match[1];
+			}
+		}
+
+		return null;
 	}
 
 	private async buildGroupNode(
