@@ -1,6 +1,10 @@
 # 🏡 Obsidian Digital Garden
 
-Publish your notes to the web, for free. In your own personal garden.
+[![Downloads](https://img.shields.io/github/downloads/oleeskild/obsidian-digital-garden/total?color=blue)](https://github.com/oleeskild/obsidian-digital-garden/releases)
+[![Discord](https://img.shields.io/discord/1062035073255890984?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
+[![GitHub stars](https://img.shields.io/github/stars/oleeskild/obsidian-digital-garden?style=social)](https://github.com/oleeskild/obsidian-digital-garden)
+
+Turn your Obsidian vault into a beautiful website. Free, open-source, and entirely yours.
 
 ![image](https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd)
 
@@ -11,9 +15,17 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 
 ![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
 
+## Why a Digital Garden?
+
+Unlike a blog, a digital garden is a living collection of ideas—notes that grow and connect over time. This plugin lets you selectively share your thinking while keeping private notes private. No monthly fees. Just your ideas, your way.
+
+> 🔒 **Your private notes stay private.** Only notes you explicitly mark with `dg-publish: true` ever leave your vault.
+
+Check out [gardens built by the community](https://vaults.obsidian-community.com/) for inspiration.
+
 ## Features
 
-### Content Support
+### 📝 Content Support
 -   Basic Markdown Syntax
 -   Links to other notes
 -   Dataview queries (as codeblocks, inline and dataviewjs)
@@ -30,15 +42,16 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 -   Mermaid diagrams
 -   PlantUML diagrams
 
-### Navigation & Discovery
--   Global search with live preview
+### 🧭 Navigation & Discovery
+-   Fast search with live preview
 -   Filetree navigation
 -   Backlinks
 -   Local graph
+-   Global graph
 -   Table of contents
 -   Link previews on hover
 
-### Customization
+### 🎨 Customization
 -   Obsidian Themes
 -   Style Settings plugin support
 -   Customizable via CSS variables
@@ -47,19 +60,22 @@ Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole
 -   Timestamps (created/updated)
 -   Customizable UI text (search placeholders, backlink headers, etc.)
 
-### Privacy & Control
+### 🔒 Privacy & Control
 -   **Selective publishing** - Only notes explicitly marked with `dg-publish: true` are published
 -   **No accidental leaks** - Linked notes are never auto-published; you decide what goes public
 -   **Full control** - Your private notes stay private until you choose to share them
 
-### Hosting Options
+### ☁️ Hosting Options
 -   **Vercel** - One-click deploy, automatic builds
 -   **Netlify** - Alternative hosting with similar features
 -   **[Forestry.md](https://forestry.md)** - Managed hosting for non-technical users (no GitHub setup required)
 
 ## Initial Setup
 
-It's a bit of work to set this all up, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
+**⏱️ ~10 minutes to set up.** It takes a bit of work, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
+
+> 💡 **Want a simpler setup?** [Forestry.md](https://forestry.md) offers one-click hosting with no GitHub required. Currently in invite-only alpha.
+
 Lets get started:
 
 1. First off, you will need a GitHub account. If you don't have this, create one [here](https://github.com/signup).
@@ -178,7 +194,7 @@ Note: this repository uses prettier and eslint to enforce code formatting and st
 
 ## Join the Community
 
-Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/Z46n2RNX8e). 
+Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/UsPH74nEVS). 
 
 ## Code Contributers
 
@@ -192,9 +208,7 @@ Huge thanks to all the contributors who helped in making this
 
 ## Support
 
-This plugin is developed in my free time. If you've found it useful, it would make my day and boost my motivation to invest more time in it if you to showed your support by buying me a coffee.
-
-Note that you in no way have to feel any pressure to do this. The plugin is completely free, and will remain free in the unforeseeable future.
+Built with coffee and stubbornness. If this plugin has been useful to you, a coffee would make my day—but it's completely free and always will be.
 
 [<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
 
