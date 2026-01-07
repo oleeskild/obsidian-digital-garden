@@ -1,7 +1,7 @@
 # 🏡 Obsidian Digital Garden
 
 [![Downloads](https://img.shields.io/github/downloads/oleeskild/obsidian-digital-garden/total?color=blue)](https://github.com/oleeskild/obsidian-digital-garden/releases)
-[![Discord](https://img.shields.io/discord/1062035073255890984?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
+[![Discord](https://img.shields.io/discord/1154324140313018429?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
 [![GitHub stars](https://img.shields.io/github/stars/oleeskild/obsidian-digital-garden?style=social)](https://github.com/oleeskild/obsidian-digital-garden)
 
 Turn your Obsidian vault into a beautiful website. Free, open-source, and entirely yours.
@@ -9,11 +9,9 @@ Turn your Obsidian vault into a beautiful website. Free, open-source, and entire
 ![image](https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd)
 
 
-## Docs
+## 📚 Documentation
 
-Documentation and examples can be found at [dg-docs.ole.dev](https://dg-docs.ole.dev/).
-
-![Digital-Garden-Demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/dg-demo.gif)
+**[dg-docs.ole.dev](https://dg-docs.ole.dev/)** — Full setup guide, configuration options, and examples.
 
 ## Why a Digital Garden?
 
