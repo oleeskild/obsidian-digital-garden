@@ -230,9 +230,9 @@ export class RepositoryConnection {
 		);
 
 		const newTreeEntries = baseTree.data.tree
-			.filter(
-				(item: { path: string }) => !filesToDelete.includes(item.path),
-			) // Exclude files to delete
+			.filter((item: { path: string }) =>
+				filesToDelete.includes(item.path),
+			) // Only include files to delete
 			.map(
 				(item: {
 					path: string;
@@ -243,15 +243,31 @@ export class RepositoryConnection {
 					path: item.path,
 					mode: item.mode,
 					type: item.type,
-					sha: item.sha,
+					sha: null,
 				}),
 			);
+
+		//eslint-disable-next-line
+		const tree = newTreeEntries.filter((x: any) => x !== undefined) as {
+			path?: string | undefined;
+			mode?:
+				| "100644"
+				| "100755"
+				| "040000"
+				| "160000"
+				| "120000"
+				| undefined;
+			type?: "tree" | "blob" | "commit" | undefined;
+			sha?: string | null | undefined;
+			content?: string | undefined;
+		}[];
 
 		const newTree = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				tree: newTreeEntries,
+				base_tree: newTreeEntries,
+				tree,
 			},
 		);
 
@@ -270,10 +286,10 @@ export class RepositoryConnection {
 		const defaultBranch = (await repoDataPromise).data.default_branch;
 
 		await this.octokit.request(
-			"PATCH /repos/{owner}/{repo}/git/refs/{ref}",
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				ref: `heads/${defaultBranch}`,
+				branch: defaultBranch,
 				sha: newCommit.data.sha,
 			},
 		);
