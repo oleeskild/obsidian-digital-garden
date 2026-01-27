@@ -13,6 +13,7 @@ import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
+import { ImageUploadService } from "../storage/ImageUploadService";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -31,6 +32,7 @@ export default class Publisher {
 	compiler: GardenPageCompiler;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
+	imageUploadService: ImageUploadService;
 
 	constructor(
 		vault: Vault,
@@ -41,6 +43,7 @@ export default class Publisher {
 		this.metadataCache = metadataCache;
 		this.settings = settings;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
+		this.imageUploadService = new ImageUploadService(settings);
 
 		this.compiler = new GardenPageCompiler(
 			vault,
@@ -217,7 +220,24 @@ export default class Publisher {
 		}
 
 		try {
-			const [text, assets] = file.compiledFile;
+			let [text, assets] = file.compiledFile;
+
+			// If blob storage is enabled, upload images there and rewrite URLs
+			if (this.imageUploadService.isBlobStorageEnabled()) {
+				const urlMap =
+					await this.imageUploadService.uploadAllToBlobStorage(
+						assets.images,
+					);
+
+				if (urlMap.size > 0) {
+					text = this.imageUploadService.rewriteImageUrls(
+						text,
+						urlMap,
+					);
+					// Clear images from assets since they're now in blob storage
+					assets = { images: [] };
+				}
+			}
 
 			await this.uploadText(file.getPath(), text, file?.remoteHash);
 			await this.uploadAssets(assets);
@@ -262,6 +282,35 @@ export default class Publisher {
 		}
 
 		try {
+			// If blob storage is enabled, upload images there and rewrite URLs
+			if (this.imageUploadService.isBlobStorageEnabled()) {
+				// Collect all images from all files
+				const allImages = filesToPublish.flatMap(
+					(f) => f.compiledFile[1].images,
+				);
+
+				// Upload to blob storage
+				const urlMap =
+					await this.imageUploadService.uploadAllToBlobStorage(
+						allImages,
+					);
+
+				if (urlMap.size > 0) {
+					// Rewrite URLs in each file's content and clear images
+					for (const file of filesToPublish) {
+						const [text] = file.compiledFile;
+
+						const rewrittenText =
+							this.imageUploadService.rewriteImageUrls(
+								text,
+								urlMap,
+							);
+						// Update the compiled file with rewritten content and empty images
+						file.compiledFile = [rewrittenText, { images: [] }];
+					}
+				}
+			}
+
 			const userGardenConnection = new RepositoryConnection(
 				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
@@ -326,6 +375,12 @@ export default class Publisher {
 	private async uploadAssets(assets: Assets) {
 		for (let idx = 0; idx < assets.images.length; idx++) {
 			const image = assets.images[idx];
+
+			// Skip unchanged images (local hash matches remote hash)
+			if (image.remoteHash && image.localHash === image.remoteHash) {
+				Logger.info(`Skipping unchanged image: ${image.path}`);
+				continue;
+			}
 
 			await this.uploadImage(image.path, image.content, image.remoteHash);
 		}

@@ -325,29 +325,44 @@ export class RepositoryConnection {
 			}
 		});
 
-		const treeAssetPromises = files
-			.flatMap((x) => x.compiledFile[1].images)
-			.map(async (asset) => {
-				try {
-					const blob = await this.octokit.request(
-						"POST /repos/{owner}/{repo}/git/blobs",
-						{
-							...this.getBasePayload(),
-							content: asset.content,
-							encoding: "base64",
-						},
-					);
+		// Filter out unchanged images by comparing local hash with remote hash
+		const allImages = files.flatMap((x) => x.compiledFile[1].images);
 
-					return {
-						path: `${IMAGE_PATH_BASE}${normalizePath(asset.path)}`,
-						mode: "100644",
-						type: "blob",
-						sha: blob.data.sha,
-					};
-				} catch (error) {
-					logger.error(error);
-				}
-			});
+		const changedImages = allImages.filter((asset) => {
+			// If no remote hash, the image is new
+			if (!asset.remoteHash) {
+				return true;
+			}
+
+			// If local hash differs from remote hash, the image changed
+			return asset.localHash !== asset.remoteHash;
+		});
+
+		logger.info(
+			`Images: ${changedImages.length} changed out of ${allImages.length} total`,
+		);
+
+		const treeAssetPromises = changedImages.map(async (asset) => {
+			try {
+				const blob = await this.octokit.request(
+					"POST /repos/{owner}/{repo}/git/blobs",
+					{
+						...this.getBasePayload(),
+						content: asset.content,
+						encoding: "base64",
+					},
+				);
+
+				return {
+					path: `${IMAGE_PATH_BASE}${normalizePath(asset.path)}`,
+					mode: "100644",
+					type: "blob",
+					sha: blob.data.sha,
+				};
+			} catch (error) {
+				logger.error(error);
+			}
+		});
 		treePromises.push(...treeAssetPromises);
 
 		const treeList = await Promise.all(treePromises);

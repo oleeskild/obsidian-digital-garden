@@ -56,6 +56,23 @@ function generateBlobHash(content: string) {
 	return sha1(gitBlob).toString();
 }
 
+/**
+ * Generate a Git-compatible blob hash for base64-encoded binary content.
+ * This is used for images and other binary files.
+ */
+function generateBase64BlobHash(base64Content: string) {
+	// Decode base64 to get the actual binary size
+	const binaryString = Base64.atob(base64Content);
+	const byteLength = binaryString.length;
+	const header = `blob ${byteLength}\0`;
+
+	// For Git blob hash, we need to hash the header + raw binary content
+	// crypto-js sha1 works with strings, so we concatenate header + binary string
+	const gitBlob = header + binaryString;
+
+	return sha1(gitBlob).toString();
+}
+
 function kebabize(str: string) {
 	return str
 		.split("")
@@ -138,6 +155,7 @@ export {
 	extractBaseUrl,
 	generateUrlPath,
 	generateBlobHash,
+	generateBase64BlobHash,
 	kebabize,
 	wrapAround,
 	getRewriteRules,

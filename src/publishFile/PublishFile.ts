@@ -152,4 +152,24 @@ export class CompiledPublishFile extends PublishFile {
 	setRemoteHash(hash: string) {
 		this.remoteHash = hash;
 	}
+
+	/**
+	 * Set remote hashes for image assets by comparing with the provided hash map.
+	 * The hash map keys should match the image paths (e.g., "img/user/path/to/image.png")
+	 */
+	setImageRemoteHashes(remoteImageHashes: Record<string, string>) {
+		const [, assets] = this.compiledFile;
+
+		for (const image of assets.images) {
+			// Image paths in assets are like "/img/user/path.png"
+			// Remote hashes are keyed by "img/user/path.png" (without leading slash)
+			const hashKey = image.path.startsWith("/")
+				? image.path.slice(1)
+				: image.path;
+
+			if (remoteImageHashes[hashKey]) {
+				image.remoteHash = remoteImageHashes[hashKey];
+			}
+		}
+	}
 }

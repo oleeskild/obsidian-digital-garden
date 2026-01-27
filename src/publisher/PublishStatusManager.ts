@@ -67,6 +67,9 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			const compiledFile = await file.compile();
 			const [content, _] = compiledFile.getCompiledFile();
 
+			// Set remote hashes for images so we can skip unchanged ones during upload
+			compiledFile.setImageRemoteHashes(remoteImageHashes);
+
 			const localHash = generateBlobHash(content);
 			const remoteHash = remoteNoteHashes[file.getPath()];
 

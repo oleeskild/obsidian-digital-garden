@@ -11,6 +11,7 @@ import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManage
 import Publisher from "../publisher/Publisher";
 import {
 	fixSvgForXmlSerializer,
+	generateBase64BlobHash,
 	generateUrlPath,
 	getGardenPathForNote,
 	getRewriteRules,
@@ -43,7 +44,9 @@ import { replaceBlockIDs } from "./replaceBlockIDs";
 export interface Asset {
 	path: string;
 	content: string;
-	// not set yet
+	/** Local hash of the asset content (Git-compatible SHA1) */
+	localHash: string;
+	/** Remote hash from GitHub, set during publish status check */
 	remoteHash?: string;
 }
 export interface Assets {
@@ -843,7 +846,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							cmsImgPath,
 						)})`;
 
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+						const localHash = generateBase64BlobHash(imageBase64);
+
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							localHash,
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -933,7 +942,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const imageMarkdown = `![${imageName}](${encodeURI(
 							cmsImgPath,
 						)})`;
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+						const localHash = generateBase64BlobHash(imageBase64);
+
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							localHash,
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -1035,7 +1050,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const pdfBase64 = arrayBufferToBase64(pdfBinary);
 						const cmsPdfPath = `/img/user/${linkedFile.path}`;
 
-						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						const localHash = generateBase64BlobHash(pdfBase64);
+
+						assets.push({
+							path: cmsPdfPath,
+							content: pdfBase64,
+							localHash,
+						});
 
 						imageText = imageText.replace(
 							pdfMatch,
@@ -1140,7 +1161,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const pdfBase64 = arrayBufferToBase64(pdfBinary);
 						const cmsPdfPath = `/img/user/${linkedFile.path}`;
 
-						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						const localHash = generateBase64BlobHash(pdfBase64);
+
+						assets.push({
+							path: cmsPdfPath,
+							content: pdfBase64,
+							localHash,
+						});
 
 						imageText = imageText.replace(
 							pdfMatch,
