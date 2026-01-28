@@ -18,6 +18,10 @@ export {
 
 export { S3CompatibleProvider } from "./S3CompatibleProvider";
 export { AzureBlobProvider } from "./AzureBlobProvider";
+export {
+	ForestryBlobProvider,
+	ForestryBlobConfig,
+} from "./ForestryBlobProvider";
 
 export {
 	createBlobStorageProvider,

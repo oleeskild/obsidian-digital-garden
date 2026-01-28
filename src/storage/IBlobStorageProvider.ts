@@ -66,6 +66,7 @@ export type BlobStorageProviderType =
 	| "backblaze-b2"
 	| "aws-s3"
 	| "azure-blob"
+	| "forestry" // Forestry.md managed storage (auto-enabled)
 	| "github"; // GitHub is the default, storing in the repo
 
 export interface IBlobStorageProvider {

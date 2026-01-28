@@ -3,12 +3,17 @@
  *
  * Coordinates image uploads between GitHub and external blob storage.
  * When blob storage is configured, images are uploaded there and URLs are rewritten.
+ *
+ * For Forestry.md users, blob storage is automatically enabled using the Forestry API.
+ * For self-hosted users, blob storage can be configured manually.
  */
 
 import { Asset } from "../compiler/GardenPageCompiler";
 import DigitalGardenSettings from "../models/settings";
+import { PublishPlatform } from "../models/PublishPlatform";
 import { IBlobStorageProvider, getMimeType } from "./IBlobStorageProvider";
 import { getProviderFromSettings } from "./getProviderFromSettings";
+import { ForestryBlobProvider } from "./ForestryBlobProvider";
 import Logger from "js-logger";
 
 const logger = Logger.get("image-upload-service");
@@ -28,13 +33,45 @@ export class ImageUploadService {
 
 	constructor(settings: DigitalGardenSettings) {
 		this.settings = settings;
-		this.provider = getProviderFromSettings(settings.blobStorage);
+		this.provider = this.initializeProvider(settings);
 
 		if (this.provider) {
 			logger.info(
 				`Using blob storage provider: ${this.provider.displayName}`,
 			);
 		}
+	}
+
+	/**
+	 * Initialize the appropriate blob storage provider.
+	 *
+	 * - For Forestry.md: Automatically use ForestryBlobProvider
+	 * - For self-hosted: Use manually configured provider (if any)
+	 */
+	private initializeProvider(
+		settings: DigitalGardenSettings,
+	): IBlobStorageProvider | null {
+		// For Forestry.md, automatically use Forestry blob storage
+		if (settings.publishPlatform === PublishPlatform.ForestryMd) {
+			if (settings.forestrySettings?.apiKey) {
+				logger.info(
+					"Forestry.md detected - using automatic image storage",
+				);
+
+				return new ForestryBlobProvider({
+					apiKey: settings.forestrySettings.apiKey,
+				});
+			}
+
+			logger.warn(
+				"Forestry.md selected but no API key configured - images will go to GitHub",
+			);
+
+			return null;
+		}
+
+		// For self-hosted, use manually configured blob storage (if any)
+		return getProviderFromSettings(settings.blobStorage);
 	}
 
 	/**
