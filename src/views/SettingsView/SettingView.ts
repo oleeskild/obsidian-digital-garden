@@ -186,6 +186,24 @@ export default class SettingView {
 				});
 			});
 		this.initializeCustomFilterSettings();
+
+		new Setting(this.settingsRootElement)
+			.setName("Enable debug logging")
+			.setDesc(
+				"Show detailed logs in the developer console. Useful for troubleshooting.",
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.settings.logLevel === Logger.DEBUG)
+					.onChange(async (value) => {
+						this.settings.logLevel = value
+							? Logger.DEBUG
+							: undefined;
+						Logger.setLevel(value ? Logger.DEBUG : Logger.WARN);
+						await this.saveSettings();
+					});
+			});
+
 		prModal.titleEl.createEl("h1", "Site template settings");
 	}
 

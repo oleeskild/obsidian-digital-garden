@@ -5,7 +5,9 @@ import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
 } from "../publishFile/Validator";
-import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
+import DigitalGardenSiteManager, {
+	PathRewriteRules,
+} from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
@@ -218,9 +220,10 @@ export default class Publisher {
 
 		try {
 			const [text, assets] = file.compiledFile;
+			const remoteImageHashes = await this.getRemoteImageHashes();
 
 			await this.uploadText(file.getPath(), text, file?.remoteHash);
-			await this.uploadAssets(assets);
+			await this.uploadAssets(assets, remoteImageHashes);
 
 			return true;
 		} catch (error) {
@@ -268,7 +271,12 @@ export default class Publisher {
 				),
 			);
 
-			await userGardenConnection.updateFiles(filesToPublish);
+			const remoteImageHashes = await this.getRemoteImageHashes();
+
+			await userGardenConnection.updateFiles(
+				filesToPublish,
+				remoteImageHashes,
+			);
 
 			return true;
 		} catch (error) {
@@ -276,6 +284,29 @@ export default class Publisher {
 
 			return false;
 		}
+	}
+
+	private async getRemoteImageHashes(): Promise<Record<string, string>> {
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			),
+		);
+
+		const contentTree = await userGardenConnection
+			.getContent("HEAD")
+			.catch(() => undefined);
+
+		if (!contentTree) {
+			return {};
+		}
+
+		const siteManager = new DigitalGardenSiteManager(
+			this.metadataCache,
+			this.settings,
+		);
+
+		return siteManager.getImageHashes(contentTree);
 	}
 
 	private async uploadToGithub(
@@ -323,11 +354,26 @@ export default class Publisher {
 		await this.uploadToGithub(path, content, sha);
 	}
 
-	private async uploadAssets(assets: Assets) {
-		for (let idx = 0; idx < assets.images.length; idx++) {
-			const image = assets.images[idx];
+	private async uploadAssets(
+		assets: Assets,
+		remoteImageHashes: Record<string, string> = {},
+	) {
+		for (const image of assets.images) {
+			// Convert asset path to hash key: /img/user/attachments/image.png -> attachments/image.png
+			const hashKey = image.path.replace("/img/user/", "");
+			const remoteHash = remoteImageHashes[hashKey];
 
-			await this.uploadImage(image.path, image.content, image.remoteHash);
+			// Skip if unchanged (local hash matches remote hash)
+			if (
+				remoteHash &&
+				image.localHash &&
+				remoteHash === image.localHash
+			) {
+				Logger.debug(`Skipping unchanged image: ${image.path}`);
+				continue;
+			}
+
+			await this.uploadImage(image.path, image.content, remoteHash);
 		}
 	}
 
