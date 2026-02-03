@@ -1,5 +1,6 @@
 import assert from "node:assert";
 import {
+	generateBlobHashFromBase64,
 	getGardenPathForNote,
 	getRewriteRules,
 	wrapAround,
@@ -114,6 +115,43 @@ describe("utils", () => {
 	describe("wrapAround", () => {
 		it("wraps around a positive number", () => {
 			assert.strictEqual(wrapAround(5, 2), 1);
+		});
+	});
+
+	describe("generateBlobHashFromBase64", () => {
+		it("returns a 40-character hex string (SHA1 format)", () => {
+			// "Hello World" in base64
+			const base64Content = "SGVsbG8gV29ybGQ=";
+			const hash = generateBlobHashFromBase64(base64Content);
+
+			expect(hash).toMatch(/^[a-f0-9]{40}$/);
+		});
+
+		it("produces consistent hashes for identical content", () => {
+			const base64Content = "SGVsbG8gV29ybGQ=";
+			const hash1 = generateBlobHashFromBase64(base64Content);
+			const hash2 = generateBlobHashFromBase64(base64Content);
+
+			expect(hash1).toBe(hash2);
+		});
+
+		it("produces different hashes for different content", () => {
+			const content1 = "SGVsbG8gV29ybGQ="; // "Hello World"
+			const content2 = "R29vZGJ5ZSBXb3JsZA=="; // "Goodbye World"
+			const hash1 = generateBlobHashFromBase64(content1);
+			const hash2 = generateBlobHashFromBase64(content2);
+
+			expect(hash1).not.toBe(hash2);
+		});
+
+		it("matches Git blob hash format for known content", () => {
+			// "Hello World" (11 bytes) should produce Git blob hash
+			// Git computes: SHA1("blob 11\0Hello World")
+			const base64Content = "SGVsbG8gV29ybGQ=";
+			const hash = generateBlobHashFromBase64(base64Content);
+
+			// This hash has been verified to match GitHub's blob hashes in practice
+			expect(hash).toBe("5e1c309dae7f45e0f39b1bf3ac3cd9db12e7d689");
 		});
 	});
 });

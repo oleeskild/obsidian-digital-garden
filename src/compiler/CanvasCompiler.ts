@@ -4,6 +4,7 @@ import { PublishFile } from "../publishFile/PublishFile";
 import DigitalGardenSettings from "../models/settings";
 import {
 	arrayBufferToBase64,
+	generateBlobHashFromBase64,
 	generateUrlPath,
 	getGardenPathForNote,
 	getRewriteRules,
@@ -320,7 +321,12 @@ export class CanvasCompiler {
 					const imageData = await this.vault.readBinary(linkedFile);
 					const imageBase64 = arrayBufferToBase64(imageData);
 					const imgPath = `/img/user/${linkedFile.path}`;
-					assets.push({ path: imgPath, content: imageBase64 });
+
+					assets.push({
+						path: imgPath,
+						content: imageBase64,
+						localHash: generateBlobHashFromBase64(imageBase64),
+					});
 
 					const altText = node.file.split("/").pop() || node.file;
 
@@ -461,7 +467,12 @@ export class CanvasCompiler {
 					const imageData = await this.vault.readBinary(linkedFile);
 					const imageBase64 = arrayBufferToBase64(imageData);
 					const bgPath = `/img/user/${linkedFile.path}`;
-					assets.push({ path: bgPath, content: imageBase64 });
+
+					assets.push({
+						path: bgPath,
+						content: imageBase64,
+						localHash: generateBlobHashFromBase64(imageBase64),
+					});
 
 					const bgSize =
 						node.backgroundStyle === "repeat"

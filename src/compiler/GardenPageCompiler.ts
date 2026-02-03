@@ -11,6 +11,7 @@ import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManage
 import Publisher from "../publisher/Publisher";
 import {
 	fixSvgForXmlSerializer,
+	generateBlobHashFromBase64,
 	generateUrlPath,
 	getGardenPathForNote,
 	getRewriteRules,
@@ -43,8 +44,7 @@ import { replaceBlockIDs } from "./replaceBlockIDs";
 export interface Asset {
 	path: string;
 	content: string;
-	// not set yet
-	remoteHash?: string;
+	localHash?: string;
 }
 export interface Assets {
 	images: Array<Asset>;
@@ -843,7 +843,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							cmsImgPath,
 						)})`;
 
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							localHash: generateBlobHashFromBase64(imageBase64),
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -933,7 +937,12 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const imageMarkdown = `![${imageName}](${encodeURI(
 							cmsImgPath,
 						)})`;
-						assets.push({ path: cmsImgPath, content: imageBase64 });
+
+						assets.push({
+							path: cmsImgPath,
+							content: imageBase64,
+							localHash: generateBlobHashFromBase64(imageBase64),
+						});
 
 						imageText = imageText.replace(
 							imageMatch,
@@ -1035,7 +1044,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const pdfBase64 = arrayBufferToBase64(pdfBinary);
 						const cmsPdfPath = `/img/user/${linkedFile.path}`;
 
-						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						assets.push({
+							path: cmsPdfPath,
+							content: pdfBase64,
+							localHash: generateBlobHashFromBase64(pdfBase64),
+						});
 
 						imageText = imageText.replace(
 							pdfMatch,
@@ -1140,7 +1153,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const pdfBase64 = arrayBufferToBase64(pdfBinary);
 						const cmsPdfPath = `/img/user/${linkedFile.path}`;
 
-						assets.push({ path: cmsPdfPath, content: pdfBase64 });
+						assets.push({
+							path: cmsPdfPath,
+							content: pdfBase64,
+							localHash: generateBlobHashFromBase64(pdfBase64),
+						});
 
 						imageText = imageText.replace(
 							pdfMatch,
