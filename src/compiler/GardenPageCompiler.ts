@@ -766,9 +766,9 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			}
 		}
 
-		// [[image.png]] (linked, not embedded)
+		// [[image.png]] or [[file.pdf]] (linked, not embedded)
 		const linkedImageRegex =
-			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg))(.*?)\]\]/g;
+			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
 		const linkedImageMatches = text.matchAll(linkedImageRegex);
 
 		for (const match of linkedImageMatches) {
@@ -991,6 +991,73 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						Logger.warn("Error processing image link:", e);
 						continue;
 					}
+				}
+			}
+
+			// [[image.png]] or [[file.pdf]] (linked, not embedded)
+			const linkedImageRegex =
+				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
+			const linkedImageMatches = text.matchAll(linkedImageRegex);
+
+			for (const match of linkedImageMatches) {
+				try {
+					const matchIndex = match.index ?? -1;
+
+					if (matchIndex > 0 && text[matchIndex - 1] === "!") {
+						continue;
+					}
+
+					const rawMatch = match[0];
+
+					const textInsideBrackets = rawMatch.substring(
+						rawMatch.indexOf("[[") + 2,
+						rawMatch.lastIndexOf("]]"),
+					);
+
+					const pipeIndex = textInsideBrackets.indexOf("|");
+
+					let linkedFileName =
+						pipeIndex === -1
+							? textInsideBrackets
+							: textInsideBrackets.substring(0, pipeIndex);
+
+					const linkDisplayName =
+						pipeIndex === -1
+							? linkedFileName
+							: textInsideBrackets.substring(pipeIndex + 1);
+
+					if (linkedFileName.endsWith("\\")) {
+						linkedFileName = linkedFileName.substring(
+							0,
+							linkedFileName.length - 1,
+						);
+					}
+
+					const fullLinkedFilePath = getLinkpath(linkedFileName);
+
+					if (fullLinkedFilePath === "") {
+						continue;
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						fullLinkedFilePath,
+						filePath,
+					);
+
+					if (!linkedFile) {
+						continue;
+					}
+
+					const cmsImgPath = `/img/user/${linkedFile.path}`;
+
+					const imageMarkdown = `[${linkDisplayName}](${encodeURI(
+						cmsImgPath,
+					)})`;
+
+					imageText = imageText.replace(rawMatch, imageMarkdown);
+				} catch (e) {
+					Logger.warn("Error processing linked image:", e);
+					continue;
 				}
 			}
 

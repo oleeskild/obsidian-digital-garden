@@ -1786,6 +1786,10 @@ export default class SettingView {
 		const logoExtension = logoFile.extension.toLowerCase();
 		const logoPath = `${logoBasePath}.${logoExtension}`;
 
+		Logger.info(
+			`Uploading logo from ${this.settings.logoPath} to ${logoPath}`,
+		);
+
 		let logoExists = true;
 		let logosAreIdentical = false;
 		let currentLogoOnSite = null;
@@ -1814,15 +1818,28 @@ export default class SettingView {
 		}
 
 		if (!logoExists || !logosAreIdentical) {
-			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
-				path: logoPath,
-				message: `Update logo.${logoExtension}`,
-				content: base64LogoContent,
-				// @ts-expect-error TODO: abstract octokit response
-				sha: logoExists ? currentLogoOnSite.data.sha : null,
-			});
+			try {
+				const requestPayload = {
+					owner: this.settings.githubUserName,
+					repo: this.settings.githubRepo,
+					path: logoPath,
+					message: `Update logo.${logoExtension}`,
+					content: base64LogoContent,
+					// @ts-expect-error TODO: abstract octokit response
+					...(logoExists ? { sha: currentLogoOnSite.data.sha } : {}),
+				};
+
+				await octokit.request(
+					"PUT /repos/{owner}/{repo}/contents/{path}",
+					requestPayload,
+				);
+			} catch (error) {
+				Logger.error("Failed to upload logo", error);
+
+				new Notice(
+					"Failed to upload logo. Check the developer console for details.",
+				);
+			}
 		}
 	}
 
