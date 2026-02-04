@@ -114,6 +114,33 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		)(text);
 	}
 
+	private resolveLinkedFile = (
+		linkPath: string,
+		sourcePath: string,
+	): TFile | null => {
+		if (linkPath === "") {
+			return null;
+		}
+
+		return (
+			this.metadataCache.getFirstLinkpathDest(linkPath, sourcePath) ??
+			null
+		);
+	};
+
+	private extractWikilinkTarget = (wikilink: string): string => {
+		const start = wikilink.indexOf("[[") + 2;
+		const end = wikilink.indexOf("]]");
+
+		if (start < 2 || end < 0) {
+			return "";
+		}
+
+		const [name] = wikilink.substring(start, end).split("|");
+
+		return getLinkpath(name);
+	};
+
 	runCompilerSteps =
 		(file: PublishFile, compilerSteps: TCompilerStep[]) =>
 		async (text: string): Promise<string> => {
@@ -687,11 +714,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						.split("|");
 					const imagePath = getLinkpath(imageName);
 
-					if (imagePath === "") {
-						continue;
-					}
-
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+					const linkedFile = this.resolveLinkedFile(
 						imagePath,
 						file.getPath(),
 					);
@@ -727,11 +750,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 					const decodedImagePath = decodeURI(imagePath);
 
-					if (decodedImagePath === "") {
-						continue;
-					}
-
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+					const linkedFile = this.resolveLinkedFile(
 						decodedImagePath,
 						file.getPath(),
 					);
@@ -744,6 +763,36 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				} catch {
 					continue;
 				}
+			}
+		}
+
+		// [[image.png]] (linked, not embedded)
+		const linkedImageRegex =
+			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg))(.*?)\]\]/g;
+		const linkedImageMatches = text.matchAll(linkedImageRegex);
+
+		for (const match of linkedImageMatches) {
+			try {
+				const matchIndex = match.index ?? -1;
+
+				if (matchIndex > 0 && text[matchIndex - 1] === "!") {
+					continue;
+				}
+
+				const imagePath = this.extractWikilinkTarget(match[0]);
+
+				const linkedFile = this.resolveLinkedFile(
+					imagePath,
+					file.getPath(),
+				);
+
+				if (!linkedFile) {
+					continue;
+				}
+
+				assets.push(linkedFile.path);
+			} catch {
+				continue;
 			}
 		}
 
@@ -810,15 +859,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						const imagePath = getLinkpath(imageName);
 
-						if (imagePath === "") {
-							continue;
-						}
-
-						const linkedFile =
-							this.metadataCache.getFirstLinkpathDest(
-								imagePath,
-								filePath,
-							);
+						const linkedFile = this.resolveLinkedFile(
+							imagePath,
+							filePath,
+						);
 
 						if (!linkedFile) {
 							continue;
@@ -917,15 +961,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						const decodedImagePath = decodeURI(imagePath);
 
-						if (decodedImagePath === "") {
-							continue;
-						}
-
-						const linkedFile =
-							this.metadataCache.getFirstLinkpathDest(
-								decodedImagePath,
-								filePath,
-							);
+						const linkedFile = this.resolveLinkedFile(
+							decodedImagePath,
+							filePath,
+						);
 
 						if (!linkedFile) {
 							continue;
