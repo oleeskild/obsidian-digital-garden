@@ -13,11 +13,20 @@ import {
 } from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
-import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
+import { IMAGE_PATH_BASE } from "../publisher/Publisher";
 import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
 import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("digital-garden-site-manager");
+
+/**
+ * Get the base path for notes based on settings.
+ * Falls back to "src/site/notes/" for backward compatibility if not set.
+ */
+export function getNotePathBase(settings: DigitalGardenSettings): string {
+	return settings.contentBasePath || "src/site/notes/";
+}
+
 export interface PathRewriteRule {
 	from: string;
 	to: string;
@@ -230,9 +239,11 @@ export default class DigitalGardenSiteManager {
 			path = path.substring(1);
 		}
 
+		const notePathBase = getNotePathBase(this.settings);
+
 		const response = await (
 			await this.getUserGardenConnection()
-		).getFile(NOTE_PATH_BASE + path);
+		).getFile(notePathBase + path);
 
 		if (!response) {
 			return "";
@@ -247,18 +258,19 @@ export default class DigitalGardenSiteManager {
 		contentTree: NonNullable<TRepositoryContent>,
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree;
+		const notePathBase = getNotePathBase(this.settings);
 
 		const notes = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(NOTE_PATH_BASE) &&
+				x.path.startsWith(notePathBase) &&
 				x.type === "blob" &&
-				x.path !== `${NOTE_PATH_BASE}notes.json`,
+				x.path !== `${notePathBase}notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const note of notes) {
-			const vaultPath = note.path.replace(NOTE_PATH_BASE, "");
+			const vaultPath = note.path.replace(notePathBase, "");
 			hashes[vaultPath] = note.sha;
 		}
 

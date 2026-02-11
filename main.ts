@@ -1,13 +1,4 @@
-import {
-	Notice,
-	Platform,
-	Plugin,
-	Workspace,
-	addIcon,
-	TFile,
-	Modal,
-	App,
-} from "obsidian";
+import { Notice, Plugin, Workspace, addIcon, TFile } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
@@ -21,27 +12,22 @@ import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
 
-// Process environment variables are provided through esbuild's define feature
-// See esbuild.config.mjs
-
-const defaultTheme = {
-	name: "Red Graphite",
-	author: "SeanWcom",
-	repo: "seanwcom/Red-Graphite-for-Obsidian",
-	screenshot: "thumbnail.png",
-	modes: ["dark", "light"],
-	cssUrl: "https://raw.githubusercontent.com/seanwcom/Red-Graphite-for-Obsidian/HEAD/theme.css",
-};
-
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
+	contentBasePath: "src/content/",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
-	// Stringify to be backwards compatible with older versions
-	theme: JSON.stringify(defaultTheme),
+	theme: JSON.stringify({
+		name: "Red Graphite",
+		author: "SeanWcom",
+		repo: "seanwcom/Red-Graphite-for-Obsidian",
+		screenshot: "thumbnail.png",
+		modes: ["dark", "light"],
+		cssUrl: "https://raw.githubusercontent.com/seanwcom/Red-Graphite-for-Obsidian/HEAD/theme.css",
+	}),
 	faviconPath: "",
 	logoPath: "",
 	useFullResolutionImages: false,
@@ -49,35 +35,34 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	siteName: "Digital Garden",
 	mainLanguage: "en",
 	slugifyEnabled: true,
-	// Note Icon Related Settings
 	noteIconKey: "dg-note-icon",
 	defaultNoteIcon: "",
 	showNoteIconOnTitle: false,
 	showNoteIconInFileTree: false,
 	showNoteIconOnInternalLink: false,
 	showNoteIconOnBackLink: false,
-
-	// Timestamp related settings
 	showCreatedTimestamp: false,
 	createdTimestampKey: "",
 	showUpdatedTimestamp: false,
 	updatedTimestampKey: "",
 	timestampFormat: "MMM dd, yyyy h:mm a",
-
 	styleSettingsCss: "",
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
 	publishPlatform: PublishPlatform.SelfHosted,
-
 	contentClassesKey: "dg-content-classes",
-
 	forestrySettings: {
 		forestryPageName: "",
 		apiKey: "",
 		baseUrl: "",
 	},
-
+	autoDeploySettings: {
+		enabled: false,
+		workflowId: "",
+		branch: "main",
+		workflowInputs: {},
+	},
 	defaultNoteSettings: {
 		dgHomeLink: true,
 		dgPassFrontmatter: false,
@@ -90,7 +75,6 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgLinkPreview: false,
 		dgShowTags: false,
 	},
-
 	uiStrings: {
 		backlinkHeader: "",
 		noBacklinksMessage: "",
@@ -101,8 +85,10 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		searchCloseHint: "",
 		searchNoResults: "",
 		searchPreviewPlaceholder: "",
+		canvasDragHint: "",
+		canvasZoomHint: "",
+		canvasResetHint: "",
 	},
-
 	logLevel: undefined,
 };
 
@@ -113,16 +99,15 @@ Logger.useDefaults({
 		messages.unshift("DG: ");
 	},
 });
+
 export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
-
 	publishModal!: PublicationCenter;
 	isPublishing: boolean = false;
 
 	async onload() {
 		this.appVersion = this.manifest.version;
-
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
 
@@ -131,19 +116,15 @@ export default class DigitalGarden extends Plugin {
 		Logger.info(
 			"Digital garden log level set to " + Logger.getLevel().name,
 		);
-		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 
+		this.addSettingTab(new DigitalGardenSettingTab(this.app, this));
 		await this.addCommands();
 
 		addIcon("digital-garden-icon", seedling);
 
-		this.addRibbonIcon(
-			"digital-garden-icon",
-			"Digital Garden Publication Center",
-			async () => {
-				this.openPublishModal();
-			},
-		);
+		this.addRibbonIcon("digital-garden-icon", "打开发布中心", async () => {
+			this.openPublishModal();
+		});
 	}
 
 	onunload() {}
@@ -161,231 +142,48 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async addCommands() {
-		this.addCommand({
-			id: "quick-publish-and-share-note",
-			name: "Quick Publish And Share Note",
-			callback: async () => {
-				new Notice("Adding publish flag to note and publishing it.");
-				await this.setPublishFlagValue(true);
-				const activeFile = this.app.workspace.getActiveFile();
-
-				const event = this.app.metadataCache.on(
-					"changed",
-					async (file, _data, _cache) => {
-						if (file.path === activeFile?.path) {
-							const successfullyPublished =
-								await this.publishSingleNote();
-
-							if (successfullyPublished) {
-								await this.copyGardenUrlToClipboard();
-							}
-							this.app.metadataCache.offref(event);
-						}
-					},
-				);
-
-				// Remove the event listener after 5 seconds in case the file is not changed.
-				setTimeout(() => {
-					this.app.metadataCache.offref(event);
-				}, 5000);
-			},
-		});
-
+		// 发布当前笔记
 		this.addCommand({
 			id: "publish-note",
-			name: "Publish Active Note",
+			name: "发布当前笔记",
 			callback: async () => {
 				await this.publishSingleNote();
 			},
 		});
 
-		if (this.settings["ENABLE_DEVELOPER_TOOLS"] && Platform.isDesktop) {
-			Logger.info("Developer tools enabled");
-
-			const publisher = new Publisher(
-				this.app.vault,
-				this.app.metadataCache,
-				this.settings,
-			);
-
-			import("./src/test/snapshot/generateGardenSnapshot")
-				.then((snapshotGen) => {
-					this.addCommand({
-						id: "generate-garden-snapshot",
-						name: "Generate Garden Snapshot",
-						callback: async () => {
-							await snapshotGen.generateGardenSnapshot(
-								this.settings,
-								publisher,
-							);
-						},
-					});
-				})
-				.catch((e) => {
-					Logger.error("Unable to load generateGardenSnapshot", e);
-				});
-		}
-
+		// 批量发布所有标记的笔记
 		this.addCommand({
 			id: "publish-multiple-notes",
-			name: "Publish All Notes Marked for Publish",
-			// TODO: move to publisher?
+			name: "发布所有标记的笔记",
 			callback: async () => {
-				if (this.isPublishing) {
-					new Notice(
-						"A publish operation is already in progress. Please wait for it to complete.",
-					);
-
-					return;
-				}
-
-				this.isPublishing = true;
-				const statusBarItem = this.addStatusBarItem();
-
-				try {
-					new Notice("Processing files to publish...");
-					const { vault, metadataCache } = this.app;
-
-					const publisher = new Publisher(
-						vault,
-						metadataCache,
-						this.settings,
-					);
-					publisher.validateSettings();
-
-					const siteManager = new DigitalGardenSiteManager(
-						metadataCache,
-						this.settings,
-					);
-
-					const publishStatusManager = new PublishStatusManager(
-						siteManager,
-						publisher,
-					);
-
-					const publishStatus =
-						await publishStatusManager.getPublishStatus();
-
-					const filesToPublish = publishStatus.changedNotes.concat(
-						publishStatus.unpublishedNotes,
-					);
-					const filesToDelete = publishStatus.deletedNotePaths;
-					const imagesToDelete = publishStatus.deletedImagePaths;
-
-					const totalItems =
-						filesToPublish.length +
-						filesToDelete.length +
-						imagesToDelete.length;
-
-					if (totalItems === 0) {
-						new Notice("Garden is already fully synced!");
-						statusBarItem.remove();
-						this.isPublishing = false;
-
-						return;
-					}
-
-					const statusBar = new PublishStatusBar(
-						statusBarItem,
-						filesToPublish.length +
-							filesToDelete.length +
-							imagesToDelete.length,
-					);
-
-					new Notice(
-						`Publishing ${filesToPublish.length} notes, deleting ${filesToDelete.length} notes and ${imagesToDelete.length} images. See the status bar in lower right corner for progress.`,
-						8000,
-					);
-
-					await publisher.publishBatch(filesToPublish);
-					statusBar.incrementMultiple(filesToPublish.length);
-
-					for (const file of filesToDelete) {
-						await publisher.deleteNote(file.path);
-						statusBar.increment();
-					}
-
-					for (const image of imagesToDelete) {
-						await publisher.deleteImage(image.path);
-						statusBar.increment();
-					}
-
-					statusBar.finish(8000);
-
-					new Notice(
-						`Successfully published ${filesToPublish.length} notes to your garden.`,
-					);
-
-					if (filesToDelete.length > 0) {
-						new Notice(
-							`Successfully deleted ${filesToDelete.length} notes from your garden.`,
-						);
-					}
-
-					if (imagesToDelete.length > 0) {
-						new Notice(
-							`Successfully deleted ${imagesToDelete.length} images from your garden.`,
-						);
-					}
-
-					this.isPublishing = false;
-				} catch (e) {
-					statusBarItem.remove();
-					this.isPublishing = false;
-					console.error(e);
-
-					new Notice(
-						"Unable to publish multiple notes, something went wrong.",
-					);
-				}
+				await this.publishMultipleNotes();
 			},
 		});
 
-		this.addCommand({
-			id: "copy-garden-url",
-			name: "Copy Garden URL",
-			callback: async () => {
-				this.copyGardenUrlToClipboard();
-			},
-		});
-
+		// 打开发布中心
 		this.addCommand({
 			id: "dg-open-publish-modal",
-			name: "Open Publication Center",
+			name: "打开发布中心",
 			callback: async () => {
 				this.openPublishModal();
 			},
 		});
 
+		// 添加发布标记
 		this.addCommand({
 			id: "dg-mark-note-for-publish",
-			name: "Add publish flag",
+			name: "添加发布标记",
 			callback: async () => {
 				this.setPublishFlagValue(true);
 			},
 		});
 
+		// 移除发布标记
 		this.addCommand({
 			id: "dg-unmark-note-for-publish",
-			name: "Remove publish flag",
+			name: "移除发布标记",
 			callback: async () => {
 				this.setPublishFlagValue(false);
-			},
-		});
-
-		this.addCommand({
-			id: "dg-mark-toggle-publish-status",
-			name: "Toggle publication status",
-			callback: async () => {
-				this.togglePublishFlag();
-			},
-		});
-
-		this.addCommand({
-			id: "dg-set-as-home-page",
-			name: "Set as Garden Home Page",
-			callback: async () => {
-				await this.setAsHomePage();
 			},
 		});
 	}
@@ -394,9 +192,7 @@ export default class DigitalGarden extends Plugin {
 		const activeFile = workspace.getActiveFile();
 
 		if (!activeFile) {
-			new Notice(
-				"No file is open/active. Please open a file and try again.",
-			);
+			new Notice("没有打开的文件，请先打开一个文件。");
 
 			return null;
 		}
@@ -404,38 +200,10 @@ export default class DigitalGarden extends Plugin {
 		return activeFile;
 	}
 
-	async copyGardenUrlToClipboard() {
-		try {
-			const { metadataCache, workspace } = this.app;
-
-			const activeFile = this.getActiveFile(workspace);
-
-			if (!activeFile) {
-				return;
-			}
-
-			const siteManager = new DigitalGardenSiteManager(
-				metadataCache,
-				this.settings,
-			);
-			const fullUrl = siteManager.getNoteUrl(activeFile);
-
-			await navigator.clipboard.writeText(fullUrl);
-			new Notice(`Note URL copied to clipboard`);
-		} catch (e) {
-			console.log(e);
-
-			new Notice(
-				"Unable to copy note URL to clipboard, something went wrong.",
-			);
-		}
-	}
-
-	// TODO: move to publisher?
+	// 发布单篇笔记
 	async publishSingleNote() {
 		try {
 			const { vault, workspace, metadataCache } = this.app;
-
 			const activeFile = this.getActiveFile(workspace);
 
 			if (!activeFile) {
@@ -446,14 +214,12 @@ export default class DigitalGarden extends Plugin {
 				activeFile.extension !== "md" &&
 				activeFile.extension !== "canvas"
 			) {
-				new Notice(
-					"The current file is not a markdown or canvas file. Please open a supported file and try again.",
-				);
+				new Notice("当前文件不是 Markdown 或 Canvas 文件，无法发布。");
 
 				return;
 			}
 
-			new Notice("Publishing note...");
+			new Notice("正在发布笔记...");
 
 			const publisher = new Publisher(
 				vault,
@@ -473,18 +239,143 @@ export default class DigitalGarden extends Plugin {
 			const publishSuccessful = await publisher.publish(publishFile);
 
 			if (publishSuccessful) {
-				new Notice(`Successfully published note to your garden.`);
+				new Notice("笔记发布成功！");
+
+				// 触发自动部署
+				if (this.settings.autoDeploySettings.enabled) {
+					new Notice("正在触发部署...");
+					const deploySuccess = await publisher.triggerDeployment();
+
+					if (deploySuccess) {
+						new Notice("部署触发成功！");
+					} else {
+						new Notice("部署触发失败，请检查设置。");
+					}
+				}
 			}
 
 			return publishSuccessful;
 		} catch (e) {
 			console.error(e);
-			new Notice("Unable to publish note, something went wrong.");
+			new Notice("发布失败，出现错误。");
 
 			return false;
 		}
 	}
 
+	// 批量发布笔记
+	async publishMultipleNotes() {
+		if (this.isPublishing) {
+			new Notice("发布操作正在进行中，请等待完成。");
+
+			return;
+		}
+
+		this.isPublishing = true;
+		const statusBarItem = this.addStatusBarItem();
+
+		try {
+			new Notice("正在处理要发布的文件...");
+			const { vault, metadataCache } = this.app;
+
+			const publisher = new Publisher(
+				vault,
+				metadataCache,
+				this.settings,
+			);
+			publisher.validateSettings();
+
+			const siteManager = new DigitalGardenSiteManager(
+				metadataCache,
+				this.settings,
+			);
+
+			const publishStatusManager = new PublishStatusManager(
+				siteManager,
+				publisher,
+			);
+
+			const publishStatus = await publishStatusManager.getPublishStatus();
+
+			const filesToPublish = publishStatus.changedNotes.concat(
+				publishStatus.unpublishedNotes,
+			);
+			const filesToDelete = publishStatus.deletedNotePaths;
+			const imagesToDelete = publishStatus.deletedImagePaths;
+
+			const totalItems =
+				filesToPublish.length +
+				filesToDelete.length +
+				imagesToDelete.length;
+
+			if (totalItems === 0) {
+				new Notice("所有内容已是最新状态！");
+				statusBarItem.remove();
+				this.isPublishing = false;
+
+				return;
+			}
+
+			const statusBar = new PublishStatusBar(
+				statusBarItem,
+				filesToPublish.length +
+					filesToDelete.length +
+					imagesToDelete.length,
+			);
+
+			new Notice(
+				`正在发布 ${filesToPublish.length} 篇笔记，删除 ${filesToDelete.length} 篇笔记和 ${imagesToDelete.length} 张图片...`,
+				8000,
+			);
+
+			// 批量发布
+			await publisher.publishBatch(filesToPublish);
+			statusBar.incrementMultiple(filesToPublish.length);
+
+			// 批量删除笔记（只触发一次部署）
+			const notePathsToDelete = filesToDelete.map((f) => f.path);
+			await publisher.deleteBatch(notePathsToDelete);
+			statusBar.incrementMultiple(filesToDelete.length);
+
+			// 批量删除图片（只触发一次部署）
+			const imagePathsToDelete = imagesToDelete.map((i) => i.path);
+			await publisher.deleteImageBatch(imagePathsToDelete);
+			statusBar.incrementMultiple(imagesToDelete.length);
+
+			statusBar.finish(8000);
+
+			new Notice(`成功发布 ${filesToPublish.length} 篇笔记！`);
+
+			if (filesToDelete.length > 0) {
+				new Notice(`成功删除 ${filesToDelete.length} 篇笔记！`);
+			}
+
+			if (imagesToDelete.length > 0) {
+				new Notice(`成功删除 ${imagesToDelete.length} 张图片！`);
+			}
+
+			// 触发自动部署
+			if (this.settings.autoDeploySettings.enabled) {
+				new Notice("正在触发部署...");
+				const deploySuccess = await publisher.triggerDeployment();
+
+				if (deploySuccess) {
+					new Notice("部署触发成功！");
+				} else {
+					new Notice("部署触发失败，请检查设置。");
+				}
+			}
+
+			this.isPublishing = false;
+		} catch (e) {
+			statusBarItem.remove();
+			this.isPublishing = false;
+			console.error(e);
+			new Notice("发布失败，出现错误。");
+		}
+	}
+
+	// 设置发布标记
 	async setPublishFlagValue(value: boolean) {
 		const activeFile = this.getActiveFile(this.app.workspace);
 
@@ -498,98 +389,15 @@ export default class DigitalGarden extends Plugin {
 				frontmatter[FRONTMATTER_KEYS.PUBLISH] = value;
 			},
 		);
-	}
-	async togglePublishFlag() {
-		const activeFile = this.getActiveFile(this.app.workspace);
 
-		if (!activeFile) {
-			return;
-		}
-
-		await this.app.fileManager.processFrontMatter(
-			activeFile as TFile,
-			(frontmatter) => {
-				frontmatter[FRONTMATTER_KEYS.PUBLISH] =
-					!frontmatter[FRONTMATTER_KEYS.PUBLISH];
-			},
-		);
-	}
-
-	async setAsHomePage() {
-		const activeFile = this.getActiveFile(this.app.workspace);
-
-		if (!activeFile) {
-			return;
-		}
-
-		// Check if current file already has dg-home: true
-		const currentFileCache =
-			this.app.metadataCache.getFileCache(activeFile);
-
-		if (currentFileCache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
-			new Notice("This note is already set as the garden home page.");
-
-			return;
-		}
-
-		// Find existing home pages
-		const existingHomePages: TFile[] = [];
-
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const cache = this.app.metadataCache.getFileCache(file);
-
-			if (cache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
-				existingHomePages.push(file);
-			}
-		}
-
-		if (existingHomePages.length === 0) {
-			// No existing home pages, just set this one
-			await this.app.fileManager.processFrontMatter(
-				activeFile as TFile,
-				(frontmatter) => {
-					frontmatter[FRONTMATTER_KEYS.HOME] = true;
-					frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
-				},
-			);
-
-			new Notice(
-				`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
-			);
+		if (value) {
+			new Notice(`已为 "${activeFile.basename}" 添加发布标记`);
 		} else {
-			// Show confirmation modal
-			new HomePageConfirmationModal(
-				this.app,
-				activeFile,
-				existingHomePages[0],
-				async (shouldUpdate) => {
-					if (shouldUpdate) {
-						// Remove dg-home from existing page
-						await this.app.fileManager.processFrontMatter(
-							existingHomePages[0],
-							(frontmatter) => {
-								delete frontmatter[FRONTMATTER_KEYS.HOME];
-							},
-						);
-
-						// Set dg-home on current page
-						await this.app.fileManager.processFrontMatter(
-							activeFile as TFile,
-							(frontmatter) => {
-								frontmatter[FRONTMATTER_KEYS.HOME] = true;
-								frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
-							},
-						);
-
-						new Notice(
-							`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
-						);
-					}
-				},
-			).open();
+			new Notice(`已移除 "${activeFile.basename}" 的发布标记`);
 		}
 	}
 
+	// 打开发布中心
 	openPublishModal() {
 		const siteManager = new DigitalGardenSiteManager(
 			this.app.metadataCache,
@@ -615,95 +423,5 @@ export default class DigitalGarden extends Plugin {
 			this.settings,
 		);
 		this.publishModal.open();
-	}
-}
-
-class HomePageConfirmationModal extends Modal {
-	private onConfirm: (confirmed: boolean) => void;
-	private newHomeFile: TFile;
-	private existingHomeFile: TFile;
-
-	constructor(
-		app: App,
-		newHomeFile: TFile,
-		existingHomeFile: TFile,
-		onConfirm: (confirmed: boolean) => void,
-	) {
-		super(app);
-		this.newHomeFile = newHomeFile;
-		this.existingHomeFile = existingHomeFile;
-		this.onConfirm = onConfirm;
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.createEl("h2", { text: "Replace Garden Home Page?" });
-
-		const messageDiv = contentEl.createDiv();
-
-		messageDiv.createEl("p", {
-			text: `${this.existingHomeFile.basename} is currently set as your garden home page.`,
-		});
-
-		messageDiv.createEl("p", {
-			text: `This will remove the home page setting from ${this.existingHomeFile.basename} and set ${this.newHomeFile.basename} as the new home page.`,
-		});
-
-		const warningDiv = contentEl.createDiv({
-			attr: {
-				style: "margin: 20px 0; padding: 12px; background: var(--background-secondary); border-radius: 4px;",
-			},
-		});
-
-		warningDiv.createEl("p", {
-			text: "⚠️ Important: Both notes should be published from the Publication Center to ensure your garden has a proper home page.",
-			attr: { style: "color: var(--text-warning); font-weight: bold;" },
-		});
-
-		const buttonContainer = contentEl.createDiv({
-			attr: {
-				style: "display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;",
-			},
-		});
-
-		const cancelButton = buttonContainer.createEl("button", {
-			text: "Cancel",
-			attr: {
-				style: "padding: 8px 16px; border-radius: 4px; cursor: pointer;",
-			},
-		});
-
-		cancelButton.onclick = () => {
-			this.onConfirm(false);
-			this.close();
-		};
-
-		const confirmButton = buttonContainer.createEl("button", {
-			text: "Replace Home Page",
-			attr: {
-				style: "padding: 8px 16px; border-radius: 4px; cursor: pointer; background: var(--interactive-accent); color: var(--text-on-accent);",
-			},
-		});
-
-		confirmButton.onclick = () => {
-			this.onConfirm(true);
-			this.close();
-		};
-
-		// Add keyboard support
-		this.scope.register([], "Enter", () => {
-			this.onConfirm(true);
-			this.close();
-		});
-
-		this.scope.register([], "Escape", () => {
-			this.onConfirm(false);
-			this.close();
-		});
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
 	}
 }

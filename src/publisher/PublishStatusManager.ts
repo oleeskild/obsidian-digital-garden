@@ -1,6 +1,10 @@
 import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteManager";
 import Publisher from "./Publisher";
-import { generateBlobHash } from "../utils/utils";
+import {
+	generateBlobHash,
+	getRewriteRules,
+	getGardenPathForNote,
+} from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
 
 /**
@@ -63,12 +67,23 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
+		// 获取路径改写规则
+		const rewriteRules = getRewriteRules(
+			this.publisher.settings.pathRewriteRules,
+		);
+
 		for (const file of marked.notes) {
 			const compiledFile = await file.compile();
 			const [content, _] = compiledFile.getCompiledFile();
 
 			const localHash = generateBlobHash(content);
-			const remoteHash = remoteNoteHashes[file.getPath()];
+
+			// 使用改写后的路径来匹配远程文件
+			const gardenPath = getGardenPathForNote(
+				file.getPath(),
+				rewriteRules,
+			);
+			const remoteHash = remoteNoteHashes[gardenPath];
 
 			if (!remoteHash) {
 				unpublishedNotes.push(compiledFile);
@@ -81,17 +96,21 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			}
 		}
 
+		// 使用改写后的路径来检查已删除的文件
+		const markedGardenPaths = marked.notes.map((f) =>
+			getGardenPathForNote(f.getPath(), rewriteRules),
+		);
+
 		const deletedNotePaths = this.generateDeletedContentPaths(
 			remoteNoteHashes,
-			marked.notes.map((f) => f.getPath()),
+			markedGardenPaths,
 		);
 
 		const deletedImagePaths = this.generateDeletedContentPaths(
 			remoteImageHashes,
 			marked.images,
 		);
-		// These might already be sorted, as getFilesMarkedForPublishing sorts already
-		publishedNotes.sort((a, b) => a.compare(b));
+
 		publishedNotes.sort((a, b) => a.compare(b));
 		changedNotes.sort((a, b) => a.compare(b));
 		deletedNotePaths.sort((a, b) => a.path.localeCompare(b.path));

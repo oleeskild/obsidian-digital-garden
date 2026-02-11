@@ -1,11 +1,10 @@
 {
-	"id": "digitalgarden",
-	"name": "Digital Garden",
-	"version": "2.69.0",
+	"id": "blog-publish",
+	"name": "Blog Publish",
+	"version": "1.2.0",
 	"minAppVersion": "1.10.0",
-	"description": "Publish your notes to the web for others to enjoy. For free.",
-	"author": "Ole Eskild Steensen",
-	"authorUrl": "https://dg-docs.ole.dev/",
-	"isDesktopOnly": false,
-	"fundingUrl": "https://ko-fi.com/oleeskild"
+	"description": "Publish your notes to my blog.",
+	"author": "joeytdoay",
+	"authorUrl": "https://joeytdoay.com",
+	"isDesktopOnly": false
 }

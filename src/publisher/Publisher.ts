@@ -7,6 +7,7 @@ import {
 } from "../publishFile/Validator";
 import DigitalGardenSiteManager, {
 	PathRewriteRules,
+	getNotePathBase,
 } from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
@@ -22,7 +23,8 @@ export interface MarkedForPublishing {
 }
 
 export const IMAGE_PATH_BASE = "src/site/img/user/";
-export const NOTE_PATH_BASE = "src/site/notes/";
+// NOTE_PATH_BASE is now dynamic based on settings.contentBasePath
+// Use getNotePathBase(settings) to get the correct path
 
 /**
  * Prepares files to be published and publishes them to Github
@@ -186,7 +188,8 @@ export default class Publisher {
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
-		const path = `${NOTE_PATH_BASE}${vaultFilePath}`;
+		const notePathBase = getNotePathBase(this.settings);
+		const path = `${notePathBase}${vaultFilePath}`;
 
 		return await this.delete(path, sha);
 	}
@@ -245,11 +248,84 @@ export default class Publisher {
 				),
 			);
 
-			await userGardenConnection.deleteFiles(filePaths);
+			const notePathBase = getNotePathBase(this.settings);
+			await userGardenConnection.deleteFiles(filePaths, notePathBase);
 
 			return true;
 		} catch (error) {
 			console.error(error);
+
+			return false;
+		}
+	}
+
+	public async deleteImageBatch(filePaths: string[]): Promise<boolean> {
+		if (filePaths.length === 0) {
+			return true;
+		}
+
+		try {
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
+
+			// Convert image paths to full paths with IMAGE_PATH_BASE prefix
+			const fullPaths = filePaths.map(
+				(path) => `${IMAGE_PATH_BASE}${path}`,
+			);
+			await userGardenConnection.deleteFiles(fullPaths);
+
+			return true;
+		} catch (error) {
+			console.error(error);
+
+			return false;
+		}
+	}
+
+	/**
+	 * Trigger auto-deployment workflow if enabled
+	 * @returns true if deployment was triggered successfully
+	 */
+	public async triggerDeployment(): Promise<boolean> {
+		if (!this.settings.autoDeploySettings.enabled) {
+			return false;
+		}
+
+		const { workflowId, branch, workflowInputs } =
+			this.settings.autoDeploySettings;
+
+		if (!workflowId) {
+			new Notice(
+				"Auto-deployment is enabled but workflow ID is not configured.",
+			);
+
+			Logger.warn(
+				"Auto-deployment is enabled but workflow ID is not configured",
+			);
+
+			return false;
+		}
+
+		try {
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
+
+			const success = await userGardenConnection.triggerWorkflow(
+				workflowId,
+				branch,
+				workflowInputs,
+			);
+
+			return success;
+		} catch (error) {
+			console.error("Failed to trigger deployment:", error);
+			Logger.error("Failed to trigger deployment:", error);
 
 			return false;
 		}
@@ -272,10 +348,12 @@ export default class Publisher {
 			);
 
 			const remoteImageHashes = await this.getRemoteImageHashes();
+			const notePathBase = getNotePathBase(this.settings);
 
 			await userGardenConnection.updateFiles(
 				filesToPublish,
 				remoteImageHashes,
+				notePathBase,
 			);
 
 			return true;
@@ -345,7 +423,8 @@ export default class Publisher {
 
 	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
-		const path = `${NOTE_PATH_BASE}${filePath}`;
+		const notePathBase = getNotePathBase(this.settings);
+		const path = `${notePathBase}${filePath}`;
 		await this.uploadToGithub(path, content, sha);
 	}
 

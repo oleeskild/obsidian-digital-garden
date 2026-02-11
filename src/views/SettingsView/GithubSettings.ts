@@ -24,13 +24,14 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
+		this.initializeContentBasePathSetting();
 	}
 
 	initializeHeader = () => {
 		this.checkConnectionAndSaveSettings();
 
 		const githubSettingsHeader = createEl("h3", {
-			text: "GitHub Authentication (required)",
+			text: "GitHub 仓库设置（必填）",
 		});
 		githubSettingsHeader.append(this.connectionStatusElement);
 		githubSettingsHeader.prepend(this.settings.getIcon("github"));
@@ -48,12 +49,11 @@ export class GithubSettings {
 			this.settings.settings;
 
 		if (!githubToken || !githubUserName || !githubRepo) {
-			this.setConnectionError("Please fill in all required fields");
+			this.setConnectionError("请填写所有必填项");
 
 			return;
 		}
 
-		// Show loading state while checking
 		this.connectionStatus = "loading";
 		this.connectionStatusMessage = "";
 		this.updateConnectionStatusIndicator();
@@ -71,7 +71,7 @@ export class GithubSettings {
 			);
 
 			if (hasWriteAccess) {
-				this.setConnectionSuccess("Connected with full access");
+				this.setConnectionSuccess("连接成功，具有写入权限");
 			} else {
 				await this.validateContentAccess(
 					octokit,
@@ -105,10 +105,10 @@ export class GithubSettings {
 				repo,
 				ref: `heads/${branch}`,
 			});
-			this.setConnectionSuccess("Connected");
+			this.setConnectionSuccess("连接成功");
 		} catch {
 			this.setConnectionError(
-				"Token lacks content permissions. For fine-grained PATs, ensure 'Contents' has read and write access.",
+				"令牌缺少内容权限。对于细粒度 PAT，请确保 'Contents' 具有读写权限。",
 			);
 		}
 	}
@@ -119,7 +119,7 @@ export class GithubSettings {
 		repo: string,
 	): void {
 		if (!(error instanceof Error) || !("status" in error)) {
-			this.setConnectionError("Connection failed. Check your settings.");
+			this.setConnectionError("连接失败，请检查设置。");
 
 			return;
 		}
@@ -127,13 +127,13 @@ export class GithubSettings {
 		const status = (error as { status: number }).status;
 
 		const errorMessages: Record<number, string> = {
-			401: "Invalid token. Please check your GitHub token.",
-			403: "Access forbidden. Token may lack required permissions or rate limit exceeded.",
-			404: `Repository '${userName}/${repo}' not found. Check username and repo name, or ensure token has repository access.`,
+			401: "无效的令牌，请检查 GitHub Token。",
+			403: "访问被拒绝，令牌可能缺少所需权限或超出速率限制。",
+			404: `未找到仓库 '${userName}/${repo}'，请检查用户名和仓库名，或确保令牌具有仓库访问权限。`,
 		};
 
 		this.setConnectionError(
-			errorMessages[status] || `Connection failed (${status})`,
+			errorMessages[status] || `连接失败 (${status})`,
 		);
 	}
 
@@ -154,7 +154,6 @@ export class GithubSettings {
 	);
 
 	updateConnectionStatusIndicator = () => {
-		// Clear previous content
 		this.connectionStatusElement.empty();
 
 		let iconName: string;
@@ -163,19 +162,18 @@ export class GithubSettings {
 
 		if (this.connectionStatus === "loading") {
 			iconName = "loader";
-			statusText = "Checking connection...";
+			statusText = "检查连接中...";
 			statusClass = "connection-status-loading";
 		} else if (this.connectionStatus === "connected") {
 			iconName = "check";
-			statusText = this.connectionStatusMessage || "Connected";
+			statusText = this.connectionStatusMessage || "连接成功";
 			statusClass = "connection-status-connected";
 		} else {
 			iconName = "x";
-			statusText = this.connectionStatusMessage || "Connection error";
+			statusText = this.connectionStatusMessage || "连接错误";
 			statusClass = "connection-status-error";
 		}
 
-		// Add icon
 		const icon = getIcon(iconName);
 
 		if (icon) {
@@ -183,23 +181,21 @@ export class GithubSettings {
 			this.connectionStatusElement.appendChild(icon);
 		}
 
-		// Add status text
 		this.connectionStatusElement.createSpan({
 			text: statusText,
 			cls: "connection-status-text",
 		});
 
-		// Update container class for styling
 		this.connectionStatusElement.className = `connection-status ${statusClass}`;
 	};
 
 	private initializeGitHubRepoSetting() {
 		new Setting(this.settingsRootElement)
-			.setName("GitHub repo name")
-			.setDesc("The name of the GitHub repository")
+			.setName("仓库名称")
+			.setDesc("GitHub 仓库名称（例如：myblog）")
 			.addText((text) =>
 				text
-					.setPlaceholder("mydigitalgarden")
+					.setPlaceholder("myblog")
 					.setValue(this.settings.settings.githubRepo)
 					.onChange(async (value) => {
 						this.settings.settings.githubRepo = value;
@@ -210,11 +206,11 @@ export class GithubSettings {
 
 	private initializeGitHubUserNameSetting() {
 		new Setting(this.settingsRootElement)
-			.setName("GitHub Username")
-			.setDesc("Your GitHub Username")
+			.setName("GitHub 用户名")
+			.setDesc("您的 GitHub 用户名")
 			.addText((text) =>
 				text
-					.setPlaceholder("myusername")
+					.setPlaceholder("username")
 					.setValue(this.settings.settings.githubUserName)
 					.onChange(async (value) => {
 						this.settings.settings.githubUserName = value;
@@ -227,25 +223,42 @@ export class GithubSettings {
 		const desc = document.createDocumentFragment();
 
 		desc.createEl("span", undefined, (span) => {
-			span.innerText =
-				"A GitHub token with contents permissions. You can see how to generate it ";
+			span.innerText = "具有 contents 权限的 GitHub 令牌。查看如何生成：";
 
 			span.createEl("a", undefined, (link) => {
 				link.href =
 					"https://dg-docs.ole.dev/advanced/fine-grained-access-token/";
-				link.innerText = "here!";
+				link.innerText = "点击这里";
 			});
 		});
 
 		new Setting(this.settingsRootElement)
-			.setName("GitHub token")
+			.setName("GitHub Token")
 			.setDesc(desc)
 			.addText((text) =>
 				text
-					.setPlaceholder("Secret Token")
+					.setPlaceholder("ghp_xxxxxxxxxxxx")
 					.setValue(this.settings.settings.githubToken)
 					.onChange(async (value) => {
 						this.settings.settings.githubToken = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeContentBasePathSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("内容发布路径")
+			.setDesc("笔记在仓库中的发布路径，默认为：src/content/")
+			.addText((text) =>
+				text
+					.setPlaceholder("src/content/")
+					.setValue(this.settings.settings.contentBasePath)
+					.onChange(async (value) => {
+						const normalizedPath = value.endsWith("/")
+							? value
+							: value + "/";
+						this.settings.settings.contentBasePath = normalizedPath;
 						await this.checkConnectionAndSaveSettings();
 					}),
 			);

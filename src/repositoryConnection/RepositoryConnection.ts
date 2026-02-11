@@ -5,8 +5,9 @@ import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnectio
 
 const logger = Logger.get("repository-connection");
 
+// Path constants - these are used as fallbacks
 const IMAGE_PATH_BASE = "src/site/";
-const NOTE_PATH_BASE = "src/site/notes/";
+const DEFAULT_NOTE_PATH_BASE = "src/site/notes/";
 
 interface IPutPayload {
 	path: string;
@@ -189,9 +190,12 @@ export class RepositoryConnection {
 		}
 	}
 
-	// NB: Do not use this, it does not work for some reason.
-	//TODO: Fix this. For now use deleteNote and deleteImage instead
-	async deleteFiles(filePaths: string[]) {
+	/**
+	 * Delete multiple files in a single commit
+	 * @param filePaths - Array of file paths to delete
+	 * @param notePathBase - The base path for notes (e.g., "src/content/")
+	 */
+	async deleteFiles(filePaths: string[], notePathBase?: string) {
 		const latestCommit = await this.getLatestCommit();
 
 		if (!latestCommit) {
@@ -203,9 +207,11 @@ export class RepositoryConnection {
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
+		const noteBase = notePathBase || DEFAULT_NOTE_PATH_BASE;
+
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${NOTE_PATH_BASE}${normalizePath(path)}`;
+				return `${noteBase}${normalizePath(path)}`;
 			}
 
 			return `${IMAGE_PATH_BASE}${normalizePath(path)}`;
@@ -279,9 +285,16 @@ export class RepositoryConnection {
 		);
 	}
 
+	/**
+	 * Update multiple files in a single commit
+	 * @param files - Array of files to update
+	 * @param remoteImageHashes - Map of image hashes to check for changes
+	 * @param notePathBase - The base path for notes (e.g., "src/content/")
+	 */
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
+		notePathBase?: string,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -304,6 +317,8 @@ export class RepositoryConnection {
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
+		const noteBase = notePathBase || DEFAULT_NOTE_PATH_BASE;
+
 		const treePromises = files.map(async (file) => {
 			const [text, _] = file.compiledFile;
 
@@ -318,7 +333,7 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${NOTE_PATH_BASE}${normalizePath(file.getPath())}`,
+					path: `${noteBase}${normalizePath(file.getPath())}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
@@ -447,6 +462,44 @@ export class RepositoryConnection {
 			ref: `refs/heads/${branchName}`,
 			sha,
 		});
+	}
+
+	/**
+	 * Trigger a GitHub Actions workflow
+	 * @param workflowId - The workflow ID or filename (e.g., 'deploy.yml')
+	 * @param branch - The branch to run the workflow on (default: 'main')
+	 * @param inputs - Optional inputs to pass to the workflow
+	 */
+	async triggerWorkflow(
+		workflowId: string,
+		branch: string = "main",
+		inputs?: Record<string, string>,
+	): Promise<boolean> {
+		try {
+			const response = await this.octokit.request(
+				"POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+				{
+					...this.getBasePayload(),
+					workflow_id: workflowId,
+					ref: branch,
+					inputs: inputs || {},
+				},
+			);
+
+			if (response.status === 204) {
+				logger.info(
+					`Successfully triggered workflow ${workflowId} on ${branch}`,
+				);
+
+				return true;
+			}
+
+			return false;
+		} catch (error) {
+			logger.error(`Failed to trigger workflow ${workflowId}:`, error);
+
+			return false;
+		}
 	}
 }
 
