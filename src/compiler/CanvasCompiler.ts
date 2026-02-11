@@ -17,6 +17,7 @@ export interface ITextNodeProcessor {
 	processTextNodeContent: (
 		file: PublishFile,
 		text: string,
+		assets?: Asset[],
 	) => Promise<string>;
 }
 
@@ -232,6 +233,7 @@ export class CanvasCompiler {
 					baseStyle,
 					colorClass,
 					file,
+					assets,
 				);
 			case "file":
 				return await this.buildFileNode(
@@ -261,6 +263,7 @@ export class CanvasCompiler {
 		baseStyle: string,
 		colorClass: string,
 		file: PublishFile,
+		assets: Asset[],
 	): Promise<string> {
 		// Process text node content through the same pipeline as regular notes
 		let processedText = node.text;
@@ -271,6 +274,7 @@ export class CanvasCompiler {
 					await this.textNodeProcessor.processTextNodeContent(
 						file,
 						node.text,
+						assets,
 					);
 			} catch (e) {
 				console.error("Error processing canvas text node:", e);
@@ -305,6 +309,56 @@ export class CanvasCompiler {
 		file: PublishFile,
 		assets: Asset[],
 	): Promise<string> {
+		// Check if it's a PDF
+		const isPdf = /\.pdf$/i.test(node.file);
+
+		if (isPdf) {
+			const linkedFile = this.metadataCache.getFirstLinkpathDest(
+				getLinkpath(node.file),
+				file.getPath(),
+			);
+
+			if (linkedFile) {
+				try {
+					const pdfData = await this.vault.readBinary(linkedFile);
+					const pdfBase64 = arrayBufferToBase64(pdfData);
+					const pdfPath = `/img/user/${linkedFile.path}`;
+
+					assets.push({
+						path: pdfPath,
+						content: pdfBase64,
+						localHash: generateBlobHashFromBase64(pdfBase64),
+					});
+
+					return `<div class="canvas-node canvas-node-file canvas-node-pdf ${colorClass}" data-node-id="${
+						node.id
+					}" style="${baseStyle}">
+	<div class="canvas-node-container">
+		<div class="canvas-node-content">
+			<iframe src="${encodeURI(
+				pdfPath,
+			)}" class="canvas-pdf-iframe" loading="lazy" style="width:100%;height:100%;border:none;"></iframe>
+		</div>
+	</div>
+</div>`;
+				} catch (e) {
+					console.error("Error reading canvas PDF:", e);
+				}
+			}
+
+			// Fallback if file not found or error
+			const resolvedPath = linkedFile?.path || node.file;
+			const pdfPath = encodeURI(`/img/user/${resolvedPath}`);
+
+			return `<div class="canvas-node canvas-node-file canvas-node-pdf ${colorClass}" data-node-id="${node.id}" style="${baseStyle}">
+	<div class="canvas-node-container">
+		<div class="canvas-node-content">
+			<iframe src="${pdfPath}" class="canvas-pdf-iframe" loading="lazy" style="width:100%;height:100%;border:none;"></iframe>
+		</div>
+	</div>
+</div>`;
+		}
+
 		// Check if it's an image
 		const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(node.file);
 

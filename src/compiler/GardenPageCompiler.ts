@@ -96,6 +96,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	async processTextNodeContent(
 		file: PublishFile,
 		text: string,
+		assets?: Asset[],
 	): Promise<string> {
 		// Apply compile steps relevant to text node content
 		// Note: We skip frontmatter conversion since text nodes don't have frontmatter
@@ -106,12 +107,22 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			this.convertDataViews,
 			this.convertLinksToFullPath,
 			this.removeObsidianComments,
+			this.createSvgEmbeds,
 		];
 
-		return await this.runCompilerSteps(
+		const compiledText = await this.runCompilerSteps(
 			file,
 			CANVAS_TEXT_COMPILE_STEPS,
 		)(text);
+
+		const [processedText, collectedAssets] =
+			await this.convertEmbeddedAssets(file)(compiledText);
+
+		if (assets) {
+			assets.push(...collectedAssets);
+		}
+
+		return processedText;
 	}
 
 	private resolveLinkedFile = (
