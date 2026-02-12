@@ -134,6 +134,37 @@ export default class Publisher {
 		return images;
 	}
 
+	/**
+	 * 获取所有 Markdown 和 Canvas 文件（无论是否有 pub-blog 标记）
+	 * 用于 Deleted 判断，需要知道本地所有文件的内容
+	 */
+	async getAllNotes(): Promise<PublishFile[]> {
+		const markdownFiles = this.vault.getMarkdownFiles();
+		const allFiles = this.vault.getFiles();
+		const canvasFiles = allFiles.filter((f) => f.extension === "canvas");
+		const files = [...markdownFiles, ...canvasFiles];
+
+		const allNotes: PublishFile[] = [];
+
+		for (const file of files) {
+			try {
+				const publishFile = new PublishFile({
+					file,
+					vault: this.vault,
+					compiler: this.compiler,
+					metadataCache: this.metadataCache,
+					settings: this.settings,
+				});
+
+				allNotes.push(publishFile);
+			} catch (e) {
+				Logger.error(e);
+			}
+		}
+
+		return allNotes.sort((a, b) => a.compare(b));
+	}
+
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
 		// Get both markdown and canvas files
 		const markdownFiles = this.vault.getMarkdownFiles();
@@ -352,13 +383,69 @@ export default class Publisher {
 				filesToPublish,
 				remoteImageHashes,
 				notePathBase,
+				this.rewriteRules,
 			);
+
+			// 发布成功后，将 status 为 🟡 Ongoing 的文件修改为 🟢 Done
+			for (const file of filesToPublish) {
+				const frontmatter = file.getFrontmatter();
+
+				if (frontmatter?.status === "🟡 Ongoing") {
+					await this.updateFileStatus(file, "🟢 Done");
+				}
+			}
 
 			return true;
 		} catch (error) {
 			console.error(error);
 
 			return false;
+		}
+	}
+
+	/**
+	 * 更新文件的 status 属性
+	 */
+	private async updateFileStatus(
+		file: CompiledPublishFile,
+		newStatus: string,
+	): Promise<void> {
+		try {
+			const filePath = file.getPath();
+			const content = await this.vault.cachedRead(file.file);
+
+			// 解析 frontmatter
+			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+			const match = content.match(frontmatterRegex);
+
+			if (match) {
+				const frontmatterContent = match[1];
+				// 替换 status 字段
+				const statusRegex = /status:\s*[^\n]*/;
+
+				const updatedFrontmatter = frontmatterContent.replace(
+					statusRegex,
+					`status: ${newStatus}`,
+				);
+
+				// 如果 frontmatter 中没有 status 字段，添加它
+				const finalFrontmatter = updatedFrontmatter.includes("status:")
+					? updatedFrontmatter
+					: `${updatedFrontmatter}\nstatus: ${newStatus}`;
+
+				const newContent = content.replace(
+					frontmatterRegex,
+					`---\n${finalFrontmatter}\n---`,
+				);
+
+				await this.vault.modify(file.file, newContent);
+				Logger.info(`Updated status of ${filePath} to ${newStatus}`);
+			}
+		} catch (error) {
+			Logger.error(
+				`Failed to update status for ${file.getPath()}:`,
+				error,
+			);
 		}
 	}
 

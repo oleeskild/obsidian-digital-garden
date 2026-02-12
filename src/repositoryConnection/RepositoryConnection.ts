@@ -2,6 +2,8 @@ import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
+import { getGardenPathForNote } from "../utils/utils";
+import { PathRewriteRules } from "./DigitalGardenSiteManager";
 
 const logger = Logger.get("repository-connection");
 
@@ -290,11 +292,13 @@ export class RepositoryConnection {
 	 * @param files - Array of files to update
 	 * @param remoteImageHashes - Map of image hashes to check for changes
 	 * @param notePathBase - The base path for notes (e.g., "src/content/")
+	 * @param rewriteRules - Path rewrite rules to apply to file paths
 	 */
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
 		notePathBase?: string,
+		rewriteRules?: PathRewriteRules,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -332,8 +336,16 @@ export class RepositoryConnection {
 					},
 				);
 
+				// 应用路径重写规则
+
+				const filePath = file.getPath();
+
+				const rewrittenPath = rewriteRules
+					? getGardenPathForNote(filePath, rewriteRules)
+					: filePath;
+
 				return {
-					path: `${noteBase}${normalizePath(file.getPath())}`,
+					path: `${noteBase}${normalizePath(rewrittenPath)}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
