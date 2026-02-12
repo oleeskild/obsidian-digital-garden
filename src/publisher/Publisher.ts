@@ -10,7 +10,6 @@ import DigitalGardenSiteManager, {
 	getNotePathBase,
 } from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
-import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
