@@ -119,18 +119,72 @@ export default class SettingView {
 			.createEl("h3", { text: "路径改写" })
 			.prepend(this.getIcon("git-compare"));
 
+		// 路径改写规则输入框
 		new Setting(this.settingsRootElement)
 			.setName("路径改写规则")
 			.setDesc(
-				"定义发布时笔记文件夹结构的重写规则。例如：将 'folder1/note.md' 重写到 'folder2/note.md'",
+				"每行一条规则，格式：原始路径:目标路径。用于将本地文件夹结构映射到发布后的结构",
 			)
-			.addButton((cb) => {
-				cb.setButtonText("管理路径改写规则");
-
-				cb.onClick(() => {
-					this.openPathRewriteRulesModal();
-				});
+			.addTextArea((text) => {
+				text.setPlaceholder(
+					"例如：1-projects/:blog/\nPath Rewriting/Subfolder2:fun-folder",
+				)
+					.setValue(this.settings.pathRewriteRules)
+					.onChange(async (value) => {
+						this.settings.pathRewriteRules = value;
+						await this.saveSettings();
+					});
+				text.inputEl.rows = 5;
+				text.inputEl.style.width = "100%";
 			});
+
+		// 路径改写示例说明
+		const exampleContainer = this.settingsRootElement.createEl("div", {
+			cls: "setting-item-description",
+		});
+		exampleContainer.style.marginTop = "10px";
+		exampleContainer.style.marginBottom = "15px";
+		exampleContainer.style.padding = "10px";
+		exampleContainer.style.backgroundColor = "var(--background-secondary)";
+		exampleContainer.style.borderRadius = "5px";
+
+		exampleContainer.createEl("div", {
+			text: "📋 路径改写示例（基于当前规则）：",
+			cls: "setting-item-name",
+		});
+
+		const exampleList = exampleContainer.createEl("ul", {
+			cls: "setting-item-description",
+		});
+		exampleList.style.marginTop = "8px";
+		exampleList.style.marginLeft = "20px";
+
+		const examples = [
+			{
+				from: "1-projects/blog/2023/weekly-01.md",
+				to: "blog/2023/weekly-01.md",
+			},
+			{
+				from: "1-projects/worknotes/2026/note.md",
+				to: "worknotes/2026/note.md",
+			},
+			{
+				from: "notes/PARA系统.md",
+				to: "notes/PARA系统.md",
+			},
+		];
+
+		for (const example of examples) {
+			const li = exampleList.createEl("li");
+			li.createEl("code", { text: example.from });
+			li.createEl("span", { text: " → " });
+			li.createEl("code", { text: example.to });
+		}
+
+		exampleContainer.createEl("div", {
+			text: "💡 提示：使用冒号分隔原始路径和目标路径，留空目标路径表示映射到根目录",
+			cls: "setting-item-description",
+		}).style.marginTop = "8px";
 
 		// 调试日志
 		this.settingsRootElement
