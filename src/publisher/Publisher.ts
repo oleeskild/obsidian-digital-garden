@@ -266,6 +266,34 @@ export default class Publisher {
 		}
 	}
 
+	/**
+	 * 强制发布单篇笔记，不管 status 状态
+	 * 如果远程有同名文件则覆盖，没有则新建
+	 */
+	public async forcePublish(file: CompiledPublishFile): Promise<boolean> {
+		try {
+			const [text, assets] = file.compiledFile;
+			const _remoteImageHashes = await this.getRemoteImageHashes();
+
+			// 强制上传，不检查 frontmatter 中的 pub-blog 标记
+			await this.uploadText(file.getPath(), text, file?.remoteHash);
+			await this.uploadAssets(assets, _remoteImageHashes);
+
+			// 如果 status 是 🟡 Ongoing，发布成功后修改为 🟢 Done
+			const frontmatter = file.getFrontmatter();
+
+			if (frontmatter?.status === "🟡 Ongoing") {
+				await this.updateFileStatus(file, "🟢 Done");
+			}
+
+			return true;
+		} catch (error) {
+			console.error("Force publish failed:", error);
+
+			return false;
+		}
+	}
+
 	public async deleteBatch(filePaths: string[]): Promise<boolean> {
 		if (filePaths.length === 0) {
 			return true;

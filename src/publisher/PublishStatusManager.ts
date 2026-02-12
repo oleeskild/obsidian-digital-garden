@@ -159,8 +159,21 @@ export default class PublishStatusManager implements IPublishStatusManager {
 					unpublishedNotes.push(compiledFile);
 				}
 			} else if (status === "🟢 Done") {
-				// 🟢 Done 状态：直接显示为 Published，不检测
-				publishedNotes.push(compiledFile);
+				// 🟢 Done 状态：也进行检测，如果用户修改为 Ongoing 需要能正确显示
+				if (fileFound) {
+					compiledFile.setRemoteHash(remoteHash);
+
+					if (remoteHash === localHash) {
+						// 内容一致，显示为 Published
+						publishedNotes.push(compiledFile);
+					} else {
+						// 内容不一致，显示为 Changed（用户可能修改了内容但未改 status）
+						changedNotes.push(compiledFile);
+					}
+				} else {
+					// 远程没有文件，显示为 Unpublished（用户可能删除了远程文件）
+					unpublishedNotes.push(compiledFile);
+				}
 			} else {
 				// 其他状态（或无 status）：使用默认逻辑
 				if (fileFound) {
