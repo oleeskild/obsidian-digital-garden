@@ -1,6 +1,5 @@
 import {
 	App,
-	ButtonComponent,
 	debounce,
 	getIcon,
 	MetadataCache,
@@ -11,10 +10,6 @@ import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSite
 import DigitalGardenSettings from "../../models/settings";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
-import {
-	hasUpdates,
-	TemplateUpdater,
-} from "../../repositoryConnection/TemplateManager";
 import Logger from "js-logger";
 import { PublishPlatform } from "src/models/PublishPlatform";
 
@@ -264,157 +259,5 @@ export default class SettingView {
 		);
 		await siteManager.updateEnv();
 		await saveSettings();
-	}
-
-	async renderCreatePr(
-		modal: Modal,
-		handlePR: (
-			button: ButtonComponent,
-			updater: TemplateUpdater,
-		) => Promise<void>,
-		siteManager: DigitalGardenSiteManager,
-	) {
-		this.settingsRootElement
-			.createEl("h3", { text: "更新站点模板" })
-			.prepend(getIcon("sync") ?? "");
-
-		Logger.time("checkForUpdate");
-
-		const updater = await (
-			await siteManager.getTemplateUpdater()
-		).checkForUpdates();
-		Logger.timeEnd("checkForUpdate");
-
-		const updateAvailable = hasUpdates(updater);
-
-		new Setting(this.settingsRootElement)
-			.setName("站点模板")
-			.setDesc(
-				"管理基础模板的更新。更新插件后建议更新模板以获得最新功能。",
-			)
-			.addButton(async (button) => {
-				button.setButtonText(`检查中...`);
-				Logger.time("checkForUpdate");
-
-				if (updateAvailable) {
-					button.setButtonText(
-						`更新到 ${updater.newestTemplateVersion}`,
-					);
-					button.setCta();
-				} else {
-					button.setButtonText("已是最新版本");
-					button.setDisabled(true);
-				}
-
-				button.onClick(() => {
-					modal.open();
-				});
-			});
-
-		modal.titleEl.empty();
-
-		const titleContainer = modal.titleEl.createDiv({
-			cls: "dg-modal-title",
-		});
-		const syncIcon = getIcon("refresh-cw");
-
-		if (syncIcon) {
-			titleContainer.appendChild(syncIcon);
-		}
-		titleContainer.createSpan({ text: "更新站点模板" });
-
-		const updateSection = modal.contentEl.createDiv({
-			cls: "dg-update-section",
-		});
-
-		const infoContainer = updateSection.createDiv({
-			cls: "dg-update-info",
-		});
-		const infoIcon = getIcon("info");
-
-		if (infoIcon) {
-			infoContainer.appendChild(infoIcon);
-		}
-
-		infoContainer.createDiv({
-			cls: "dg-update-info-text",
-			text: "这将创建一个包含最新模板更改的拉取请求。在您批准 PR 之前，您的站点不会更新。",
-		});
-
-		const buttonContainer = updateSection.createDiv({
-			cls: "dg-update-button-container",
-		});
-
-		const createPrButton = buttonContainer.createEl("button", {
-			text: "创建拉取请求",
-			cls: "mod-cta",
-		});
-
-		createPrButton.addEventListener("click", () => {
-			handlePR(
-				{
-					setDisabled: (d) => (createPrButton.disabled = d),
-				} as ButtonComponent,
-				updater as TemplateUpdater,
-			);
-		});
-	}
-
-	renderPullRequestHistory(modal: Modal, previousPrUrls: string[]) {
-		if (previousPrUrls.length === 0) {
-			return;
-		}
-
-		const historySection = modal.contentEl.createDiv({
-			cls: "dg-pr-history",
-		});
-
-		const header = historySection.createDiv({
-			cls: "dg-pr-history-header",
-		});
-		const chevronIcon = getIcon("chevron-right");
-
-		if (chevronIcon) {
-			header.appendChild(chevronIcon);
-		}
-
-		header.createSpan({ text: "最近的拉取请求" });
-
-		const prsContainer = historySection.createDiv({
-			cls: "dg-pr-history-list",
-		});
-		prsContainer.hide();
-
-		header.addEventListener("click", () => {
-			const chevron = header.querySelector(".svg-icon");
-
-			if (prsContainer.isShown()) {
-				prsContainer.hide();
-				chevron?.removeClass("is-expanded");
-			} else {
-				prsContainer.show();
-				chevron?.addClass("is-expanded");
-			}
-		});
-
-		previousPrUrls.forEach((prUrl) => {
-			const prItem = prsContainer.createDiv({
-				cls: "dg-pr-history-item",
-			});
-			const gitPrIcon = getIcon("git-pull-request");
-
-			if (gitPrIcon) {
-				prItem.appendChild(gitPrIcon);
-			}
-
-			const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
-			const displayText = prNumber ? `拉取请求 #${prNumber}` : prUrl;
-
-			prItem.createEl("a", {
-				text: displayText,
-				href: prUrl,
-				cls: "dg-pr-history-link",
-			});
-		});
 	}
 }
