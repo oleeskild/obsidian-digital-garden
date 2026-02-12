@@ -7,7 +7,6 @@ import Publisher from "../../publisher/Publisher";
 import PublicationCenterSvelte from "./PublicationCenter.svelte";
 import DiffView from "./DiffView.svelte";
 import * as Diff from "diff";
-import { PublishPlatform } from "../../models/PublishPlatform";
 
 export class PublicationCenter {
 	modal: Modal;
@@ -60,13 +59,6 @@ export class PublicationCenter {
 	}
 
 	private getPlatformLinkInfo(): { url: string; tooltip: string } | null {
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			return {
-				url: "https://dashboard.forestry.md",
-				tooltip: "Open Forestry dashboard",
-			};
-		}
-
 		if (this.settings.githubUserName && this.settings.githubRepo) {
 			return {
 				url: `https://github.com/${this.settings.githubUserName}/${this.settings.githubRepo}`,

@@ -12,6 +12,7 @@ import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import Logger from "js-logger";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import Publisher from "src/publisher/Publisher";
 
 export default class SettingView {
 	private app: App;
@@ -19,6 +20,7 @@ export default class SettingView {
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
+	private publisher: Publisher;
 
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
@@ -37,6 +39,7 @@ export default class SettingView {
 		this.settingsRootElement.classList.add("dg-settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
+		this.publisher = new Publisher(app.vault, app.metadataCache, settings);
 	}
 
 	getIcon(name: string): Node {
@@ -65,40 +68,8 @@ export default class SettingView {
 			text: "通过发布中心管理您的笔记发布状态，支持批量发布和路径改写。",
 		});
 
-		// 发布平台选择
-		new Setting(this.settingsRootElement)
-			.setName("发布平台")
-			.setDesc("选择内容发布的目标平台")
-			.addDropdown((dd) => {
-				dd.addOption(PublishPlatform.SelfHosted, "GitHub 仓库");
-				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
-
-				if (
-					this.settings.publishPlatform === PublishPlatform.SelfHosted
-				) {
-					dd.setValue(PublishPlatform.SelfHosted);
-				} else {
-					dd.setValue(PublishPlatform.ForestryMd);
-				}
-
-				dd.onChange(async (val) => {
-					switch (val) {
-						case PublishPlatform.SelfHosted:
-							this.settings.publishPlatform =
-								PublishPlatform.SelfHosted;
-							break;
-						case PublishPlatform.ForestryMd:
-							this.settings.publishPlatform =
-								PublishPlatform.ForestryMd;
-							break;
-					}
-					await this.saveSettings();
-
-					this.initializePublishPlatformSettings(
-						publishPlatformSettings,
-					);
-				});
-			});
+		// 发布平台选择（固定为 GitHub 仓库）
+		this.settings.publishPlatform = PublishPlatform.SelfHosted;
 
 		const publishPlatformSettings = this.settingsRootElement.createEl(
 			"div",
@@ -234,7 +205,8 @@ export default class SettingView {
 			target: modal.contentEl,
 			props: {
 				settings: this.settings,
-				saveSettings: this.saveSettings,
+				publisher: this.publisher,
+				closeModal: () => modal.close(),
 			},
 		});
 

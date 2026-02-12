@@ -18,77 +18,10 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	contentBasePath: "src/content/",
 	gardenBaseUrl: "",
 	prHistory: [],
-	baseTheme: "dark",
-	theme: JSON.stringify({
-		name: "Red Graphite",
-		author: "SeanWcom",
-		repo: "seanwcom/Red-Graphite-for-Obsidian",
-		screenshot: "thumbnail.png",
-		modes: ["dark", "light"],
-		cssUrl: "https://raw.githubusercontent.com/seanwcom/Red-Graphite-for-Obsidian/HEAD/theme.css",
-	}),
-	faviconPath: "",
-	logoPath: "",
-	useFullResolutionImages: false,
-	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
-	mainLanguage: "en",
-	slugifyEnabled: true,
-	noteIconKey: "dg-note-icon",
-	defaultNoteIcon: "",
-	showNoteIconOnTitle: false,
-	showNoteIconInFileTree: false,
-	showNoteIconOnInternalLink: false,
-	showNoteIconOnBackLink: false,
-	showCreatedTimestamp: false,
-	createdTimestampKey: "",
-	showUpdatedTimestamp: false,
-	updatedTimestampKey: "",
-	timestampFormat: "MMM dd, yyyy h:mm a",
-	styleSettingsCss: "",
-	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
-	customFilters: [],
 	publishPlatform:
 		"SelfHosted" as unknown as DigitalGardenSettings["publishPlatform"],
-	contentClassesKey: "dg-content-classes",
-	forestrySettings: {
-		forestryPageName: "",
-		apiKey: "",
-		baseUrl: "",
-	},
-	autoDeploySettings: {
-		enabled: false,
-		workflowId: "",
-		branch: "main",
-		workflowInputs: {},
-	},
-	defaultNoteSettings: {
-		dgHomeLink: true,
-		dgPassFrontmatter: false,
-		dgShowBacklinks: false,
-		dgShowLocalGraph: false,
-		dgShowInlineTitle: false,
-		dgShowFileTree: false,
-		dgEnableSearch: false,
-		dgShowToc: false,
-		dgLinkPreview: false,
-		dgShowTags: false,
-	},
-	uiStrings: {
-		backlinkHeader: "",
-		noBacklinksMessage: "",
-		searchButtonText: "",
-		searchPlaceholder: "",
-		searchEnterHint: "",
-		searchNavigateHint: "",
-		searchCloseHint: "",
-		searchNoResults: "",
-		searchPreviewPlaceholder: "",
-		canvasDragHint: "",
-		canvasZoomHint: "",
-		canvasResetHint: "",
-	},
 	logLevel: undefined,
 };
 
@@ -309,18 +242,6 @@ export default class DigitalGarden extends Plugin {
 
 			if (publishSuccessful) {
 				new Notice("笔记发布成功！");
-
-				// 触发自动部署
-				if (this.settings.autoDeploySettings.enabled) {
-					new Notice("正在触发部署...");
-					const deploySuccess = await publisher.triggerDeployment();
-
-					if (deploySuccess) {
-						new Notice("部署触发成功！");
-					} else {
-						new Notice("部署触发失败，请检查设置。");
-					}
-				}
 			}
 
 			return publishSuccessful;
@@ -428,18 +349,6 @@ export default class DigitalGarden extends Plugin {
 
 			if (imagesToDelete.length > 0) {
 				new Notice(`成功删除 ${imagesToDelete.length} 张图片！`);
-			}
-
-			// 触发自动部署
-			if (this.settings.autoDeploySettings.enabled) {
-				new Notice("正在触发部署...");
-				const deploySuccess = await publisher.triggerDeployment();
-
-				if (deploySuccess) {
-					new Notice("部署触发成功！");
-				} else {
-					new Notice("部署触发失败，请检查设置。");
-				}
 			}
 
 			this.isPublishing = false;

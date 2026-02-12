@@ -17,13 +17,11 @@ import {
 	getRewriteRules,
 	sanitizePermalink,
 } from "../utils/utils";
-import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
 import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 import {
 	CODEBLOCK_REGEX,
 	CODE_FENCE_REGEX,
-	EXCALIDRAW_REGEX,
 	FRONTMATTER_REGEX,
 	BLOCKREF_REGEX,
 	TRANSCLUDED_SVG_REGEX,
@@ -31,8 +29,6 @@ import {
 	TRANSCLUDED_PDF_REGEX,
 } from "../utils/regexes";
 import Logger from "js-logger";
-import { DataviewCompiler } from "./DataviewCompiler";
-import { CanvasCompiler, ITextNodeProcessor } from "./CanvasCompiler";
 
 // PDF embedding constants
 const PDF_MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
@@ -58,11 +54,9 @@ export type TCompilerStep = (
 	| ((partiallyCompiledContent: string) => Promise<string>)
 	| ((partiallyCompiledContent: string) => string);
 
-export class GardenPageCompiler implements ITextNodeProcessor {
+export class GardenPageCompiler {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
-	private excalidrawCompiler: ExcalidrawCompiler;
-	private canvasCompiler: CanvasCompiler;
 	private metadataCache: MetadataCache;
 	private readonly getFilesMarkedForPublishing: Publisher["getFilesMarkedForPublishing"];
 
@@ -78,51 +72,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
-		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
-
-		this.canvasCompiler = new CanvasCompiler(
-			vault,
-			metadataCache,
-			settings,
-		);
-		this.canvasCompiler.setTextNodeProcessor(this);
 		this.rewriteRules = getRewriteRules(this.settings.pathRewriteRules);
-	}
-
-	/**
-	 * Process text content from canvas text nodes through the same pipeline as notes.
-	 * This enables wiki-links, transclusions, dataview, etc. in canvas text nodes.
-	 */
-	async processTextNodeContent(
-		file: PublishFile,
-		text: string,
-		assets?: Asset[],
-	): Promise<string> {
-		// Apply compile steps relevant to text node content
-		// Note: We skip frontmatter conversion since text nodes don't have frontmatter
-		const CANVAS_TEXT_COMPILE_STEPS: TCompilerStep[] = [
-			this.convertCustomFilters,
-			this.createBlockIDs,
-			this.createTranscludedText(0),
-			this.convertDataViews,
-			this.convertLinksToFullPath,
-			this.removeObsidianComments,
-			this.createSvgEmbeds,
-		];
-
-		const compiledText = await this.runCompilerSteps(
-			file,
-			CANVAS_TEXT_COMPILE_STEPS,
-		)(text);
-
-		const [processedText, collectedAssets] =
-			await this.convertEmbeddedAssets(file)(compiledText);
-
-		if (assets) {
-			assets.push(...collectedAssets);
-		}
-
-		return processedText;
 	}
 
 	private resolveLinkedFile = (
@@ -166,35 +116,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		};
 
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
-		const assets: Assets = { images: [] };
-
 		const vaultFileText = await file.cachedRead();
-
-		if (file.file.name.endsWith(".excalidraw.md")) {
-			return [
-				await this.excalidrawCompiler.compileMarkdown({
-					includeExcaliDrawJs: true,
-				})(file)(vaultFileText),
-				assets,
-			];
-		}
-
-		if (file.file.extension === "canvas") {
-			return [
-				await this.canvasCompiler.compileMarkdown({
-					assets: assets.images,
-				})(file)(vaultFileText),
-				assets,
-			];
-		}
 
 		// ORDER MATTERS!
 		const COMPILE_STEPS: TCompilerStep[] = [
 			this.convertFrontMatter,
-			this.convertCustomFilters,
 			this.createBlockIDs,
 			this.createTranscludedText(0),
-			this.convertDataViews,
 			this.convertLinksToFullPath,
 			this.removeObsidianComments,
 			this.createSvgEmbeds,
@@ -211,28 +139,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return [text, { images }];
 	}
 
-	convertCustomFilters: TCompilerStep = () => (text) => {
-		for (const filter of this.settings.customFilters) {
-			try {
-				text = text.replace(
-					RegExp(filter.pattern, filter.flags),
-					filter.replace,
-				);
-			} catch (e) {
-				Logger.error(
-					`Invalid regex: ${filter.pattern} ${filter.flags}`,
-				);
-
-				// TODO: validate in settings
-				new Notice(
-					`Your custom filters contains an invalid regex: ${filter.pattern}. Skipping it.`,
-				);
-			}
-		}
-
-		return text;
-	};
-
 	createBlockIDs: TCompilerStep = () => (text: string) => {
 		return replaceBlockIDs(text);
 	};
@@ -243,13 +149,12 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
 		const codeFences = text.match(CODE_FENCE_REGEX) || [];
-		const excalidraw = text.match(EXCALIDRAW_REGEX) || [];
-		const matchesToSkip = [...codeBlocks, ...codeFences, ...excalidraw];
+		const matchesToSkip = [...codeBlocks, ...codeFences];
 
 		if (!obsidianCommentsMatches) return text;
 
 		for (const commentMatch of obsidianCommentsMatches) {
-			//If comment is in a code block, code fence, or excalidrawing, leave it in
+			//If comment is in a code block or code fence, leave it in
 			if (matchesToSkip.findIndex((x) => x.contains(commentMatch)) > -1) {
 				continue;
 			}
@@ -266,15 +171,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return text.replace(FRONTMATTER_REGEX, () => compiledFrontmatter);
 	};
 
-	convertDataViews: TCompilerStep = (file) => async (text) => {
-		const dataviewCompiler = new DataviewCompiler();
-
-		return await dataviewCompiler.compile(file)(text);
-	};
-
 	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
 		let textToBeProcessed = text;
-		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
 		textToBeProcessed = textToBeProcessed.replace(CODE_FENCE_REGEX, "");
 
@@ -386,7 +284,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 			const transcludedRegex = /!\[\[(.+?)\]\]/g;
 			const transclusionMatches = text.match(transcludedRegex);
-			let numberOfExcaliDraws = 0;
 
 			for (const transclusionMatch of transclusionMatches ?? []) {
 				try {
@@ -439,24 +336,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					});
 					let sectionID = "";
 
-					if (linkedFile.name.endsWith(".excalidraw.md")) {
-						numberOfExcaliDraws++;
-						const isFirstDrawing = numberOfExcaliDraws === 1;
-
-						const fileText = await publishLinkedFile.cachedRead();
-
-						const excaliDrawCode =
-							await this.excalidrawCompiler.compileMarkdown({
-								includeExcaliDrawJs: isFirstDrawing,
-								idAppendage: `${numberOfExcaliDraws}`,
-								includeFrontMatter: false,
-							})(publishLinkedFile)(fileText);
-
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							excaliDrawCode,
-						);
-					} else if (linkedFile.extension === "md") {
+					if (linkedFile.extension === "md") {
 						let fileText = await publishLinkedFile.cachedRead();
 
 						const metadata = publishLinkedFile.getMetadata();
@@ -531,12 +411,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						//Remove frontmatter from transclusion
 						fileText = fileText.replace(FRONTMATTER_REGEX, "");
 
-						// Apply custom filters to transclusion
-						fileText =
-							await this.convertCustomFilters(publishLinkedFile)(
-								fileText,
-							);
-
 						// Remove block reference
 						fileText = fileText.replace(BLOCKREF_REGEX, "");
 
@@ -567,7 +441,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 											linkedFile.path,
 											this.rewriteRules,
 										),
-										this.settings.slugifyEnabled,
+										true,
 								  )}`;
 							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
 						}
@@ -582,13 +456,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 								currentDepth + 1,
 							)(publishLinkedFile)(fileText);
 						}
-
-						// compile dataview in transcluded text
-						const withDvCompiledText = await this.runCompilerSteps(
-							publishLinkedFile,
-							[this.convertDataViews],
-						)(fileText);
-						fileText = withDvCompiledText;
 
 						//This should be recursive up to a certain depth
 						transcludedText = transcludedText.replace(

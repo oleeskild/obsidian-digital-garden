@@ -6,9 +6,6 @@ import DigitalGardenSettings from "src/models/settings";
 
 const oktokitLogger = Logger.get("octokit");
 
-// Default base URL to use as fallback
-const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
-
 export default class PublishPlatformConnectionFactory {
 	static createBaseGardenConnection(): IPublishPlatformConnection {
 		return {
@@ -28,27 +25,6 @@ export default class PublishPlatformConnectionFactory {
 				}),
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
-			};
-		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
-			const userName = "Forestry";
-			const token = settings.forestrySettings.apiKey;
-
-			// Read from environment variable with fallback to default
-			const baseUrl =
-				process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL;
-
-			const octoKit = new Octokit({
-				baseUrl: `${baseUrl}/Garden`,
-				auth: token,
-				log: oktokitLogger,
-			});
-
-			const pageName = settings.forestrySettings.forestryPageName;
-
-			return {
-				userName,
-				pageName,
-				octoKit,
 			};
 		} else {
 			throw new Error("Publish platform not supported");

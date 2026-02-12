@@ -3,7 +3,6 @@ import {
 	getGardenPathForNote,
 	sanitizePermalink,
 	generateUrlPath,
-	kebabize,
 	getRewriteRules,
 } from "../utils/utils";
 import DigitalGardenSettings from "../models/settings";
@@ -14,19 +13,12 @@ export type TFrontmatter = Record<string, unknown> & {
 	"dg-path"?: string;
 	"dg-permalink"?: string;
 	"dg-home"?: boolean;
-	"dg-hide-in-graph"?: boolean;
-	"dg-hide"?: boolean;
-	"dg-pinned"?: boolean;
-	"dg-metatags"?: string;
 	tags?: string;
 };
 
 export type TPublishedFrontMatter = Record<string, unknown> & {
 	tags?: string[];
-	metatags?: string;
-	pinned?: boolean;
 	permalink?: string;
-	hide?: boolean;
 };
 
 export class FrontmatterCompiler {
@@ -57,33 +49,12 @@ export class FrontmatterCompiler {
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addContentClasses(
-			fileFrontMatter,
-			publishedFrontMatter,
-		);
-
 		publishedFrontMatter = this.addPageTags(
 			fileFrontMatter,
 			publishedFrontMatter,
 		);
 
-		publishedFrontMatter = this.addFrontMatterSettings(
-			fileFrontMatter,
-			publishedFrontMatter,
-		);
-
-		publishedFrontMatter = this.addNoteIconFrontMatter(
-			fileFrontMatter,
-			publishedFrontMatter,
-		);
-
-		publishedFrontMatter =
-			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
-
-		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
-			? { ...fileFrontMatter, ...publishedFrontMatter }
-			: publishedFrontMatter;
-
+		const fullFrontMatter = publishedFrontMatter;
 		const frontMatterString = JSON.stringify(fullFrontMatter);
 
 		return `---\n${frontMatterString}\n---\n`;
@@ -114,7 +85,7 @@ export class FrontmatterCompiler {
 			);
 		} else {
 			publishedFrontMatter["permalink"] =
-				"/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
+				"/" + generateUrlPath(gardenPath, true);
 		}
 
 		return publishedFrontMatter;
@@ -124,30 +95,11 @@ export class FrontmatterCompiler {
 		baseFrontMatter: TFrontmatter,
 		newFrontMatter: TPublishedFrontMatter,
 	) {
-		// Eventually we will add other pass-throughs here. e.g. tags.
 		const publishedFrontMatter = { ...newFrontMatter };
 
 		if (baseFrontMatter) {
 			if (baseFrontMatter["title"]) {
 				publishedFrontMatter["title"] = baseFrontMatter["title"];
-			}
-
-			if (baseFrontMatter["dg-metatags"]) {
-				publishedFrontMatter["metatags"] =
-					baseFrontMatter["dg-metatags"];
-			}
-
-			if (baseFrontMatter["dg-hide"]) {
-				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
-			}
-
-			if (baseFrontMatter["dg-hide-in-graph"]) {
-				publishedFrontMatter["hideInGraph"] =
-					baseFrontMatter["dg-hide-in-graph"];
-			}
-
-			if (baseFrontMatter["dg-pinned"]) {
-				publishedFrontMatter["pinned"] = baseFrontMatter["dg-pinned"];
 			}
 		}
 
@@ -173,111 +125,6 @@ export class FrontmatterCompiler {
 			if (tags.length > 0) {
 				publishedFrontMatter["tags"] = tags;
 			}
-		}
-
-		return publishedFrontMatter;
-	}
-
-	private addContentClasses(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-	) {
-		const publishedFrontMatter = { ...newFrontMatter };
-
-		if (baseFrontMatter) {
-			const contentClassesKey = this.settings.contentClassesKey;
-			const contentClasses = baseFrontMatter[contentClassesKey];
-
-			if (contentClassesKey && contentClasses) {
-				if (typeof contentClasses == "string") {
-					publishedFrontMatter["contentClasses"] = contentClasses;
-				} else if (Array.isArray(contentClasses)) {
-					publishedFrontMatter["contentClasses"] =
-						contentClasses.join(" ");
-				} else {
-					publishedFrontMatter["contentClasses"] = "";
-				}
-			}
-		}
-
-		return publishedFrontMatter;
-	}
-
-	/**
-	 * Adds the created and updated timestamps to the compiled frontmatter if specified in user settings
-	 */
-	private addTimestampsFrontmatter =
-		(file: PublishFile) => (newFrontMatter: TPublishedFrontMatter) => {
-			//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-			const { showCreatedTimestamp, showUpdatedTimestamp } =
-				this.settings;
-
-			const updatedAt = file.meta.getUpdatedAt();
-			const createdAt = file.meta.getCreatedAt();
-
-			if (createdAt && showCreatedTimestamp) {
-				newFrontMatter["created"] = createdAt;
-			}
-
-			if (updatedAt && showUpdatedTimestamp) {
-				newFrontMatter["updated"] = updatedAt;
-			}
-
-			return newFrontMatter;
-		};
-
-	private addNoteIconFrontMatter(
-		baseFrontMatter: TFrontmatter,
-		newFrontMatter: TPublishedFrontMatter,
-	) {
-		if (!baseFrontMatter) {
-			baseFrontMatter = {};
-		}
-
-		//If all note icon settings are disabled, don't change the frontmatter, so that people won't see all their notes as changed in the publication center
-		if (
-			!this.settings.showNoteIconInFileTree &&
-			!this.settings.showNoteIconOnInternalLink &&
-			!this.settings.showNoteIconOnTitle &&
-			!this.settings.showNoteIconOnBackLink
-		) {
-			return newFrontMatter;
-		}
-
-		const publishedFrontMatter = { ...newFrontMatter };
-		const noteIconKey = this.settings.noteIconKey;
-
-		if (baseFrontMatter[noteIconKey] !== undefined) {
-			publishedFrontMatter["noteIcon"] = baseFrontMatter[noteIconKey];
-		} else {
-			publishedFrontMatter["noteIcon"] = this.settings.defaultNoteIcon;
-		}
-
-		return publishedFrontMatter;
-	}
-
-	private addFrontMatterSettings(
-		baseFrontMatter: Record<string, unknown>,
-		newFrontMatter: Record<string, unknown>,
-	) {
-		if (!baseFrontMatter) {
-			baseFrontMatter = {};
-		}
-		const publishedFrontMatter = { ...newFrontMatter };
-
-		for (const key of Object.keys(this.settings.defaultNoteSettings)) {
-			const settingValue = baseFrontMatter[kebabize(key)];
-
-			if (settingValue) {
-				publishedFrontMatter[key] = settingValue;
-			}
-		}
-
-		const dgPassFrontmatter =
-			this.settings.defaultNoteSettings.dgPassFrontmatter;
-
-		if (dgPassFrontmatter) {
-			publishedFrontMatter.dgPassFrontmatter = dgPassFrontmatter;
 		}
 
 		return publishedFrontMatter;

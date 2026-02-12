@@ -15,7 +15,6 @@ import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
-import { PublishPlatform } from "../models/PublishPlatform";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -59,131 +58,15 @@ export default class Publisher {
 		return hasPublishFlag(frontMatter);
 	}
 
-	/**
-	 * Check if a canvas file should be published by reading its JSON metadata.
-	 * Canvas files store frontmatter in the metadata.frontmatter field.
-	 */
-	async shouldPublishCanvas(file: TFile): Promise<boolean> {
-		if (file.extension !== "canvas") {
-			return this.shouldPublish(file);
-		}
-
-		try {
-			const content = await this.vault.cachedRead(file);
-			const canvasData = JSON.parse(content);
-			const frontMatter = canvasData?.metadata?.frontmatter;
-
-			return hasPublishFlag(frontMatter);
-		} catch {
-			return false;
-		}
-	}
-
-	/**
-	 * Extract asset paths (images and PDFs) from a canvas file.
-	 * Canvas files can reference assets via file nodes and group backgrounds.
-	 */
-	async extractCanvasAssets(file: TFile): Promise<string[]> {
-		const images: string[] = [];
-
-		const imageExtensions = [
-			"png",
-			"jpg",
-			"jpeg",
-			"gif",
-			"webp",
-			"svg",
-			"bmp",
-			"pdf",
-		];
-
-		try {
-			const content = await this.vault.cachedRead(file);
-			const canvasData = JSON.parse(content);
-
-			if (!canvasData.nodes || !Array.isArray(canvasData.nodes)) {
-				return images;
-			}
-
-			for (const node of canvasData.nodes) {
-				// File nodes can reference images
-				if (node.type === "file" && node.file) {
-					const ext = node.file.split(".").pop()?.toLowerCase();
-
-					if (ext && imageExtensions.includes(ext)) {
-						images.push(node.file);
-					}
-				}
-
-				// Group nodes can have background images
-				if (node.type === "group" && node.background) {
-					const ext = node.background.split(".").pop()?.toLowerCase();
-
-					if (ext && imageExtensions.includes(ext)) {
-						images.push(node.background);
-					}
-				}
-			}
-		} catch (e) {
-			Logger.error(
-				`Failed to extract images from canvas ${file.path}`,
-				e,
-			);
-		}
-
-		return images;
-	}
-
-	/**
-	 * 获取所有 Markdown 和 Canvas 文件（无论是否有 pub-blog 标记）
-	 * 用于 Deleted 判断，需要知道本地所有文件的内容
-	 */
-	async getAllNotes(): Promise<PublishFile[]> {
-		const markdownFiles = this.vault.getMarkdownFiles();
-		const allFiles = this.vault.getFiles();
-		const canvasFiles = allFiles.filter((f) => f.extension === "canvas");
-		const files = [...markdownFiles, ...canvasFiles];
-
-		const allNotes: PublishFile[] = [];
-
-		for (const file of files) {
-			try {
-				const publishFile = new PublishFile({
-					file,
-					vault: this.vault,
-					compiler: this.compiler,
-					metadataCache: this.metadataCache,
-					settings: this.settings,
-				});
-
-				allNotes.push(publishFile);
-			} catch (e) {
-				Logger.error(e);
-			}
-		}
-
-		return allNotes.sort((a, b) => a.compare(b));
-	}
-
 	async getFilesMarkedForPublishing(): Promise<MarkedForPublishing> {
-		// Get both markdown and canvas files
-		const markdownFiles = this.vault.getMarkdownFiles();
-		const allFiles = this.vault.getFiles();
-		const canvasFiles = allFiles.filter((f) => f.extension === "canvas");
-		const files = [...markdownFiles, ...canvasFiles];
+		const files = this.vault.getMarkdownFiles();
 
 		const notesToPublish: PublishFile[] = [];
 		const imagesToPublish: Set<string> = new Set();
 
 		for (const file of files) {
 			try {
-				// Use async check for canvas files (they store frontmatter in JSON)
-				const shouldPublish =
-					file.extension === "canvas"
-						? await this.shouldPublishCanvas(file)
-						: this.shouldPublish(file);
-
-				if (shouldPublish) {
+				if (this.shouldPublish(file)) {
 					const publishFile = new PublishFile({
 						file,
 						vault: this.vault,
@@ -194,17 +77,8 @@ export default class Publisher {
 
 					notesToPublish.push(publishFile);
 
-					// Extract image links from markdown files
-					if (file.extension === "md") {
-						const images = await publishFile.getImageLinks();
-						images.forEach((i) => imagesToPublish.add(i));
-					}
-
-					// Extract asset links (images and PDFs) from canvas files
-					if (file.extension === "canvas") {
-						const assets = await this.extractCanvasAssets(file);
-						assets.forEach((i) => imagesToPublish.add(i));
-					}
+					const images = await publishFile.getImageLinks();
+					images.forEach((i) => imagesToPublish.add(i));
 				}
 			} catch (e) {
 				Logger.error(e);
@@ -229,6 +103,7 @@ export default class Publisher {
 
 		return await this.delete(path, sha);
 	}
+
 	/** If provided with sha, garden connection does not need to get it seperately! */
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
@@ -261,38 +136,6 @@ export default class Publisher {
 			return true;
 		} catch (error) {
 			console.error(error);
-
-			return false;
-		}
-	}
-
-	/**
-	 * 强制发布单篇笔记，不管 status 状态
-	 * 如果远程有同名文件则覆盖，没有则新建
-	 */
-	public async forcePublish(file: CompiledPublishFile): Promise<boolean> {
-		try {
-			const [text, assets] = file.compiledFile;
-			const _remoteImageHashes = await this.getRemoteImageHashes();
-
-			// 强制上传，不检查 frontmatter 中的 pub-blog 标记
-			await this.uploadText(file.getPath(), text, file?.remoteHash);
-			await this.uploadAssets(assets, _remoteImageHashes);
-
-			// 如果 status 是 🟡 Ongoing，发布成功后修改为 🟢 Done
-			const frontmatter = file.getFrontmatter();
-
-			const status = Array.isArray(frontmatter?.status)
-				? frontmatter.status[0]
-				: frontmatter?.status;
-
-			if (status === "🟡 Ongoing" || status === "🟡Ongoing") {
-				await this.updateFileStatus(file, "🟢 Done");
-			}
-
-			return true;
-		} catch (error) {
-			console.error("Force publish failed:", error);
 
 			return false;
 		}
@@ -332,7 +175,6 @@ export default class Publisher {
 				),
 			);
 
-			// Convert image paths to full paths with IMAGE_PATH_BASE prefix
 			const fullPaths = filePaths.map(
 				(path) => `${IMAGE_PATH_BASE}${path}`,
 			);
@@ -341,52 +183,6 @@ export default class Publisher {
 			return true;
 		} catch (error) {
 			console.error(error);
-
-			return false;
-		}
-	}
-
-	/**
-	 * Trigger auto-deployment workflow if enabled
-	 * @returns true if deployment was triggered successfully
-	 */
-	public async triggerDeployment(): Promise<boolean> {
-		if (!this.settings.autoDeploySettings.enabled) {
-			return false;
-		}
-
-		const { workflowId, branch, workflowInputs } =
-			this.settings.autoDeploySettings;
-
-		if (!workflowId) {
-			new Notice(
-				"Auto-deployment is enabled but workflow ID is not configured.",
-			);
-
-			Logger.warn(
-				"Auto-deployment is enabled but workflow ID is not configured",
-			);
-
-			return false;
-		}
-
-		try {
-			const userGardenConnection = new RepositoryConnection(
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-					this.settings,
-				),
-			);
-
-			const success = await userGardenConnection.triggerWorkflow(
-				workflowId,
-				branch,
-				workflowInputs,
-			);
-
-			return success;
-		} catch (error) {
-			console.error("Failed to trigger deployment:", error);
-			Logger.error("Failed to trigger deployment:", error);
 
 			return false;
 		}
@@ -418,70 +214,11 @@ export default class Publisher {
 				this.rewriteRules,
 			);
 
-			// 发布成功后，将 status 为 🟡 Ongoing 的文件修改为 🟢 Done
-			for (const file of filesToPublish) {
-				const frontmatter = file.getFrontmatter();
-
-				const status = Array.isArray(frontmatter?.status)
-					? frontmatter.status[0]
-					: frontmatter?.status;
-
-				if (status === "🟡 Ongoing" || status === "🟡Ongoing") {
-					await this.updateFileStatus(file, "🟢 Done");
-				}
-			}
-
 			return true;
 		} catch (error) {
 			console.error(error);
 
 			return false;
-		}
-	}
-
-	/**
-	 * 更新文件的 status 属性
-	 */
-	private async updateFileStatus(
-		file: CompiledPublishFile,
-		newStatus: string,
-	): Promise<void> {
-		try {
-			const filePath = file.getPath();
-			const content = await this.vault.cachedRead(file.file);
-
-			// 解析 frontmatter
-			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-			const match = content.match(frontmatterRegex);
-
-			if (match) {
-				const frontmatterContent = match[1];
-				// 替换 status 字段
-				const statusRegex = /status:\s*[^\n]*/;
-
-				const updatedFrontmatter = frontmatterContent.replace(
-					statusRegex,
-					`status: ${newStatus}`,
-				);
-
-				// 如果 frontmatter 中没有 status 字段，添加它
-				const finalFrontmatter = updatedFrontmatter.includes("status:")
-					? updatedFrontmatter
-					: `${updatedFrontmatter}\nstatus: ${newStatus}`;
-
-				const newContent = content.replace(
-					frontmatterRegex,
-					`---\n${finalFrontmatter}\n---`,
-				);
-
-				await this.vault.modify(file.file, newContent);
-				Logger.info(`Updated status of ${filePath} to ${newStatus}`);
-			}
-		} catch (error) {
-			Logger.error(
-				`Failed to update status for ${file.getPath()}:`,
-				error,
-			);
 		}
 	}
 
@@ -524,7 +261,6 @@ export default class Publisher {
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {
-				// file does not exist
 				Logger.info(`File ${path} does not exist, adding`);
 			});
 			remoteFileHash = file?.sha;
@@ -545,32 +281,25 @@ export default class Publisher {
 	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
 
-		// Get file frontmatter to determine type and year
 		const cache = this.metadataCache.getCache(filePath);
 		const frontmatter = cache ? cache.frontmatter : {};
 
-		// Get configuration values
 		const basePath =
 			this.settings.publishBasePath || DEFAULT_NOTE_PATH_BASE;
 		const typeKey = this.settings.typeDirectoryKey || "type";
 		const subDirKey = this.settings.subDirectoryKey || "year";
 
-		// Build path components
 		let publishPath = basePath;
 
-		// Add type directory if specified in frontmatter
 		if (frontmatter && frontmatter[typeKey]) {
 			publishPath = `${publishPath}/${frontmatter[typeKey]}`;
 		}
 
-		// Add subdirectory if specified in frontmatter
 		if (frontmatter && frontmatter[subDirKey]) {
-			// Extract only the first part of the year path to avoid duplicate directories
 			const yearValue = String(frontmatter[subDirKey]).split("/")[0];
 			publishPath = `${publishPath}/${yearValue}`;
 		}
 
-		// Add filename after applying path rewrite rules
 		const gardenPath = getGardenPathForNote(filePath, this.rewriteRules);
 		publishPath = `${publishPath}/${gardenPath}`;
 
@@ -587,11 +316,9 @@ export default class Publisher {
 		remoteImageHashes: Record<string, string> = {},
 	) {
 		for (const image of assets.images) {
-			// Convert asset path to hash key: /img/user/attachments/image.png -> attachments/image.png
 			const hashKey = image.path.replace("/img/user/", "");
 			const remoteHash = remoteImageHashes[hashKey];
 
-			// Skip if unchanged (local hash matches remote hash)
 			if (
 				remoteHash &&
 				image.localHash &&
@@ -606,36 +333,25 @@ export default class Publisher {
 	}
 
 	validateSettings() {
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			// For forestry.md, validate forestry settings instead of GitHub
-			if (!this.settings.forestrySettings.apiKey) {
-				new Notice(
-					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
-				);
-				throw {};
-			}
-		} else {
-			// For SelfHosted, validate GitHub settings
-			if (!this.settings.githubRepo) {
-				new Notice(
-					"Config error: You need to define a GitHub repo in the plugin settings",
-				);
-				throw {};
-			}
+		if (!this.settings.githubRepo) {
+			new Notice(
+				"Config error: You need to define a GitHub repo in the plugin settings",
+			);
+			throw {};
+		}
 
-			if (!this.settings.githubUserName) {
-				new Notice(
-					"Config error: You need to define a GitHub Username in the plugin settings",
-				);
-				throw {};
-			}
+		if (!this.settings.githubUserName) {
+			new Notice(
+				"Config error: You need to define a GitHub Username in the plugin settings",
+			);
+			throw {};
+		}
 
-			if (!this.settings.githubToken) {
-				new Notice(
-					"Config error: You need to define a GitHub Token in the plugin settings",
-				);
-				throw {};
-			}
+		if (!this.settings.githubToken) {
+			new Notice(
+				"Config error: You need to define a GitHub Token in the plugin settings",
+			);
+			throw {};
 		}
 	}
 }
