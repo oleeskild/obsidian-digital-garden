@@ -11,6 +11,7 @@ import DigitalGardenSiteManager, {
 } from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
+import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
