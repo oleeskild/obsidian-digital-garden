@@ -282,7 +282,11 @@ export default class Publisher {
 			// 如果 status 是 🟡 Ongoing，发布成功后修改为 🟢 Done
 			const frontmatter = file.getFrontmatter();
 
-			if (frontmatter?.status === "🟡 Ongoing") {
+			const status = Array.isArray(frontmatter?.status)
+				? frontmatter.status[0]
+				: frontmatter?.status;
+
+			if (status === "🟡 Ongoing" || status === "🟡Ongoing") {
 				await this.updateFileStatus(file, "🟢 Done");
 			}
 
@@ -418,7 +422,11 @@ export default class Publisher {
 			for (const file of filesToPublish) {
 				const frontmatter = file.getFrontmatter();
 
-				if (frontmatter?.status === "🟡 Ongoing") {
+				const status = Array.isArray(frontmatter?.status)
+					? frontmatter.status[0]
+					: frontmatter?.status;
+
+				if (status === "🟡 Ongoing" || status === "🟡Ongoing") {
 					await this.updateFileStatus(file, "🟢 Done");
 				}
 			}

@@ -137,7 +137,11 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 			// 获取文件的 frontmatter 信息
 			const frontmatter = file.getFrontmatter();
-			const status = frontmatter?.status;
+
+			// 支持字符串和数组格式的 status
+			const status = Array.isArray(frontmatter?.status)
+				? frontmatter.status[0]
+				: frontmatter?.status;
 
 			// 使用重写后的路径查找远程文件
 			const rewrittenPath = getGardenPathForNote(
@@ -148,34 +152,21 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			const fileFound = remoteHash !== undefined;
 
 			// 根据 status 属性判断发布状态
-			if (status === "🟡 Ongoing") {
+			if (status === "🟡 Ongoing" || status === "🟡Ongoing") {
 				// 🟡 Ongoing 状态：检测远程状态
+				// 远程有文件 → Changed（表示修改过需要重新发布）
+				// 远程没有文件 → Unpublished（表示新文件）
 				if (fileFound) {
-					// 远程有文件，显示在 Changed 中
 					compiledFile.setRemoteHash(remoteHash);
 					changedNotes.push(compiledFile);
 				} else {
-					// 远程没有文件，显示在 Unpublished 中
 					unpublishedNotes.push(compiledFile);
 				}
-			} else if (status === "🟢 Done") {
-				// 🟢 Done 状态：也进行检测，如果用户修改为 Ongoing 需要能正确显示
-				if (fileFound) {
-					compiledFile.setRemoteHash(remoteHash);
-
-					if (remoteHash === localHash) {
-						// 内容一致，显示为 Published
-						publishedNotes.push(compiledFile);
-					} else {
-						// 内容不一致，显示为 Changed（用户可能修改了内容但未改 status）
-						changedNotes.push(compiledFile);
-					}
-				} else {
-					// 远程没有文件，显示为 Unpublished（用户可能删除了远程文件）
-					unpublishedNotes.push(compiledFile);
-				}
+			} else if (status === "🟢 Done" || status === "🟢Done") {
+				// 🟢 Done 状态：表示已发布完成，始终显示在 Published 中
+				publishedNotes.push(compiledFile);
 			} else {
-				// 其他状态（或无 status）：使用默认逻辑
+				// 其他状态（或无 status）：使用默认逻辑检测
 				if (fileFound) {
 					compiledFile.setRemoteHash(remoteHash);
 
