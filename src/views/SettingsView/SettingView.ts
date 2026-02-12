@@ -34,6 +34,7 @@ import {
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 
 interface IObsidianTheme {
 	name: string;
@@ -1020,13 +1021,38 @@ export default class SettingView {
 			cb.setCta();
 
 			cb.onClick(async (_ev) => {
-				const octokit = new Octokit({
-					auth: this.settings.githubToken,
-				});
 				new Notice("Applying settings to site...");
 				await this.saveSettingsAndUpdateEnv();
-				await this.addFavicon(octokit);
-				await this.addLogo(octokit);
+
+				const connection =
+					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+						this.settings,
+					);
+				const octokit = connection.octoKit;
+				const owner = connection.userName;
+				const repo = connection.pageName;
+
+				try {
+					await this.addFavicon(octokit, owner, repo);
+				} catch (error) {
+					Logger.error("Failed to update favicon", error);
+
+					new Notice(
+						"Failed to update favicon. Check the developer console for details.",
+					);
+				}
+
+				try {
+					await this.addLogo(octokit, owner, repo);
+				} catch (error) {
+					Logger.error("Failed to update logo", error);
+
+					new Notice(
+						"Failed to update logo. Check the developer console for details.",
+					);
+				}
+
+				new Notice("Settings applied to site!");
 			});
 		};
 
@@ -1651,7 +1677,7 @@ export default class SettingView {
 		return settings;
 	}
 
-	private async addFavicon(octokit: Octokit) {
+	private async addFavicon(octokit: Octokit, owner: string, repo: string) {
 		let base64SettingsFaviconContent = "";
 
 		if (this.settings.faviconPath) {
@@ -1667,11 +1693,14 @@ export default class SettingView {
 			const faviconContent = await this.app.vault.readBinary(faviconFile);
 			base64SettingsFaviconContent = arrayBufferToBase64(faviconContent);
 		} else {
-			const defaultFavicon = await octokit.request(
+			const baseConnection =
+				PublishPlatformConnectionFactory.createBaseGardenConnection();
+
+			const defaultFavicon = await baseConnection.octoKit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
 				{
-					owner: "oleeskild",
-					repo: "digitalgarden",
+					owner: baseConnection.userName,
+					repo: baseConnection.pageName,
 					path: "src/site/favicon.svg",
 				},
 			);
@@ -1679,7 +1708,6 @@ export default class SettingView {
 			base64SettingsFaviconContent = defaultFavicon.data.content;
 		}
 
-		//The getting and setting sha when putting can be generalized into a utility function
 		let faviconExists = true;
 		let faviconsAreIdentical = false;
 		let currentFaviconOnSite = null;
@@ -1688,15 +1716,16 @@ export default class SettingView {
 			currentFaviconOnSite = await octokit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
 				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
+					owner,
+					repo,
 					path: "src/site/favicon.svg",
 				},
 			);
 
+			// GitHub API returns base64 with newlines, strip them for comparison
 			faviconsAreIdentical =
 				// @ts-expect-error TODO: abstract octokit response
-				currentFaviconOnSite.data.content ===
+				currentFaviconOnSite.data.content.replace(/\n/g, "") ===
 				base64SettingsFaviconContent;
 
 			if (faviconsAreIdentical) {
@@ -1710,8 +1739,8 @@ export default class SettingView {
 
 		if (!faviconExists || !faviconsAreIdentical) {
 			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner: this.settings.githubUserName,
-				repo: this.settings.githubRepo,
+				owner,
+				repo,
 				path: "src/site/favicon.svg",
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
@@ -1721,7 +1750,10 @@ export default class SettingView {
 		}
 	}
 
-	private async addLogo(octokit: Octokit) {
+	private async addLogo(octokit: Octokit, owner: string, repo: string) {
+		Logger.info(
+			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
+		);
 		const logoBasePath = "src/site/logo";
 
 		// First, try to delete any existing logo files
@@ -1732,8 +1764,8 @@ export default class SettingView {
 				const existingLogo = await octokit.request(
 					"GET /repos/{owner}/{repo}/contents/{path}",
 					{
-						owner: this.settings.githubUserName,
-						repo: this.settings.githubRepo,
+						owner,
+						repo,
 						path: `${logoBasePath}.${ext}`,
 					},
 				);
@@ -1751,8 +1783,8 @@ export default class SettingView {
 						await octokit.request(
 							"DELETE /repos/{owner}/{repo}/contents/{path}",
 							{
-								owner: this.settings.githubUserName,
-								repo: this.settings.githubRepo,
+								owner,
+								repo,
 								path: `${logoBasePath}.${ext}`,
 								message: `Remove logo.${ext}`,
 								// @ts-expect-error TODO: abstract octokit response
@@ -1798,15 +1830,17 @@ export default class SettingView {
 			currentLogoOnSite = await octokit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
 				{
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
+					owner,
+					repo,
 					path: logoPath,
 				},
 			);
 
+			// GitHub API returns base64 with newlines, strip them for comparison
 			logosAreIdentical =
 				// @ts-expect-error TODO: abstract octokit response
-				currentLogoOnSite.data.content === base64LogoContent;
+				currentLogoOnSite.data.content.replace(/\n/g, "") ===
+				base64LogoContent;
 
 			if (logosAreIdentical) {
 				Logger.info("Logos are identical, skipping update");
@@ -1820,8 +1854,8 @@ export default class SettingView {
 		if (!logoExists || !logosAreIdentical) {
 			try {
 				const requestPayload = {
-					owner: this.settings.githubUserName,
-					repo: this.settings.githubRepo,
+					owner,
+					repo,
 					path: logoPath,
 					message: `Update logo.${logoExtension}`,
 					content: base64LogoContent,
