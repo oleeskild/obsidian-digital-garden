@@ -401,15 +401,22 @@ export default class DigitalGarden extends Plugin {
 			await publisher.publishBatch(filesToPublish);
 			statusBar.incrementMultiple(filesToPublish.length);
 
-			// 批量删除笔记（只触发一次部署）
+			// 批量删除笔记和图片（合并删除，只在最后触发一次部署）
 			const notePathsToDelete = filesToDelete.map((f) => f.path);
-			await publisher.deleteBatch(notePathsToDelete);
-			statusBar.incrementMultiple(filesToDelete.length);
-
-			// 批量删除图片（只触发一次部署）
 			const imagePathsToDelete = imagesToDelete.map((i) => i.path);
-			await publisher.deleteImageBatch(imagePathsToDelete);
-			statusBar.incrementMultiple(imagesToDelete.length);
+
+			const allPathsToDelete = [
+				...notePathsToDelete,
+				...imagePathsToDelete,
+			];
+
+			if (allPathsToDelete.length > 0) {
+				await publisher.deleteBatch(allPathsToDelete);
+
+				statusBar.incrementMultiple(
+					filesToDelete.length + imagesToDelete.length,
+				);
+			}
 
 			statusBar.finish(8000);
 
