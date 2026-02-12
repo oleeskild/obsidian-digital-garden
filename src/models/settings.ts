@@ -105,4 +105,10 @@ export default interface DigitalGardenSettings {
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;
 	logLevel?: ILogLevel;
+
+	// Extended settings for custom path publishing
+	publishBasePath?: string;
+	typeDirectoryKey?: string;
+	subDirectoryKey?: string;
+	imagePublishPath?: string;
 }

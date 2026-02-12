@@ -258,19 +258,22 @@ export default class DigitalGardenSiteManager {
 		contentTree: NonNullable<TRepositoryContent>,
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree;
-		const notePathBase = getNotePathBase(this.settings);
+
+		// Use the configured publishBasePath instead of hardcoded DEFAULT_NOTE_PATH_BASE
+		const basePath =
+			this.settings.publishBasePath || getNotePathBase(this.settings);
 
 		const notes = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(notePathBase) &&
+				x.path.startsWith(basePath) &&
 				x.type === "blob" &&
-				x.path !== `${notePathBase}notes.json`,
+				x.path !== `${basePath}notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const note of notes) {
-			const vaultPath = note.path.replace(notePathBase, "");
+			const vaultPath = note.path.replace(basePath, "");
 			hashes[vaultPath] = note.sha;
 		}
 
@@ -282,16 +285,19 @@ export default class DigitalGardenSiteManager {
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree ?? [];
 
+		// Use the configured image path instead of hardcoded IMAGE_PATH_BASE
+		const imageBasePath = this.settings.imagePublishPath || IMAGE_PATH_BASE;
+
 		const images = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(IMAGE_PATH_BASE) &&
+				x.path.startsWith(imageBasePath) &&
 				x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const img of images) {
-			const vaultPath = img.path.replace(IMAGE_PATH_BASE, "");
+			const vaultPath = img.path.replace(imageBasePath, "");
 			hashes[vaultPath] = img.sha;
 		}
 

@@ -1,6 +1,6 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
-import { getRewriteRules } from "../utils/utils";
+import { getRewriteRules, getGardenPathForNote } from "../utils/utils";
 import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
@@ -23,8 +23,7 @@ export interface MarkedForPublishing {
 }
 
 export const IMAGE_PATH_BASE = "src/site/img/user/";
-// NOTE_PATH_BASE is now dynamic based on settings.contentBasePath
-// Use getNotePathBase(settings) to get the correct path
+const DEFAULT_NOTE_PATH_BASE = "src/site/notes/";
 
 /**
  * Prepares files to be published and publishes them to Github
@@ -223,10 +222,10 @@ export default class Publisher {
 
 		try {
 			const [text, assets] = file.compiledFile;
-			const remoteImageHashes = await this.getRemoteImageHashes();
+			const _remoteImageHashes = await this.getRemoteImageHashes();
 
 			await this.uploadText(file.getPath(), text, file?.remoteHash);
-			await this.uploadAssets(assets, remoteImageHashes);
+			await this.uploadAssets(assets, _remoteImageHashes);
 
 			return true;
 		} catch (error) {
@@ -248,8 +247,7 @@ export default class Publisher {
 				),
 			);
 
-			const notePathBase = getNotePathBase(this.settings);
-			await userGardenConnection.deleteFiles(filePaths, notePathBase);
+			await userGardenConnection.deleteFiles(filePaths);
 
 			return true;
 		} catch (error) {
@@ -423,9 +421,37 @@ export default class Publisher {
 
 	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
-		const notePathBase = getNotePathBase(this.settings);
-		const path = `${notePathBase}${filePath}`;
-		await this.uploadToGithub(path, content, sha);
+
+		// Get file frontmatter to determine type and year
+		const cache = this.metadataCache.getCache(filePath);
+		const frontmatter = cache ? cache.frontmatter : {};
+
+		// Get configuration values
+		const basePath =
+			this.settings.publishBasePath || DEFAULT_NOTE_PATH_BASE;
+		const typeKey = this.settings.typeDirectoryKey || "type";
+		const subDirKey = this.settings.subDirectoryKey || "year";
+
+		// Build path components
+		let publishPath = basePath;
+
+		// Add type directory if specified in frontmatter
+		if (frontmatter && frontmatter[typeKey]) {
+			publishPath = `${publishPath}/${frontmatter[typeKey]}`;
+		}
+
+		// Add subdirectory if specified in frontmatter
+		if (frontmatter && frontmatter[subDirKey]) {
+			// Extract only the first part of the year path to avoid duplicate directories
+			const yearValue = String(frontmatter[subDirKey]).split("/")[0];
+			publishPath = `${publishPath}/${yearValue}`;
+		}
+
+		// Add filename after applying path rewrite rules
+		const gardenPath = getGardenPathForNote(filePath, this.rewriteRules);
+		publishPath = `${publishPath}/${gardenPath}`;
+
+		await this.uploadToGithub(publishPath, content, sha);
 	}
 
 	private async uploadImage(filePath: string, content: string, sha?: string) {

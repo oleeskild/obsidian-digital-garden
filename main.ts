@@ -1,4 +1,4 @@
-import { Notice, Plugin, Workspace, addIcon, TFile } from "obsidian";
+import { Notice, Plugin, Workspace, addIcon } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
@@ -9,8 +9,7 @@ import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSite
 import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
-import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
-import { PublishPlatform } from "src/models/PublishPlatform";
+import { ObsidianFrontMatterEngine } from "./src/publishFile/ObsidianFrontMatterEngine";
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
@@ -50,7 +49,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
-	publishPlatform: PublishPlatform.SelfHosted,
+	publishPlatform:
+		"SelfHosted" as unknown as DigitalGardenSettings["publishPlatform"],
 	contentClassesKey: "dg-content-classes",
 	forestrySettings: {
 		forestryPageName: "",
@@ -142,6 +142,36 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async addCommands() {
+		// 快速发布并分享笔记
+		this.addCommand({
+			id: "quick-publish-and-share-note",
+			name: "快速发布并分享笔记",
+			callback: async () => {
+				new Notice("正在为笔记添加发布标记并发布...");
+				await this.setPublishFlagValue(true);
+				const activeFile = this.app.workspace.getActiveFile();
+
+				const event = this.app.metadataCache.on(
+					"changed",
+					async (file, _data, _cache) => {
+						if (file.path === activeFile?.path) {
+							const successfullyPublished =
+								await this.publishSingleNote();
+
+							if (successfullyPublished) {
+								await this.copyGardenUrlToClipboard();
+							}
+							this.app.metadataCache.offref(event);
+						}
+					},
+				);
+
+				setTimeout(() => {
+					this.app.metadataCache.offref(event);
+				}, 5000);
+			},
+		});
+
 		// 发布当前笔记
 		this.addCommand({
 			id: "publish-note",
@@ -157,6 +187,15 @@ export default class DigitalGarden extends Plugin {
 			name: "发布所有标记的笔记",
 			callback: async () => {
 				await this.publishMultipleNotes();
+			},
+		});
+
+		// 复制花园URL
+		this.addCommand({
+			id: "copy-garden-url",
+			name: "复制花园URL",
+			callback: async () => {
+				await this.copyGardenUrlToClipboard();
 			},
 		});
 
@@ -186,6 +225,15 @@ export default class DigitalGarden extends Plugin {
 				this.setPublishFlagValue(false);
 			},
 		});
+
+		// 切换发布状态
+		this.addCommand({
+			id: "dg-mark-toggle-publish-status",
+			name: "切换发布状态",
+			callback: async () => {
+				this.togglePublishFlag();
+			},
+		});
 	}
 
 	private getActiveFile(workspace: Workspace) {
@@ -200,23 +248,44 @@ export default class DigitalGarden extends Plugin {
 		return activeFile;
 	}
 
-	// 发布单篇笔记
-	async publishSingleNote() {
+	async copyGardenUrlToClipboard() {
 		try {
-			const { vault, workspace, metadataCache } = this.app;
+			const { metadataCache, workspace } = this.app;
 			const activeFile = this.getActiveFile(workspace);
 
 			if (!activeFile) {
 				return;
 			}
 
-			if (
-				activeFile.extension !== "md" &&
-				activeFile.extension !== "canvas"
-			) {
-				new Notice("当前文件不是 Markdown 或 Canvas 文件，无法发布。");
+			const siteManager = new DigitalGardenSiteManager(
+				metadataCache,
+				this.settings,
+			);
+			const fullUrl = siteManager.getNoteUrl(activeFile);
+			await navigator.clipboard.writeText(fullUrl);
+			new Notice(`笔记URL已复制到剪贴板`);
+		} catch (e) {
+			console.log(e);
+			new Notice("无法复制笔记URL到剪贴板，出现错误。");
+		}
+	}
 
-				return;
+	// 发布单篇笔记
+	async publishSingleNote(): Promise<boolean> {
+		try {
+			const { vault, workspace, metadataCache } = this.app;
+			const activeFile = this.getActiveFile(workspace);
+
+			if (!activeFile) {
+				return false;
+			}
+
+			if (activeFile.extension !== "md") {
+				new Notice(
+					"当前文件不是 Markdown 文件，请先打开 Markdown 文件。",
+				);
+
+				return false;
 			}
 
 			new Notice("正在发布笔记...");
@@ -383,45 +452,57 @@ export default class DigitalGarden extends Plugin {
 			return;
 		}
 
-		await this.app.fileManager.processFrontMatter(
-			activeFile as TFile,
-			(frontmatter) => {
-				frontmatter[FRONTMATTER_KEYS.PUBLISH] = value;
-			},
+		const engine = new ObsidianFrontMatterEngine(
+			this.app.vault,
+			this.app.metadataCache,
+			activeFile,
 		);
+		engine.set("pub-blog", value).apply();
+	}
 
-		if (value) {
-			new Notice(`已为 "${activeFile.basename}" 添加发布标记`);
-		} else {
-			new Notice(`已移除 "${activeFile.basename}" 的发布标记`);
+	// 切换发布标记
+	async togglePublishFlag() {
+		const activeFile = this.getActiveFile(this.app.workspace);
+
+		if (!activeFile) {
+			return;
 		}
+
+		const engine = new ObsidianFrontMatterEngine(
+			this.app.vault,
+			this.app.metadataCache,
+			activeFile,
+		);
+		engine.set("pub-blog", !engine.get("pub-blog")).apply();
 	}
 
 	// 打开发布中心
 	openPublishModal() {
-		const siteManager = new DigitalGardenSiteManager(
-			this.app.metadataCache,
-			this.settings,
-		);
+		if (!this.publishModal) {
+			const siteManager = new DigitalGardenSiteManager(
+				this.app.metadataCache,
+				this.settings,
+			);
 
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
+			const publisher = new Publisher(
+				this.app.vault,
+				this.app.metadataCache,
+				this.settings,
+			);
 
-		const publishStatusManager = new PublishStatusManager(
-			siteManager,
-			publisher,
-		);
+			const publishStatusManager = new PublishStatusManager(
+				siteManager,
+				publisher,
+			);
 
-		this.publishModal = new PublicationCenter(
-			this.app,
-			publishStatusManager,
-			publisher,
-			siteManager,
-			this.settings,
-		);
+			this.publishModal = new PublicationCenter(
+				this.app,
+				publishStatusManager,
+				publisher,
+				siteManager,
+				this.settings,
+			);
+		}
 		this.publishModal.open();
 	}
 }

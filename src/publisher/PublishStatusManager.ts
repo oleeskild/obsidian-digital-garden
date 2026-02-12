@@ -6,6 +6,7 @@ import {
 	getGardenPathForNote,
 } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
+import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 
 /**
  *  Manages the publishing status of notes and images for a digital garden.
@@ -17,21 +18,20 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
 	}
-	getDeletedNotePaths(): Promise<string[]> {
-		throw new Error("Method not implemented.");
-	}
-	getDeletedImagesPaths(): Promise<string[]> {
-		throw new Error("Method not implemented.");
-	}
-
 	private generateDeletedContentPaths(
 		remoteNoteHashes: { [key: string]: string },
 		marked: string[],
+		rewriteRules?: PathRewriteRules,
 	): Array<{ path: string; sha: string }> {
 		const isJsFile = (key: string) => key.endsWith(".js");
 
+		// 应用路径重写规则，将本地路径转换为发布后的路径
+		const rewrittenMarked = rewriteRules
+			? marked.map((path) => getGardenPathForNote(path, rewriteRules))
+			: marked;
+
 		const isMarkedForPublish = (key: string) =>
-			marked.find((f) => f === key);
+			rewrittenMarked.find((f) => f === key);
 
 		const deletedPaths = Object.keys(remoteNoteHashes).filter(
 			(key) => !isJsFile(key) && !isMarkedForPublish(key),
@@ -67,7 +67,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
-		// 获取路径改写规则
+		// 获取路径重写规则（提前到循环前）
 		const rewriteRules = getRewriteRules(
 			this.publisher.settings.pathRewriteRules,
 		);
@@ -78,37 +78,49 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 			const localHash = generateBlobHash(content);
 
-			// 使用改写后的路径来匹配远程文件
-			const gardenPath = getGardenPathForNote(
-				file.getPath(),
-				rewriteRules,
-			);
-			const remoteHash = remoteNoteHashes[gardenPath];
+			// 获取文件的frontmatter信息，检查pub-blog标志
+			const frontmatter = file.getFrontmatter();
+			const isPubBlogEnabled = !!(frontmatter && frontmatter["pub-blog"]);
 
-			if (!remoteHash) {
-				unpublishedNotes.push(compiledFile);
-			} else if (remoteHash === localHash) {
-				compiledFile.setRemoteHash(remoteHash);
-				publishedNotes.push(compiledFile);
-			} else {
-				compiledFile.setRemoteHash(remoteHash);
-				changedNotes.push(compiledFile);
+			// 只处理pub-blog为true的文件
+			if (isPubBlogEnabled) {
+				// 1. 使用重写后的路径直接查找远程文件
+				const rewrittenPath = getGardenPathForNote(
+					file.getPath(),
+					rewriteRules,
+				);
+				const remoteHash = remoteNoteHashes[rewrittenPath];
+				const fileFound = remoteHash !== undefined;
+
+				// 2. 如果找到同名文件，表示已经发布过
+				if (fileFound && remoteHash !== undefined) {
+					compiledFile.setRemoteHash(remoteHash);
+
+					// 3. 通过哈希值判断是否有更改
+					if (remoteHash === localHash) {
+						// 没有更改，放入published
+						publishedNotes.push(compiledFile);
+					} else {
+						// 有更改，放入changed
+						changedNotes.push(compiledFile);
+					}
+				} else {
+					// 4. pub-blog为true但在远程仓库中找不到同名文件，放入unpublished
+					unpublishedNotes.push(compiledFile);
+				}
 			}
 		}
 
-		// 使用改写后的路径来检查已删除的文件
-		const markedGardenPaths = marked.notes.map((f) =>
-			getGardenPathForNote(f.getPath(), rewriteRules),
-		);
-
 		const deletedNotePaths = this.generateDeletedContentPaths(
 			remoteNoteHashes,
-			markedGardenPaths,
+			marked.notes.map((f) => f.getPath()),
+			rewriteRules,
 		);
 
 		const deletedImagePaths = this.generateDeletedContentPaths(
 			remoteImageHashes,
 			marked.images,
+			rewriteRules,
 		);
 
 		publishedNotes.sort((a, b) => a.compare(b));

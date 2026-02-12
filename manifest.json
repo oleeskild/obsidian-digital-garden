@@ -1,7 +1,7 @@
 {
-	"id": "blog-publish",
-	"name": "Blog Publish",
-	"version": "1.2.0",
+	"id": "digital-garden-publish",
+	"name": "Digital Garden Publish",
+	"version": "1.2.2",
 	"minAppVersion": "1.10.0",
 	"description": "Publish your notes to my blog.",
 	"author": "joeytdoay",
