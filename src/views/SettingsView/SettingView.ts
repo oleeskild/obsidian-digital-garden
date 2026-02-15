@@ -143,7 +143,7 @@ export default class SettingView {
 		const publishPlatformSettings = this.settingsRootElement.createEl(
 			"div",
 			{
-				cls: "connection-status",
+				cls: "publish-platform-settings",
 			},
 		);
 

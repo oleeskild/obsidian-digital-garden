@@ -15,6 +15,7 @@ import Logger from "js-logger";
 import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
+import { LimitReachedError } from "../forestry/LimitReachedError";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -227,6 +228,9 @@ export default class Publisher {
 
 			return true;
 		} catch (error) {
+			if (error instanceof LimitReachedError) {
+				throw error;
+			}
 			console.error(error);
 
 			return false;
@@ -280,6 +284,9 @@ export default class Publisher {
 
 			return true;
 		} catch (error) {
+			if (error instanceof LimitReachedError) {
+				throw error;
+			}
 			console.error(error);
 
 			return false;

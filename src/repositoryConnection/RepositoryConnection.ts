@@ -2,6 +2,7 @@ import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
+import { throwIfLimitError } from "src/forestry/LimitReachedError";
 
 const logger = Logger.get("repository-connection");
 
@@ -127,6 +128,7 @@ export class RepositoryConnection {
 
 			return result;
 		} catch (error) {
+			throwIfLimitError(error);
 			logger.error(error);
 
 			return false;
@@ -185,6 +187,7 @@ export class RepositoryConnection {
 				payload,
 			);
 		} catch (error) {
+			throwIfLimitError(error);
 			logger.error(error);
 		}
 	}
@@ -324,6 +327,7 @@ export class RepositoryConnection {
 					sha: blob.data.sha,
 				};
 			} catch (error) {
+				throwIfLimitError(error);
 				logger.error(error);
 			}
 		});
@@ -368,6 +372,7 @@ export class RepositoryConnection {
 					sha: blob.data.sha,
 				};
 			} catch (error) {
+				throwIfLimitError(error);
 				logger.error(error);
 			}
 		});

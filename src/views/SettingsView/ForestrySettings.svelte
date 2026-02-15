@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DigitalGardenSettings from "../../models/settings";
 	import ForestryApi from "src/forestry/ForestryApi";
+	import type { IUserLimitsResponse } from "src/forestry/UserLimitsResponse";
 	import { Notice } from "obsidian";
 	import Icon from "src/ui/Icon.svelte";
 
@@ -10,6 +11,8 @@
 	export let saveSettings: () => Promise<void>;
 	export let onConnect: () => Promise<void>;
 	let apiKey: string = settings.forestrySettings.apiKey;
+	let limits: IUserLimitsResponse | null = null;
+	let limitsLoading = false;
 
 	const connect = async () => {
 		let pageInfo = await getPageInfo();
@@ -32,6 +35,7 @@
 		settings.forestrySettings.forestryPageName = "";
 		await saveSettings();
 		apiKey = "";
+		limits = null;
 	};
 
 	const getPageInfo = async () => {
@@ -39,6 +43,24 @@
 
 		return pageInfo;
 	};
+
+	const fetchLimits = async () => {
+		if (!settings.forestrySettings.apiKey) return;
+		limitsLoading = true;
+
+		try {
+			limits = await new ForestryApi(
+				settings.forestrySettings.apiKey,
+			).getUserLimits();
+		} catch {
+			limits = null;
+		}
+		limitsLoading = false;
+	};
+
+	$: if (settings.forestrySettings.apiKey) {
+		fetchLimits();
+	}
 </script>
 
 <div>
@@ -104,6 +126,88 @@
 							<Icon name="external-link" /> Open Forestry.md Dashboard
 						</a>
 					</div>
+
+					{#if limitsLoading}
+						<div class="setting-item" style="margin-top: 12px;">
+							<div class="setting-item-info">
+								<div class="setting-item-name">
+									Loading usage info...
+								</div>
+							</div>
+						</div>
+					{:else if limits}
+						<div
+							style="margin-top: 16px; padding: 12px; background: var(--background-secondary); border-radius: 8px;"
+						>
+							<div style="font-weight: 600; margin-bottom: 8px;">
+								Usage — {limits.plan} plan
+							</div>
+							<div
+								style="display: flex; flex-direction: column; gap: 6px; font-size: 0.9em; color: var(--text-muted);"
+							>
+								<div
+									style="display: flex; justify-content: space-between;"
+								>
+									<span>Builds this month</span>
+									<span
+										style="color: {limits.builds
+											.monthlyRemaining === 0
+											? 'var(--text-error)'
+											: 'var(--text-normal)'};"
+									>
+										{limits.builds.monthlyLimit -
+											limits.builds.monthlyRemaining} / {limits
+											.builds.monthlyLimit}
+									</span>
+								</div>
+								{#if limits.builds.starterCreditsRemaining > 0}
+									<div
+										style="display: flex; justify-content: space-between;"
+									>
+										<span>Starter credits remaining</span>
+										<span
+											>{limits.builds
+												.starterCreditsRemaining}</span
+										>
+									</div>
+								{/if}
+								<div
+									style="display: flex; justify-content: space-between;"
+								>
+									<span>Storage</span>
+									<span
+										style="color: {limits.storage
+											.usedBytes >=
+										limits.storage.limitBytes
+											? 'var(--text-error)'
+											: 'var(--text-normal)'};"
+									>
+										{limits.storage.usedFormatted} / {limits
+											.storage.limitFormatted}
+									</span>
+								</div>
+								<div
+									style="display: flex; justify-content: space-between;"
+								>
+									<span>Sites</span>
+									<span
+										>{limits.sites.current} / {limits.sites
+											.limit}</span
+									>
+								</div>
+							</div>
+							{#if limits.builds.monthlyRemaining === 0 || limits.storage.usedBytes >= limits.storage.limitBytes}
+								<div
+									style="margin-top: 8px; padding: 8px; background: var(--background-modifier-error); border-radius: 4px; font-size: 0.85em;"
+								>
+									You've reached your usage limit. <a
+										href="https://dashboard.forestry.md/settings"
+										target="_blank">Upgrade your plan</a
+									> to continue publishing.
+								</div>
+							{/if}
+						</div>
+					{/if}
 				{:else}
 					<div class="setting-item">
 						<div class="setting-item-info">

@@ -20,6 +20,7 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import { LimitReachedError } from "src/forestry/LimitReachedError";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -332,6 +333,12 @@ export default class DigitalGarden extends Plugin {
 				} catch (e) {
 					statusBarItem.remove();
 					this.isPublishing = false;
+
+					if (e instanceof LimitReachedError) {
+						this.showLimitNotice(e);
+
+						return;
+					}
 					console.error(e);
 
 					new Notice(
@@ -478,6 +485,11 @@ export default class DigitalGarden extends Plugin {
 
 			return publishSuccessful;
 		} catch (e) {
+			if (e instanceof LimitReachedError) {
+				this.showLimitNotice(e);
+
+				return false;
+			}
 			console.error(e);
 			new Notice("Unable to publish note, something went wrong.");
 
@@ -587,6 +599,23 @@ export default class DigitalGarden extends Plugin {
 					}
 				},
 			).open();
+		}
+	}
+
+	private showLimitNotice(error: LimitReachedError) {
+		if (error.errorType === "build_limit_reached") {
+			const used = error.buildsUsed ?? 0;
+			const limit = error.monthlyLimit ?? 0;
+
+			new Notice(
+				`Publishing blocked: You've used all ${used}/${limit} builds this month. Upgrade to Pro for 1000 builds/month at dashboard.forestry.md/settings`,
+				10000,
+			);
+		} else {
+			new Notice(
+				`Publishing blocked: Storage limit exceeded. Free up space or upgrade at dashboard.forestry.md/settings`,
+				10000,
+			);
 		}
 	}
 

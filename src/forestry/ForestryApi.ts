@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import IPageInfoResponse from "src/models/PageInfo";
+import { IUserLimitsResponse } from "src/forestry/UserLimitsResponse";
 import Logger from "js-logger";
 
 // Default base URL to use as fallback
@@ -26,6 +27,24 @@ export default class ForestryApi {
 			const response = (await this.client.get(
 				"pages/info",
 			)) as AxiosResponse<IPageInfoResponse>;
+
+			if (response.status !== 200) {
+				return null;
+			}
+
+			return response.data;
+		} catch (e) {
+			Logger.error(e);
+
+			return null;
+		}
+	}
+
+	async getUserLimits(): Promise<IUserLimitsResponse | null> {
+		try {
+			const response = (await this.client.get(
+				"user/limits",
+			)) as AxiosResponse<IUserLimitsResponse>;
 
 			if (response.status !== 200) {
 				return null;
