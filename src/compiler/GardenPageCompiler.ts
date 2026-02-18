@@ -322,6 +322,24 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						headerPath =
 							headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
 					}
+
+					// Same-file header link, e.g. [[#My Header]] or [[#My Header|display]]
+					if (linkedFileName === "" && headerPath !== "") {
+						const currentFilePath = file.getPath();
+
+						const currentExtensionlessPath =
+							currentFilePath.substring(
+								0,
+								currentFilePath.lastIndexOf("."),
+							);
+
+						convertedText = convertedText.replace(
+							linkMatch,
+							`[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
+						);
+						continue;
+					}
+
 					const fullLinkedFilePath = getLinkpath(linkedFileName);
 
 					if (fullLinkedFilePath === "") {

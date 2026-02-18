@@ -481,6 +481,8 @@ export default class DigitalGarden extends Plugin {
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
+			} else {
+				new Notice("Unable to publish note, something went wrong.");
 			}
 
 			return publishSuccessful;
