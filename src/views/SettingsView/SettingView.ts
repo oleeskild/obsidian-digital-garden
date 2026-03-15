@@ -648,6 +648,41 @@ export default class SettingView {
 				controlKey: "searchPreviewPlaceholder",
 				settingsKey: "searchPreviewPlaceholder",
 			},
+			{
+				envKey: "UI_SEARCH_NOT_STARTED_TEXT",
+				controlKey: "searchNotStarted",
+				settingsKey: "searchNotStarted",
+			},
+			{
+				envKey: "UI_SEARCH_ENTER_HOTKEY",
+				controlKey: "searchEnterHotkey",
+				settingsKey: "searchEnterHotkey",
+			},
+			{
+				envKey: "UI_SEARCH_NAVIGATE_HOTKEY",
+				controlKey: "searchNavigateHotkey",
+				settingsKey: "searchNavigateHotkey",
+			},
+			{
+				envKey: "UI_SEARCH_CLOSE_HOTKEY",
+				controlKey: "searchCloseHotkey",
+				settingsKey: "searchCloseHotkey",
+			},
+			{
+				envKey: "UI_CANVAS_DRAG_HINT",
+				controlKey: "canvasDragHint",
+				settingsKey: "canvasDragHint",
+			},
+			{
+				envKey: "UI_CANVAS_ZOOM_HINT",
+				controlKey: "canvasZoomHint",
+				settingsKey: "canvasZoomHint",
+			},
+			{
+				envKey: "UI_CANVAS_RESET_HINT",
+				controlKey: "canvasResetHint",
+				settingsKey: "canvasResetHint",
+			},
 		];
 
 		// Load settings from remote .env file
@@ -834,6 +869,123 @@ export default class SettingView {
 					)
 					.onChange((val) => {
 						this.settings.uiStrings.searchPreviewPlaceholder = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Search not started text")
+			.setDesc('Default: "Enter your search text in the box above"')
+			.addText((text) => {
+				textControls["searchNotStarted"] = text;
+
+				text.setPlaceholder("Enter your search text in the box above")
+					.setValue(
+						this.settings.uiStrings?.searchNotStarted ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.searchNotStarted = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Enter hotkey label")
+			.setDesc('Default: "Enter"')
+			.addText((text) => {
+				textControls["searchEnterHotkey"] = text;
+
+				text.setPlaceholder("Enter")
+					.setValue(
+						this.settings.uiStrings?.searchEnterHotkey ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.searchEnterHotkey = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Navigate hotkey label")
+			.setDesc('Default: "⇅"')
+			.addText((text) => {
+				textControls["searchNavigateHotkey"] = text;
+
+				text.setPlaceholder("⇅")
+					.setValue(
+						this.settings.uiStrings?.searchNavigateHotkey ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.searchNavigateHotkey = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Close hotkey label")
+			.setDesc('Default: "ESC"')
+			.addText((text) => {
+				textControls["searchCloseHotkey"] = text;
+
+				text.setPlaceholder("ESC")
+					.setValue(
+						this.settings.uiStrings?.searchCloseHotkey ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.searchCloseHotkey = val;
+						markAsChanged();
+					});
+			});
+
+		// Canvas section
+		uiStringsModal.contentEl
+			.createEl("h3", { text: "Canvas" })
+			.addClass("dg-ui-strings-section-header");
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Drag hint")
+			.setDesc('Default: "Drag to pan"')
+			.addText((text) => {
+				textControls["canvasDragHint"] = text;
+
+				text.setPlaceholder("Drag to pan")
+					.setValue(
+						this.settings.uiStrings?.canvasDragHint ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.canvasDragHint = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Zoom hint")
+			.setDesc('Default: "Scroll to zoom"')
+			.addText((text) => {
+				textControls["canvasZoomHint"] = text;
+
+				text.setPlaceholder("Scroll to zoom")
+					.setValue(
+						this.settings.uiStrings?.canvasZoomHint ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.canvasZoomHint = val;
+						markAsChanged();
+					});
+			});
+
+		new Setting(uiStringsModal.contentEl)
+			.setName("Reset hint")
+			.setDesc('Default: "Double-click to reset"')
+			.addText((text) => {
+				textControls["canvasResetHint"] = text;
+
+				text.setPlaceholder("Double-click to reset")
+					.setValue(
+						this.settings.uiStrings?.canvasResetHint ?? "",
+					)
+					.onChange((val) => {
+						this.settings.uiStrings.canvasResetHint = val;
 						markAsChanged();
 					});
 			});

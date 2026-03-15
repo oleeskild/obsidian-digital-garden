@@ -126,12 +126,24 @@ export default class DigitalGardenSiteManager {
 				UI_SEARCH_PLACEHOLDER:
 					this.settings.uiStrings.searchPlaceholder,
 			}),
+			...(this.settings.uiStrings?.searchNotStarted && {
+				UI_SEARCH_NOT_STARTED_TEXT: this.settings.uiStrings.searchNotStarted,
+			}),
+			...(this.settings.uiStrings?.searchEnterHotkey && {
+				UI_SEARCH_ENTER_HOTKEY: this.settings.uiStrings.searchEnterHotkey,
+			}),
 			...(this.settings.uiStrings?.searchEnterHint && {
 				UI_SEARCH_ENTER_HINT: this.settings.uiStrings.searchEnterHint,
+			}),
+			...(this.settings.uiStrings?.searchNavigateHotkey && {
+				UI_SEARCH_NAVIGATE_HOTKEY: this.settings.uiStrings.searchNavigateHotkey,
 			}),
 			...(this.settings.uiStrings?.searchNavigateHint && {
 				UI_SEARCH_NAVIGATE_HINT:
 					this.settings.uiStrings.searchNavigateHint,
+			}),
+			...(this.settings.uiStrings?.searchCloseHotkey && {
+				UI_SEARCH_CLOSE_HOTKEY: this.settings.uiStrings.searchCloseHotkey,
 			}),
 			...(this.settings.uiStrings?.searchCloseHint && {
 				UI_SEARCH_CLOSE_HINT: this.settings.uiStrings.searchCloseHint,

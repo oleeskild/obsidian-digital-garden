@@ -70,8 +70,12 @@ export default interface DigitalGardenSettings {
 		noBacklinksMessage: string;
 		searchButtonText: string;
 		searchPlaceholder: string;
+		searchNotStarted: string;
+		searchEnterHotkey: string;
 		searchEnterHint: string;
+		searchNavigateHotkey: string;
 		searchNavigateHint: string;
+		searchCloseHotkey: string;
 		searchCloseHint: string;
 		searchNoResults: string;
 		searchPreviewPlaceholder: string;
