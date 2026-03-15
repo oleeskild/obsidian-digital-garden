@@ -880,9 +880,7 @@ export default class SettingView {
 				textControls["searchNotStarted"] = text;
 
 				text.setPlaceholder("Enter your search text in the box above")
-					.setValue(
-						this.settings.uiStrings?.searchNotStarted ?? "",
-					)
+					.setValue(this.settings.uiStrings?.searchNotStarted ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNotStarted = val;
 						markAsChanged();
@@ -896,9 +894,7 @@ export default class SettingView {
 				textControls["searchEnterHotkey"] = text;
 
 				text.setPlaceholder("Enter")
-					.setValue(
-						this.settings.uiStrings?.searchEnterHotkey ?? "",
-					)
+					.setValue(this.settings.uiStrings?.searchEnterHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchEnterHotkey = val;
 						markAsChanged();
@@ -928,9 +924,7 @@ export default class SettingView {
 				textControls["searchCloseHotkey"] = text;
 
 				text.setPlaceholder("ESC")
-					.setValue(
-						this.settings.uiStrings?.searchCloseHotkey ?? "",
-					)
+					.setValue(this.settings.uiStrings?.searchCloseHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchCloseHotkey = val;
 						markAsChanged();
@@ -949,9 +943,7 @@ export default class SettingView {
 				textControls["canvasDragHint"] = text;
 
 				text.setPlaceholder("Drag to pan")
-					.setValue(
-						this.settings.uiStrings?.canvasDragHint ?? "",
-					)
+					.setValue(this.settings.uiStrings?.canvasDragHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasDragHint = val;
 						markAsChanged();
@@ -965,9 +957,7 @@ export default class SettingView {
 				textControls["canvasZoomHint"] = text;
 
 				text.setPlaceholder("Scroll to zoom")
-					.setValue(
-						this.settings.uiStrings?.canvasZoomHint ?? "",
-					)
+					.setValue(this.settings.uiStrings?.canvasZoomHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasZoomHint = val;
 						markAsChanged();
@@ -981,9 +971,7 @@ export default class SettingView {
 				textControls["canvasResetHint"] = text;
 
 				text.setPlaceholder("Double-click to reset")
-					.setValue(
-						this.settings.uiStrings?.canvasResetHint ?? "",
-					)
+					.setValue(this.settings.uiStrings?.canvasResetHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasResetHint = val;
 						markAsChanged();
