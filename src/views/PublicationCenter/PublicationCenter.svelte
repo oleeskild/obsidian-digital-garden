@@ -19,6 +19,16 @@
 	let showPublishingView: boolean = false;
 	let problematicFiles: { path: string; issue: string }[] = [];
 
+	const IMAGE_FIX_NOTICE_KEY = "dg-dismissed-image-fix-notice";
+	// eslint-disable-next-line no-undef
+	let showImageFixNotice = !localStorage.getItem(IMAGE_FIX_NOTICE_KEY);
+
+	function dismissImageFixNotice() {
+		showImageFixNotice = false;
+		// eslint-disable-next-line no-undef
+		localStorage.setItem(IMAGE_FIX_NOTICE_KEY, "true");
+	}
+
 	async function getPublishStatus() {
 		publishStatus = await publishStatusManager.getPublishStatus();
 		validateFiles();
@@ -266,6 +276,28 @@
 			</div>
 		{/if}
 
+		{#if showImageFixNotice}
+			<div class="callout info">
+				<div class="callout-header">
+					<div class="callout-title">Image handling improved</div>
+					<button
+						class="dismiss-btn"
+						on:click={dismissImageFixNotice}
+						aria-label="Dismiss notice"
+					>
+						<Icon name="x" />
+					</button>
+				</div>
+				<div class="callout-content">
+					Images with size parameters (e.g. <code
+						>![[image.png|200]]</code
+					>) are now handled differently to fix rendering in tables.
+					This may cause notes with images to show up as changed. This
+					is expected and safe to publish.
+				</div>
+			</div>
+		{/if}
+
 		<TreeView tree={unpublishedNoteTree ?? emptyNode} {showDiff} />
 
 		<TreeView
@@ -408,6 +440,34 @@
 		border-radius: 4px;
 		padding: 10px;
 		margin-bottom: 15px;
+	}
+
+	.info {
+		background-color: rgba(0, 150, 255, 0.1);
+		border: 1px solid rgba(0, 150, 255, 0.2);
+		border-radius: 4px;
+		padding: 10px;
+		margin-bottom: 15px;
+	}
+
+	.callout-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.dismiss-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		padding: 2px;
+		display: flex;
+		align-items: center;
+	}
+
+	.dismiss-btn:hover {
+		color: var(--text-normal);
 	}
 
 	.callout-title {

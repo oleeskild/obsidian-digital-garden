@@ -642,7 +642,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				try {
 					const [imageName, size] = svg
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
-						.split("|");
+						.split(/\\?\|/);
 					const imagePath = getLinkpath(imageName);
 
 					if (imagePath === "") {
@@ -684,7 +684,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				try {
 					const [_imageName, size] = svg
 						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
-						.split("|");
+						.split(/\\?\|/);
 					const pathStart = svg.lastIndexOf("(") + 1;
 					const pathEnd = svg.lastIndexOf(")");
 					const imagePath = svg.substring(pathStart, pathEnd);
@@ -727,7 +727,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		//![[image.png]] or ![[file.pdf]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -740,7 +740,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							imageMatch.indexOf("[") + 2,
 							imageMatch.indexOf("]"),
 						)
-						.split("|");
+						.split(/\\?\|/);
 					const imagePath = getLinkpath(imageName);
 
 					const linkedFile = this.resolveLinkedFile(
@@ -838,7 +838,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 			//![[image.png]]
 			const transcludedImageRegex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
+				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
 			const transcludedImageMatches = text.match(transcludedImageRegex);
 
 			if (transcludedImageMatches) {
@@ -854,7 +854,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 								imageMatch.indexOf("[") + 2,
 								imageMatch.indexOf("]"),
 							)
-							.split("|");
+							.split(/\\?\|/);
 
 						const lastValue =
 							metaDataAndSize[metaDataAndSize.length - 1];
@@ -903,11 +903,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						let name = "";
 
 						if (metaData && size) {
-							name = `${imageName}|${metaData}|${size}`;
+							name = `${imageName}\\|${metaData}\\|${size}`;
 						} else if (size) {
-							name = `${imageName}|${size}`;
+							name = `${imageName}\\|${size}`;
 						} else if (metaData && metaData !== "") {
-							name = `${imageName}|${metaData}`;
+							name = `${imageName}\\|${metaData}`;
 						} else {
 							name = imageName;
 						}

@@ -412,7 +412,7 @@ E Embeds/E04 PNG reuse.md
 
 This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_not_published]]. When removing the other one, the image should not be removed. 
 
-![unused_image.png|100](/img/user/A%20Assets/unused_image.png)
+![unused_image.png\|100](/img/user/A%20Assets/unused_image.png)
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ==========
@@ -435,13 +435,31 @@ E Embeds/E07 Image with alt attributes.md
 ---
 
 This should render to a 200 px wide image with the alt text "center"
-Like so: `![travolta.png|center|200](/img/user/A%20Assets/travolta.png)`
-![travolta.png|center|200](/img/user/A%20Assets/travolta.png)
+Like so: `![travolta.png\|center\|200](/img/user/A%20Assets/travolta.png)`
+![travolta.png\|center\|200](/img/user/A%20Assets/travolta.png)
 
 
 This should render to an image with the alt text "left", like so:
-`[travolta.png|left](/img/user/A%20Assets/travolta.png)`
-![travolta.png|left](/img/user/A%20Assets/travolta.png)
+`[travolta.png\|left](/img/user/A%20Assets/travolta.png)`
+![travolta.png\|left](/img/user/A%20Assets/travolta.png)
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/unused_image.png
+,/img/user/A Assets/travolta.webp
+==========
+E Embeds/E08 Images in tables.md
+==========
+---
+{"dg-publish":true,"permalink":"/e-embeds/e08-images-in-tables/"}
+---
+
+Images with resize syntax inside tables should render correctly.
+The pipe in the image size syntax is escaped as `\|` inside tables.
+
+| Image | Name |
+| ----- | ---- |
+| ![travolta.png\|100](/img/user/A%20Assets/travolta.png) | Travolta resized |
+| ![travolta.png](/img/user/A%20Assets/travolta.png) | Travolta full size |
+
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -518,7 +536,7 @@ Bonus:
 Bonus pic:
 
 
-![travolta.png|100](/img/user/A%20Assets/travolta.png)
+![travolta.png\|100](/img/user/A%20Assets/travolta.png)
 
 
 
@@ -539,7 +557,7 @@ E Embeds/Transclusions/T2 Too deep to transclude.md
 
 This one isn't isn't transcluded anymore (too deep)
 
-![travolta.png|100](/img/user/A%20Assets/travolta.png)
+![travolta.png\|100](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
@@ -739,8 +757,8 @@ I'm a list of all files in this folder:
 - [[P Plugins/PD Dataview/PD1 Dataview\|PD1 Dataview]]
 - [[P Plugins/PD Dataview/PD2 Inline queries\|PD2 Inline queries]]
 - [[P Plugins/PD Dataview/PD3 Inline JS queries\|PD3 Inline JS queries]]
-- [[P Plugins/PD Dataview/PD4 DataviewJs queries\|PD4 DataviewJs queries]]
 - [[P Plugins/PD Dataview/PD5.1 Dataview in transclusions\|PD5.1 Dataview in transclusions]]
+- [[P Plugins/PD Dataview/PD4 DataviewJs queries\|PD4 DataviewJs queries]]
 - [[P Plugins/PD Dataview/PD5.2 Dataview in transclusions\|PD5.2 Dataview in transclusions]]
 - [[P Plugins/PE Excalidraw/PE1 Transcluded excalidraw\|PE1 Transcluded excalidraw]]
 - [[P Plugins/PE Excalidraw/PE2 excalidraw with image\|PE2 excalidraw with image]]
@@ -775,7 +793,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-112
+114
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png

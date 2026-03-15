@@ -8,8 +8,8 @@ export const CODEBLOCK_REGEX = /```.*?[\r\n][\s\S]+?```/g;
 export const EXCALIDRAW_REGEX = /:\[\[(\d*?,\d*?)\],.*?\]\]/g;
 
 export const TRANSCLUDED_SVG_REGEX =
-	/!\[\[(.*?)(\.(svg))\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
+	/!\[\[(.*?)(\.(svg))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(svg))\]\]/g;
 
 export const PDF_REGEX = /!\[(.*?)\]\((.*?)(\.pdf)\)/g;
 export const TRANSCLUDED_PDF_REGEX =
-	/!\[\[(.*?)(\.pdf)\|(.*?)\]\]|!\[\[(.*?)(\.pdf)\]\]/g;
+	/!\[\[(.*?)(\.pdf)\\?\|(.*?)\]\]|!\[\[(.*?)(\.pdf)\]\]/g;
