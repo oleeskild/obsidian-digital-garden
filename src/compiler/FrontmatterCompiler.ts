@@ -80,9 +80,19 @@ export class FrontmatterCompiler {
 		publishedFrontMatter =
 			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
 
+		// Always include all user frontmatter properties, safely nested
+		// under "dg-note-properties" to avoid clashing with 11ty reserved
+		// keys (date, layout, pagination, etc.) that would crash the build.
+		// The bases engine reads from this nested object when evaluating queries.
+		const userProperties = this.extractUserProperties(fileFrontMatter);
+
 		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
-			? { ...fileFrontMatter, ...publishedFrontMatter }
-			: publishedFrontMatter;
+			? {
+					...fileFrontMatter,
+					...publishedFrontMatter,
+					"dg-note-properties": userProperties,
+			  }
+			: { ...publishedFrontMatter, "dg-note-properties": userProperties };
 
 		const frontMatterString = JSON.stringify(fullFrontMatter);
 
@@ -281,5 +291,43 @@ export class FrontmatterCompiler {
 		}
 
 		return publishedFrontMatter;
+	}
+
+	/**
+	 * Extracts all user-defined frontmatter properties, excluding
+	 * Obsidian internal fields and dg-* plugin fields that are already
+	 * handled by the compilation pipeline.
+	 */
+	private extractUserProperties(
+		frontmatter: Record<string, unknown>,
+	): Record<string, unknown> {
+		if (!frontmatter) return {};
+
+		const skipKeys = new Set([
+			"position", // Obsidian internal
+			"dg-publish",
+			"dg-home",
+			"dg-path",
+			"dg-permalink",
+			"dg-hide",
+			"dg-hide-in-graph",
+			"dg-pinned",
+			"dg-metatags",
+			"dg-pass-frontmatter",
+			"dg-content-classes",
+			"dg-note-icon",
+		]);
+
+		const userProps: Record<string, unknown> = {};
+
+		for (const [key, value] of Object.entries(frontmatter)) {
+			if (skipKeys.has(key)) continue;
+
+			if (key.startsWith("dg-") || key.startsWith("dg_")) continue;
+
+			userProps[key] = value;
+		}
+
+		return userProps;
 	}
 }

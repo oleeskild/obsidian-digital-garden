@@ -208,6 +208,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		const [text, images] =
 			await this.convertEmbeddedAssets(file)(compiledText);
 
+		// Also extract images referenced in frontmatter properties
+		const frontmatterImages = await this.extractFrontmatterAssets(file);
+		images.push(...frontmatterImages);
+
 		return [text, { images }];
 	}
 
@@ -474,6 +478,17 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							transclusionMatch,
 							excaliDrawCode,
 						);
+					} else if (linkedFile.extension === "base") {
+						// Embed .base file contents as a ```base code block
+						const baseFileText = await this.vault.read(linkedFile);
+
+						const baseCodeBlock =
+							"\n```base\n" + baseFileText + "\n```\n";
+
+						transcludedText = transcludedText.replace(
+							transclusionMatch,
+							baseCodeBlock,
+						);
 					} else if (linkedFile.extension === "md") {
 						let fileText = await publishLinkedFile.cachedRead();
 
@@ -720,6 +735,61 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		return text;
 	};
+
+	/**
+	 * Scan frontmatter properties for values that look like image paths
+	 * and include them as assets so they get published alongside the note.
+	 */
+	private async extractFrontmatterAssets(
+		file: PublishFile,
+	): Promise<Array<Asset>> {
+		const assets: Array<Asset> = [];
+
+		const frontmatter = this.metadataCache.getFileCache(file.file)
+			?.frontmatter;
+
+		if (!frontmatter) return assets;
+
+		const imageExtensions = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+
+		const scanValue = async (value: unknown) => {
+			if (typeof value === "string" && imageExtensions.test(value)) {
+				// Skip external URLs
+				if (value.startsWith("http")) return;
+
+				try {
+					const linkedFile = this.resolveLinkedFile(
+						value,
+						file.getPath(),
+					);
+
+					if (!linkedFile) return;
+
+					const image = await this.vault.readBinary(linkedFile);
+					const imageBase64 = arrayBufferToBase64(image);
+
+					assets.push({
+						path: `/img/user/${linkedFile.path}`,
+						content: imageBase64,
+						localHash: generateBlobHashFromBase64(imageBase64),
+					});
+				} catch {
+					// Skip unresolvable paths
+				}
+			} else if (Array.isArray(value)) {
+				for (const item of value) {
+					await scanValue(item);
+				}
+			}
+		};
+
+		for (const [key, value] of Object.entries(frontmatter)) {
+			if (key === "position") continue;
+			await scanValue(value);
+		}
+
+		return assets;
+	}
 
 	extractImageLinks = async (file: PublishFile) => {
 		const text = await file.cachedRead();
