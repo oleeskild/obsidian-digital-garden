@@ -26,6 +26,7 @@ Check out [gardens built by the community](https://vaults.obsidian-community.com
 ### 📝 Content Support
 -   Basic Markdown Syntax
 -   Links to other notes
+-   Obsidian Bases
 -   Dataview queries (as codeblocks, inline and dataviewjs)
 -   Canvas
 -   Transcluded/embedded notes
