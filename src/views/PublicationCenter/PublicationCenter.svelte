@@ -23,10 +23,20 @@
 	// eslint-disable-next-line no-undef
 	let showImageFixNotice = !localStorage.getItem(IMAGE_FIX_NOTICE_KEY);
 
+	const BASES_NOTICE_KEY = "dg-dismissed-bases-support-notice";
+	// eslint-disable-next-line no-undef
+	let showBasesNotice = !localStorage.getItem(BASES_NOTICE_KEY);
+
 	function dismissImageFixNotice() {
 		showImageFixNotice = false;
 		// eslint-disable-next-line no-undef
 		localStorage.setItem(IMAGE_FIX_NOTICE_KEY, "true");
+	}
+
+	function dismissBasesNotice() {
+		showBasesNotice = false;
+		// eslint-disable-next-line no-undef
+		localStorage.setItem(BASES_NOTICE_KEY, "true");
 	}
 
 	async function getPublishStatus() {
@@ -294,6 +304,27 @@
 					>) are now handled differently to fix rendering in tables.
 					This may cause notes with images to show up as changed. This
 					is expected and safe to publish.
+				</div>
+			</div>
+		{/if}
+
+		{#if showBasesNotice}
+			<div class="callout info">
+				<div class="callout-header">
+					<div class="callout-title">Bases support added</div>
+					<button
+						class="dismiss-btn"
+						on:click={dismissBasesNotice}
+						aria-label="Dismiss notice"
+					>
+						<Icon name="x" />
+					</button>
+				</div>
+				<div class="callout-content">
+					Frontmatter properties are now nested differently to support
+					Obsidian Bases. This may cause notes to show up as changed.
+					This is expected and safe to publish. You must update your
+					site template to use Bases.
 				</div>
 			</div>
 		{/if}
