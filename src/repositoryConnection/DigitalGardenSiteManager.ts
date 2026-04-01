@@ -176,17 +176,38 @@ export default class DigitalGardenSiteManager {
 			...this.settings.defaultNoteSettings,
 		};
 
-		const envSettings = Object.entries(keysToSet)
-			.map(([key, value]) => `${key}=${value}`)
-			.join("\n");
-
-		const base64Settings = Base64.encode(envSettings);
-
 		const currentFile = await (
 			await this.getUserGardenConnection()
 		).getFile(".env");
 
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
+
+		// Parse existing remote settings and use as base to avoid
+		// overwriting settings that haven't been loaded into memory yet
+		const existingSettings: Record<string, string> = {};
+
+		for (const line of decodedCurrentFile.split("\n")) {
+			const trimmedLine = line.trim();
+
+			if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+
+			const [key, ...valueParts] = trimmedLine.split("=");
+
+			if (key) {
+				existingSettings[key.trim()] = valueParts.join("=").trim();
+			}
+		}
+
+		const mergedSettings = {
+			...existingSettings,
+			...keysToSet,
+		};
+
+		const envSettings = Object.entries(mergedSettings)
+			.map(([key, value]) => `${key}=${value}`)
+			.join("\n");
+
+		const base64Settings = Base64.encode(envSettings);
 
 		if (decodedCurrentFile === envSettings) {
 			logger.info("No changes to .env file");
