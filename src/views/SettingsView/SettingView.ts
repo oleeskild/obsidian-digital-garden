@@ -205,6 +205,25 @@ export default class SettingView {
 					});
 			});
 
+		this.settingsRootElement
+			.createEl("h3", { text: "Local Export" })
+			.prepend(this.getIcon("folder-output"));
+
+		new Setting(this.settingsRootElement)
+			.setName("Local garden folder path")
+			.setDesc(
+				"Absolute path to your local digital garden folder. Used by the 'Export Garden to Local Folder' command.",
+			)
+			.addText((text) => {
+				text.setPlaceholder("/path/to/your/digitalgarden")
+					.setValue(this.settings.localExportPath ?? "")
+					.onChange(async (value) => {
+						this.settings.localExportPath = value;
+						await this.saveSettings();
+					});
+				text.inputEl.style.width = "300px";
+			});
+
 		prModal.titleEl.createEl("h1", "Site template settings");
 	}
 
