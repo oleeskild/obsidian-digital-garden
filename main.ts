@@ -21,6 +21,7 @@ import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
+import { LocalExporter } from "./src/localExport/LocalExporter";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -403,6 +404,48 @@ export default class DigitalGarden extends Plugin {
 				await this.setAsHomePage();
 			},
 		});
+
+		if (Platform.isDesktop) {
+			this.addCommand({
+				id: "export-garden-to-local-folder",
+				name: "Export Garden to Local Folder",
+				callback: async () => {
+					try {
+						new Notice("Exporting garden to local folder...");
+						const { vault, metadataCache } = this.app;
+
+						const publisher = new Publisher(
+							vault,
+							metadataCache,
+							this.settings,
+						);
+
+						const exporter = new LocalExporter(
+							vault,
+							publisher,
+							this.settings,
+						);
+
+						const result = await exporter.export();
+
+						if (result.failed > 0) {
+							new Notice(
+								`Exported ${result.notes} notes and ${result.images} images (${result.failed} failed). Check console for details.`,
+								8000,
+							);
+						} else {
+							new Notice(
+								`Exported ${result.notes} notes and ${result.images} images to ${this.settings.localExportPath}`,
+								8000,
+							);
+						}
+					} catch (e) {
+						// Validation errors already show Notices
+						Logger.error("Local export failed", e);
+					}
+				},
+			});
+		}
 	}
 
 	private getActiveFile(workspace: Workspace) {
