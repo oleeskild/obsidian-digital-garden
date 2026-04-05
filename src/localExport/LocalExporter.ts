@@ -9,6 +9,7 @@ import Publisher, {
 } from "../publisher/Publisher";
 
 const PRESERVED_FILES = new Set(["notes.json", "notes.11tydata.js"]);
+const IMG_USER_PREFIX = "/img/user/";
 
 export class LocalExporter {
 	private settings: DigitalGardenSettings;
@@ -79,7 +80,14 @@ export class LocalExporter {
 
 					const buffer = Buffer.from(image.content, "base64");
 					await fs.writeFile(imagePath, buffer);
-					writtenImagePaths.add(image.path);
+
+					// Normalize to path relative to imagesDir
+					const relativeImagePath = image.path.startsWith(
+						IMG_USER_PREFIX,
+					)
+						? image.path.slice(IMG_USER_PREFIX.length)
+						: image.path;
+					writtenImagePaths.add(relativeImagePath);
 					imagesWritten++;
 				}
 			} catch (e) {
@@ -90,7 +98,7 @@ export class LocalExporter {
 
 		// Write standalone images (referenced in notes but not returned as assets)
 		for (const imagePath of marked.images) {
-			if (writtenImagePaths.has(`/img/user/${imagePath}`)) {
+			if (writtenImagePaths.has(imagePath)) {
 				continue;
 			}
 
@@ -106,7 +114,7 @@ export class LocalExporter {
 				const destPath = path.join(imagesDir, imagePath);
 				await fs.mkdir(path.dirname(destPath), { recursive: true });
 				await fs.writeFile(destPath, Buffer.from(binary));
-				writtenImagePaths.add(`/img/user/${imagePath}`);
+				writtenImagePaths.add(imagePath);
 				imagesWritten++;
 			} catch (e) {
 				Logger.error(`Failed to export image ${imagePath}`, e);
@@ -157,20 +165,21 @@ export class LocalExporter {
 					continue;
 				}
 
-				// Check if this file was written in the current export
-				const isWritten =
-					writtenPaths.has(relativePath) ||
-					writtenPaths.has(`/img/user/${relativePath}`);
-
-				if (!isWritten) {
+				if (!writtenPaths.has(relativePath)) {
 					await fs.unlink(filePath);
 					Logger.debug(`Cleaned stale file: ${filePath}`);
 
-					// Remove empty parent directories
-					try {
-						await fs.rmdir(path.dirname(filePath));
-					} catch {
-						// Directory not empty, that's fine
+					// Remove empty parent directories up to base dir
+					let parent = path.dirname(filePath);
+
+					while (parent !== dir && parent.startsWith(dir)) {
+						try {
+							await fs.rmdir(parent);
+						} catch {
+							break; // Directory not empty
+						}
+
+						parent = path.dirname(parent);
 					}
 				}
 			}
