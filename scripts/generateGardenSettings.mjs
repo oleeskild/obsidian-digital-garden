@@ -65,6 +65,7 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	ENABLE_DEVELOPER_TOOLS: true,
 	devPluginPath: `${process.cwd()}`,
 	logLevel: Logger.DEBUG,
+	localExportPath: process.env.LOCAL_GARDEN_PATH || "",
 };
 
 const TEST_VAULT_PATH =
