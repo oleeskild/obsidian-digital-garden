@@ -112,6 +112,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	},
 
 	logLevel: undefined,
+	localExportPath: "",
 };
 
 Logger.useDefaults({
