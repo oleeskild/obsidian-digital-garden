@@ -16,10 +16,10 @@
 			{#each diff as part}
 				{#if part.added}
 					<pre
-						style="display: block; background-color: rgba(170, 255, 170, 0.5); color: var(--text-on-accent)">{part.value}</pre>
+						style="display: block; background-color: rgba(170, 255, 170, 0.5); color: var(--text-normal)">{part.value}</pre>
 				{:else if part.removed}
 					<pre
-						style="display: block; background-color: rgba(255, 170, 170, 0.5); color: var(--text-on-accent)">{part.value}</pre>
+						style="display: block; background-color: rgba(255, 170, 170, 0.5); color: var(--text-normal)">{part.value}</pre>
 				{:else}
 					<pre>{part.value}</pre>
 				{/if}

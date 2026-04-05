@@ -1,7 +1,7 @@
 import { FrontMatterCache, Notice } from "obsidian";
 
 export const hasPublishFlag = (frontMatter?: FrontMatterCache): boolean =>
-	!!frontMatter?.["dg-publish"];
+	!!frontMatter?.["dg-publish"] && frontMatter?.["dg-publish"] !== "false";
 
 export function isPublishFrontmatterValid(
 	frontMatter?: FrontMatterCache,
