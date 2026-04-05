@@ -163,6 +163,16 @@ If you want to do any changes that aren't overwritten when updating the template
 ---
 
 
+## Local Export
+
+You can export your garden to a local folder instead of publishing to GitHub. This is useful for self-hosting, previewing your garden locally, or running the site without Vercel/Netlify.
+
+1. In the plugin settings, scroll to **Local Export** and set the path to your local [digitalgarden](https://github.com/oleeskild/digitalgarden) folder
+2. Open the command palette and run **"Export Garden to Local Folder"**
+3. Run `npm run dev` in your digitalgarden folder to preview the site locally
+
+This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
+
 ## Local development
 
 NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.
@@ -186,7 +196,18 @@ GITHUB_USERNAME=
 FORESTRY_BASE_URL=https://api.forestry.md/app
 FORESTRY_PAGE_NAME=
 FORESTRY_API_KEY=
+
+# Local export (for development or self-hosting)
+LOCAL_GARDEN_PATH=../digitalgarden
 ```
+
+### Local dev workflow
+
+To preview plugin changes in the actual garden site:
+
+1. `npm run dev` in this repo (builds plugin, copies to test vault)
+2. Open test vault in Obsidian, run **"Export Garden to Local Folder"**
+3. `npm run dev` in the `digitalgarden/` folder (serves garden with hot reload)
 
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
 
