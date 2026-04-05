@@ -7,6 +7,7 @@ import Publisher, {
 	NOTE_PATH_BASE,
 	IMAGE_PATH_BASE,
 } from "../publisher/Publisher";
+import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
 
 const PRESERVED_FILES = new Set(["notes.json", "notes.11tydata.js"]);
 const IMG_USER_PREFIX = "/img/user/";
@@ -151,62 +152,8 @@ export class LocalExporter {
 	}
 
 	private async writeEnvFile(targetPath: string): Promise<void> {
-		const s = this.settings;
-		const theme = JSON.parse(s.theme);
-
-		const envValues: Record<string, string | boolean> = {
-			SITE_NAME_HEADER: s.siteName,
-			SITE_MAIN_LANGUAGE: s.mainLanguage,
-			SITE_BASE_URL: s.gardenBaseUrl || "",
-			SHOW_CREATED_TIMESTAMP: s.showCreatedTimestamp,
-			TIMESTAMP_FORMAT: s.timestampFormat,
-			SHOW_UPDATED_TIMESTAMP: s.showUpdatedTimestamp,
-			NOTE_ICON_DEFAULT: s.defaultNoteIcon,
-			NOTE_ICON_TITLE: s.showNoteIconOnTitle,
-			NOTE_ICON_FILETREE: s.showNoteIconInFileTree,
-			NOTE_ICON_INTERNAL_LINKS: s.showNoteIconOnInternalLink,
-			NOTE_ICON_BACK_LINKS: s.showNoteIconOnBackLink,
-			STYLE_SETTINGS_CSS: s.styleSettingsCss,
-			STYLE_SETTINGS_BODY_CLASSES: s.styleSettingsBodyClasses,
-			USE_FULL_RESOLUTION_IMAGES: s.useFullResolutionImages,
-			...s.defaultNoteSettings,
-		};
-
-		if (theme.name !== "default") {
-			envValues["THEME"] = theme.cssUrl;
-			envValues["BASE_THEME"] = s.baseTheme;
-		}
-
-		// Include non-empty UI strings
-		const uiStringMappings: Record<string, string | undefined> = {
-			UI_BACKLINK_HEADER: s.uiStrings?.backlinkHeader,
-			UI_NO_BACKLINKS_MESSAGE: s.uiStrings?.noBacklinksMessage,
-			UI_SEARCH_BUTTON_TEXT: s.uiStrings?.searchButtonText,
-			UI_SEARCH_PLACEHOLDER: s.uiStrings?.searchPlaceholder,
-			UI_SEARCH_NOT_STARTED_TEXT: s.uiStrings?.searchNotStarted,
-			UI_SEARCH_ENTER_HOTKEY: s.uiStrings?.searchEnterHotkey,
-			UI_SEARCH_ENTER_HINT: s.uiStrings?.searchEnterHint,
-			UI_SEARCH_NAVIGATE_HOTKEY: s.uiStrings?.searchNavigateHotkey,
-			UI_SEARCH_NAVIGATE_HINT: s.uiStrings?.searchNavigateHint,
-			UI_SEARCH_CLOSE_HOTKEY: s.uiStrings?.searchCloseHotkey,
-			UI_SEARCH_CLOSE_HINT: s.uiStrings?.searchCloseHint,
-			UI_SEARCH_NO_RESULTS: s.uiStrings?.searchNoResults,
-			UI_SEARCH_PREVIEW_PLACEHOLDER:
-				s.uiStrings?.searchPreviewPlaceholder,
-			UI_CANVAS_DRAG_HINT: s.uiStrings?.canvasDragHint,
-			UI_CANVAS_ZOOM_HINT: s.uiStrings?.canvasZoomHint,
-			UI_CANVAS_RESET_HINT: s.uiStrings?.canvasResetHint,
-		};
-
-		for (const [key, value] of Object.entries(uiStringMappings)) {
-			if (value) {
-				envValues[key] = value;
-			}
-		}
-
-		const envContent = Object.entries(envValues)
-			.map(([key, value]) => `${key}=${value}`)
-			.join("\n");
+		const envValues = generateEnvValues(this.settings);
+		const envContent = serializeEnvValues(envValues);
 
 		await fs.writeFile(path.join(targetPath, ".env"), envContent, "utf-8");
 	}

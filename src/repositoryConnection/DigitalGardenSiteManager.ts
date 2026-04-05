@@ -16,6 +16,7 @@ import { TemplateUpdateChecker } from "./TemplateManager";
 import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
 import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -80,101 +81,7 @@ export default class DigitalGardenSiteManager {
 	}
 
 	async updateEnv() {
-		const theme = JSON.parse(this.settings.theme);
-		const baseTheme = this.settings.baseTheme;
-		const siteName = this.settings.siteName;
-		const mainLanguage = this.settings.mainLanguage;
-		let gardenBaseUrl = "";
-
-		// check that gardenbaseurl is not an access token wrongly pasted.
-		if (
-			this.settings.gardenBaseUrl &&
-			!this.settings.gardenBaseUrl.startsWith("ghp_") &&
-			!this.settings.gardenBaseUrl.startsWith("github_pat") &&
-			this.settings.gardenBaseUrl.contains(".")
-		) {
-			gardenBaseUrl = this.settings.gardenBaseUrl;
-		}
-
-		const envValues = {
-			SITE_NAME_HEADER: siteName,
-			SITE_MAIN_LANGUAGE: mainLanguage,
-			SITE_BASE_URL: gardenBaseUrl,
-			SHOW_CREATED_TIMESTAMP: this.settings.showCreatedTimestamp,
-			TIMESTAMP_FORMAT: this.settings.timestampFormat,
-			SHOW_UPDATED_TIMESTAMP: this.settings.showUpdatedTimestamp,
-			NOTE_ICON_DEFAULT: this.settings.defaultNoteIcon,
-			NOTE_ICON_TITLE: this.settings.showNoteIconOnTitle,
-			NOTE_ICON_FILETREE: this.settings.showNoteIconInFileTree,
-			NOTE_ICON_INTERNAL_LINKS: this.settings.showNoteIconOnInternalLink,
-			NOTE_ICON_BACK_LINKS: this.settings.showNoteIconOnBackLink,
-			STYLE_SETTINGS_CSS: this.settings.styleSettingsCss,
-			STYLE_SETTINGS_BODY_CLASSES: this.settings.styleSettingsBodyClasses,
-			USE_FULL_RESOLUTION_IMAGES: this.settings.useFullResolutionImages,
-			// UI Strings - only include if not empty (empty = use template default)
-			...(this.settings.uiStrings?.backlinkHeader && {
-				UI_BACKLINK_HEADER: this.settings.uiStrings.backlinkHeader,
-			}),
-			...(this.settings.uiStrings?.noBacklinksMessage && {
-				UI_NO_BACKLINKS_MESSAGE:
-					this.settings.uiStrings.noBacklinksMessage,
-			}),
-			...(this.settings.uiStrings?.searchButtonText && {
-				UI_SEARCH_BUTTON_TEXT: this.settings.uiStrings.searchButtonText,
-			}),
-			...(this.settings.uiStrings?.searchPlaceholder && {
-				UI_SEARCH_PLACEHOLDER:
-					this.settings.uiStrings.searchPlaceholder,
-			}),
-			...(this.settings.uiStrings?.searchNotStarted && {
-				UI_SEARCH_NOT_STARTED_TEXT:
-					this.settings.uiStrings.searchNotStarted,
-			}),
-			...(this.settings.uiStrings?.searchEnterHotkey && {
-				UI_SEARCH_ENTER_HOTKEY:
-					this.settings.uiStrings.searchEnterHotkey,
-			}),
-			...(this.settings.uiStrings?.searchEnterHint && {
-				UI_SEARCH_ENTER_HINT: this.settings.uiStrings.searchEnterHint,
-			}),
-			...(this.settings.uiStrings?.searchNavigateHotkey && {
-				UI_SEARCH_NAVIGATE_HOTKEY:
-					this.settings.uiStrings.searchNavigateHotkey,
-			}),
-			...(this.settings.uiStrings?.searchNavigateHint && {
-				UI_SEARCH_NAVIGATE_HINT:
-					this.settings.uiStrings.searchNavigateHint,
-			}),
-			...(this.settings.uiStrings?.searchCloseHotkey && {
-				UI_SEARCH_CLOSE_HOTKEY:
-					this.settings.uiStrings.searchCloseHotkey,
-			}),
-			...(this.settings.uiStrings?.searchCloseHint && {
-				UI_SEARCH_CLOSE_HINT: this.settings.uiStrings.searchCloseHint,
-			}),
-			...(this.settings.uiStrings?.searchNoResults && {
-				UI_SEARCH_NO_RESULTS: this.settings.uiStrings.searchNoResults,
-			}),
-			...(this.settings.uiStrings?.canvasDragHint && {
-				UI_CANVAS_DRAG_HINT: this.settings.uiStrings.canvasDragHint,
-			}),
-			...(this.settings.uiStrings?.canvasZoomHint && {
-				UI_CANVAS_ZOOM_HINT: this.settings.uiStrings.canvasZoomHint,
-			}),
-			...(this.settings.uiStrings?.canvasResetHint && {
-				UI_CANVAS_RESET_HINT: this.settings.uiStrings.canvasResetHint,
-			}),
-		} as Record<string, string | boolean>;
-
-		if (theme.name !== "default") {
-			envValues["THEME"] = theme.cssUrl;
-			envValues["BASE_THEME"] = baseTheme;
-		}
-
-		const keysToSet = {
-			...envValues,
-			...this.settings.defaultNoteSettings,
-		};
+		const keysToSet = generateEnvValues(this.settings);
 
 		const currentFile = await (
 			await this.getUserGardenConnection()
@@ -203,9 +110,7 @@ export default class DigitalGardenSiteManager {
 			...keysToSet,
 		};
 
-		const envSettings = Object.entries(mergedSettings)
-			.map(([key, value]) => `${key}=${value}`)
-			.join("\n");
+		const envSettings = serializeEnvValues(mergedSettings);
 
 		const base64Settings = Base64.encode(envSettings);
 
