@@ -11,7 +11,7 @@ Turn your Obsidian vault into a beautiful website. Free, open-source, and entire
 
 ## 📚 Documentation
 
-**[dg-docs.ole.dev](https://dg-docs.ole.dev/)** — Full setup guide, configuration options, and examples.
+**[docs.forestry.md](https://docs.forestry.md/)** — Full setup guide, configuration options, and examples.
 
 ## Why a Digital Garden?
 
@@ -80,7 +80,7 @@ Lets get started:
 1. First off, you will need a GitHub account. If you don't have this, create one [here](https://github.com/signup).
 2. You'll also need a Vercel account. You can sign up using your GitHub account [here](https://vercel.com/signup)
 3. Open [this repo](https://github.com/oleeskild/digitalgarden), and click the blue "Deploy to Vercel" button. This will open Vercel which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-digital-garden'. Follow the steps to publish your site to the internet.
-4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Detailed instructions with images are available in the [docs](https://dg-docs.ole.dev/advanced/fine-grained-access-token/). Use a [Fine grained personal access token](https://github.com/settings/personal-access-tokens/new) with the following settings:
+4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Detailed instructions with images are available in the [docs](https://docs.forestry.md/advanced/fine-grained-access-token/). Use a [Fine grained personal access token](https://github.com/settings/personal-access-tokens/new) with the following settings:
 		- Token Name:  _`YYYY-Digital Garden`_
 		- Expiration: _Custom / a year / whatever you want._
 		- Description: _Publishing content to the digital garden._

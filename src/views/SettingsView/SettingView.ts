@@ -104,7 +104,7 @@ export default class SettingView {
 
 		linkDiv.createEl("a", {
 			text: "here.",
-			href: "https://dg-docs.ole.dev/getting-started/01-getting-started/",
+			href: "https://docs.forestry.md/getting-started/01-getting-started/",
 		});
 
 		new Setting(this.settingsRootElement)
@@ -264,7 +264,7 @@ export default class SettingView {
 
 		linkDiv.createEl("a", {
 			text: "here.",
-			href: "https://dg-docs.ole.dev/getting-started/03-note-settings/",
+			href: "https://docs.forestry.md/getting-started/03-note-settings/",
 		});
 
 		new Setting(this.settingsRootElement)
@@ -1684,7 +1684,7 @@ export default class SettingView {
 			.createEl("div", { cls: "dg-docs-link" })
 			.createEl("a", {
 				text: "Documentation on note icons",
-				href: "https://dg-docs.ole.dev/advanced/note-specific-settings/#note-icons",
+				href: "https://docs.forestry.md/advanced/note-specific-settings/#note-icons",
 			});
 
 		new Setting(noteIconsSection)

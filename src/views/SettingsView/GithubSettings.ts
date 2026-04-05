@@ -232,7 +232,7 @@ export class GithubSettings {
 
 			span.createEl("a", undefined, (link) => {
 				link.href =
-					"https://dg-docs.ole.dev/advanced/fine-grained-access-token/";
+					"https://docs.forestry.md/advanced/fine-grained-access-token/";
 				link.innerText = "here!";
 			});
 		});
