@@ -626,7 +626,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						//This should be recursive up to a certain depth
 						transcludedText = transcludedText.replace(
 							transclusionMatch,
-							fileText,
+							() => fileText,
 						);
 					}
 				} catch (error) {
