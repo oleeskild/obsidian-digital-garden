@@ -22,6 +22,9 @@ import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { LocalExporter } from "./src/localExport/LocalExporter";
+import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
+import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
+import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -405,6 +408,14 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "dg-reorder-navigation",
+			name: "Reorder navigation",
+			callback: async () => {
+				this.openNavigationOrderModal();
+			},
+		});
+
 		if (Platform.isDesktop) {
 			this.addCommand({
 				id: "export-garden-to-local-folder",
@@ -670,6 +681,28 @@ export default class DigitalGarden extends Plugin {
 				10000,
 			);
 		}
+	}
+
+	async openNavigationOrderModal() {
+		const connection =
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			);
+		const repositoryConnection = new RepositoryConnection(connection);
+
+		const publisher = new Publisher(
+			this.app.vault,
+			this.app.metadataCache,
+			this.settings,
+		);
+
+		const modal = new NavigationOrderModal(
+			this.app,
+			repositoryConnection,
+			publisher,
+		);
+
+		modal.open();
 	}
 
 	openPublishModal() {

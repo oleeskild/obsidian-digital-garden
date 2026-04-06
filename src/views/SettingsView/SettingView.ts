@@ -35,6 +35,8 @@ import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
+import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
+import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 
 interface IObsidianTheme {
 	name: string;
@@ -169,6 +171,19 @@ export default class SettingView {
 			.createEl("h3", { text: "Localization" })
 			.prepend(this.getIcon("languages"));
 		this.initializeUIStringsSettings();
+
+		new Setting(this.settingsRootElement)
+			.setName("Navigation Order")
+			.setDesc(
+				"Customize the order of files and folders in your site's navigation.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Reorder Navigation");
+
+				cb.onClick(async () => {
+					await this.openNavigationOrderModal();
+				});
+			});
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Advanced" })
@@ -2090,6 +2105,28 @@ export default class SettingView {
 						await this.saveSettings();
 					}),
 			);
+	}
+
+	private async openNavigationOrderModal() {
+		const connection =
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			);
+		const repositoryConnection = new RepositoryConnection(connection);
+
+		const publisher = new Publisher(
+			this.app.vault,
+			this.app.metadataCache,
+			this.settings,
+		);
+
+		const modal = new NavigationOrderModal(
+			this.app,
+			repositoryConnection,
+			publisher,
+		);
+
+		modal.open();
 	}
 
 	private openPathRewriteRulesModal() {
