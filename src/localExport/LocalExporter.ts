@@ -41,6 +41,18 @@ export class LocalExporter {
 		await this.writeEnvFile(targetPath);
 		await this.writeNavigationOrder(targetPath);
 
+		await this.copyFromVault(
+			this.settings.faviconPath,
+			`${targetPath}/src/site/`,
+			"favicon",
+		);
+
+		await this.copyFromVault(
+			this.settings.logoPath,
+			`${targetPath}/src/site/`,
+			"logo",
+		);
+
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
 		const notesDir = path.join(targetPath, NOTE_PATH_BASE);
@@ -183,6 +195,29 @@ export class LocalExporter {
 			} catch {
 				// File doesn't exist, that's fine
 			}
+		}
+	}
+
+	private async copyFromVault(
+		sourcePath: string,
+		targetFolder: string,
+		rename?: string,
+	) {
+		if (sourcePath === "") return;
+		const sourceFile = this.vault.getFileByPath(sourcePath);
+
+		if (sourceFile) {
+			const targetPath = `${targetFolder}/${
+				rename ?? sourceFile.basename
+			}.${sourceFile.extension}`;
+
+			await fs.writeFile(
+				targetPath,
+				new DataView(await this.vault.readBinary(sourceFile)),
+			);
+			new Notice(`Copied file from ${sourcePath} to ${targetPath}`);
+		} else {
+			Logger.warn(`File not found at '${sourcePath}'`);
 		}
 	}
 
