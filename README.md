@@ -212,6 +212,16 @@ To preview plugin changes in the actual garden site:
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
 
 
+## The Original Obsidian Publishing Plugin
+
+This is the original open-source Obsidian-to-website publishing plugin, and its codebase has served as the foundation for several other publishing tools in the ecosystem:
+
+- **[Flowershow's Obsidian plugin](https://github.com/flowershow/obsidian-flowershow)** — built directly on this plugin's codebase
+- **[Quartz Syncer](https://github.com/saberzero1/quartz-syncer)** — initially built on top of this plugin
+- **[Enveloppe](https://github.com/Enveloppe/obsidian-enveloppe)** — created using parts of this plugin's code
+
+It's been cool to see this project become the starting point for so many others to build their own Obsidian publishing solutions.
+
 ## Join the Community
 
 Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/UsPH74nEVS). 
