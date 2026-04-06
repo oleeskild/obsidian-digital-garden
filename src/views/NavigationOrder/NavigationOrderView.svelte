@@ -5,6 +5,7 @@
 	import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 	import type Publisher from "../../publisher/Publisher";
 	import type DigitalGardenSettings from "../../models/settings";
+	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
 	import SortableTree from "./SortableTree.svelte";
 
 	export let repositoryConnection: RepositoryConnection;
@@ -54,14 +55,22 @@
 
 	async function buildPublishedTree(): Promise<TreeItem[]> {
 		const { notes } = await publisher.getFilesMarkedForPublishing();
+		const rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		// Build folder structure from file paths
+		// Build folder structure from garden paths (respecting rewrite rules and dg-path)
 		type FolderNode = { __isFile?: boolean } & Record<string, FolderNode>;
 		const root: FolderNode = {};
 
 		for (const note of notes) {
-			const filePath = note.getPath();
-			const parts = filePath.split("/");
+			const vaultPath = note.getPath();
+
+			// Check for dg-path frontmatter override, then apply rewrite rules
+			const frontmatter = note.getFrontmatter();
+			const gardenPath = frontmatter?.["dg-path"]
+				? frontmatter["dg-path"]
+				: getGardenPathForNote(vaultPath, rewriteRules);
+
+			const parts = gardenPath.split("/");
 			// Strip file extension from the filename to get the stem
 			const lastIdx = parts.length - 1;
 			const dotIdx = parts[lastIdx].lastIndexOf(".");
