@@ -337,7 +337,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 								currentFilePath.lastIndexOf("."),
 							);
 
-						convertedText = convertedText.replace(
+						convertedText = convertedText.replaceAll(
 							linkMatch,
 							`[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
 						);
@@ -356,7 +356,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					);
 
 					if (!linkedFile) {
-						convertedText = convertedText.replace(
+						convertedText = convertedText.replaceAll(
 							linkMatch,
 							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
 						);
@@ -378,7 +378,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 								? `${extensionlessPath}.canvas`
 								: extensionlessPath;
 
-						convertedText = convertedText.replace(
+						convertedText = convertedText.replaceAll(
 							linkMatch,
 							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
 						);
