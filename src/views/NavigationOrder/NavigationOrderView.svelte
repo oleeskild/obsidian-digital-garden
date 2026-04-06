@@ -1,337 +1,343 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { Notice } from "obsidian";
-  import { Base64 } from "js-base64";
-  import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
-  import type Publisher from "../../publisher/Publisher";
-  import SortableTree from "./SortableTree.svelte";
+	import { onMount } from "svelte";
+	import { Notice } from "obsidian";
+	import { Base64 } from "js-base64";
+	import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+	import type Publisher from "../../publisher/Publisher";
+	import SortableTree from "./SortableTree.svelte";
 
-  export let repositoryConnection: RepositoryConnection;
-  export let publisher: Publisher;
-  export let close: () => void;
+	export let repositoryConnection: RepositoryConnection;
+	export let publisher: Publisher;
+	export let close: () => void;
 
-  type NavigationOrder = Record<string, string[]>;
+	type NavigationOrder = Record<string, string[]>;
 
-  interface TreeItem {
-    name: string;
-    isFolder: boolean;
-    children: TreeItem[];
-  }
+	interface TreeItem {
+		name: string;
+		isFolder: boolean;
+		children: TreeItem[];
+	}
 
-  let loading = true;
-  let saving = false;
-  let error: string | null = null;
-  let tree: TreeItem[] = [];
-  let remoteSha: string | null = null;
+	let loading = true;
+	let saving = false;
+	let error: string | null = null;
+	let tree: TreeItem[] = [];
+	let remoteSha: string | null = null;
 
-  const NAV_ORDER_PATH = "src/site/_data/navigationOrder.json";
+	const NAV_ORDER_PATH = "src/site/_data/navigationOrder.json";
 
-  onMount(async () => {
-    await loadTree();
-  });
+	onMount(async () => {
+		await loadTree();
+	});
 
-  async function fetchRemoteOrdering(): Promise<{
-    order: NavigationOrder;
-    sha: string | null;
-  }> {
-    try {
-      const file = await repositoryConnection.getFile(NAV_ORDER_PATH);
+	async function fetchRemoteOrdering(): Promise<{
+		order: NavigationOrder;
+		sha: string | null;
+	}> {
+		try {
+			const file = await repositoryConnection.getFile(NAV_ORDER_PATH);
 
-      if (file && file.content) {
-        const content = Base64.decode(file.content);
-        return { order: JSON.parse(content), sha: file.sha };
-      }
-    } catch {
-      // File doesn't exist yet — that's fine
-    }
+			if (file && file.content) {
+				const content = Base64.decode(file.content);
 
-    return { order: {}, sha: null };
-  }
+				return { order: JSON.parse(content), sha: file.sha };
+			}
+		} catch {
+			// File doesn't exist yet — that's fine
+		}
 
-  async function buildPublishedTree(): Promise<TreeItem[]> {
-    const { notes } = await publisher.getFilesMarkedForPublishing();
+		return { order: {}, sha: null };
+	}
 
-    // Build folder structure from file paths
-    type FolderNode = { __isFile?: boolean } & Record<string, FolderNode>;
-    const root: FolderNode = {};
+	async function buildPublishedTree(): Promise<TreeItem[]> {
+		const { notes } = await publisher.getFilesMarkedForPublishing();
 
-    for (const note of notes) {
-      const filePath = note.getPath();
-      const parts = filePath.split("/");
-      let current = root;
+		// Build folder structure from file paths
+		type FolderNode = { __isFile?: boolean } & Record<string, FolderNode>;
+		const root: FolderNode = {};
 
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
+		for (const note of notes) {
+			const filePath = note.getPath();
+			const parts = filePath.split("/");
+			let current = root;
 
-        if (!current[part]) {
-          current[part] =
-            i === parts.length - 1 ? { __isFile: true } : {};
-        }
+			for (let i = 0; i < parts.length; i++) {
+				const part = parts[i];
 
-        if (i < parts.length - 1) {
-          current = current[part];
-        }
-      }
-    }
+				if (!current[part]) {
+					current[part] =
+						i === parts.length - 1 ? { __isFile: true } : {};
+				}
 
-    return convertToTreeItems(root);
-  }
+				if (i < parts.length - 1) {
+					current = current[part];
+				}
+			}
+		}
 
-  function convertToTreeItems(
-    obj: Record<string, { __isFile?: boolean } & Record<string, unknown>>,
-  ): TreeItem[] {
-    const items: TreeItem[] = [];
+		return convertToTreeItems(root);
+	}
 
-    for (const [name, value] of Object.entries(obj)) {
-      if (value.__isFile) {
-        items.push({ name, isFolder: false, children: [] });
-      } else {
-        const children = convertToTreeItems(value);
-        items.push({ name, isFolder: true, children });
-      }
-    }
+	function convertToTreeItems(
+		obj: Record<string, { __isFile?: boolean } & Record<string, unknown>>,
+	): TreeItem[] {
+		const items: TreeItem[] = [];
 
-    // Default sort: folders first, then alphabetical
-    items.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return a.name.localeCompare(b.name);
-    });
+		for (const [name, value] of Object.entries(obj)) {
+			if (value.__isFile) {
+				items.push({ name, isFolder: false, children: [] });
+			} else {
+				const children = convertToTreeItems(value);
+				items.push({ name, isFolder: true, children });
+			}
+		}
 
-    return items;
-  }
+		// Default sort: folders first, then alphabetical
+		items.sort((a, b) => {
+			if (a.isFolder && !b.isFolder) return -1;
 
-  function applyOrdering(
-    items: TreeItem[],
-    ordering: NavigationOrder,
-    path: string,
-  ): TreeItem[] {
-    const orderList = ordering[path];
+			if (!a.isFolder && b.isFolder) return 1;
 
-    let result: TreeItem[];
+			return a.name.localeCompare(b.name);
+		});
 
-    if (orderList && Array.isArray(orderList)) {
-      const itemMap = new Map(items.map((item) => [item.name, item]));
-      const ordered: TreeItem[] = [];
-      const seen = new Set<string>();
+		return items;
+	}
 
-      for (const name of orderList) {
-        const item = itemMap.get(name);
+	function applyOrdering(
+		items: TreeItem[],
+		ordering: NavigationOrder,
+		path: string,
+	): TreeItem[] {
+		const orderList = ordering[path];
 
-        if (item) {
-          ordered.push(item);
-          seen.add(name);
-        }
-      }
+		let result: TreeItem[];
 
-      // Append items not in the ordering
-      for (const item of items) {
-        if (!seen.has(item.name)) {
-          ordered.push(item);
-        }
-      }
+		if (orderList && Array.isArray(orderList)) {
+			const itemMap = new Map(items.map((item) => [item.name, item]));
+			const ordered: TreeItem[] = [];
+			const seen = new Set<string>();
 
-      result = ordered;
-    } else {
-      result = items;
-    }
+			for (const name of orderList) {
+				const item = itemMap.get(name);
 
-    // Recursively apply to children
-    for (const item of result) {
-      if (item.isFolder && item.children.length > 0) {
-        const childPath =
-          path === "/" ? `/${item.name}` : `${path}/${item.name}`;
-        item.children = applyOrdering(item.children, ordering, childPath);
-      }
-    }
+				if (item) {
+					ordered.push(item);
+					seen.add(name);
+				}
+			}
 
-    return result;
-  }
+			// Append items not in the ordering
+			for (const item of items) {
+				if (!seen.has(item.name)) {
+					ordered.push(item);
+				}
+			}
 
-  async function loadTree() {
-    loading = true;
-    error = null;
+			result = ordered;
+		} else {
+			result = items;
+		}
 
-    try {
-      const [{ order, sha }, publishedTree] = await Promise.all([
-        fetchRemoteOrdering(),
-        buildPublishedTree(),
-      ]);
+		// Recursively apply to children
+		for (const item of result) {
+			if (item.isFolder && item.children.length > 0) {
+				const childPath =
+					path === "/" ? `/${item.name}` : `${path}/${item.name}`;
 
-      remoteSha = sha;
-      tree = applyOrdering(publishedTree, order, "/");
-    } catch (e) {
-      error = `Failed to load navigation data: ${e.message}`;
-    } finally {
-      loading = false;
-    }
-  }
+				item.children = applyOrdering(
+					item.children,
+					ordering,
+					childPath,
+				);
+			}
+		}
 
-  function extractOrdering(
-    items: TreeItem[],
-    path: string,
-  ): NavigationOrder {
-    let ordering: NavigationOrder = {};
-    ordering[path] = items.map((item) => item.name);
+		return result;
+	}
 
-    for (const item of items) {
-      if (item.isFolder && item.children.length > 0) {
-        const childPath =
-          path === "/" ? `/${item.name}` : `${path}/${item.name}`;
-        const childOrdering = extractOrdering(item.children, childPath);
-        ordering = { ...ordering, ...childOrdering };
-      }
-    }
+	async function loadTree() {
+		loading = true;
+		error = null;
 
-    return ordering;
-  }
+		try {
+			const [{ order, sha }, publishedTree] = await Promise.all([
+				fetchRemoteOrdering(),
+				buildPublishedTree(),
+			]);
 
-  async function handleSave() {
-    saving = true;
+			remoteSha = sha;
+			tree = applyOrdering(publishedTree, order, "/");
+		} catch (e) {
+			error = `Failed to load navigation data: ${e.message}`;
+		} finally {
+			loading = false;
+		}
+	}
 
-    try {
-      const ordering = extractOrdering(tree, "/");
-      const content = JSON.stringify(ordering, null, 2);
-      const encoded = Base64.encode(content);
+	function extractOrdering(items: TreeItem[], path: string): NavigationOrder {
+		let ordering: NavigationOrder = {};
+		ordering[path] = items.map((item) => item.name);
 
-      await repositoryConnection.updateFile({
-        path: NAV_ORDER_PATH,
-        content: encoded,
-        message: "Update navigation ordering",
-        sha: remoteSha ?? undefined,
-      });
+		for (const item of items) {
+			if (item.isFolder && item.children.length > 0) {
+				const childPath =
+					path === "/" ? `/${item.name}` : `${path}/${item.name}`;
+				const childOrdering = extractOrdering(item.children, childPath);
+				ordering = { ...ordering, ...childOrdering };
+			}
+		}
 
-      new Notice("Navigation ordering saved!");
-      close();
-    } catch (e) {
-      error = `Failed to save: ${e.message}`;
-    } finally {
-      saving = false;
-    }
-  }
+		return ordering;
+	}
 
-  async function handleReset() {
-    if (!remoteSha) {
-      new Notice("No custom ordering to reset.");
-      return;
-    }
+	async function handleSave() {
+		saving = true;
 
-    saving = true;
+		try {
+			const ordering = extractOrdering(tree, "/");
+			const content = JSON.stringify(ordering, null, 2);
+			const encoded = Base64.encode(content);
 
-    try {
-      await repositoryConnection.deleteFile(NAV_ORDER_PATH, {
-        sha: remoteSha,
-      });
-      new Notice("Navigation ordering reset to default.");
-      close();
-    } catch (e) {
-      error = `Failed to reset: ${e.message}`;
-    } finally {
-      saving = false;
-    }
-  }
+			await repositoryConnection.updateFile({
+				path: NAV_ORDER_PATH,
+				content: encoded,
+				message: "Update navigation ordering",
+				sha: remoteSha ?? undefined,
+			});
+
+			new Notice("Navigation ordering saved!");
+			close();
+		} catch (e) {
+			error = `Failed to save: ${e.message}`;
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function handleReset() {
+		if (!remoteSha) {
+			new Notice("No custom ordering to reset.");
+
+			return;
+		}
+
+		saving = true;
+
+		try {
+			await repositoryConnection.deleteFile(NAV_ORDER_PATH, {
+				sha: remoteSha,
+			});
+			new Notice("Navigation ordering reset to default.");
+			close();
+		} catch (e) {
+			error = `Failed to reset: ${e.message}`;
+		} finally {
+			saving = false;
+		}
+	}
 </script>
 
 <div class="navigation-order-container">
-  {#if loading}
-    <div class="loading-container">
-      <div class="loading-text">Loading navigation...</div>
-    </div>
-  {:else if error}
-    <div class="error-container">
-      <p class="error-text">{error}</p>
-      <button on:click={loadTree}>Retry</button>
-    </div>
-  {:else}
-    <p class="description">
-      Drag and drop to reorder the navigation items on your site.
-    </p>
+	{#if loading}
+		<div class="loading-container">
+			<div class="loading-text">Loading navigation...</div>
+		</div>
+	{:else if error}
+		<div class="error-container">
+			<p class="error-text">{error}</p>
+			<button on:click={loadTree}>Retry</button>
+		</div>
+	{:else}
+		<p class="description">
+			Drag and drop to reorder the navigation items on your site.
+		</p>
 
-    <div class="tree-container">
-      <SortableTree bind:items={tree} />
-    </div>
+		<div class="tree-container">
+			<SortableTree bind:items={tree} />
+		</div>
 
-    <div class="button-container">
-      <button on:click={handleReset} disabled={saving} class="reset-button">
-        Reset to default
-      </button>
-      <div class="right-buttons">
-        <button on:click={close} disabled={saving}>Cancel</button>
-        <button
-          on:click={handleSave}
-          disabled={saving}
-          class="mod-cta"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
-    </div>
-  {/if}
+		<div class="button-container">
+			<button
+				on:click={handleReset}
+				disabled={saving}
+				class="reset-button"
+			>
+				Reset to default
+			</button>
+			<div class="right-buttons">
+				<button on:click={close} disabled={saving}>Cancel</button>
+				<button on:click={handleSave} disabled={saving} class="mod-cta">
+					{saving ? "Saving..." : "Save"}
+				</button>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
-  .navigation-order-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 300px;
-    max-height: 60vh;
-  }
+	.navigation-order-container {
+		display: flex;
+		flex-direction: column;
+		min-height: 300px;
+		max-height: 60vh;
+	}
 
-  .loading-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-  }
+	.loading-container {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+	}
 
-  .error-container {
-    padding: 1rem;
-  }
+	.error-container {
+		padding: 1rem;
+	}
 
-  .error-text {
-    color: var(--text-error);
-  }
+	.error-text {
+		color: var(--text-error);
+	}
 
-  .description {
-    margin-bottom: 0.5rem;
-    color: var(--text-muted);
-    font-size: var(--font-ui-small);
-  }
+	.description {
+		margin-bottom: 0.5rem;
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+	}
 
-  .tree-container {
-    flex: 1;
-    overflow-y: auto;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--radius-s);
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-  }
+	.tree-container {
+		flex: 1;
+		overflow-y: auto;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: var(--radius-s);
+		padding: 0.5rem;
+		margin-bottom: 1rem;
+	}
 
-  .button-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-  }
+	.button-container {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+	}
 
-  .right-buttons {
-    display: flex;
-    gap: 0.5rem;
-  }
+	.right-buttons {
+		display: flex;
+		gap: 0.5rem;
+	}
 
-  .reset-button {
-    color: var(--text-error);
-  }
+	.reset-button {
+		color: var(--text-error);
+	}
 
-  :global(.dg-navigation-order-modal) {
-    width: 500px;
-    max-width: 90vw;
-  }
+	:global(.dg-navigation-order-modal) {
+		width: 500px;
+		max-width: 90vw;
+	}
 
-  :global(.dg-navigation-order-modal .modal-content) {
-    max-height: 70vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+	:global(.dg-navigation-order-modal .modal-content) {
+		max-height: 70vh;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
 </style>
