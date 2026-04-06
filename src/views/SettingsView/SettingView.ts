@@ -2215,7 +2215,11 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Site Template")
 			.setDesc(
-				"Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.",
+				updateAvailable
+					? "Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features."
+					: `Your site template is up to date! (${
+							updater.newestTemplateVersion ?? "latest"
+					  })`,
 			)
 			.addButton(async (button) => {
 				button.setButtonText(`Checking...`);
