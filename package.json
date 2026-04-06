@@ -26,6 +26,7 @@
 		"@types/jest": "^29.5.4",
 		"@types/luxon": "^3.3.2",
 		"@types/node": "^20.6.0",
+		"@types/sortablejs": "^1.15.9",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
 		"builtin-modules": "^3.3.0",
@@ -59,7 +60,8 @@
 		"js-logger": "^1.6.1",
 		"luxon": "^3.4.3",
 		"lz-string": "^1.5.0",
-		"obsidian-dataview": "^0.5.56"
+		"obsidian-dataview": "^0.5.56",
+		"sortablejs": "^1.15.7"
 	},
 	"lint-staged": {
 		"*.{ts}": [
