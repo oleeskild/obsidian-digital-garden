@@ -700,6 +700,8 @@ export default class DigitalGarden extends Plugin {
 			this.app,
 			repositoryConnection,
 			publisher,
+			this.settings,
+			() => this.saveSettings(),
 		);
 
 		modal.open();

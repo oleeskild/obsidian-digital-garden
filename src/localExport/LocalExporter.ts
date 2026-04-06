@@ -39,6 +39,7 @@ export class LocalExporter {
 
 		await this.validateTargetPath(targetPath);
 		await this.writeEnvFile(targetPath);
+		await this.writeNavigationOrder(targetPath);
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
@@ -156,6 +157,33 @@ export class LocalExporter {
 		const envContent = serializeEnvValues(envValues);
 
 		await fs.writeFile(path.join(targetPath, ".env"), envContent, "utf-8");
+	}
+
+	private async writeNavigationOrder(targetPath: string): Promise<void> {
+		const navOrderPath = path.join(
+			targetPath,
+			"src",
+			"site",
+			"_data",
+			"navigationOrder.json",
+		);
+
+		if (this.settings.navigationOrder) {
+			await fs.mkdir(path.dirname(navOrderPath), { recursive: true });
+
+			await fs.writeFile(
+				navOrderPath,
+				JSON.stringify(this.settings.navigationOrder, null, 2),
+				"utf-8",
+			);
+		} else {
+			// Remove the file if no ordering is set
+			try {
+				await fs.unlink(navOrderPath);
+			} catch {
+				// File doesn't exist, that's fine
+			}
+		}
 	}
 
 	private async cleanStaleFiles(

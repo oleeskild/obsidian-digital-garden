@@ -4,10 +4,13 @@
 	import { Base64 } from "js-base64";
 	import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 	import type Publisher from "../../publisher/Publisher";
+	import type DigitalGardenSettings from "../../models/settings";
 	import SortableTree from "./SortableTree.svelte";
 
 	export let repositoryConnection: RepositoryConnection;
 	export let publisher: Publisher;
+	export let settings: DigitalGardenSettings;
+	export let saveSettings: () => Promise<void>;
 	export let close: () => void;
 
 	type NavigationOrder = Record<string, string[]>;
@@ -168,6 +171,10 @@
 
 			remoteSha = sha;
 			tree = applyOrdering(publishedTree, order, "/");
+
+			// Sync local settings with what's on GitHub
+			settings.navigationOrder = Object.keys(order).length > 0 ? order : undefined;
+			await saveSettings();
 		} catch (e) {
 			error = `Failed to load navigation data: ${e.message}`;
 		} finally {
@@ -206,6 +213,9 @@
 				sha: remoteSha ?? undefined,
 			});
 
+			settings.navigationOrder = ordering;
+			await saveSettings();
+
 			new Notice("Navigation ordering saved!");
 			close();
 		} catch (e) {
@@ -228,6 +238,10 @@
 			await repositoryConnection.deleteFile(NAV_ORDER_PATH, {
 				sha: remoteSha,
 			});
+
+			settings.navigationOrder = undefined;
+			await saveSettings();
+
 			new Notice("Navigation ordering reset to default.");
 			close();
 		} catch (e) {

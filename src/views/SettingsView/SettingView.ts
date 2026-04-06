@@ -2124,6 +2124,8 @@ export default class SettingView {
 			this.app,
 			repositoryConnection,
 			publisher,
+			this.settings,
+			this.saveSettings,
 		);
 
 		modal.open();
