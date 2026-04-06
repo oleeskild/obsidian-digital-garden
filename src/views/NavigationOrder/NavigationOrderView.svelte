@@ -62,9 +62,13 @@
 		for (const note of notes) {
 			const filePath = note.getPath();
 			const parts = filePath.split("/");
-			// The site-side tree appends ".md" to all filenames (including .canvas files)
+			// The site-side tree strips the file extension and appends ".md"
+			// (Eleventy's filePathStem removes the extension, then filetreeUtils adds ".md")
 			const lastIdx = parts.length - 1;
-			if (!parts[lastIdx].endsWith(".md")) {
+			const dotIdx = parts[lastIdx].lastIndexOf(".");
+			if (dotIdx > 0) {
+				parts[lastIdx] = parts[lastIdx].substring(0, dotIdx) + ".md";
+			} else {
 				parts[lastIdx] += ".md";
 			}
 			let current = root;
