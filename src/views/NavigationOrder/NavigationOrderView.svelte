@@ -62,6 +62,11 @@
 		for (const note of notes) {
 			const filePath = note.getPath();
 			const parts = filePath.split("/");
+			// The site-side tree appends ".md" to all filenames (including .canvas files)
+			const lastIdx = parts.length - 1;
+			if (!parts[lastIdx].endsWith(".md")) {
+				parts[lastIdx] += ".md";
+			}
 			let current = root;
 
 			for (let i = 0; i < parts.length; i++) {
@@ -173,7 +178,8 @@
 			tree = applyOrdering(publishedTree, order, "/");
 
 			// Sync local settings with what's on GitHub
-			settings.navigationOrder = Object.keys(order).length > 0 ? order : undefined;
+			settings.navigationOrder =
+				Object.keys(order).length > 0 ? order : undefined;
 			await saveSettings();
 		} catch (e) {
 			error = `Failed to load navigation data: ${e.message}`;
