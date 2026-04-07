@@ -43,13 +43,13 @@ export class LocalExporter {
 
 		await this.copyFromVault(
 			this.settings.faviconPath,
-			`${targetPath}/src/site/`,
+			path.join(targetPath, "/src/site/"),
 			"favicon",
 		);
 
 		await this.copyFromVault(
 			this.settings.logoPath,
-			`${targetPath}/src/site/`,
+			path.join(targetPath, "/src/site/"),
 			"logo",
 		);
 
@@ -207,15 +207,16 @@ export class LocalExporter {
 		const sourceFile = this.vault.getFileByPath(sourcePath);
 
 		if (sourceFile) {
-			const targetPath = `${targetFolder}/${
-				rename ?? sourceFile.basename
-			}.${sourceFile.extension}`;
+			const targetPath = path.join(
+				targetFolder,
+				`${rename ?? sourceFile.basename}.${sourceFile.extension}`,
+			);
 
 			await fs.writeFile(
 				targetPath,
-				new DataView(await this.vault.readBinary(sourceFile)),
+				Buffer.from(await this.vault.readBinary(sourceFile)),
 			);
-			new Notice(`Copied file from ${sourcePath} to ${targetPath}`);
+			Logger.debug(`Copied file from ${sourcePath} to ${targetPath}`);
 		} else {
 			Logger.warn(`File not found at '${sourcePath}'`);
 		}
