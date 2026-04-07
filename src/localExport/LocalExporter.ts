@@ -41,17 +41,25 @@ export class LocalExporter {
 		await this.writeEnvFile(targetPath);
 		await this.writeNavigationOrder(targetPath);
 
-		await this.copyFromVault(
-			this.settings.faviconPath,
-			path.join(targetPath, "/src/site/"),
-			"favicon",
-		);
+		try {
+			await this.copyFromVault(
+				this.settings.faviconPath,
+				path.join(targetPath, "src", "site"),
+				"favicon.svg",
+			);
+		} catch (e) {
+			Logger.warn("Failed to copy favicon", e);
+		}
 
-		await this.copyFromVault(
-			this.settings.logoPath,
-			path.join(targetPath, "/src/site/"),
-			"logo",
-		);
+		try {
+			await this.copyFromVault(
+				this.settings.logoPath,
+				path.join(targetPath, "src", "site"),
+				"logo",
+			);
+		} catch (e) {
+			Logger.warn("Failed to copy logo", e);
+		}
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
@@ -207,10 +215,10 @@ export class LocalExporter {
 		const sourceFile = this.vault.getFileByPath(sourcePath);
 
 		if (sourceFile) {
-			const targetPath = path.join(
-				targetFolder,
-				`${rename ?? sourceFile.basename}.${sourceFile.extension}`,
-			);
+			const fileName = rename?.includes(".")
+				? rename
+				: `${rename ?? sourceFile.basename}.${sourceFile.extension}`;
+			const targetPath = path.join(targetFolder, fileName);
 
 			await fs.writeFile(
 				targetPath,
