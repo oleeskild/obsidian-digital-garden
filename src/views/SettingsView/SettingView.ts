@@ -88,6 +88,8 @@ export default class SettingView {
 		}
 	}
 
+	private updateSectionAnchor: HTMLElement | null = null;
+
 	async initialize(prModal: Modal) {
 		this.prModal = prModal;
 		this.settingsRootElement.empty();
@@ -99,6 +101,9 @@ export default class SettingView {
 		const linkDiv = this.settingsRootElement.createEl("div", {
 			attr: { style: "margin-bottom: 10px;" },
 		});
+
+		// Placeholder for the template update section (rendered async, inserted at top)
+		this.updateSectionAnchor = this.settingsRootElement.createDiv();
 
 		linkDiv.createEl("span", {
 			text: "Remember to read the setup guide if you haven't already. It can be found ",
@@ -2238,20 +2243,58 @@ export default class SettingView {
 		) => Promise<void>,
 		siteManager: DigitalGardenSiteManager,
 	) {
-		this.settingsRootElement
-			.createEl("h3", { text: "Update site" })
+		const target = this.updateSectionAnchor ?? this.settingsRootElement;
+
+		target
+			.createEl("h3", { text: "Update site template" })
 			.prepend(getIcon("sync") ?? "");
+
+		// Show loading indicator while checking for updates
+		const loadingContainer = target.createDiv({
+			cls: "dg-update-loading",
+		});
+
+		new Setting(loadingContainer)
+			.setName("Site Template")
+			.setDesc("Checking for updates...")
+			.addButton((button) => {
+				button.setButtonText("Checking...");
+				button.setDisabled(true);
+			});
 
 		Logger.time("checkForUpdate");
 
-		const updater = await (
-			await siteManager.getTemplateUpdater()
-		).checkForUpdates();
+		let updater;
+
+		try {
+			updater = await (
+				await siteManager.getTemplateUpdater()
+			).checkForUpdates();
+		} catch (error) {
+			Logger.warn("Failed to check for template updates", error);
+			loadingContainer.empty();
+
+			new Setting(loadingContainer)
+				.setName("Site Template")
+				.setDesc(
+					"Unable to check for updates. Please check your connection and credentials.",
+				)
+				.addButton((button) => {
+					button.setButtonText("Check failed");
+					button.setDisabled(true);
+				});
+
+			return;
+		}
+
 		Logger.timeEnd("checkForUpdate");
+
+		// Replace loading indicator with actual state
+		loadingContainer.empty();
 
 		const updateAvailable = hasUpdates(updater);
 
-		new Setting(this.settingsRootElement)
+		new Setting(loadingContainer)
 			.setName("Site Template")
 			.setDesc(
 				updateAvailable
@@ -2261,9 +2304,6 @@ export default class SettingView {
 					  })`,
 			)
 			.addButton(async (button) => {
-				button.setButtonText(`Checking...`);
-				Logger.time("checkForUpdate");
-
 				if (updateAvailable) {
 					button.setButtonText(
 						`Update to ${updater.newestTemplateVersion}`,

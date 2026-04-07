@@ -20,6 +20,7 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
@@ -157,6 +158,34 @@ export default class DigitalGarden extends Plugin {
 				this.openPublishModal();
 			},
 		);
+
+		this.checkForTemplateUpdates();
+	}
+
+	private async checkForTemplateUpdates() {
+		if (this.settings.publishPlatform !== PublishPlatform.SelfHosted) {
+			return;
+		}
+
+		try {
+			const siteManager = new DigitalGardenSiteManager(
+				this.app.metadataCache,
+				this.settings,
+			);
+
+			const updater = await (
+				await siteManager.getTemplateUpdater()
+			).checkForUpdates();
+
+			if (hasUpdates(updater)) {
+				new Notice(
+					`Digital Garden: A new site template version (${updater.newestTemplateVersion}) is available. Update in the plugin settings.`,
+					10000,
+				);
+			}
+		} catch {
+			// Silently ignore update check failures on startup
+		}
 	}
 
 	onunload() {}

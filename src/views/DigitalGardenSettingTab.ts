@@ -40,7 +40,6 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			async () => await this.plugin.saveData(this.plugin.settings),
 		);
 		const prModal = new UpdateGardenRepositoryModal(this.app);
-		await settingView.initialize(prModal);
 
 		const handlePR = async (
 			button: ButtonComponent,
@@ -73,7 +72,9 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			}
 		};
 
-		// Only show template update section for self-hosted (GitHub) platform
+		await settingView.initialize(prModal);
+
+		// Show template update section at the top for self-hosted (GitHub) platform
 		if (
 			this.plugin.settings.publishPlatform === PublishPlatform.SelfHosted
 		) {

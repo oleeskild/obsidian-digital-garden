@@ -66,6 +66,7 @@
 
 			// Check for dg-path frontmatter override, then apply rewrite rules
 			const frontmatter = note.getFrontmatter();
+
 			const gardenPath = frontmatter?.["dg-path"]
 				? frontmatter["dg-path"]
 				: getGardenPathForNote(vaultPath, rewriteRules);
@@ -74,6 +75,7 @@
 			// Strip file extension from the filename to get the stem
 			const lastIdx = parts.length - 1;
 			const dotIdx = parts[lastIdx].lastIndexOf(".");
+
 			if (dotIdx > 0) {
 				parts[lastIdx] = parts[lastIdx].substring(0, dotIdx);
 			}
