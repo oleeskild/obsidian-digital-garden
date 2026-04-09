@@ -970,21 +970,44 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						const imageBase64 = arrayBufferToBase64(image);
 
 						const cmsImgPath = `/img/user/${linkedFile.path}`;
-						let name = "";
 
-						if (metaData && size) {
-							name = `${imageName}\\|${metaData}\\|${size}`;
-						} else if (size) {
-							name = `${imageName}\\|${size}`;
-						} else if (metaData && metaData !== "") {
-							name = `${imageName}\\|${metaData}`;
+						const floatStyles: Record<string, string> = {
+							left: "float: left;",
+							right: "float: right;",
+							center: "display: block; margin-left: auto; margin-right: auto;",
+						};
+
+						const trimmedMeta = metaData
+							? metaData.trim().toLowerCase()
+							: "";
+
+						const floatStyle = floatStyles[trimmedMeta];
+
+						let imageMarkdown: string;
+
+						if (floatStyle) {
+							const widthAttr = size ? ` width="${size}"` : "";
+
+							imageMarkdown = `<img src="${encodeURI(
+								cmsImgPath,
+							)}" alt="${imageName}"${widthAttr} style="${floatStyle}" />`;
 						} else {
-							name = imageName;
-						}
+							let name = "";
 
-						const imageMarkdown = `![${name}](${encodeURI(
-							cmsImgPath,
-						)})`;
+							if (metaData && size) {
+								name = `${imageName}\\|${metaData}\\|${size}`;
+							} else if (size) {
+								name = `${imageName}\\|${size}`;
+							} else if (metaData && metaData !== "") {
+								name = `${imageName}\\|${metaData}`;
+							} else {
+								name = imageName;
+							}
+
+							imageMarkdown = `![${name}](${encodeURI(
+								cmsImgPath,
+							)})`;
+						}
 
 						assets.push({
 							path: cmsImgPath,

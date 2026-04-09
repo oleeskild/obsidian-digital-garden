@@ -436,12 +436,12 @@ E Embeds/E07 Image with alt attributes.md
 
 This should render to a 200 px wide image with the alt text "center"
 Like so: `![travolta.png\|center\|200](/img/user/A%20Assets/travolta.png)`
-![travolta.png\|center\|200](/img/user/A%20Assets/travolta.png)
+<img src="/img/user/A%20Assets/travolta.png" alt="travolta.png" width="200" style="display: block; margin-left: auto; margin-right: auto;" />
 
 
 This should render to an image with the alt text "left", like so:
 `[travolta.png\|left](/img/user/A%20Assets/travolta.png)`
-![travolta.png\|left](/img/user/A%20Assets/travolta.png)
+<img src="/img/user/A%20Assets/travolta.png" alt="travolta.png" style="float: left;" />
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
