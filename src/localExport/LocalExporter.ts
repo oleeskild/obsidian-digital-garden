@@ -239,7 +239,13 @@ export class LocalExporter {
 			const existingFiles = await this.listFilesRecursive(dir);
 
 			for (const filePath of existingFiles) {
-				const relativePath = path.relative(dir, filePath);
+				// Normalize to forward slashes so the lookup matches
+				// writtenPaths keys, which come from Obsidian vault paths
+				// (always forward-slash separated, even on Windows).
+				const relativePath = path
+					.relative(dir, filePath)
+					.split(path.sep)
+					.join("/");
 				const fileName = path.basename(filePath);
 
 				if (preservedFiles.has(fileName)) {
