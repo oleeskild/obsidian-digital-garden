@@ -358,7 +358,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (!linkedFile) {
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
+							`[[${linkedFileName}${headerPath}|${linkDisplayName}]]`,
 						);
 						continue;
 					}
@@ -380,7 +380,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+							`[[${linkPath}${headerPath}|${linkDisplayName}]]`,
 						);
 					}
 				} catch (e) {
