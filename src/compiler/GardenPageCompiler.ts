@@ -797,7 +797,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		//![[image.png]] or ![[file.pdf]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -831,7 +831,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		//![](image.png) or ![](file.pdf)
 		const imageRegex =
-			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\)/g;
+			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\)/g;
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -867,7 +867,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		// [[image.png]] or [[file.pdf]] (linked, not embedded)
 		const linkedImageRegex =
-			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
+			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))(.*?)\]\]/g;
 		const linkedImageMatches = text.matchAll(linkedImageRegex);
 
 		for (const match of linkedImageMatches) {
@@ -1095,7 +1095,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 			// [[image.png]] or [[file.pdf]] (linked, not embedded)
 			const linkedImageRegex =
-				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
+				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))(.*?)\]\]/g;
 			const linkedImageMatches = text.matchAll(linkedImageRegex);
 
 			for (const match of linkedImageMatches) {
