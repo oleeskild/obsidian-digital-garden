@@ -797,7 +797,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		//![[image.png]] or ![[file.pdf]]
 		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
+			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\]\]/g;
 		const transcludedImageMatches = text.match(transcludedImageRegex);
 
 		if (transcludedImageMatches) {
@@ -831,7 +831,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		//![](image.png) or ![](file.pdf)
 		const imageRegex =
-			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\)/g;
+			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))\)/g;
 		const imageMatches = text.match(imageRegex);
 
 		if (imageMatches) {
@@ -867,7 +867,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		// [[image.png]] or [[file.pdf]] (linked, not embedded)
 		const linkedImageRegex =
-			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
+			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))(.*?)\]\]/g;
 		const linkedImageMatches = text.matchAll(linkedImageRegex);
 
 		for (const match of linkedImageMatches) {
@@ -1095,7 +1095,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 			// [[image.png]] or [[file.pdf]] (linked, not embedded)
 			const linkedImageRegex =
-				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
+				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf|mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov))(.*?)\]\]/g;
 			const linkedImageMatches = text.matchAll(linkedImageRegex);
 
 			for (const match of linkedImageMatches) {
@@ -1387,6 +1387,70 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					}
 				}
 			}
+
+
+		//![[file.mp3]] audio and ![[file.mp4]] video embeds
+		const audioVideoExtensions = "mp3|wav|ogg|m4a|flac|aac|mp4|webm|mov";
+		const transcludedAudioVideoRegex = new RegExp(
+			`!\[\[(.*?)(\.(${audioVideoExtensions}))\]\]`, "g"
+		);
+		const audioVideoMatches = imageText.match(transcludedAudioVideoRegex);
+
+		if (audioVideoMatches) {
+			for (const avMatch of audioVideoMatches) {
+				try {
+					const avName = avMatch
+						.substring(
+							avMatch.indexOf("[") + 2,
+							avMatch.indexOf("]"),
+						)
+						.split("|")[0];
+
+					const avPath = getLinkpath(avName);
+
+					if (avPath === "") {
+						continue;
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						avPath,
+						filePath,
+					);
+
+					if (!linkedFile) {
+						continue;
+					}
+
+					const fileContent = await this.vault.readBinary(linkedFile);
+					const contentBase64 = arrayBufferToBase64(fileContent);
+
+					const cmsPath = `/img/user/${linkedFile.path}`;
+
+					assets.push({
+						path: cmsPath,
+						content: contentBase64,
+						localHash: generateBlobHashFromBase64(contentBase64),
+					});
+
+					const extension = linkedFile.extension.toLowerCase();
+					const isAudio = ["mp3", "wav", "ogg", "m4a", "flac", "aac"].includes(extension);
+
+					if (isAudio) {
+						imageText = imageText.replace(
+							avMatch,
+							`<audio controls src="${encodeURI(cmsPath)}" style="width:100%;max-width:600px;"></audio>`,
+						);
+					} else {
+						imageText = imageText.replace(
+							avMatch,
+							`<video controls src="${encodeURI(cmsPath)}" style="width:100%;max-width:600px;"></video>`,
+						);
+					}
+				} catch (e) {
+					continue;
+				}
+			}
+		}
 
 			return [imageText, assets];
 		};
