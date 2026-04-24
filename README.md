@@ -1,244 +1,209 @@
-# 🏡 Obsidian Digital Garden
+# Digital Obsidian Garden
+This is the template to be used together with the [Digital Garden Obsidian Plugin](https://github.com/oleeskild/Obsidian-Digital-Garden).
+See the README in the plugin repo for information on how to set it up.
 
-[![Downloads](https://img.shields.io/github/downloads/oleeskild/obsidian-digital-garden/total?color=blue)](https://github.com/oleeskild/obsidian-digital-garden/releases)
-[![Discord](https://img.shields.io/discord/1154324140313018429?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
-[![GitHub stars](https://img.shields.io/github/stars/oleeskild/obsidian-digital-garden?style=social)](https://github.com/oleeskild/obsidian-digital-garden)
-
-Turn your Obsidian vault into a beautiful website. Free, open-source, and entirely yours.
-
-![image](https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd)
-
-
-## 📚 Documentation
-
-**[docs.forestry.md](https://docs.forestry.md/)** — Full setup guide, configuration options, and examples.
-
-## Why a Digital Garden?
-
-Unlike a blog, a digital garden is a living collection of ideas—notes that grow and connect over time. This plugin lets you selectively share your thinking while keeping private notes private. No monthly fees. Just your ideas, your way.
-
-> 🔒 **Your private notes stay private.** Only notes you explicitly mark with `dg-publish: true` ever leave your vault.
-
-Check out [gardens built by the community](https://vaults.obsidian-community.com/) for inspiration.
-
-## Features
-
-### 📝 Content Support
--   Basic Markdown Syntax
--   Links to other notes
--   Obsidian Bases
--   Dataview queries (as codeblocks, inline and dataviewjs)
--   Canvas
--   Transcluded/embedded notes
--   Embedded/Transcluded Excalidraw drawings
--   Embedded/Transcluded Images
--   Embedded PDFs (up to 20MB, rendered inline)
--   Callouts/Admonitions
--   Code Blocks
--   MathJax
--   Highlighted text
--   Footnotes
--   Mermaid diagrams
--   PlantUML diagrams
-
-### 🧭 Navigation & Discovery
--   Fast search with live preview
--   Filetree navigation
--   Backlinks
--   Local graph
--   Global graph
--   Table of contents
--   Link previews on hover
-
-### 🎨 Customization
--   Obsidian Themes
--   Style Settings plugin support
--   Customizable via CSS variables
--   Custom filters (regex-based content transformation)
--   Note icons
--   Timestamps (created/updated)
--   Customizable UI text (search placeholders, backlink headers, etc.)
-
-### 🔒 Privacy & Control
--   **Selective publishing** - Only notes explicitly marked with `dg-publish: true` are published
--   **No accidental leaks** - Linked notes are never auto-published; you decide what goes public
--   **Full control** - Your private notes stay private until you choose to share them
-
-### ☁️ Hosting Options
--   **Vercel** - One-click deploy, automatic builds
--   **Netlify** - Alternative hosting with similar features
--   **[Forestry.md](https://forestry.md)** - Managed hosting for non-technical users (no GitHub setup required)
-
-## Initial Setup
-
-**⏱️ ~10 minutes to set up.** It takes a bit of work, but when you're done you'll have a digital garden in which you are in control of every part of it, and can customize it as you see fit. Which is what makes digital gardens so delightful.
-
-> 💡 **Want a simpler setup?** [Forestry.md](https://forestry.md) offers one-click hosting with no GitHub required. Currently in open beta.
-
-Lets get started:
-
-1. First off, you will need a GitHub account. If you don't have this, create one [here](https://github.com/signup).
-2. You'll also need a Vercel account. You can sign up using your GitHub account [here](https://vercel.com/signup)
-3. Open [this repo](https://github.com/oleeskild/digitalgarden), and click the blue "Deploy to Vercel" button. This will open Vercel which in turn will create a copy of this repository in your GitHub accont. Give it a fitting name like 'my-digital-garden'. Follow the steps to publish your site to the internet.
-4. Now you need to create an access token so that the plugin can add new notes to the repo on your behalf. Detailed instructions with images are available in the [docs](https://docs.forestry.md/advanced/fine-grained-access-token/). Use a [Fine grained personal access token](https://github.com/settings/personal-access-tokens/new) with the following settings:
-		- Token Name:  _`YYYY-Digital Garden`_
-		- Expiration: _Custom / a year / whatever you want._
-		- Description: _Publishing content to the digital garden._
-		- Resource owner: _yourself_
-		- Only select repositories: _Select your garden repo_
-		- Permissions (just two needed): 
-			- Contents: `Access: Read and write`
-			- Pull requests: `Access: Read and write`
-Click the "Generate token" button, and copy the token you are presented with on the next page.
-5. In Obsidian open the setting menu and find the settings for "Digital Garden". The top three settings here is required for the plugin to work.
-   Fill in your GitHub username, the name of the repo with your notes which you created in step 3. Lastly paste the token you created in step 4. The other options are optional. You can leave them as is.
-6. Now, let's publish your first note! Create a new note in Obsidian. And add the following to the top of your file
-
-```
----
-dg-home: true
-dg-publish: true
----
-```
-
-(If you get backticks, \`\`\`, at the start and beginning when copy-pasting the above text, delete those. It should start and end with a triple dash, ---. See [this page](https://help.obsidian.md/Advanced+topics/YAML+front+matter) for more info about Obsidian and frontmatter.)
-
-**This does two things:**
-
--   The dg-home setting tells the plugin that this should be your home page or entry into your digital garden. (It only needs to be added to _one_ note, not every note you'll publish).
-
--   The dg-publish setting tells the plugin that this note should be published to your digital garden. Notes without this setting will not be published. (In other terms: Every note you publish will need this setting.)
-
-7. Open your command palette by pressing CTRL+P on Windows/Linux (CMD+P on Mac) and find the "Digital Garden: Publish Single Note" command. Press enter.
-8. Go to your site's URL which you should find on [Vercel](https://vercel.com/dashboard). If nothing shows up yet, wait a minute and refresh. Your note should now appear.
-
-Congratulations, you now have your own digital garden, hosted free of charge!
-You can now start adding links as you usually would in Obisidan, with double square brackets like this: [[Some Other Note]], to the note that you just published. You can also link to a specific header by using the syntax [[Some Other Note#A Header]]. Remember to also publish the notes your are linking to as this will not happen automatically. This is by design. You are always in control of what notes you actually want to publish. If you did not publish a linked note, the link will simply lead to a site telling the user that this note does not exist.
-
-![new-note-demo](https://raw.githubusercontent.com/oleeskild/obsidian-digital-garden/main/img/new-note-demo.gif)
-
-## Alternative: Forestry.md (No GitHub Required)
-
-If you prefer a simpler setup without managing GitHub repositories, you can use [Forestry.md](https://forestry.md) - a managed hosting service for digital gardens:
-
-1. Create an account at [forestry.md](https://forestry.md)
-2. Get your Garden Key from the Forestry.md dashboard
-3. In Obsidian, open Digital Garden settings and enter your Garden Key in the Forestry.md section
-4. Start publishing notes directly - no GitHub or Vercel setup needed
-
-This is ideal for non-technical users who want a working digital garden without dealing with GitHub tokens, repositories, or deployment pipelines.
-
-## Modifying the template/site
-
-The code for the website is available in the repo you created in step 3, and this is yours to modify however you want.
-
-### CSS Customization
-
-Any CSS/SCSS files placed under `src/site/styles/user` will automatically be linked into the head right after all other styling, meaning that the styling added here will take precedence over everything else.
-
-The template exposes many CSS variables that you can override, including:
-- Colors (background, text, links, etc.)
-- Typography (fonts, sizes, line heights)
-- Spacing and layout
-- Component-specific styling (graph, search, sidebar)
-
-### Custom Components
-
-You can add custom components to your garden by creating Nunjucks templates in `src/site/_includes/components/user/`. These can be included in your notes or layouts to add interactive elements, custom widgets, or specialized content displays.
-
-## Updating the template
-
-In the setting menu for the plugin there is, in addition to the previously mentioned settings, a setting with the name "Site Template" with a button saying "Manage site template". Clicking this should open up a popup-window with the setting "Update site to latest template" and a button saying "Create PR". Whenever digital garden template receives any updates, this button can be used to update your site. It will create a new branch in your repo with the changes and create a Pull Request to your main branch. The plugin will present you with this URL in the setting view.
-
-If you used the "Deploy to Vercel" button, a Vercel bot will build a preview version of your site which you can visit to see that the changes does not contain any breaking changes. The URL should be visible in the PR.
-When you are ready you can use the "Merge pull request" button on the pull request page to merge the changes into your main branch and make the changes go live.
-
-In the future you will be notified with a visual cue whenever there is an update ready. For now you will need to manually check. If you have the latest version, you will be told so.
-
-### Advanced changes for developers
-The project uses the [eleventy](https://www.11ty.dev) templating engine. This uses `.eleventy.js` as the main entry-point. Please read the [eleventy docs](https://www.11ty.dev/docs/config/) if you need a quick-start on how this works.
-
-If you want to do any changes that aren't overwritten when updating the template, do so in the `src/helpers/userSetup.js` file, which hooks into the elventy setup in .eleventy.js
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/oleeskild/digitalgarden)
 
 ---
-
-
-## Local Export
-
-You can export your garden to a local folder instead of publishing to GitHub. This is useful for self-hosting, previewing your garden locally, or running the site without Vercel/Netlify.
-
-1. In the plugin settings, scroll to **Local Export** and set the path to your local [digitalgarden](https://github.com/oleeskild/digitalgarden) folder
-2. Open the command palette and run **"Export Garden to Local Folder"**
-3. Run `npm run dev` in your digitalgarden folder to preview the site locally
-
-This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
-
-## Local development
-
-NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.
-
-1. Clone this repository
-2. (for best compatibility, use node version manager and run `nvm install && nvm use`)
-3. Install dependencies with `npm install`
-4. Run with `npm run dev`
-5. Open the vault from `src/dg-testVault` into obsidian
-
-6. (if you want to develop this plugin with another vault, move it into .obsidian/plugins of that vault)
-
-To use the test vault with github, add your test repository values to a .env file with:
-
-```
-GITHUB_REPO=
-GITHUB_TOKEN=
-GITHUB_USERNAME=
-
-# Forestry.md settings (if you're using Forestry.md)
-FORESTRY_BASE_URL=https://api.forestry.md/app
-FORESTRY_PAGE_NAME=
-FORESTRY_API_KEY=
-
-# Local export (for development or self-hosting)
-LOCAL_GARDEN_PATH=../digitalgarden
-```
-
-### Local dev workflow
-
-To preview plugin changes in the actual garden site:
-
-1. `npm run dev` in this repo (builds plugin, copies to test vault)
-2. Open test vault in Obsidian, run **"Export Garden to Local Folder"**
-3. `npm run dev` in the `digitalgarden/` folder (serves garden with hot reload)
-
-Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
-
-
-## The Original Obsidian Publishing Plugin
-
-This is the original open-source Obsidian-to-website publishing plugin, and its codebase has served as the foundation for several other publishing tools in the ecosystem:
-
-- **[Flowershow's Obsidian plugin](https://github.com/flowershow/obsidian-flowershow)** — built directly on this plugin's codebase
-- **[Quartz Syncer](https://github.com/saberzero1/quartz-syncer)** — initially built on top of this plugin
-- **[Enveloppe](https://github.com/Enveloppe/obsidian-enveloppe)** — created using parts of this plugin's code
-
-It's been cool to see this project become the starting point for so many others to build their own Obsidian publishing solutions.
-
-## Join the Community
-
-Be a part of the Digital Garden Community by joining our [Discord Server](https://discord.gg/UsPH74nEVS). 
-
-## Code Contributers
-
-Huge thanks to all the contributors who helped in making this
-
-<a href="https://github.com/oleeskild/obsidian-digital-garden/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=oleeskild/obsidian-digital-garden" />
-</a>
+## Docs
+Docs are available at [docs.forestry.md](https://docs.forestry.md/)
 
 ---
+## CSS Variables
 
-## Support
+The digital garden is fully customizable through CSS variables. Override these in `src/site/styles/custom-style.scss` to customize your garden's appearance.
 
-Built with coffee and stubbornness. If this plugin has been useful to you, a coffee would make my day—but it's completely free and always will be.
+### How to Customize
 
-[<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
+Add your overrides to `custom-style.scss`:
 
+```scss
+body {
+    --dg-content-max-width: 800px;
+    --dg-content-font-size: 16px;
+    --dg-sidebar-max-width: 400px;
+}
+```
+
+### Responsive Layout Notes
+
+- Content will never overlap the filetree, regardless of `--dg-content-max-width` value
+- The right sidebar (TOC/graph/backlinks) automatically hides when there isn't enough viewport space
+- To make the sidebar appear at smaller viewports, reduce `--dg-sidebar-max-width`
+
+### Available Variables
+
+#### Color Variables
+You can override the base Obsidian theme color variables directly:
+
+| Variable | Description |
+|----------|-------------|
+| `--text-normal` | Normal text color |
+| `--text-muted` | Muted/secondary text |
+| `--text-faint` | Faint text |
+| `--text-accent` | Accent color |
+| `--text-accent-hover` | Accent hover color |
+| `--link-color` | Link color |
+| `--link-color-hover` | Link color hover |
+| `--link-unresolved-color` | Link color unresolved |
+| `--link-unresolved-opacity` | Link color unresolved opacity |
+| `--background-primary` | Primary background |
+| `--background-primary-alt` | Alt primary background |
+| `--background-secondary` | Secondary background |
+| `--background-secondary-alt` | Alt secondary background |
+| `--interactive-normal` | Interactive element color |
+| `--interactive-hover` | Interactive hover color |
+| `--interactive-accent` | Interactive accent |
+| `--interactive-accent-hover` | Interactive accent hover |
+
+#### Layout Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-content-max-width` | `700px` | Maximum width of content area |
+| `--dg-content-margin-top` | `90px` | Top margin for content |
+| `--dg-content-margin-top-mobile` | `75px` | Top margin on mobile |
+| `--dg-content-font-size` | `18px` | Base font size for content |
+| `--dg-content-line-height` | `1.5` | Line height for content |
+
+#### Sidebar (Right) Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-sidebar-top` | `75px` | Sidebar top offset |
+| `--dg-sidebar-gap` | `80px` | Gap between content and sidebar |
+| `--dg-sidebar-min-width` | `25px` | Minimum sidebar width |
+| `--dg-sidebar-max-width` | `350px` | Maximum sidebar width |
+| `--dg-sidebar-container-padding` | `20px` | Sidebar container padding |
+| `--dg-sidebar-container-height` | `87%` | Sidebar container height |
+
+#### Graph Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-graph-width` | `250px` | Local graph width |
+| `--dg-graph-height` | `250px` | Local graph height |
+| `--dg-graph-border-radius` | `10px` | Graph border radius |
+| `--dg-graph-margin-bottom` | `20px` | Graph bottom margin |
+| `--dg-graph-fullscreen-width` | `90vw` | Expanded/global graph width |
+| `--dg-graph-fullscreen-height` | `85vh` | Expanded/global graph height |
+| `--dg-graph-node-color` | `var(--text-accent)` | Active/current node color |
+| `--dg-graph-node-color-muted` | `var(--text-faint)` | Neighbor node color |
+| `--dg-graph-label-color` | `var(--text-normal)` | Node label text color |
+| `--dg-graph-bg` | `var(--background-primary)` | Graph background color |
+| `--dg-graph-border-color` | `var(--background-secondary)` | Graph border color |
+
+#### Filetree (Left Sidebar) Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-filetree-width` | `250px` | Filetree sidebar width |
+| `--dg-filetree-min-width` | `250px` | Minimum filetree width |
+| `--dg-filetree-padding` | `10px 20px` | Filetree padding |
+| `--dg-filetree-gap` | `80px` | Gap from content |
+| `--dg-filetree-title-size` | `32px` | Filetree title font size |
+
+#### TOC (Table of Contents) Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-toc-padding` | `5px` | TOC container padding |
+| `--dg-toc-font-size` | `0.9rem` | TOC font size |
+| `--dg-toc-max-height` | `220px` | TOC max height |
+| `--dg-toc-title-size` | `1.2rem` | TOC title font size |
+| `--dg-toc-item-padding` | `2px 0 2px 8px` | TOC item padding |
+| `--dg-toc-indent` | `1em` | TOC nested list indent |
+
+#### Backlinks Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-backlinks-margin-top` | `10px` | Backlinks section top margin |
+| `--dg-backlinks-max-height` | `250px` | Backlinks list max height |
+| `--dg-backlinks-title-size` | `0.9rem` | Backlinks title font size |
+| `--dg-backlinks-card-size` | `0.85rem` | Backlink card font size |
+| `--dg-backlinks-card-padding` | `6px 0` | Backlink card padding |
+| `--dg-backlinks-icon-size` | `14px` | Backlink icon size |
+
+#### Search Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-search-box-width` | `900px` | Search box width |
+| `--dg-search-box-max-width` | `80%` | Search box max width |
+| `--dg-search-box-radius` | `15px` | Search box border radius |
+| `--dg-search-box-padding` | `10px` | Search box padding |
+| `--dg-search-input-size` | `2rem` | Search input font size |
+| `--dg-search-input-padding` | `10px` | Search input padding |
+| `--dg-search-input-radius` | `5px` | Search input border radius |
+| `--dg-search-results-max-height` | `50vh` | Search results max height |
+| `--dg-search-result-size` | `1.2rem` | Search result font size |
+| `--dg-search-result-radius` | `10px` | Search result border radius |
+| `--dg-search-link-size` | `1.4rem` | Search link font size |
+
+#### Search Button Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-search-btn-radius` | `8px` | Search button border radius |
+| `--dg-search-btn-height` | `32px` | Search button height |
+| `--dg-search-btn-padding` | `0 10px` | Search button padding |
+| `--dg-search-btn-gap` | `8px` | Search button icon/text gap |
+| `--dg-search-btn-font-size` | `0.85rem` | Search button font size |
+| `--dg-search-btn-icon-size` | `14px` | Search button icon size |
+
+#### Navbar Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-navbar-title-size-mobile` | `18px` | Navbar title size on mobile |
+| `--dg-navbar-search-margin` | `20px` | Navbar search button margin |
+| `--dg-navbar-search-min-width` | `36px` | Navbar search min width |
+| `--dg-logo-height` | `40px` | Site logo height on desktop |
+| `--dg-logo-height-mobile` | `32px` | Site logo height on mobile |
+| `--dg-logo-margin` | `10px 15px` | Site logo margin |
+| `--dg-filetree-logo-height` | `70px` | Site logo height in filetree sidebar |
+
+#### Note Link / Filetree Item Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-notelink-padding` | `4px 8px 4px 12px` | Note link padding |
+| `--dg-notelink-size` | `0.85rem` | Note link font size |
+| `--dg-notelink-border-width` | `2px` | Note link left border width |
+| `--dg-notelink-hover-bg` | `rgba(255, 255, 255, 0.05)` | Note link hover background |
+| `--dg-folder-margin` | `4px 0 4px 2px` | Folder name margin |
+| `--dg-folder-icon-size` | `14px` | Folder icon size |
+| `--dg-inner-folder-padding` | `3px 0 3px 0` | Inner folder padding |
+| `--dg-inner-folder-margin` | `12px` | Inner folder left margin |
+| `--dg-filelist-margin` | `8px` | File list left margin |
+
+#### Graph Controls Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-graph-ctrl-padding` | `6px 10px` | Graph controls padding |
+| `--dg-graph-ctrl-radius` | `6px` | Graph controls border radius |
+| `--dg-graph-ctrl-margin` | `10px` | Graph controls margin |
+| `--dg-graph-ctrl-size` | `0.7rem` | Graph controls font size |
+| `--dg-graph-ctrl-icon-size` | `14px` | Graph control icon size |
+| `--dg-graph-ctrl-gap` | `10px` | Graph controls gap |
+
+#### Timestamps Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-timestamps-size` | `0.8em` | Timestamps font size |
+| `--dg-timestamps-gap` | `10px` | Timestamps gap |
+| `--dg-timestamps-margin-top` | `20px` | Timestamps top margin |
+
+#### Misc Component Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--dg-overlay-bg` | `rgba(0, 0, 0, 0.5)` | Overlay background color |
+| `--dg-mermaid-radius` | `25px` | Mermaid diagram border radius |
+| `--dg-mermaid-padding` | `10px` | Mermaid diagram padding |
+| `--dg-transclusion-padding` | `8px` | Transclusion container padding |
+| `--dg-external-link-icon-size` | `13px` | External link icon size |
+| `--dg-external-link-padding` | `16px` | External link right padding |
