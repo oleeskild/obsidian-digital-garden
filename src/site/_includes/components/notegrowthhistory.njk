@@ -1,0 +1,16 @@
+{%- if collections.versionednote.length > 0 -%}
+    <div style="position:absolute; top:100px; right:0; padding:20px 15px 40px 15px; background-color:#2a2a2a; border-radius: 25px;">
+        <!-- animate big when moving over -->
+        <h2>Notegrowth</h2>
+        <ul style="list-style-type: none; padding:0;">
+            {%- for note in collections.versionednote -%}
+                {%- if note.data.item.title === page.fileSlug -%}
+                    <li style="padding:10px">
+                        <a href="{{ note.url }}">
+                            {{note.data.item.date}}</a>
+                    </li>
+                {%- endif -%}
+            {%- endfor -%}
+        </ul>
+    </div>
+    {%-endif-%}
