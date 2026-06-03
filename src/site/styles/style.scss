@@ -1,0 +1,212 @@
+/***
+* DO NOT ADD/MODIFY STYLING HERE. IT WILL BE OVERWRITTEN IF YOU UPDATE THE TEMPLATE VERSION.
+* MODIFY THE custom-style.scss FILE INSTEAD.
+***/
+
+:root {
+    --background-primary: rgb(32, 31, 31);
+    --background-secondary: rgb(57, 56, 56);
+    --text-normal: #dcddde;
+    --text-accent: rgb(97, 186, 245);
+    --file-margins: 32px;
+
+    --callout-border-width: 0px;
+    --callout-border-opacity: 0.25;
+    --callout-padding: 12px 12px 12px 24px;
+    --callout-radius: 4px;
+    --callout-blend-mode: lighten;
+    --callout-title-padding: 0;
+    --callout-title-size: inherit;
+    --callout-content-padding: 0;
+}
+
+h1 {
+    color: #ffef60;
+}
+
+h2 {
+    color: #f06449;
+}
+
+h3 {
+    color: #d4fcc3;
+}
+
+h4 {
+    color: #72dcff;
+}
+
+button {
+    border: none;
+    color: white;
+    padding: 5px 15px;
+}
+
+.centered {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.theme-dark {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-default);
+}
+
+.theme-light {
+    background: white;
+    color: black;
+    font-family: var(--font-default);
+}
+
+
+.font-bg {
+    font-size: 92px;
+}
+
+blockquote {
+    background: #ffffff17;
+    border-left: 10px solid #c1dbe3;
+    margin: 1.5em 10px;
+    padding: 0.5em 10px;
+    quotes: "\201C""\201D""\2018""\2019";
+}
+
+blockquote:before {
+    color: #ccc;
+    content: open-quote;
+    font-size: 4em;
+    line-height: 0.1em;
+    margin-right: 0.1em;
+    vertical-align: -0.4em;
+}
+
+blockquote p {
+    display: inline;
+}
+
+p > code {
+    //Inline code
+    color: #c7254e;
+    background-color: #1a1a1a;
+}
+
+.callout {
+    --callout-color: 68, 138, 255;
+    --callout-icon: lucide-pencil;
+}
+.callout[data-callout="abstract"],
+.callout[data-callout="summary"],
+.callout[data-callout="tldr"] {
+    --callout-color: 0, 176, 255;
+    --callout-icon: lucide-clipboard-list;
+}
+.callout[data-callout="info"],
+.callout[data-callout="todo"] {
+    --callout-color: 0, 184, 212;
+}
+.callout[data-callout="info"] {
+    --callout-icon: lucide-info;
+}
+.callout[data-callout="todo"] {
+    --callout-icon: lucide-check-circle-2;
+}
+.callout[data-callout="tip"],
+.callout[data-callout="hint"],
+.callout[data-callout="important"] {
+    --callout-color: 0, 191, 165;
+    --callout-icon: lucide-flame;
+}
+.callout[data-callout="success"],
+.callout[data-callout="check"],
+.callout[data-callout="done"] {
+    --callout-color: 0, 200, 83;
+    --callout-icon: lucide-check;
+}
+.callout[data-callout="question"],
+.callout[data-callout="help"],
+.callout[data-callout="faq"] {
+    --callout-color: 100, 221, 23;
+    --callout-icon: help-circle;
+}
+.callout[data-callout="warning"],
+.callout[data-callout="caution"],
+.callout[data-callout="attention"] {
+    --callout-color: 255, 145, 0;
+    --callout-icon: lucide-alert-triangle;
+}
+.callout[data-callout="failure"],
+.callout[data-callout="fail"],
+.callout[data-callout="missing"] {
+    --callout-color: 255, 82, 82;
+    --callout-icon: lucide-x;
+}
+.callout[data-callout="danger"],
+.callout[data-callout="error"] {
+    --callout-color: 255, 23, 68;
+    --callout-icon: lucide-zap;
+}
+.callout[data-callout="bug"] {
+    --callout-color: 245, 0, 87;
+    --callout-icon: lucide-bug;
+}
+.callout[data-callout="example"] {
+    --callout-color: 124, 77, 255;
+    --callout-icon: lucide-list;
+}
+.callout[data-callout="quote"],
+.callout[data-callout="cite"] {
+    --callout-color: 158, 158, 158;
+    --callout-icon: lucide-quote;
+}
+.callout {
+    overflow: hidden;
+    border-style: solid;
+    border-color: rgba(var(--callout-color), var(--callout-border-opacity));
+    border-width: var(--callout-border-width);
+    border-radius: var(--callout-radius);
+    margin: 1em 0;
+    mix-blend-mode: var(--callout-blend-mode);
+    background-color: rgba(var(--callout-color), 0.1);
+    padding: var(--callout-padding);
+}
+.callout.is-collapsible .callout-title {
+    cursor: default;
+}
+.callout-title {
+    padding: var(--callout-title-padding);
+    display: flex;
+    gap: 4px;
+    font-size: var(--callout-title-size);
+    color: rgb(var(--callout-color));
+    line-height: 1.3;
+}
+.callout-content {
+    overflow-x: auto;
+    padding: var(--callout-content-padding);
+}
+.callout-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-self: center;
+}
+.callout-icon .svg-icon {
+    color: rgb(var(--callout-color));
+}
+.callout-title-inner {
+    font-weight: 600;
+}
+.callout-fold {
+    display: flex;
+    align-items: center;
+    padding-right: 8px;
+}
+.callout-fold .svg-icon {
+    transition: transform 100ms ease-in-out;
+}
+.callout.is-collapsed .callout-fold .svg-icon {
+    transform: rotate(-90deg);
+}
