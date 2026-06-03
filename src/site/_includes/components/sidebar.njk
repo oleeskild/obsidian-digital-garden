@@ -1,0 +1,82 @@
+<aside>
+      <div class="sidebar">
+            <div class="sidebar-container">
+                  {% for imp in dynamics.sidebar.top %}
+                        {% include imp %}
+                  {% endfor %}
+                  {%if settings.dgShowLocalGraph === true%}
+                        {%include "components/graphScript.njk"%}
+                  {%endif%}
+
+                  {%if settings.dgShowToc === true%}
+                        {%set tocHtml= (content and (content | hideDataview | link | toc)) %}
+                        {%if tocHtml %}
+                              <div class="toc">
+                                    <div class="toc-title-container">
+                                          <div class="toc-title">
+                                                {% if title %}{{ title }}{% else %}{{ page.fileSlug }}{% endif %}
+                                          </div>
+                                    </div>
+                                    <div class="toc-container">
+                                          {{ tocHtml | safe }}
+                                    </div>
+                              </div>
+                              <script>
+                                    (function() {
+                                          const tocLinks = document.querySelectorAll('.toc-container a[href^="#"]');
+                                          if (!tocLinks.length) return;
+
+                                          const headings = Array.from(tocLinks).map(link => {
+                                                const id = decodeURIComponent(link.getAttribute('href').slice(1));
+                                                return { link, target: document.getElementById(id) };
+                                          }).filter(h => h.target);
+
+                                          function updateActive() {
+                                                let current = headings[0];
+                                                for (const h of headings) {
+                                                      if (h.target.getBoundingClientRect().top <= 100) {
+                                                            current = h;
+                                                      }
+                                                }
+                                                tocLinks.forEach(l => l.classList.remove('toc-active'));
+                                                if (current) current.link.classList.add('toc-active');
+                                          }
+
+                                          window.addEventListener('scroll', updateActive, { passive: true });
+                                          updateActive();
+                                    })();
+                              </script>
+                        {%endif%}
+
+                  {%endif%}
+
+                        {%if settings.dgShowBacklinks === true %}
+                              {%if settings.dgShowBacklinks === true %}
+                              <div class="backlinks">
+                                    <div class="backlink-title">{{ meta.uiStrings.backlinkHeader }}</div>
+                                          <div class="backlink-list">
+                                          {%- set currentNode = graph.nodes[page.url] or graph.nodes[graph.homeAlias] -%}
+                                          {%- if currentNode -%}
+                                                {%- if currentNode.backLinks.length === 0 -%}
+                                                      <div class="backlink-card">
+                                                            <span class="no-backlinks-message">{{ meta.uiStrings.noBacklinksMessage }}</span>
+                                                      </div>
+                                                {%- endif -%}
+                                                {%- for backlink in currentNode.backLinks -%}
+                                                      {%- if graph.nodes[backlink].url != page.url -%}
+                                                      <div class="backlink-card">
+                                                            {%- if not meta.noteIconsSettings.backlinks -%}<i  data-lucide="link"></i> {%- endif -%}<a href="{{graph.nodes[backlink].url}}" data-note-icon="{{graph.nodes[backlink].noteIcon}}" class="backlink">{{graph.nodes[backlink].title}}</a>
+                                                      </div>
+                                                      {%- endif -%}
+                                                {%- endfor -%}
+                                          {%- endif -%}
+                                    </div>
+                              </div>
+                        {%endif%}
+                  {%endif%}
+                  {% for imp in dynamics.sidebar.bottom %}
+                        {% include imp %}
+                  {% endfor %}
+            </div>
+      </div>
+</aside>
