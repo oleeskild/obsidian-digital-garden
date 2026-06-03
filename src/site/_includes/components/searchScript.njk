@@ -1,0 +1,478 @@
+<script src="https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', init, false);
+    document.addEventListener('DOMContentLoaded', setCorrectShortcut, false);
+
+    // Preview content cache
+    const previewCache = new Map();
+
+    window.toggleSearch = function () {
+        const searchContainer = document.getElementById('globalsearch');
+        if (searchContainer.classList.contains('active')) {
+            searchContainer.classList.remove('active');
+        } else {
+            searchContainer.classList.add('active');
+            document.getElementById('term').focus();
+        }
+    }
+
+    window.toggleTagSearch = function (evt) {
+        const term = evt.textContent;
+        if (term) {
+            document.getElementById('term').value = term.trim();
+            window.toggleSearch();
+            window.search();
+        }
+    }
+
+    const loadingSvg = `
+    <div style="display: flex; justify-content: center; padding: 40px;">
+        <svg width="40" height="40" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg" stroke="currentColor">
+            <g fill="none" fill-rule="evenodd" transform="translate(1 1)" stroke-width="2">
+                <circle cx="22" cy="22" r="6" stroke-opacity="0">
+                    <animate attributeName="r" begin="1.5s" dur="3s" values="6;22" calcMode="linear" repeatCount="indefinite" />
+                    <animate attributeName="stroke-opacity" begin="1.5s" dur="3s" values="1;0" calcMode="linear" repeatCount="indefinite" />
+                    <animate attributeName="stroke-width" begin="1.5s" dur="3s" values="2;0" calcMode="linear" repeatCount="indefinite" />
+                </circle>
+                <circle cx="22" cy="22" r="6" stroke-opacity="0">
+                    <animate attributeName="r" begin="3s" dur="3s" values="6;22" calcMode="linear" repeatCount="indefinite" />
+                    <animate attributeName="stroke-opacity" begin="3s" dur="3s" values="1;0" calcMode="linear" repeatCount="indefinite" />
+                    <animate attributeName="stroke-width" begin="3s" dur="3s" values="2;0" calcMode="linear" repeatCount="indefinite" />
+                </circle>
+                <circle cx="22" cy="22" r="8">
+                    <animate attributeName="r" begin="0s" dur="1.5s" values="6;1;2;3;4;5;6" calcMode="linear" repeatCount="indefinite" />
+                </circle>
+            </g>
+        </svg>
+    </div>`;
+
+    function debounce(func, wait, immediate) {
+        var timeout;
+        return function () {
+            var context = this, args = arguments;
+            var later = function () {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    }
+
+    function setCorrectShortcut() {
+        if (navigator.platform.toUpperCase().indexOf('MAC') >= 0) {
+            document.querySelectorAll(".search-keys").forEach(x => x.innerHTML = "<code>⌘</code>&nbsp;+&nbsp;<code>K</code>");
+        }
+    }
+
+    // ===== Highlighting Utilities =====
+
+    function tokenizeSearchTerms(query) {
+        const terms = [];
+        const regex = /"([^"]+)"|(\S+)/g;
+        let match;
+        while ((match = regex.exec(query)) !== null) {
+            const term = (match[1] || match[2]).toLowerCase();
+            if (term.length > 1) {
+                terms.push(term);
+            }
+        }
+        return terms.sort((a, b) => b.length - a.length);
+    }
+
+    function highlightTerms(text, terms) {
+        if (!terms || terms.length === 0 || !text) return text;
+        let result = text;
+        terms.forEach(term => {
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escaped})`, 'gi');
+            result = result.replace(regex, '<span class="search-highlight">$1</span>');
+        });
+        return result;
+    }
+
+    function getContextualExcerpt(content, terms, maxLength = 150) {
+        if (!content) return '';
+        const plainText = content.replace(/<[^>]*>/g, '');
+
+        if (!terms || terms.length === 0) {
+            return truncateText(plainText, maxLength);
+        }
+
+        let firstMatchIndex = plainText.length;
+        terms.forEach(term => {
+            const index = plainText.toLowerCase().indexOf(term.toLowerCase());
+            if (index !== -1 && index < firstMatchIndex) {
+                firstMatchIndex = index;
+            }
+        });
+
+        if (firstMatchIndex === plainText.length) {
+            return truncateText(plainText, maxLength);
+        }
+
+        const contextBefore = 50;
+        const start = Math.max(0, firstMatchIndex - contextBefore);
+        const end = Math.min(plainText.length, start + maxLength);
+
+        let excerpt = plainText.substring(start, end);
+        if (start > 0) excerpt = '...' + excerpt;
+        if (end < plainText.length) excerpt = excerpt + '...';
+
+        return excerpt;
+    }
+
+    function truncateText(str, size) {
+        if (!str) return '';
+        str = str.replace(/<[^>]*>/g, '');
+        if (str.length <= size) return str;
+        return str.substring(0, size - 3) + '...';
+    }
+
+    // ===== Preview Functions =====
+
+    async function fetchPreviewContent(url) {
+        if (previewCache.has(url)) {
+            return previewCache.get(url);
+        }
+
+        try {
+            const response = await fetch(url);
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const content = doc.querySelector('.content, .cm-s-obsidian, article, main');
+            const htmlContent = content ? content.innerHTML : '';
+            previewCache.set(url, htmlContent);
+            return htmlContent;
+        } catch (error) {
+            console.error('Failed to fetch preview:', error);
+            return '';
+        }
+    }
+
+    function highlightTextNodes(element, terms) {
+        if (!terms || terms.length === 0) return;
+
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        const textNodes = [];
+
+        while (walker.nextNode()) {
+            textNodes.push(walker.currentNode);
+        }
+
+        textNodes.forEach(node => {
+            const text = node.textContent;
+            let hasMatch = false;
+
+            terms.forEach(term => {
+                if (text.toLowerCase().includes(term.toLowerCase())) {
+                    hasMatch = true;
+                }
+            });
+
+            if (hasMatch) {
+                const span = document.createElement('span');
+                span.innerHTML = highlightTerms(text, terms);
+                node.parentNode.replaceChild(span, node);
+            }
+        });
+    }
+
+    async function showPreview(index) {
+        const results = window.searchResults;
+        if (!results || !results[index]) return;
+
+        const result = results[index];
+        const previewPanel = document.getElementById('search-preview');
+        const previewContent = document.getElementById('preview-content');
+        const placeholder = previewPanel.querySelector('.preview-placeholder');
+
+        if (!previewPanel || !previewContent) return;
+
+        // Update active state on results
+        document.querySelectorAll('.searchresult').forEach(el => el.classList.remove('active'));
+        const activeResult = document.querySelector(`.searchresult[data-index="${index}"]`);
+        if (activeResult) {
+            activeResult.classList.add('active');
+        }
+
+        // Show loading state in preview
+        previewContent.innerHTML = loadingSvg;
+        previewContent.classList.add('has-content');
+        placeholder.style.display = 'none';
+
+        // Fetch the content
+        const htmlContent = await fetchPreviewContent(result.url);
+
+        const tagsHTML = result.tags && result.tags.length > 0
+            ? `<div class="preview-tags">${result.tags.map(tag =>
+                `<a class="tag" href="javascript:void(0);" onclick="toggleTagSearch(this)">#${tag}</a>`).join('')}</div>`
+            : '';
+
+        previewContent.innerHTML = `
+            <div class="preview-title">${highlightTerms(result.title, window.searchTerms)}</div>
+            ${tagsHTML}
+            <div class="preview-body">${htmlContent}</div>
+        `;
+
+        // Highlight search terms in the preview body
+        const previewBody = previewContent.querySelector('.preview-body');
+        if (previewBody && window.searchTerms) {
+            highlightTextNodes(previewBody, window.searchTerms);
+        }
+
+        window.currentPreviewIndex = index;
+    }
+
+    function hidePreview() {
+        const previewPanel = document.getElementById('search-preview');
+        const previewContent = document.getElementById('preview-content');
+        const placeholder = previewPanel?.querySelector('.preview-placeholder');
+
+        if (placeholder) placeholder.style.display = 'flex';
+        if (previewContent) {
+            previewContent.classList.remove('has-content');
+            previewContent.innerHTML = '';
+        }
+        window.currentPreviewIndex = -1;
+    }
+
+    // ===== FlexSearch Index =====
+
+    function createIndex(posts) {
+        const normalizeForSearch = (str) => str
+            .toLowerCase()
+            // á -> a +  ́
+            .normalize("NFD")
+            // n~ -> ñ
+            .replace(/n\u0303/g, "ñ")
+            // áéíóúü -> aeiouu
+            .replace(/[\u0300-\u036f]/g, "")
+            // Recompose Unicode
+            .normalize("NFC");
+
+        const encoder = (str) => normalizeForSearch(str)
+            .split(/([^a-z]|[^\x00-\x7F])/);
+        const contentIndex = new FlexSearch.Document({
+            cache: true,
+            charset: "latin:extra",
+            optimize: true,
+            index: [
+                { field: "content", tokenize: "reverse", encode: encoder },
+                { field: "title", tokenize: "forward", encode: encoder },
+                { field: "tags", tokenize: "forward", encode: encoder }
+            ]
+        });
+        posts.forEach((p, idx) => {
+            contentIndex.add({ id: idx, title: p.title, content: p.content, tags: p.tags });
+        });
+        return contentIndex;
+    }
+
+    // ===== Initialization =====
+
+    async function init() {
+        // Fetch search index (browser caches based on query param)
+        const docs = await fetch('/searchIndex.json?v={{meta.buildDate|isoDate}}').then(r => r.json());
+        const index = createIndex(docs);
+        window.docs = docs;
+        window.index = index;
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                toggleSearch();
+            }
+            if (e.key === 'Escape') {
+                document.getElementById('globalsearch').classList.remove('active');
+            }
+
+            // Navigate search results with arrow keys
+            if (document.getElementById('globalsearch').classList.contains('active')) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateResults(1);
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateResults(-1);
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const active = document.querySelector('.searchresult.active');
+                    if (active) {
+                        const url = active.dataset.url;
+                        if (url) window.location.href = url;
+                    }
+                }
+            }
+        });
+
+        function navigateResults(direction) {
+            const results = document.querySelectorAll('.searchresult');
+            if (results.length === 0) return;
+
+            let currentIndex = -1;
+            results.forEach((el, i) => {
+                if (el.classList.contains('active')) {
+                    currentIndex = i;
+                }
+            });
+
+            let newIndex;
+            if (currentIndex === -1) {
+                newIndex = direction > 0 ? 0 : results.length - 1;
+            } else {
+                newIndex = currentIndex + direction;
+                if (newIndex < 0) newIndex = results.length - 1;
+                if (newIndex >= results.length) newIndex = 0;
+            }
+
+            results.forEach(el => el.classList.remove('active'));
+            results[newIndex].classList.add('active');
+            results[newIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            // Sync preview with selection
+            showPreview(parseInt(results[newIndex].dataset.index));
+        }
+
+        const debouncedSearch = debounce(search, 200, false);
+        window.field = document.querySelector('#term');
+        field.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') {
+                debouncedSearch();
+            }
+        });
+        window.resultsDiv = document.querySelector('#search-results');
+
+        const params = new URL(location.href).searchParams;
+        if (params.get('q')) {
+            field.setAttribute('value', params.get('q'));
+            toggleSearch();
+            search();
+        }
+    }
+
+    // ===== Search Function =====
+
+    window.lastSearch = '';
+    window.searchResults = [];
+    window.searchTerms = [];
+    window.currentPreviewIndex = -1;
+
+    async function search() {
+        const searchQuery = field.value.trim();
+        const searchLayout = document.getElementById('search-layout');
+
+        if (!searchQuery) {
+            resultsDiv.innerHTML = `<span><i>{{ meta.uiStrings.searchNotStarted }}</i></span>`;
+            hidePreview();
+            if (searchLayout) searchLayout.classList.add('no-preview');
+            return;
+        }
+
+        window.lastSearch = searchQuery;
+        window.searchTerms = tokenizeSearchTerms(searchQuery);
+
+        resultsDiv.innerHTML = loadingSvg;
+        hidePreview();
+
+        const results = offlineSearch(searchQuery);
+        window.searchResults = results;
+
+        if (!results.length) {
+            if (searchLayout) searchLayout.classList.add('no-preview');
+            resultsDiv.innerHTML = `
+                <div class="no-results">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                    <p>{{ meta.uiStrings.searchNoResults }} "${searchQuery}"</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Show preview panel when we have results
+        if (searchLayout) searchLayout.classList.remove('no-preview');
+
+        let resultsHTML = '';
+        results.forEach((r, index) => {
+            const excerpt = getContextualExcerpt(r.content, window.searchTerms, 120);
+            const highlightedExcerpt = highlightTerms(excerpt, window.searchTerms);
+            const highlightedTitle = highlightTerms(r.title, window.searchTerms);
+
+            const tagsHTML = r.tags && r.tags.length > 0
+                ? `<div class="result-tags">${r.tags.map(tag => `<span class="tag">#${tag}</span>`).join('')}</div>`
+                : '';
+
+            resultsHTML += `
+                <div class="searchresult${index === 0 ? ' active' : ''}"
+                     data-index="${index}"
+                     data-url="${r.url}"
+                     onmouseenter="showPreview(${index})"
+                     onclick="window.location.href='${r.url}'">
+                    <span class="result-title">${highlightedTitle}</span>
+                    ${tagsHTML}
+                    <div class="result-excerpt">${highlightedExcerpt}</div>
+                </div>
+            `;
+        });
+
+        resultsDiv.innerHTML = resultsHTML;
+
+        // Auto-show preview for first result
+        if (results.length > 0) {
+            showPreview(0);
+        }
+
+        // Reinitialize Lucide icons if available
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    window.search = search;
+
+    // ===== Offline Search =====
+
+    function offlineSearch(searchQuery) {
+        const data = window.docs;
+        const isTagSearch = searchQuery[0] === "#" && searchQuery.length > 1;
+
+        const searchResults = isTagSearch
+            ? index.search(searchQuery.substring(1), [{ field: "tags" }])
+            : index.search(searchQuery, [
+                { field: "title", limit: 5 },
+                { field: "content", limit: 10 }
+            ]);
+
+        const getByField = (field) => {
+            const results = searchResults.filter((x) => x.field === field);
+            if (results.length === 0) return [];
+            return [...results[0].result];
+        };
+
+        const allIds = new Set([
+            ...getByField("title"),
+            ...getByField("content"),
+            ...getByField("tags")
+        ]);
+
+        const dataIds = [...allIds];
+        const finalResults = dataIds.map((id) => {
+            const result = { ...data[id] };
+            result.tags = result.tags.filter((x) => x !== "gardenEntry" && x !== "note");
+            return result;
+        });
+
+        return finalResults;
+    }
+</script>
