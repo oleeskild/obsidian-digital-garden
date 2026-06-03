@@ -1,0 +1,247 @@
+<!-- Credit for the link preview implementation goes to https://github.com/maximevaillancourt/digital-garden-jekyll-template/blob/master/_includes/link-previews.html -->
+<style>
+#tooltip-wrapper {
+  background: var(--background-primary);
+  padding: 1em;
+  border-radius: 4px;
+  overflow: hidden;
+  position: fixed;
+  width: 80%;
+  max-width: 400px;
+  height: auto;
+  max-height: 300px;
+  font-size: 0.8em;
+  box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+  opacity: 0;
+  transition: opacity 100ms;
+  unicode-bidi: plaintext;
+  overflow-y: scroll;
+  z-index: 10;
+}
+
+#tooltip-wrapper:after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  width: 100%;
+  unicode-bidi: plaintext;
+  height: 75px;
+}
+
+.tooltip-pdf {
+  width: 100%;
+  height: 260px;
+  border: 0;
+}
+</style>
+<div style="opacity: 0; display: none;" id='tooltip-wrapper'>
+  <div id='tooltip-content'>
+  </div>
+</div>
+
+<iframe style="display: none; height: 0; width: 0;" id='link-preview-iframe' src="">
+</iframe>
+
+<script>
+  var opacityTimeout;
+  var contentTimeout;
+  var transitionDurationMs = 100;
+
+  var iframe = document.getElementById('link-preview-iframe')
+  var tooltipWrapper = document.getElementById('tooltip-wrapper')
+  var tooltipContent = document.getElementById('tooltip-content')
+
+  var linkHistories = {};
+
+  function hideTooltip() {
+    opacityTimeout = setTimeout(function () {
+      tooltipWrapper.style.opacity = 0;
+      contentTimeout = setTimeout(function () {
+        tooltipContent.innerHTML = '';
+        tooltipWrapper.style.display = 'none';
+      }, transitionDurationMs + 1);
+    }, transitionDurationMs)
+  }
+
+  function positionTooltip(elem) {
+    var elem_props = elem.getClientRects()[elem.getClientRects().length - 1];
+    var viewportWidth = document.documentElement.clientWidth;
+    var viewportHeight = window.innerHeight;
+    var gap = 12;
+    var edgePadding = 10;
+
+    var spaceAbove = elem_props.top;
+    var spaceBelow = viewportHeight - (elem_props.top + elem_props.height);
+    var spaceLeft = elem_props.left;
+    var spaceRight = viewportWidth - (elem_props.left + elem_props.width);
+
+    // Prefer edge placement away from the pointer: top/bottom and left/right.
+    var placeVertical = spaceBelow >= tooltipWrapper.offsetHeight + gap ? "bottom" : "top";
+    var placeHorizontal = spaceRight >= tooltipWrapper.offsetWidth + gap ? "right" : "left";
+
+    if (placeVertical === "bottom") {
+      tooltipWrapper.style.top = (elem_props.top + elem_props.height + gap) + "px";
+    } else {
+      tooltipWrapper.style.top = (elem_props.top - tooltipWrapper.offsetHeight - gap) + "px";
+    }
+
+    if (placeHorizontal === "right") {
+      tooltipWrapper.style.left = (elem_props.left + elem_props.width + gap) + "px";
+    } else {
+      tooltipWrapper.style.left = (elem_props.left - tooltipWrapper.offsetWidth - gap) + "px";
+    }
+
+    // Clamp to viewport edges.
+    var currentTop = parseFloat(tooltipWrapper.style.top);
+    var currentLeft = parseFloat(tooltipWrapper.style.left);
+
+    if (currentTop < edgePadding) {
+      tooltipWrapper.style.top = edgePadding + "px";
+    } else if (currentTop + tooltipWrapper.offsetHeight + edgePadding > viewportHeight) {
+      tooltipWrapper.style.top = (viewportHeight - tooltipWrapper.offsetHeight - edgePadding) + "px";
+    }
+
+    if (currentLeft < edgePadding) {
+      tooltipWrapper.style.left = edgePadding + "px";
+    } else if (currentLeft + tooltipWrapper.offsetWidth + edgePadding > viewportWidth) {
+      tooltipWrapper.style.left = (viewportWidth - tooltipWrapper.offsetWidth - edgePadding) + "px";
+    }
+  }
+
+  function showTooltip(event) {
+    var elem = event.currentTarget || event.target;
+    if (!elem) return;
+    var url = elem.getAttribute("href");
+    if (url.indexOf("http") === -1 || url.indexOf(window.location.host) !== -1) {
+      tooltipWrapper.style.display = 'block';
+      tooltipWrapper.style.opacity = 0;
+      positionTooltip(elem);
+
+      let contentURL = url.split('#')[0]
+      if (contentURL.toLowerCase().endsWith(".pdf")) {
+        tooltipContent.innerHTML = '<iframe class="tooltip-pdf" src="' + contentURL + '"></iframe>'
+        tooltipWrapper.scrollTop = 0;
+        setTimeout(function () {
+          positionTooltip(elem);
+          tooltipWrapper.style.opacity = 1;
+        }, 1)
+        return;
+      }
+      if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(contentURL)) {
+        tooltipContent.innerHTML = '<img src="' + contentURL + '" style="max-width:100%;height:auto;" />'
+        tooltipWrapper.scrollTop = 0;
+        setTimeout(function () {
+          positionTooltip(elem);
+          tooltipWrapper.style.opacity = 1;
+        }, 1)
+        return;
+      }
+      if (!linkHistories[contentURL]) {
+        iframe.src = contentURL
+        iframe.onload = function () {
+          let iframeWindow;
+          let iframeDoc;
+          try {
+            iframeWindow = iframe.contentWindow;
+            iframeDoc = iframeWindow ? iframeWindow.document : null;
+          } catch (e) {
+            tooltipContent.innerHTML = '<div>Preview not available for this file.</div>';
+            tooltipWrapper.scrollTop = 0;
+            setTimeout(function () {
+              positionTooltip(elem);
+              tooltipWrapper.style.opacity = 1;
+            }, 1)
+            return;
+          }
+          if (!iframeDoc) {
+            return;
+          }
+
+          const titleEl = iframeDoc.querySelector('h1');
+          const contentEl = iframeDoc.querySelector('.content');
+
+          tooltipContentHtml = ''
+          if (titleEl) {
+            tooltipContentHtml += '<div style="font-weight: bold; unicode-bidi: plaintext;">' + titleEl.innerHTML + '</div>'
+          }
+          if (contentEl) {
+            tooltipContentHtml += contentEl.innerHTML
+          } else if (iframeDoc.body) {
+            tooltipContentHtml += iframeDoc.body.innerHTML
+          } else if (iframeDoc.documentElement) {
+            tooltipContentHtml += iframeDoc.documentElement.innerHTML
+          } else {
+            return;
+          }
+          tooltipContent.innerHTML = tooltipContentHtml
+          linkHistories[contentURL] = tooltipContentHtml
+          tooltipWrapper.scrollTop = 0;
+          setTimeout(function () {
+            positionTooltip(elem);
+            tooltipWrapper.style.opacity = 1;
+            if (url.indexOf("#") != -1) {
+              let id = url.split('#')[1];
+              const focus = tooltipWrapper.querySelector(`[id='${id}']`);
+              focus.classList.add('referred');
+              console.log(focus);
+              focus.scrollIntoView({behavior: 'smooth'}, true)
+            } else {
+              tooltipWrapper.scroll(0, 0);
+            }
+          }, 1)
+        }
+      } else {
+        tooltipContent.innerHTML = linkHistories[contentURL]
+        setTimeout(function () {
+          positionTooltip(elem);
+          tooltipWrapper.style.opacity = 1;
+          if (url.indexOf("#") != -1) {
+              let id = url.split('#')[1];
+              const focus = tooltipWrapper.querySelector(`[id='${id}']`);
+              focus.classList.add('referred');
+              focus.scrollIntoView({behavior: 'smooth'}, true)
+          } else {
+              tooltipWrapper.scroll(0, 0);
+          }
+        }, 1)
+      }
+
+      function getInnerWidth(elem) {
+        var style = window.getComputedStyle(elem);
+        return elem.offsetWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - parseFloat(style.borderLeft) - parseFloat(style.borderRight) - parseFloat(style.marginLeft) - parseFloat(style.marginRight);
+      }
+
+      positionTooltip(elem);
+    }
+  }
+
+  function setupListeners(linkElement) {
+    linkElement.addEventListener('mouseleave', function (_event) {
+      hideTooltip();
+    });
+
+    tooltipWrapper.addEventListener('mouseleave', function (_event) {
+      hideTooltip();
+    });
+
+    linkElement.addEventListener('mouseenter', function (event) {
+      clearTimeout(opacityTimeout);
+      clearTimeout(contentTimeout);
+      showTooltip(event);
+    });
+
+    tooltipWrapper.addEventListener('mouseenter', function (event) {
+      clearTimeout(opacityTimeout);
+      clearTimeout(contentTimeout);
+    });
+  }
+
+  window.addEventListener("load", function(event) 
+  {
+    document.querySelectorAll('.internal-link').forEach(setupListeners);
+    document.querySelectorAll('.backlink-card a').forEach(setupListeners);
+  });
+</script>
