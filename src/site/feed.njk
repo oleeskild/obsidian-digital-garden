@@ -1,0 +1,27 @@
+---json
+{
+  "permalink": "/feed.xml",
+  "eleventyExcludeFromCollections": true
+}
+---
+{%if meta.siteBaseUrl -%}
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:base="{{ meta.siteBaseUrl }}">
+  <title>{{ meta.siteName}}</title>
+  <link href="{{ meta.siteBaseUrl }}{{ permalink }}" rel="self"/>
+  <link href="{{ meta.siteBaseUrl }}"/>
+  <updated>{{ collections.notes | getNewestCollectionItemDate | dateToRfc3339 }}</updated>
+  <id>{{ meta.siteBaseUrl }}</id>
+  {%- for note in collections.note | reverse -%}
+  {%- if note.url != "/" -%}
+  <entry>
+    <title>{%- if note.title -%}{{ note.title }}{%- else -%}{{ note.fileSlug }}{%- endif -%}</title>
+    <updated>{%- if note.data.updated -%}{{ note.data.updated | dateToZulu }}{%- else -%}{{ note.date | dateToRfc3339 }}{%- endif -%}</updated>
+    <id>{{ meta.siteBaseUrl }}{{ note.url | url }}</id>
+    <content type="html">{{- note.templateContent | hideDataview | taggify | link | htmlToAbsoluteUrls(meta.siteBaseUrl) | xmlSafe -}}</content>
+    <link href="{{ meta.siteBaseUrl }}{{ note.url | url }}"/>
+  </entry>
+  {%- endif -%}
+  {%- endfor -%}
+</feed>
+{% endif %}
