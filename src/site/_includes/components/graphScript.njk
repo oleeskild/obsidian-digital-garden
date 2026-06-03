@@ -1,0 +1,505 @@
+<script type="module">
+import { forceSimulation, forceManyBody, forceCenter, forceLink, forceCollide, forceRadial } from 'd3-force';
+import { select } from 'd3-selection';
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
+import { drag as d3Drag } from 'd3-drag';
+
+// Pixi v7 loaded as UMD global
+const { Application, Container, Graphics, Text, Circle } = PIXI;
+
+async function fetchGraphData() {
+    const graphData = await fetch('/graph.json').then(res => res.json());
+    const fullGraphData = filterFullGraphData(graphData);
+    return { graphData, fullGraphData };
+}
+
+function filterFullGraphData(graphData) {
+    if (!graphData) return null;
+    graphData = JSON.parse(JSON.stringify(graphData));
+    const hiddens = Object.values(graphData.nodes).filter(n => n.hide).map(n => n.id);
+    return {
+        links: graphData.links.filter(l => hiddens.indexOf(l.source) === -1 && hiddens.indexOf(l.target) === -1),
+        nodes: Object.values(graphData.nodes).filter(n => !n.hide),
+    };
+}
+
+function filterLocalGraphData(graphData) {
+    if (!graphData) return null;
+    const allNodes = JSON.parse(JSON.stringify(graphData.nodes));
+    const allLinks = JSON.parse(JSON.stringify(graphData.links));
+    let currentLink = decodeURI(window.location.pathname);
+
+    let currentNode = allNodes[currentLink];
+    if (!currentNode) {
+        const lower = currentLink.toLowerCase();
+        currentNode = Object.values(allNodes).find(v => v.url.toLowerCase() === lower);
+    }
+    if (!currentNode) {
+        currentNode = Object.values(allNodes).find(v => v.home);
+    }
+    if (!currentNode) return null;
+
+    currentNode.current = true;
+
+    // Depth 1: collect immediate neighbors (neighbors array contains URLs)
+    const neighbourhood = new Set();
+    neighbourhood.add(currentNode.url);
+    if (currentNode.neighbors) {
+        currentNode.neighbors.forEach(n => neighbourhood.add(n));
+    }
+
+    const nodes = Object.values(allNodes).filter(n => {
+        if (n.hide) return false;
+        return neighbourhood.has(n.url);
+    });
+
+    // If current node is not home, exclude the home node unless it's a neighbor
+    if (!currentNode.home && currentNode.neighbors) {
+        const homeNode = nodes.find(n => n.home);
+        if (homeNode && !currentNode.neighbors.includes(homeNode.url)) {
+            const idx = nodes.indexOf(homeNode);
+            if (idx > -1) nodes.splice(idx, 1);
+        }
+    }
+
+    const ids = nodes.map(n => n.id);
+    return {
+        nodes,
+        links: allLinks.filter(l => ids.indexOf(l.target) > -1 && ids.indexOf(l.source) > -1),
+    };
+}
+
+function getCssVar(variable) {
+    return getComputedStyle(document.body).getPropertyValue(variable).trim();
+}
+
+// Resolve CSS color (which may contain calc/hsl) to a hex number Pixi can use
+const _colorProbe = document.createElement('div');
+_colorProbe.style.display = 'none';
+document.body.appendChild(_colorProbe);
+function resolveColor(cssValue) {
+    _colorProbe.style.color = cssValue;
+    const resolved = getComputedStyle(_colorProbe).color;
+    const match = resolved.match(/(\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        return (parseInt(match[1]) << 16) + (parseInt(match[2]) << 8) + parseInt(match[3]);
+    }
+    return 0x666666;
+}
+
+// Lightweight HTML entity decoder
+const _decodeEl = document.createElement('textarea');
+function htmlDecode(input) {
+    _decodeEl.innerHTML = input;
+    return _decodeEl.value;
+}
+
+// Pre-compute degree map for node sizing
+function buildDegreeMap(links) {
+    const degrees = {};
+    for (const l of links) {
+        const sid = typeof l.source === 'object' ? l.source.id : l.source;
+        const tid = typeof l.target === 'object' ? l.target.id : l.target;
+        degrees[sid] = (degrees[sid] || 0) + 1;
+        degrees[tid] = (degrees[tid] || 0) + 1;
+    }
+    return degrees;
+}
+
+function nodeRadius(nodeId, degreeMap) {
+    return 2 + Math.sqrt(degreeMap[nodeId] || 0);
+}
+
+function renderGraph(graphData, containerId, isFullScreen) {
+    if (!graphData || !graphData.nodes || graphData.nodes.length === 0) return null;
+
+    const el = document.getElementById(containerId);
+    if (!el) return null;
+
+    while (el.firstChild) el.removeChild(el.firstChild);
+
+    const width = el.offsetWidth;
+    const height = el.offsetHeight || 250;
+    if (width === 0) return null;
+
+    const color = resolveColor(getCssVar('--dg-graph-node-color') || getCssVar('--graph-main') || '#666');
+    const mutedColor = resolveColor(getCssVar('--dg-graph-node-color-muted') || getCssVar('--graph-muted') || '#ccc');
+    const textColor = resolveColor(getCssVar('--dg-graph-label-color') || getCssVar('--text-normal') || '#eee');
+    const bodyFont = getComputedStyle(document.body).fontFamily || 'Sans-Serif';
+
+    const degreeMap = buildDegreeMap(graphData.links);
+
+    const nodes = graphData.nodes.map(n => ({
+        ...n,
+        text: htmlDecode(n.title),
+    }));
+    const links = graphData.links.map(l => ({ source: l.source, target: l.target }));
+
+    // D3 Force Simulation — stronger repel for full graph to spread nodes
+    const chargeStrength = isFullScreen ? -300 : -100;
+    const linkDist = isFullScreen ? 80 : 40;
+    const radius = Math.min(width, height) / 3;
+    const simulation = forceSimulation(nodes)
+        .force('charge', forceManyBody().strength(chargeStrength))
+        .force('center', forceCenter(width / 2, height / 2).strength(0.5))
+        .force('link', forceLink(links).id(d => d.id).distance(linkDist))
+        .force('collide', forceCollide(d => nodeRadius(d.id, degreeMap) + 1).iterations(3))
+        .force('radial', forceRadial(radius, width / 2, height / 2).strength(0.05));
+
+    // Pixi v7 Application (synchronous constructor)
+    const app = new Application({
+        width,
+        height,
+        antialias: true,
+        autoStart: false,
+        autoDensity: true,
+        backgroundAlpha: 0,
+        resolution: window.devicePixelRatio,
+    });
+    el.appendChild(app.view);
+
+    const stage = app.stage;
+    stage.interactive = true;
+    stage.hitArea = app.screen;
+
+    const linkGfx = new Graphics();
+    const nodesContainer = new Container();
+    const labelsContainer = new Container();
+    stage.addChild(linkGfx, nodesContainer, labelsContainer);
+
+    let hoveredNodeId = null;
+    let hoveredNeighbours = new Set();
+    let dragging = false;
+    let dragStartTime = 0;
+    let dragStartPos = null;
+    let currentTransform = zoomIdentity;
+
+    const nodeRenderData = [];
+    const linkRenderData = [];
+
+    function updateHoverInfo(newId) {
+        hoveredNodeId = newId;
+        hoveredNeighbours.clear();
+
+        if (newId === null) {
+            for (const n of nodeRenderData) n.active = false;
+            for (const l of linkRenderData) l.active = false;
+        } else {
+            for (const l of linkRenderData) {
+                const src = l.simulationData.source;
+                const tgt = l.simulationData.target;
+                const srcId = typeof src === 'object' ? src.id : src;
+                const tgtId = typeof tgt === 'object' ? tgt.id : tgt;
+                if (srcId === newId || tgtId === newId) {
+                    hoveredNeighbours.add(srcId);
+                    hoveredNeighbours.add(tgtId);
+                }
+                l.active = srcId === newId || tgtId === newId;
+            }
+            for (const n of nodeRenderData) {
+                n.active = hoveredNeighbours.has(n.simulationData.id);
+            }
+        }
+    }
+
+    // Create node graphics
+    for (const n of nodes) {
+        const r = nodeRadius(n.id, degreeMap);
+
+        const label = new Text(n.text, {
+            fontSize: 16,
+            fill: textColor,
+            fontFamily: bodyFont,
+        });
+        label.resolution = 2;
+        label.anchor.set(0.5, 1);
+        label.scale.set(1 / 3);
+        label.alpha = 0;
+
+        const gfx = new Graphics();
+        gfx.interactive = true;
+        gfx.cursor = 'pointer';
+        gfx.hitArea = new Circle(0, 0, r + 2);
+        gfx._nodeId = n.id;
+
+        // Draw node circle — current node gets main color, others get muted
+        const nodeColor = n.current ? color : mutedColor;
+        gfx.beginFill(nodeColor);
+        gfx.drawCircle(0, 0, r);
+        gfx.endFill();
+
+        if (n.current) {
+            gfx.lineStyle(0.5, color);
+            gfx.drawCircle(0, 0, r + 1.5);
+        }
+
+        let oldLabelAlpha = 0;
+        gfx.on('pointerover', () => {
+            updateHoverInfo(gfx._nodeId);
+            oldLabelAlpha = label.alpha;
+            if (!dragging) updateVisuals();
+        });
+        gfx.on('pointerleave', () => {
+            updateHoverInfo(null);
+            label.alpha = oldLabelAlpha;
+            if (!dragging) updateVisuals();
+        });
+
+        nodesContainer.addChild(gfx);
+        labelsContainer.addChild(label);
+
+        nodeRenderData.push({
+            simulationData: n,
+            gfx,
+            label,
+            radius: r,
+            active: false,
+            baseAlpha: 1,
+            targetAlpha: 1,
+            currentAlpha: 1,
+        });
+    }
+
+    for (const l of links) {
+        linkRenderData.push({
+            simulationData: l,
+            active: false,
+            baseAlpha: 0.4,
+            targetAlpha: 0.4,
+            currentAlpha: 0.4,
+        });
+    }
+
+    function updateVisuals() {
+        for (const n of nodeRenderData) {
+            n.targetAlpha = hoveredNodeId !== null ? (n.active ? 1 : 0.1) : n.baseAlpha;
+        }
+        for (const l of linkRenderData) {
+            l.targetAlpha = hoveredNodeId !== null ? (l.active ? 0.8 : 0.05) : l.baseAlpha;
+        }
+    }
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    // D3 Drag
+    select(app.view).call(
+        d3Drag()
+            .container(() => app.view)
+            .subject(() => {
+                if (!hoveredNodeId) return null;
+                const node = nodes.find(n => n.id === hoveredNodeId);
+                if (!node) return null;
+                return {
+                    x: node.x * currentTransform.k + currentTransform.x,
+                    y: node.y * currentTransform.k + currentTransform.y,
+                    node,
+                };
+            })
+            .on('start', function (event) {
+                if (!event.active) simulation.alphaTarget(1).restart();
+                const node = event.subject.node;
+                node.fx = node.x;
+                node.fy = node.y;
+                dragStartTime = Date.now();
+                dragStartPos = { x: event.x, y: event.y };
+                dragging = true;
+            })
+            .on('drag', function (event) {
+                const node = event.subject.node;
+                node.fx = (event.x - currentTransform.x) / currentTransform.k;
+                node.fy = (event.y - currentTransform.y) / currentTransform.k;
+            })
+            .on('end', function (event) {
+                if (!event.active) simulation.alphaTarget(0);
+                const node = event.subject.node;
+                node.fx = null;
+                node.fy = null;
+                dragging = false;
+
+                const dt = Date.now() - dragStartTime;
+                const dx = event.x - dragStartPos.x;
+                const dy = event.y - dragStartPos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dt < 500 && dist < 5) {
+                    if (node.url) {
+                        window.location = node.url;
+                    }
+                }
+            })
+    );
+
+    // D3 Zoom
+    const zoomBehavior = d3Zoom()
+        .extent([[0, 0], [width, height]])
+        .scaleExtent([0.25, 4])
+        .on('zoom', ({ transform }) => {
+            currentTransform = transform;
+            stage.scale.set(transform.k, transform.k);
+            stage.position.set(transform.x, transform.y);
+
+            const scaleOpacity = Math.max((transform.k - 1) / 3.75, 0);
+            for (const n of nodeRenderData) {
+                if (n.simulationData.id !== hoveredNodeId) {
+                    n.label.alpha = scaleOpacity;
+                }
+            }
+        });
+    select(app.view).call(zoomBehavior);
+
+    // Animation loop
+    let stopAnimation = false;
+    const smoothing = 0.15;
+
+    function animate() {
+        if (stopAnimation) return;
+
+        for (const n of nodeRenderData) {
+            const { x, y } = n.simulationData;
+            if (x == null || y == null) continue;
+            n.gfx.position.set(x, y);
+            n.label.position.set(x, y - n.radius - 2);
+
+            n.currentAlpha = lerp(n.currentAlpha, n.targetAlpha, smoothing);
+            n.gfx.alpha = n.currentAlpha;
+
+            if (n.simulationData.id === hoveredNodeId) {
+                n.label.alpha = 1;
+            }
+        }
+
+        // Draw all links in a single Graphics pass
+        linkGfx.clear();
+        for (const l of linkRenderData) {
+            const src = l.simulationData.source;
+            const tgt = l.simulationData.target;
+            if (src.x == null || tgt.x == null) continue;
+
+            l.currentAlpha = lerp(l.currentAlpha, l.targetAlpha, smoothing);
+
+            linkGfx.lineStyle(1, l.active ? color : mutedColor, l.currentAlpha);
+            linkGfx.moveTo(src.x, src.y);
+            linkGfx.lineTo(tgt.x, tgt.y);
+        }
+
+        app.render();
+        requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+
+    // Zoom to fit after simulation settles
+    if (isFullScreen || graphData.nodes.length > 4) {
+        setTimeout(() => {
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const n of nodes) {
+                if (n.x == null || n.y == null) continue;
+                minX = Math.min(minX, n.x);
+                maxX = Math.max(maxX, n.x);
+                minY = Math.min(minY, n.y);
+                maxY = Math.max(maxY, n.y);
+            }
+            if (minX === Infinity) return;
+
+            const padding = 50;
+            const gw = (maxX - minX) + padding * 2;
+            const gh = (maxY - minY) + padding * 2;
+            const k = Math.min(width / gw, height / gh, 2);
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+
+            const transform = zoomIdentity
+                .translate(width / 2 - cx * k, height / 2 - cy * k)
+                .scale(k);
+
+            select(app.view).call(zoomBehavior.transform, transform);
+        }, 500);
+    }
+
+    return function cleanup() {
+        stopAnimation = true;
+        simulation.stop();
+        select(app.view).on('.drag', null).on('.zoom', null);
+        app.destroy(true, { children: true });
+    };
+}
+
+// --- Initialize ---
+let graphDataCache = null;
+let fullGraphDataCache = null;
+let localGraphCleanup = null;
+let globalGraphCleanup = null;
+
+async function init() {
+    const { graphData, fullGraphData } = await fetchGraphData();
+    graphDataCache = graphData;
+    fullGraphDataCache = fullGraphData;
+    renderLocal();
+}
+
+function renderLocal() {
+    if (localGraphCleanup) {
+        localGraphCleanup();
+        localGraphCleanup = null;
+    }
+    const data = filterLocalGraphData(graphDataCache);
+    const cleanup = renderGraph(data, 'link-graph', false);
+    localGraphCleanup = cleanup;
+}
+
+function openModal(data) {
+    if (globalGraphCleanup) {
+        globalGraphCleanup();
+        globalGraphCleanup = null;
+    }
+    document.getElementById('full-graph').style.display = '';
+    setTimeout(() => {
+        globalGraphCleanup = renderGraph(data, 'full-graph-container', true);
+        lucide.createIcons({ attrs: { class: ['svg-icon'] } });
+    }, 50);
+}
+
+function openFullGraph() {
+    openModal(fullGraphDataCache);
+}
+
+function openExpandedLocal() {
+    openModal(filterLocalGraphData(graphDataCache));
+}
+
+function closeFullGraph() {
+    document.getElementById('full-graph').style.display = 'none';
+    if (globalGraphCleanup) {
+        globalGraphCleanup();
+        globalGraphCleanup = null;
+    }
+}
+
+// Expose to Alpine
+window.__graph = { openFullGraph, closeFullGraph, openExpandedLocal, rerenderLocal: renderLocal };
+
+// Re-render when the style editor changes CSS variables
+document.addEventListener('forestry:css-changed', function() {
+    if (graphDataCache) renderLocal();
+});
+
+init();
+</script>
+
+<div id="graph-component" class="graph" x-data="{ showFullGraph: false }">
+    <div class="graph-title-container">
+        <div class="graph-title">Connected Pages</div>
+        <div id="graph-controls">
+            <div class="ctrl-right">
+                <span id="global-graph-btn" x-on:click="showFullGraph = true; window.__graph.openFullGraph()"><i data-lucide="globe" aria-hidden="true"></i></span>
+                <span id="graph-fs-btn" x-on:click="showFullGraph = true; window.__graph.openExpandedLocal()"><i data-lucide="expand" aria-hidden="true"></i></span>
+            </div>
+        </div>
+    </div>
+    <div id="link-graph"></div>
+    <div x-show="showFullGraph" id="full-graph" class="show" style="display: none;" x-on:click.self="window.__graph.closeFullGraph(); showFullGraph = false;">
+        <span id="full-graph-close" x-on:click="window.__graph.closeFullGraph(); showFullGraph = false;"><i data-lucide="x" aria-hidden="true"></i></span>
+        <div id="full-graph-container"></div>
+    </div>
+</div>
