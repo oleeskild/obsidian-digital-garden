@@ -1,0 +1,256 @@
+<script>
+(function() {
+    const uiStrings = {
+        dragHint: "{{ meta.uiStrings.canvasDragHint }}",
+        zoomHint: "{{ meta.uiStrings.canvasZoomHint }}",
+        resetHint: "{{ meta.uiStrings.canvasResetHint }}"
+    };
+
+    // Detect iOS Safari
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOSSafari = isIOS && isSafari;
+
+    function initCanvas(wrapper) {
+        try {
+            // Add navigation hints (hide on mobile for cleaner UI)
+            const isMobile = window.innerWidth <= 768;
+            if (!isMobile) {
+                const hints = document.createElement("div");
+                hints.className = "canvas-hints";
+                hints.innerHTML = `
+                    <span><kbd>Drag</kbd> ${uiStrings.dragHint}</span>
+                    <span><kbd>Scroll</kbd> ${uiStrings.zoomHint}</span>
+                    <span><kbd>Double-click</kbd> ${uiStrings.resetHint}</span>
+                `;
+                wrapper.appendChild(hints);
+
+                // Hide hints after first interaction
+                let hintsHidden = false;
+                const hideHints = () => {
+                    if (!hintsHidden) {
+                        hints.classList.add("hidden");
+                        hintsHidden = true;
+                    }
+                };
+                wrapper.addEventListener("pointerdown", hideHints, { once: true });
+                wrapper.addEventListener("wheel", hideHints, { once: true });
+            }
+
+            const canvas = wrapper.querySelector(".canvas");
+            if (!canvas) {
+                console.warn("Canvas element not found");
+                wrapper.classList.remove("hide");
+                return;
+            }
+            const background = wrapper.querySelector(".canvas-background pattern");
+            const nodes = Array.from(canvas.querySelectorAll(".canvas-node"));
+            let scale = 1;
+            let position = { x: 0, y: 0 };
+            const minScale = 0.1;
+            const maxScale = 5;
+
+        // Cache node bounds at init to avoid repeated DOM reads and regex parsing
+        const nodeBoundsCache = nodes.map(node => {
+            const transform = node.style.transform;
+            const match = transform.match(/translate\(([\d.-]+)px,\s*([\d.-]+)px\)/);
+            if (!match) return null;
+            const x = parseFloat(match[1]);
+            const y = parseFloat(match[2]);
+            const w = parseFloat(node.style.width) || node.offsetWidth;
+            const h = parseFloat(node.style.height) || node.offsetHeight;
+            return { x, y, w, h };
+        }).filter(Boolean);
+
+        // Pre-compute total bounds once
+        const cachedBounds = (() => {
+            if (nodeBoundsCache.length === 0) return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            nodeBoundsCache.forEach(({ x, y, w, h }) => {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w);
+                maxY = Math.max(maxY, y + h);
+            });
+            return { minX, minY, maxX, maxY };
+        })();
+
+        // RAF-based transform updates for smooth animations
+        let rafId = null;
+        let needsUpdate = false;
+
+        function scheduleUpdate() {
+            if (!needsUpdate) {
+                needsUpdate = true;
+                rafId = requestAnimationFrame(applyTransform);
+            }
+        }
+
+        function applyTransform() {
+            needsUpdate = false;
+            canvas.style.transform = `translate(${position.x}px, ${position.y}px) scale(${scale})`;
+            canvas.classList.toggle("small-scale", scale < 0.3);
+            if (background) {
+                // Keep pattern size fixed, just offset based on pan position
+                // Use modulo to keep values small and avoid precision issues
+                const patternSize = 25;
+                const offsetX = ((position.x % patternSize) + patternSize) % patternSize;
+                const offsetY = ((position.y % patternSize) + patternSize) % patternSize;
+                background.setAttribute("x", offsetX);
+                background.setAttribute("y", offsetY);
+            }
+        }
+
+        function updateTransform() {
+            scheduleUpdate();
+        }
+
+        function fitToView() {
+            const bounds = cachedBounds;
+            const padding = 50;
+            const contentWidth = bounds.maxX - bounds.minX + padding * 2;
+            const contentHeight = bounds.maxY - bounds.minY + padding * 2;
+            const wrapperWidth = wrapper.clientWidth;
+            const wrapperHeight = wrapper.clientHeight;
+            const scaleX = wrapperWidth / contentWidth;
+            const scaleY = wrapperHeight / contentHeight;
+            scale = Math.min(scaleX, scaleY, 1) * 0.9;
+            const centerX = (bounds.minX + bounds.maxX) / 2;
+            const centerY = (bounds.minY + bounds.maxY) / 2;
+            position.x = wrapperWidth / 2 - centerX * scale;
+            position.y = wrapperHeight / 2 - centerY * scale;
+            applyTransform(); // Apply immediately for initial render
+        }
+
+        function scaleAround(scaleDelta, point) {
+            const newScale = Math.max(minScale, Math.min(maxScale, scale * scaleDelta));
+            const actualDelta = newScale / scale;
+            const offsetX = point.x - position.x;
+            const offsetY = point.y - position.y;
+            position.x = point.x - offsetX * actualDelta;
+            position.y = point.y - offsetY * actualDelta;
+            scale = newScale;
+            updateTransform();
+        }
+
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let positionStart = { x: 0, y: 0 };
+
+        wrapper.addEventListener("pointerdown", (e) => {
+            if (e.target.closest(".canvas-node-content")) return;
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            positionStart = { x: position.x, y: position.y };
+            wrapper.setPointerCapture(e.pointerId);
+        });
+
+        wrapper.addEventListener("pointermove", (e) => {
+            if (!isDragging) return;
+            position.x = positionStart.x + e.clientX - dragStart.x;
+            position.y = positionStart.y + e.clientY - dragStart.y;
+            updateTransform();
+        });
+
+        wrapper.addEventListener("pointerup", () => { isDragging = false; });
+        wrapper.addEventListener("pointercancel", () => { isDragging = false; });
+
+        wrapper.addEventListener("wheel", (e) => {
+            const nodeContent = e.target.closest(".canvas-node-content");
+            if (nodeContent) {
+                const isScrollable = nodeContent.scrollHeight > nodeContent.clientHeight;
+                if (isScrollable) {
+                    const atTop = nodeContent.scrollTop <= 0 && e.deltaY < 0;
+                    const atBottom = nodeContent.scrollTop + nodeContent.clientHeight >= nodeContent.scrollHeight && e.deltaY > 0;
+                    if (!atTop && !atBottom) {
+                        return;
+                    }
+                }
+            }
+            e.preventDefault();
+            const rect = wrapper.getBoundingClientRect();
+            const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            const delta = 1 - e.deltaY / 500;
+            scaleAround(delta, point);
+        }, { passive: false });
+
+        let lastTouchDistance = 0;
+        let lastTouchCenter = { x: 0, y: 0 };
+
+        wrapper.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 2) {
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                lastTouchDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                lastTouchCenter = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+            }
+        }, { passive: true });
+
+        wrapper.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                const center = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+                const rect = wrapper.getBoundingClientRect();
+                const point = { x: center.x - rect.left, y: center.y - rect.top };
+                if (lastTouchDistance > 0) {
+                    const delta = distance / lastTouchDistance;
+                    scaleAround(delta, point);
+                }
+                position.x += center.x - lastTouchCenter.x;
+                position.y += center.y - lastTouchCenter.y;
+                updateTransform();
+                lastTouchDistance = distance;
+                lastTouchCenter = center;
+            }
+        }, { passive: false });
+
+        wrapper.addEventListener("dblclick", () => { fitToView(); });
+
+        fitToView();
+
+        // Extract content from file node iframes to show inline instead of full page
+        wrapper.querySelectorAll('.canvas-file-iframe').forEach(function(iframe) {
+            iframe.addEventListener('load', function() {
+                try {
+                    var iframeDoc = iframe.contentDocument;
+                    if (!iframeDoc) return;
+                    var contentEl = iframeDoc.querySelector('.content');
+                    if (!contentEl) return;
+                    var rendered = document.createElement('div');
+                    rendered.className = 'canvas-file-content markdown-rendered';
+                    rendered.innerHTML = contentEl.innerHTML;
+                    iframe.parentNode.replaceChild(rendered, iframe);
+                } catch (e) {
+                    // Cross-origin or access error — keep the iframe as-is
+                }
+            });
+        });
+
+        wrapper.classList.remove("hide");
+
+        } catch (err) {
+            // If canvas initialization fails, still show the content
+            console.error("Canvas initialization error:", err);
+            wrapper.classList.remove("hide");
+        }
+    }
+
+    // Initialize all canvas wrappers on page load with a slight delay for iOS Safari
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Small delay for iOS Safari to finish layout
+            setTimeout(() => {
+                document.querySelectorAll(".canvas-wrapper").forEach(initCanvas);
+            }, isIOSSafari ? 100 : 0);
+        });
+    } else {
+        setTimeout(() => {
+            document.querySelectorAll(".canvas-wrapper").forEach(initCanvas);
+        }, isIOSSafari ? 100 : 0);
+    }
+})();
+</script>
