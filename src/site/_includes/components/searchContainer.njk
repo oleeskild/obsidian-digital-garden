@@ -1,0 +1,39 @@
+<div class="search-container" id="globalsearch" onclick="toggleSearch()">
+    <div class="search-box" onclick="event.stopPropagation()">
+        <div class="search-header">
+            <input type="search" id="term" placeholder="{{ meta.uiStrings.searchPlaceholder }}">
+        </div>
+
+        <div class="search-layout no-preview" id="search-layout">
+            <!-- Left panel: Results list -->
+            <div class="search-results-panel" id="search-results">
+                <!-- Default text -->
+                <span><i>{{ meta.uiStrings.searchNotStarted }}</i></span>
+            </div>
+
+            <!-- Right panel: Content preview (hidden until search starts) -->
+            <div class="search-preview-panel" id="search-preview">
+                <div class="preview-placeholder">
+                    <i data-lucide="file-text"></i>
+                    <p>{{ meta.uiStrings.searchPreviewPlaceholder | default("Select a result to preview") }}</p>
+                </div>
+                <div class="preview-content" id="preview-content"></div>
+            </div>
+        </div>
+
+        <footer class="search-box-footer">
+            <div class="navigation-hint">
+                <span><code>{{ meta.uiStrings.searchEnterHotkey }}</code>&nbsp;{{ meta.uiStrings.searchEnterHint }}</span>
+            </div>
+
+            <div class="navigation-hint">
+                <span><code>{{ meta.uiStrings.searchNavigateHotkey }}</code>&nbsp;{{ meta.uiStrings.searchNavigateHint }}</span>
+            </div>
+
+            <div class="navigation-hint">
+                <span><code>{{ meta.uiStrings.searchCloseHotkey }}</code>&nbsp;{{ meta.uiStrings.searchCloseHint }}</span>
+            </div>
+        </footer>
+    </div>
+</div>
+{%include "components/searchScript.njk"%}
