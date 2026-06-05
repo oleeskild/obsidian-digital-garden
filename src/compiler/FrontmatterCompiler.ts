@@ -29,6 +29,7 @@ export type TPublishedFrontMatter = Record<string, unknown> & {
 	permalink?: string;
 	hide?: boolean;
 	hideInFiletree?: boolean;
+	hideInGraph?: boolean;
 };
 
 export class FrontmatterCompiler {

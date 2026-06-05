@@ -28,6 +28,7 @@ const fakeFile = (path = "test.md") =>
 		},
 	}) as unknown as PublishFile;
 
+// compile() emits JSON (not YAML) between ---…--- fences
 const parsePublished = (compiled: string) => {
 	const match = compiled.match(/^---\n([\s\S]*?)\n---/);
 
