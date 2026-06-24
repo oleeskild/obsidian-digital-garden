@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { type App, getIcon } from "obsidian";
-	import DigitalGardenSettings from "../../models/settings";
+	import { getIcon } from "obsidian";
 	import Publisher from "../../publisher/Publisher";
 	import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
 	import {
@@ -23,8 +22,6 @@
 	import Notices from "./Notices.svelte";
 	import PublishBar from "./PublishBar.svelte";
 
-	export let app: App;
-	export let settings: DigitalGardenSettings;
 	export let siteManager: DigitalGardenSiteManager;
 	export let publisher: Publisher;
 	export let statusManager: IPublishStatusManager;
@@ -325,11 +322,6 @@
 		height: 100%;
 		font-size: 1.2rem;
 		gap: 8px;
-	}
-
-	.dg-pc-empty {
-		color: var(--text-muted);
-		padding: 16px;
 	}
 
 	.dg-pc-error {

@@ -50,8 +50,6 @@ export class PublicationCenterView extends ItemView {
 		this.component = new PublicationCenter({
 			target: this.contentEl,
 			props: {
-				app,
-				settings,
 				siteManager,
 				publisher,
 				statusManager,

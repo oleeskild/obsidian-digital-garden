@@ -12,7 +12,6 @@ import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
-import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
@@ -134,7 +133,6 @@ export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
 
-	publishModal!: PublicationCenter;
 	isPublishing: boolean = false;
 
 	async onload() {
@@ -409,7 +407,7 @@ export default class DigitalGarden extends Plugin {
 			id: "dg-open-publish-modal",
 			name: "Open Publication Center",
 			callback: async () => {
-				this.openPublishModal();
+				this.activatePublicationCenter();
 			},
 		});
 
@@ -757,32 +755,6 @@ export default class DigitalGarden extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
-	openPublishModal() {
-		const siteManager = new DigitalGardenSiteManager(
-			this.app.metadataCache,
-			this.settings,
-		);
-
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
-
-		const publishStatusManager = new PublishStatusManager(
-			siteManager,
-			publisher,
-		);
-
-		this.publishModal = new PublicationCenter(
-			this.app,
-			publishStatusManager,
-			publisher,
-			siteManager,
-			this.settings,
-		);
-		this.publishModal.open();
-	}
 }
 
 class HomePageConfirmationModal extends Modal {
