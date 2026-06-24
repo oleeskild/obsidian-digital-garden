@@ -24,6 +24,7 @@
 	export let openFile: (path: string) => void;
 
 	let status: PublishStatus | null = null;
+	let error: string | null = null;
 	let annotated: AnnotatedFile[] = [];
 	let selected = new Set<string>();
 	let activeFilters = new Set<FileStatus>([
@@ -43,11 +44,16 @@
 	};
 
 	async function refresh() {
+		error = null;
 		status = null;
-		const s = await statusManager.getPublishStatus();
-		status = s;
-		annotated = annotateFiles(s);
-		selected = defaultSelection(annotated);
+		try {
+			const s = await statusManager.getPublishStatus();
+			status = s;
+			annotated = annotateFiles(s);
+			selected = defaultSelection(annotated);
+		} catch (e) {
+			error = String(e);
+		}
 	}
 
 	onMount(refresh);
@@ -63,7 +69,9 @@
 </script>
 
 <div class="dg-pc-root">
-	{#if !status}
+	{#if error}
+		<div class="dg-pc-error">Could not load publication status: {error}</div>
+	{:else if !status}
 		<div class="dg-pc-loading">
 			{@html bigRotatingCog()?.outerHTML ?? ""}
 			<div>Calculating publication status…</div>
@@ -126,6 +134,11 @@
 
 	.dg-pc-empty {
 		color: var(--text-muted);
+		padding: 16px;
+	}
+
+	.dg-pc-error {
+		color: var(--text-error);
 		padding: 16px;
 	}
 </style>
