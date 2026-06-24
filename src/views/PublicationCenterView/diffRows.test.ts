@@ -40,10 +40,12 @@ describe("computeSplitRows", () => {
 			left: { text: "a", lineNo: 1, type: "context" },
 			right: { text: "a", lineNo: 1, type: "context" },
 		});
+
 		expect(rows[1]).toEqual({
 			left: { text: "b", lineNo: 2, type: "del" },
 			right: { text: "B", lineNo: 2, type: "add" },
 		});
+
 		expect(rows[2]).toEqual({
 			left: { text: "c", lineNo: 3, type: "context" },
 			right: { text: "c", lineNo: 3, type: "context" },

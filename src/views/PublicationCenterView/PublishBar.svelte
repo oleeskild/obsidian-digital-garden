@@ -9,7 +9,11 @@
 </script>
 
 <div class="dg-pc-bar">
-	<button class="dg-pc-refresh" on:click={() => dispatch("refresh")} disabled={publishing}>
+	<button
+		class="dg-pc-refresh"
+		on:click={() => dispatch("refresh")}
+		disabled={publishing}
+	>
 		Refresh
 	</button>
 	<button

@@ -36,6 +36,7 @@ describe("collectFilePaths", () => {
 	it("returns all leaf paths under a folder", () => {
 		const tree = buildFileTree(files);
 		const notes = tree.children!.find((c) => c.name === "notes")!;
+
 		expect(collectFilePaths(notes).sort()).toEqual([
 			"notes/a.md",
 			"notes/b.md",

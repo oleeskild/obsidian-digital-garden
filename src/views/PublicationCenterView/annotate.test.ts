@@ -1,9 +1,4 @@
-import {
-	annotateFiles,
-	defaultSelection,
-	buildPublishPlan,
-	AnnotatedFile,
-} from "./annotate";
+import { annotateFiles, defaultSelection, buildPublishPlan } from "./annotate";
 import { PublishStatus } from "../../publisher/PublishStatusManager";
 import { CompiledPublishFile } from "../../publishFile/PublishFile";
 
@@ -48,6 +43,7 @@ describe("defaultSelection", () => {
 describe("buildPublishPlan", () => {
 	it("routes selected files to publish/delete buckets and skips unselected", () => {
 		const files = annotateFiles(status);
+
 		const selected = new Set([
 			"a/changed.md",
 			"b/new.md",

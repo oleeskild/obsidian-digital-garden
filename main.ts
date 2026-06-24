@@ -748,7 +748,6 @@ export default class DigitalGarden extends Plugin {
 			leaf.view.maybeRefresh();
 		}
 	}
-
 }
 
 class HomePageConfirmationModal extends Modal {

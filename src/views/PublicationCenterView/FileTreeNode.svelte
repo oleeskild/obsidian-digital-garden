@@ -57,7 +57,12 @@
 {#if node.isFolder}
 	<div class="dg-pc-folder">
 		<div class="dg-pc-row">
-			<span class="dg-pc-arrow" class:open={expanded} on:click={toggleExpand}>
+			<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+			<span
+				class="dg-pc-arrow"
+				class:open={expanded}
+				on:click={toggleExpand}
+			>
 				<Icon name="chevron-right" />
 			</span>
 			<input
@@ -67,6 +72,7 @@
 				on:click={toggleCheck}
 			/>
 			<Icon name="folder" />
+			<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 			<span class="dg-pc-name" on:click={toggleExpand}>{node.name}</span>
 		</div>
 		{#if expanded}
@@ -84,6 +90,7 @@
 		{/if}
 	</div>
 {:else}
+	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 	<div
 		class="dg-pc-row dg-pc-file"
 		class:active={activePath === node.path}
@@ -95,7 +102,10 @@
 			checked={selected.has(node.path)}
 			on:click|stopPropagation={toggleCheck}
 		/>
-		<span class="dg-pc-status-dot dg-pc-dot-{node.status}" title={node.status} />
+		<span
+			class="dg-pc-status-dot dg-pc-dot-{node.status}"
+			title={node.status}
+		/>
 		<span class="dg-pc-name">{node.name}</span>
 	</div>
 {/if}
@@ -116,7 +126,10 @@
 	}
 
 	.dg-pc-file.active {
-		background: var(--background-modifier-active-hover, var(--background-secondary-alt));
+		background: var(
+			--background-modifier-active-hover,
+			var(--background-secondary-alt)
+		);
 	}
 
 	.dg-pc-children {

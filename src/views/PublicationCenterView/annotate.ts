@@ -14,15 +14,30 @@ export function annotateFiles(status: PublishStatus): AnnotatedFile[] {
 	const files: AnnotatedFile[] = [];
 
 	for (const f of status.changedNotes) {
-		files.push({ path: f.getPath(), status: "changed", isImage: false, file: f });
+		files.push({
+			path: f.getPath(),
+			status: "changed",
+			isImage: false,
+			file: f,
+		});
 	}
 
 	for (const f of status.unpublishedNotes) {
-		files.push({ path: f.getPath(), status: "new", isImage: false, file: f });
+		files.push({
+			path: f.getPath(),
+			status: "new",
+			isImage: false,
+			file: f,
+		});
 	}
 
 	for (const f of status.publishedNotes) {
-		files.push({ path: f.getPath(), status: "published", isImage: false, file: f });
+		files.push({
+			path: f.getPath(),
+			status: "published",
+			isImage: false,
+			file: f,
+		});
 	}
 
 	for (const p of status.deletedNotePaths) {

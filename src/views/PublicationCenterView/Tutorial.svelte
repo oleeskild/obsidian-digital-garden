@@ -48,7 +48,8 @@
 			</li>
 		</ul>
 		<div class="dg-pc-tutorial-actions">
-			<button class="dg-pc-tutorial-got" on:click={dismiss}>Got it</button>
+			<button class="dg-pc-tutorial-got" on:click={dismiss}>Got it</button
+			>
 		</div>
 	</div>
 {/if}

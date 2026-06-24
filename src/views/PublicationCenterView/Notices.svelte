@@ -41,14 +41,19 @@
 	<div class="dg-pc-callout dg-pc-info">
 		<div class="dg-pc-callout-header">
 			<div class="dg-pc-callout-title">Image handling improved</div>
-			<button class="dg-pc-dismiss" on:click={dismissImageFix} aria-label="Dismiss">
+			<button
+				class="dg-pc-dismiss"
+				on:click={dismissImageFix}
+				aria-label="Dismiss"
+			>
 				<Icon name="x" />
 			</button>
 		</div>
 		<div>
-			Images with size parameters (e.g. <code>![[image.png|200]]</code>) are now
-			handled differently to fix rendering in tables. This may cause notes with
-			images to show as changed. This is expected and safe to publish.
+			Images with size parameters (e.g. <code>![[image.png|200]]</code>)
+			are now handled differently to fix rendering in tables. This may
+			cause notes with images to show as changed. This is expected and
+			safe to publish.
 		</div>
 	</div>
 {/if}
@@ -57,14 +62,19 @@
 	<div class="dg-pc-callout dg-pc-info">
 		<div class="dg-pc-callout-header">
 			<div class="dg-pc-callout-title">Bases support added</div>
-			<button class="dg-pc-dismiss" on:click={dismissBases} aria-label="Dismiss">
+			<button
+				class="dg-pc-dismiss"
+				on:click={dismissBases}
+				aria-label="Dismiss"
+			>
 				<Icon name="x" />
 			</button>
 		</div>
 		<div>
-			Frontmatter properties are now nested differently to support Obsidian
-			Bases. This may cause notes to show as changed. This is expected and safe
-			to publish. You must update your site template to use Bases.
+			Frontmatter properties are now nested differently to support
+			Obsidian Bases. This may cause notes to show as changed. This is
+			expected and safe to publish. You must update your site template to
+			use Bases.
 		</div>
 	</div>
 {/if}
@@ -79,7 +89,10 @@
 	}
 
 	.dg-pc-warning {
-		background: var(--background-modifier-error-hover, rgba(255, 150, 0, 0.1));
+		background: var(
+			--background-modifier-error-hover,
+			rgba(255, 150, 0, 0.1)
+		);
 	}
 
 	.dg-pc-info {

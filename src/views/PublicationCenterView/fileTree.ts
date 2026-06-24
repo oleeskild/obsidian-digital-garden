@@ -24,6 +24,7 @@ export function buildFileTree(files: AnnotatedFile[]): FileTreeNode {
 		for (let i = 0; i < parts.length; i++) {
 			const part = parts[i];
 			const isLast = i === parts.length - 1;
+
 			if (!node.children) node.children = [];
 
 			let child = node.children.find(
@@ -38,13 +39,13 @@ export function buildFileTree(files: AnnotatedFile[]): FileTreeNode {
 							isFolder: false,
 							status: f.status,
 							isImage: f.isImage,
-						}
+					  }
 					: {
 							name: part,
 							path: parts.slice(0, i + 1).join("/"),
 							isFolder: true,
 							children: [],
-						};
+					  };
 				node.children.push(child);
 			}
 

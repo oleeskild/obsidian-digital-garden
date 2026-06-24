@@ -16,7 +16,7 @@
 		FileStatus,
 		buildPublishPlan,
 	} from "./annotate";
-	import { buildFileTree, filterTree, FileTreeNode } from "./fileTree";
+	import { buildFileTree, filterTree } from "./fileTree";
 	import * as Diff from "diff";
 	import StatusFilters from "./StatusFilters.svelte";
 	import FileTree from "./FileTree.svelte";
@@ -29,8 +29,9 @@
 	export let publisher: Publisher;
 	export let statusManager: IPublishStatusManager;
 	export let openFile: (path: string) => void;
-	export let registerApi: (api: { maybeRefresh: () => void }) => void =
-		() => {};
+	export let registerApi: (api: {
+		maybeRefresh: () => void;
+	}) => void = () => {};
 
 	let status: PublishStatus | null = null;
 	let error: string | null = null;
@@ -97,6 +98,7 @@
 			const s = await statusManager.getPublishStatus();
 			status = s;
 			annotated = annotateFiles(s);
+
 			selected = background
 				? mergeSelection(prevSelected, prevAllPaths, annotated)
 				: defaultSelection(annotated);
@@ -110,6 +112,7 @@
 			}
 		} catch (e) {
 			if (background) {
+				// eslint-disable-next-line no-undef
 				console.error(
 					"Publication Center: background refresh failed",
 					e,
@@ -132,6 +135,7 @@
 	// user's current checkbox selection. Called when the view becomes active.
 	function maybeRefresh() {
 		if (refreshing) return;
+
 		if (Date.now() - lastRefreshAt < REFRESH_DEBOUNCE_MS) return;
 		loadStatus({ background: true });
 	}
@@ -175,6 +179,7 @@
 
 	async function publishSelected() {
 		const plan = buildPublishPlan(selected, annotated);
+
 		progressTotal =
 			plan.notesToPublish.length +
 			plan.notesToDelete.length +
@@ -192,6 +197,7 @@
 		let hadFailure = false;
 		publishing = true;
 		progressDone = 0;
+
 		try {
 			progressCurrent = "Publishing notes…";
 			const published = await publisher.publishBatch(plan.notesToPublish);
@@ -228,6 +234,7 @@
 			if (e instanceof LimitReachedError) {
 				notifyLimitReached(e);
 			} else {
+				// eslint-disable-next-line no-undef
 				console.error("Publication Center: publish failed", e);
 				new Notice("Unable to publish, something went wrong.");
 			}
@@ -300,7 +307,7 @@
 	async function loadDiff(file: AnnotatedFile): Promise<DiffData> {
 		if (file.isImage) return { kind: "image" };
 
-		const local = file.file ? (file.file.getCompiledFile()[0] ?? "") : "";
+		const local = file.file ? file.file.getCompiledFile()[0] ?? "" : "";
 		let remote = "";
 
 		if (file.status !== "new") {
@@ -321,6 +328,7 @@
 	async function selectFile(path: string) {
 		activePath = path;
 		const file = annotated.find((f) => f.path === path);
+
 		if (!file) return;
 
 		if (diffCache.has(path)) {
@@ -356,7 +364,9 @@
 
 <div class="dg-pc-root">
 	{#if error}
-		<div class="dg-pc-error">Could not load publication status: {error}</div>
+		<div class="dg-pc-error">
+			Could not load publication status: {error}
+		</div>
 	{:else if !status}
 		<div class="dg-pc-loading">
 			{@html bigRotatingCog()?.outerHTML ?? ""}
@@ -379,7 +389,9 @@
 				<div class="dg-pc-progress-track">
 					<div
 						class="dg-pc-progress-fill"
-						style="width: {progressTotal ? (progressDone / progressTotal) * 100 : 0}%"
+						style="width: {progressTotal
+							? (progressDone / progressTotal) * 100
+							: 0}%"
 					/>
 				</div>
 				<div class="dg-pc-progress-current">{progressCurrent}</div>

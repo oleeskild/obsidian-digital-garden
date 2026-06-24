@@ -14,10 +14,18 @@
 			<div class="dg-pc-gap">⋯ {row.hiddenCount} unchanged lines</div>
 		{:else}
 			<div class="dg-pc-uline dg-pc-{row.type}">
-				<span class="dg-pc-ln">{row.type === "add" ? "" : row.oldLineNo}</span>
-				<span class="dg-pc-ln">{row.type === "del" ? "" : row.newLineNo}</span>
+				<span class="dg-pc-ln"
+					>{row.type === "add" ? "" : row.oldLineNo}</span
+				>
+				<span class="dg-pc-ln"
+					>{row.type === "del" ? "" : row.newLineNo}</span
+				>
 				<span class="dg-pc-sign"
-					>{row.type === "add" ? "+" : row.type === "del" ? "-" : " "}</span
+					>{row.type === "add"
+						? "+"
+						: row.type === "del"
+						? "-"
+						: " "}</span
 				>
 				<span class="dg-pc-text">{row.text}</span>
 			</div>

@@ -44,6 +44,7 @@ export function computeUnifiedRows(
 			} else {
 				oldLine++;
 				newLine++;
+
 				all.push({
 					type: "context",
 					text,
@@ -65,6 +66,7 @@ export function computeUnifiedRows(
 
 		for (let d = 1; d <= contextLines; d++) {
 			if (i - d >= 0) keep[i - d] = true;
+
 			if (i + d < all.length) keep[i + d] = true;
 		}
 	}
@@ -130,6 +132,7 @@ export function computeSplitRows(changes: Diff.Change[]): SplitRow[] {
 			for (const text of lines) {
 				oldLine++;
 				newLine++;
+
 				rows.push({
 					left: { text, lineNo: oldLine, type: "context" },
 					right: { text, lineNo: newLine, type: "context" },

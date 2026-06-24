@@ -34,11 +34,23 @@
 		</span>
 		<span class="dg-pc-diff-actions">
 			<span class="dg-pc-toggle">
-				<button class:active={mode === "split"} on:click={() => dispatch("setMode", { mode: "split" })}>Split</button>
-				<button class:active={mode === "unified"} on:click={() => dispatch("setMode", { mode: "unified" })}>Unified</button>
+				<button
+					class:active={mode === "split"}
+					on:click={() => dispatch("setMode", { mode: "split" })}
+					>Split</button
+				>
+				<button
+					class:active={mode === "unified"}
+					on:click={() => dispatch("setMode", { mode: "unified" })}
+					>Unified</button
+				>
 			</span>
 			{#if status !== "deleted"}
-				<button class="dg-pc-open" on:click={() => dispatch("open", { path })}>Open note</button>
+				<button
+					class="dg-pc-open"
+					on:click={() => dispatch("open", { path })}
+					>Open note</button
+				>
 			{/if}
 		</span>
 	</div>
@@ -49,11 +61,17 @@
 		{:else if !data}
 			<div class="dg-pc-diff-msg">No diff available.</div>
 		{:else if data.kind === "error"}
-			<div class="dg-pc-diff-msg">Could not load diff: {data.message}</div>
+			<div class="dg-pc-diff-msg">
+				Could not load diff: {data.message}
+			</div>
 		{:else if data.kind === "image"}
-			<div class="dg-pc-diff-msg">This image will be deleted on publish.</div>
+			<div class="dg-pc-diff-msg">
+				This image will be deleted on publish.
+			</div>
 		{:else if data.kind === "nochange"}
-			<div class="dg-pc-diff-msg">No changes — local and published versions match.</div>
+			<div class="dg-pc-diff-msg">
+				No changes — local and published versions match.
+			</div>
 		{:else if mode === "split"}
 			<SplitDiff changes={data.changes} />
 		{:else}
