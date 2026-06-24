@@ -26,6 +26,9 @@ import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
 import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
+import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
+import { WorkspaceLeaf } from "obsidian";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -155,8 +158,13 @@ export default class DigitalGarden extends Plugin {
 			"digital-garden-icon",
 			"Digital Garden Publication Center",
 			async () => {
-				this.openPublishModal();
+				this.activatePublicationCenter();
 			},
+		);
+
+		this.registerView(
+			VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new PublicationCenterView(leaf, this),
 		);
 
 		this.checkForTemplateUpdates();
@@ -734,6 +742,19 @@ export default class DigitalGarden extends Plugin {
 		);
 
 		modal.open();
+	}
+
+	async activatePublicationCenter() {
+		const { workspace } = this.app;
+
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];
+
+		if (!leaf) {
+			leaf = workspace.getLeaf("tab");
+			await leaf.setViewState({ type: VIEW_TYPE, active: true });
+		}
+
+		workspace.revealLeaf(leaf);
 	}
 
 	openPublishModal() {
