@@ -12,7 +12,7 @@
 		"importHelpers": true,
 		"esModuleInterop": true,
 		"verbatimModuleSyntax": false,
-		"lib": ["DOM", "ES5", "ES6", "ES7"],
+		"lib": ["DOM", "ES2021"],
 		"types": ["svelte", "node", "jest"]
 	},
 	"include": ["**/*.ts", "**/*.js", "**/*.svelte"]

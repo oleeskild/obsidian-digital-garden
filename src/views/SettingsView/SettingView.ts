@@ -30,6 +30,7 @@ import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
 	TemplateUpdater,
+	TemplateUpdateChecker,
 } from "../../repositoryConnection/TemplateManager";
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
@@ -640,7 +641,7 @@ export default class SettingView {
 		const uiStringsMap: Array<{
 			envKey: string;
 			controlKey: string;
-			settingsKey: keyof typeof this.settings.uiStrings;
+			settingsKey: keyof DigitalGardenSettings["uiStrings"];
 		}> = [
 			{
 				envKey: "UI_BACKLINK_HEADER",
@@ -1061,7 +1062,7 @@ export default class SettingView {
 		const settingsMap: Array<{
 			envKey: string;
 			controlKey: keyof typeof controls;
-			settingsKey: keyof typeof this.settings;
+			settingsKey: keyof DigitalGardenSettings;
 			isBoolean: boolean;
 		}> = [
 			{
@@ -1168,9 +1169,12 @@ export default class SettingView {
 								: rawValue;
 							control.setValue(value as never);
 
-							(this.settings as Record<string, unknown>)[
-								mapping.settingsKey
-							] = value;
+							(
+								this.settings as unknown as Record<
+									string,
+									unknown
+								>
+							)[mapping.settingsKey as string] = value;
 						}
 					}
 
@@ -2264,7 +2268,7 @@ export default class SettingView {
 
 		Logger.time("checkForUpdate");
 
-		let updater;
+		let updater: TemplateUpdater | TemplateUpdateChecker;
 
 		try {
 			updater = await (
@@ -2364,8 +2368,8 @@ export default class SettingView {
 		createPrButton.addEventListener("click", () => {
 			handlePR(
 				{
-					setDisabled: (d) => (createPrButton.disabled = d),
-				} as ButtonComponent,
+					setDisabled: (d: boolean) => (createPrButton.disabled = d),
+				} as unknown as ButtonComponent,
 				updater as TemplateUpdater,
 			);
 		});

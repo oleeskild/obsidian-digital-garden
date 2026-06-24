@@ -12,7 +12,6 @@ import Publisher from "./src/publisher/Publisher";
 import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
-import { PublicationCenter } from "src/views/PublicationCenter/PublicationCenter";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
 import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
@@ -22,10 +21,14 @@ import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
+import { notifyLimitReached } from "src/forestry/limitNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
 import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
+import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
+import { WorkspaceLeaf } from "obsidian";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -131,7 +134,6 @@ export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
 
-	publishModal!: PublicationCenter;
 	isPublishing: boolean = false;
 
 	async onload() {
@@ -155,8 +157,13 @@ export default class DigitalGarden extends Plugin {
 			"digital-garden-icon",
 			"Digital Garden Publication Center",
 			async () => {
-				this.openPublishModal();
+				this.activatePublicationCenter();
 			},
+		);
+
+		this.registerView(
+			VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new PublicationCenterView(leaf, this),
 		);
 
 		this.checkForTemplateUpdates();
@@ -401,7 +408,7 @@ export default class DigitalGarden extends Plugin {
 			id: "dg-open-publish-modal",
 			name: "Open Publication Center",
 			callback: async () => {
-				this.openPublishModal();
+				this.activatePublicationCenter();
 			},
 		});
 
@@ -696,20 +703,7 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	private showLimitNotice(error: LimitReachedError) {
-		if (error.errorType === "build_limit_reached") {
-			const used = error.buildsUsed ?? 0;
-			const limit = error.monthlyLimit ?? 0;
-
-			new Notice(
-				`Publishing blocked: You've used all ${used}/${limit} builds this month. Upgrade to Pro for 1000 builds/month at dashboard.forestry.md/settings`,
-				10000,
-			);
-		} else {
-			new Notice(
-				`Publishing blocked: Storage limit exceeded. Free up space or upgrade at dashboard.forestry.md/settings`,
-				10000,
-			);
-		}
+		notifyLimitReached(error);
 	}
 
 	async openNavigationOrderModal() {
@@ -736,31 +730,23 @@ export default class DigitalGarden extends Plugin {
 		modal.open();
 	}
 
-	openPublishModal() {
-		const siteManager = new DigitalGardenSiteManager(
-			this.app.metadataCache,
-			this.settings,
-		);
+	async activatePublicationCenter() {
+		const { workspace } = this.app;
 
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];
 
-		const publishStatusManager = new PublishStatusManager(
-			siteManager,
-			publisher,
-		);
+		if (!leaf) {
+			leaf = workspace.getLeaf("tab");
+			await leaf.setViewState({ type: VIEW_TYPE, active: true });
+		}
 
-		this.publishModal = new PublicationCenter(
-			this.app,
-			publishStatusManager,
-			publisher,
-			siteManager,
-			this.settings,
-		);
-		this.publishModal.open();
+		workspace.revealLeaf(leaf);
+
+		// If the view was already open, refresh it so it reflects any changes
+		// made since it was last viewed.
+		if (leaf.view instanceof PublicationCenterView) {
+			leaf.view.maybeRefresh();
+		}
 	}
 }
 

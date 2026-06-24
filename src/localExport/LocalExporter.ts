@@ -1,4 +1,4 @@
-import { Notice, Vault } from "obsidian";
+import { Notice, TFile, Vault } from "obsidian";
 import fs from "fs/promises";
 import path from "path";
 import Logger from "js-logger";
@@ -126,9 +126,9 @@ export class LocalExporter {
 			}
 
 			try {
-				const imageFile = this.vault.getFileByPath(imagePath);
+				const imageFile = this.vault.getAbstractFileByPath(imagePath);
 
-				if (!imageFile) {
+				if (!(imageFile instanceof TFile)) {
 					Logger.warn(`Image not found in vault: ${imagePath}`);
 					continue;
 				}
@@ -212,9 +212,9 @@ export class LocalExporter {
 		rename?: string,
 	) {
 		if (sourcePath === "") return;
-		const sourceFile = this.vault.getFileByPath(sourcePath);
+		const sourceFile = this.vault.getAbstractFileByPath(sourcePath);
 
-		if (sourceFile) {
+		if (sourceFile instanceof TFile) {
 			const fileName = rename?.includes(".")
 				? rename
 				: `${rename ?? sourceFile.basename}.${sourceFile.extension}`;
