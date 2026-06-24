@@ -63,6 +63,7 @@
 	async function refresh() {
 		diffCache = new Map();
 		diffData = null;
+		diffLoading = false;
 		activePath = null;
 		error = null;
 		status = null;
@@ -106,7 +107,7 @@
 	async function loadDiff(file: AnnotatedFile): Promise<DiffData> {
 		if (file.isImage) return { kind: "image" };
 
-		const local = file.file ? file.file.getCompiledFile()[0] : "";
+		const local = file.file ? (file.file.getCompiledFile()[0] ?? "") : "";
 		let remote = "";
 
 		if (file.status !== "new") {
@@ -130,6 +131,7 @@
 		if (!file) return;
 
 		if (diffCache.has(path)) {
+			diffLoading = false;
 			diffData = diffCache.get(path)!;
 
 			return;
