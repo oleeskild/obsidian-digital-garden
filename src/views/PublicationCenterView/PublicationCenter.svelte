@@ -29,9 +29,14 @@
 	export let publisher: Publisher;
 	export let statusManager: IPublishStatusManager;
 	export let openFile: (path: string) => void;
+	export let registerApi: (api: { maybeRefresh: () => void }) => void =
+		() => {};
 
 	let status: PublishStatus | null = null;
 	let error: string | null = null;
+	let refreshing = false;
+	let lastRefreshAt = 0;
+	const REFRESH_DEBOUNCE_MS = 3000;
 	let annotated: AnnotatedFile[] = [];
 	let selected = new Set<string>();
 	// "published" (already in sync) is hidden by default so the view focuses
@@ -68,22 +73,87 @@
 		children: [],
 	};
 
-	async function refresh() {
-		diffCache = new Map();
-		diffData = null;
-		diffLoading = false;
-		activePath = null;
-		error = null;
-		status = null;
+	async function loadStatus({ background = false } = {}) {
+		if (refreshing) return;
+		refreshing = true;
+
+		const prevAllPaths = new Set(annotated.map((f) => f.path));
+		const prevSelected = selected;
+
+		if (background) {
+			// Keep the current tree on screen and re-fetch quietly; only the
+			// diff cache is dropped so re-opening a file pulls fresh content.
+			diffCache = new Map();
+		} else {
+			diffCache = new Map();
+			diffData = null;
+			diffLoading = false;
+			activePath = null;
+			error = null;
+			status = null;
+		}
+
 		try {
 			const s = await statusManager.getPublishStatus();
 			status = s;
 			annotated = annotateFiles(s);
-			selected = defaultSelection(annotated);
+			selected = background
+				? mergeSelection(prevSelected, prevAllPaths, annotated)
+				: defaultSelection(annotated);
 			validate(s);
+			lastRefreshAt = Date.now();
+
+			// Drop the open diff if its file no longer exists.
+			if (activePath && !annotated.some((f) => f.path === activePath)) {
+				activePath = null;
+				diffData = null;
+			}
 		} catch (e) {
-			error = String(e);
+			if (background) {
+				console.error(
+					"Publication Center: background refresh failed",
+					e,
+				);
+			} else {
+				error = String(e);
+			}
+		} finally {
+			refreshing = false;
 		}
+	}
+
+	// Full refresh with the loading spinner; resets selection to the default.
+	// Used on first open and by the manual Refresh button.
+	function refresh() {
+		return loadStatus({ background: false });
+	}
+
+	// Quiet, debounced refresh that keeps the tree visible and preserves the
+	// user's current checkbox selection. Called when the view becomes active.
+	function maybeRefresh() {
+		if (refreshing) return;
+		if (Date.now() - lastRefreshAt < REFRESH_DEBOUNCE_MS) return;
+		loadStatus({ background: true });
+	}
+
+	// Keep the user's choices for files that still exist; default-select any
+	// newly appeared actionable file.
+	function mergeSelection(
+		prevSelected: Set<string>,
+		prevAllPaths: Set<string>,
+		files: AnnotatedFile[],
+	): Set<string> {
+		const next = new Set<string>();
+
+		for (const f of files) {
+			if (prevAllPaths.has(f.path)) {
+				if (prevSelected.has(f.path)) next.add(f.path);
+			} else if (f.status !== "published") {
+				next.add(f.path);
+			}
+		}
+
+		return next;
 	}
 
 	function validate(s: PublishStatus) {
@@ -197,7 +267,10 @@
 		activePath = null;
 	}
 
-	onMount(refresh);
+	onMount(() => {
+		refresh();
+		registerApi({ maybeRefresh });
+	});
 
 	$: counts = {
 		changed: annotated.filter((f) => f.status === "changed").length,
@@ -294,6 +367,10 @@
 
 		<Notices {problematicFiles} />
 
+		{#if refreshing}
+			<div class="dg-pc-syncing">Updating…</div>
+		{/if}
+
 		{#if publishing}
 			<div class="dg-pc-progress">
 				<div>
@@ -387,6 +464,12 @@
 	.dg-pc-error {
 		color: var(--text-error);
 		padding: 16px;
+	}
+
+	.dg-pc-syncing {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		padding: 2px 4px 6px;
 	}
 
 	.dg-pc-progress {

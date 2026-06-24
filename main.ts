@@ -741,6 +741,12 @@ export default class DigitalGarden extends Plugin {
 		}
 
 		workspace.revealLeaf(leaf);
+
+		// If the view was already open, refresh it so it reflects any changes
+		// made since it was last viewed.
+		if (leaf.view instanceof PublicationCenterView) {
+			leaf.view.maybeRefresh();
+		}
 	}
 
 }
