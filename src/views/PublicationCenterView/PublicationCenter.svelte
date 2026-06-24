@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { getIcon } from "obsidian";
+	import { getIcon, Notice } from "obsidian";
 	import Publisher from "../../publisher/Publisher";
+	import { LimitReachedError } from "../../forestry/LimitReachedError";
+	import { notifyLimitReached } from "../../forestry/limitNotice";
 	import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
 	import {
 		IPublishStatusManager,
@@ -112,12 +114,17 @@
 
 		if (progressTotal === 0) return;
 
+		let hadFailure = false;
 		publishing = true;
 		progressDone = 0;
 		try {
 			progressCurrent = "Publishing notes…";
-			await publisher.publishBatch(plan.notesToPublish);
+			const published = await publisher.publishBatch(plan.notesToPublish);
 			progressDone += plan.notesToPublish.length;
+
+			if (!published && plan.notesToPublish.length > 0) {
+				hadFailure = true;
+			}
 
 			for (const path of plan.notesToDelete) {
 				progressCurrent = `Deleting ${path}`;
@@ -132,8 +139,18 @@
 			}
 
 			await refresh();
+			new Notice(
+				hadFailure
+					? "Some notes failed to publish. Check the console for details."
+					: "Publication complete.",
+			);
 		} catch (e) {
-			console.error("Publication Center: publish failed", e);
+			if (e instanceof LimitReachedError) {
+				notifyLimitReached(e);
+			} else {
+				console.error("Publication Center: publish failed", e);
+				new Notice("Unable to publish, something went wrong.");
+			}
 		} finally {
 			publishing = false;
 		}
