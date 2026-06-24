@@ -15,6 +15,8 @@
 		FileStatus,
 	} from "./annotate";
 	import { buildFileTree, filterTree, FileTreeNode } from "./fileTree";
+	import StatusFilters from "./StatusFilters.svelte";
+	import FileTree from "./FileTree.svelte";
 
 	export let app: App;
 	export let settings: DigitalGardenSettings;
@@ -58,6 +60,35 @@
 
 	onMount(refresh);
 
+	$: counts = {
+		changed: annotated.filter((f) => f.status === "changed").length,
+		new: annotated.filter((f) => f.status === "new").length,
+		deleted: annotated.filter((f) => f.status === "deleted").length,
+		published: annotated.filter((f) => f.status === "published").length,
+	} as Record<FileStatus, number>;
+
+	function toggleFilter(status: FileStatus) {
+		const next = new Set(activeFilters);
+
+		if (next.has(status)) next.delete(status);
+		else next.add(status);
+		activeFilters = next;
+	}
+
+	function toggleSelection(paths: string[], checked: boolean) {
+		const next = new Set(selected);
+
+		for (const p of paths) {
+			if (checked) next.add(p);
+			else next.delete(p);
+		}
+		selected = next;
+	}
+
+	function selectFile(path: string) {
+		activePath = path;
+	}
+
 	const bigRotatingCog = () => {
 		const cog = getIcon("cog");
 		cog?.classList.add("dg-rotate");
@@ -79,12 +110,19 @@
 	{:else}
 		<div class="dg-pc-layout">
 			<div class="dg-pc-tree-pane">
-				<!-- StatusFilters + FileTree added in Task 5 -->
-				<pre>{JSON.stringify(
-						visibleTree.children?.map((c) => c.name),
-						null,
-						2,
-					)}</pre>
+				<StatusFilters
+					{counts}
+					active={activeFilters}
+					on:toggle={(e) => toggleFilter(e.detail.status)}
+				/>
+				<FileTree
+					node={visibleTree}
+					{selected}
+					{activePath}
+					on:select={(e) => selectFile(e.detail.path)}
+					on:toggle={(e) =>
+						toggleSelection(e.detail.paths, e.detail.checked)}
+				/>
 			</div>
 			<div class="dg-pc-diff-pane">
 				<!-- DiffPane added in Task 6 -->
