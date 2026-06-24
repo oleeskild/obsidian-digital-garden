@@ -19,6 +19,9 @@
 	import StatusFilters from "./StatusFilters.svelte";
 	import FileTree from "./FileTree.svelte";
 	import DiffPane from "./DiffPane.svelte";
+	import Notices from "./Notices.svelte";
+	import PublishBar from "./PublishBar.svelte";
+	import { buildPublishPlan } from "./annotate";
 
 	export let app: App;
 	export let settings: DigitalGardenSettings;
@@ -44,6 +47,14 @@
 		| { kind: "nochange" }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
+
+	let problematicFiles: { path: string; issue: string }[] = [];
+	let publishing = false;
+	let progressTotal = 0;
+	let progressDone = 0;
+	let progressCurrent = "";
+
+	$: selectedCount = selected.size;
 
 	let diffMode: "split" | "unified" = "split";
 	let diffCache = new Map<string, DiffData>();
@@ -72,9 +83,59 @@
 			status = s;
 			annotated = annotateFiles(s);
 			selected = defaultSelection(annotated);
+			validate(s);
 		} catch (e) {
 			error = String(e);
 		}
+	}
+
+	function validate(s: PublishStatus) {
+		problematicFiles = [];
+
+		const homeFiles = [
+			...s.publishedNotes,
+			...s.unpublishedNotes,
+			...s.changedNotes,
+		].filter((n) => n.frontmatter && n.frontmatter["dg-home"] === true);
+
+		if (homeFiles.length > 1) {
+			problematicFiles = homeFiles.map((f) => ({
+				path: f.getPath(),
+				issue: "Multiple files marked as home (dg-home: true). Only one should be.",
+			}));
+		}
+	}
+
+	async function publishSelected() {
+		const plan = buildPublishPlan(selected, annotated);
+		progressTotal =
+			plan.notesToPublish.length +
+			plan.notesToDelete.length +
+			plan.imagesToDelete.length;
+
+		if (progressTotal === 0) return;
+
+		publishing = true;
+		progressDone = 0;
+
+		progressCurrent = "Publishing notes…";
+		await publisher.publishBatch(plan.notesToPublish);
+		progressDone += plan.notesToPublish.length;
+
+		for (const path of plan.notesToDelete) {
+			progressCurrent = `Deleting ${path}`;
+			await publisher.deleteNote(path);
+			progressDone += 1;
+		}
+
+		for (const path of plan.imagesToDelete) {
+			progressCurrent = `Deleting ${path}`;
+			await publisher.deleteImage(path);
+			progressDone += 1;
+		}
+
+		publishing = false;
+		await refresh();
 	}
 
 	onMount(refresh);
@@ -170,6 +231,23 @@
 			<div>Calculating publication status…</div>
 		</div>
 	{:else}
+		<Notices {problematicFiles} />
+
+		{#if publishing}
+			<div class="dg-pc-progress">
+				<div>
+					{progressDone} of {progressTotal} processed
+				</div>
+				<div class="dg-pc-progress-track">
+					<div
+						class="dg-pc-progress-fill"
+						style="width: {progressTotal ? (progressDone / progressTotal) * 100 : 0}%"
+					/>
+				</div>
+				<div class="dg-pc-progress-current">{progressCurrent}</div>
+			</div>
+		{/if}
+
 		<div class="dg-pc-layout">
 			<div class="dg-pc-tree-pane">
 				<StatusFilters
@@ -198,7 +276,13 @@
 				/>
 			</div>
 		</div>
-		<!-- PublishBar added in Task 7 -->
+
+		<PublishBar
+			{selectedCount}
+			{publishing}
+			on:publish={publishSelected}
+			on:refresh={refresh}
+		/>
 	{/if}
 </div>
 
@@ -247,5 +331,28 @@
 	.dg-pc-error {
 		color: var(--text-error);
 		padding: 16px;
+	}
+
+	.dg-pc-progress {
+		padding: 8px;
+		border-bottom: 1px solid var(--background-modifier-border);
+	}
+
+	.dg-pc-progress-track {
+		height: 4px;
+		background: var(--background-modifier-border);
+		border-radius: 2px;
+		margin: 6px 0;
+	}
+
+	.dg-pc-progress-fill {
+		height: 100%;
+		background: var(--interactive-accent);
+		transition: width 0.3s ease;
+	}
+
+	.dg-pc-progress-current {
+		color: var(--text-muted);
+		font-size: 0.8rem;
 	}
 </style>
