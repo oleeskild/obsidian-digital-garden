@@ -13,6 +13,7 @@
 		defaultSelection,
 		AnnotatedFile,
 		FileStatus,
+		buildPublishPlan,
 	} from "./annotate";
 	import { buildFileTree, filterTree, FileTreeNode } from "./fileTree";
 	import * as Diff from "diff";
@@ -21,7 +22,6 @@
 	import DiffPane from "./DiffPane.svelte";
 	import Notices from "./Notices.svelte";
 	import PublishBar from "./PublishBar.svelte";
-	import { buildPublishPlan } from "./annotate";
 
 	export let app: App;
 	export let settings: DigitalGardenSettings;
@@ -117,25 +117,29 @@
 
 		publishing = true;
 		progressDone = 0;
+		try {
+			progressCurrent = "Publishing notes…";
+			await publisher.publishBatch(plan.notesToPublish);
+			progressDone += plan.notesToPublish.length;
 
-		progressCurrent = "Publishing notes…";
-		await publisher.publishBatch(plan.notesToPublish);
-		progressDone += plan.notesToPublish.length;
+			for (const path of plan.notesToDelete) {
+				progressCurrent = `Deleting ${path}`;
+				await publisher.deleteNote(path);
+				progressDone += 1;
+			}
 
-		for (const path of plan.notesToDelete) {
-			progressCurrent = `Deleting ${path}`;
-			await publisher.deleteNote(path);
-			progressDone += 1;
+			for (const path of plan.imagesToDelete) {
+				progressCurrent = `Deleting ${path}`;
+				await publisher.deleteImage(path);
+				progressDone += 1;
+			}
+
+			await refresh();
+		} catch (e) {
+			console.error("Publication Center: publish failed", e);
+		} finally {
+			publishing = false;
 		}
-
-		for (const path of plan.imagesToDelete) {
-			progressCurrent = `Deleting ${path}`;
-			await publisher.deleteImage(path);
-			progressDone += 1;
-		}
-
-		publishing = false;
-		await refresh();
 	}
 
 	onMount(refresh);
