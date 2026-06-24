@@ -16,6 +16,7 @@ export type TFrontmatter = Record<string, unknown> & {
 	"dg-home"?: boolean;
 	"dg-hide-in-graph"?: boolean;
 	"dg-hide"?: boolean;
+	"dg-hide-in-filetree"?: boolean;
 	"dg-pinned"?: boolean;
 	"dg-metatags"?: string;
 	tags?: string;
@@ -27,6 +28,8 @@ export type TPublishedFrontMatter = Record<string, unknown> & {
 	pinned?: boolean;
 	permalink?: string;
 	hide?: boolean;
+	hideInFiletree?: boolean;
+	hideInGraph?: boolean;
 };
 
 export class FrontmatterCompiler {
@@ -149,6 +152,11 @@ export class FrontmatterCompiler {
 
 			if (baseFrontMatter["dg-hide"]) {
 				publishedFrontMatter["hide"] = baseFrontMatter["dg-hide"];
+			}
+
+			if (baseFrontMatter["dg-hide-in-filetree"]) {
+				publishedFrontMatter["hideInFiletree"] =
+					baseFrontMatter["dg-hide-in-filetree"];
 			}
 
 			if (baseFrontMatter["dg-hide-in-graph"]) {
@@ -310,6 +318,7 @@ export class FrontmatterCompiler {
 			"dg-path",
 			"dg-permalink",
 			"dg-hide",
+			"dg-hide-in-filetree",
 			"dg-hide-in-graph",
 			"dg-pinned",
 			"dg-metatags",
