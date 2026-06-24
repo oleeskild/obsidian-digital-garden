@@ -23,6 +23,7 @@
 	import DiffPane from "./DiffPane.svelte";
 	import Notices from "./Notices.svelte";
 	import PublishBar from "./PublishBar.svelte";
+	import Tutorial from "./Tutorial.svelte";
 
 	export let siteManager: DigitalGardenSiteManager;
 	export let publisher: Publisher;
@@ -33,12 +34,9 @@
 	let error: string | null = null;
 	let annotated: AnnotatedFile[] = [];
 	let selected = new Set<string>();
-	let activeFilters = new Set<FileStatus>([
-		"changed",
-		"new",
-		"deleted",
-		"published",
-	]);
+	// "published" (already in sync) is hidden by default so the view focuses
+	// on notes that need action; the user can toggle it on via the chip.
+	let activeFilters = new Set<FileStatus>(["changed", "new", "deleted"]);
 	let activePath: string | null = null;
 
 	type DiffData =
@@ -249,6 +247,8 @@
 			<div>Calculating publication status…</div>
 		</div>
 	{:else}
+		<Tutorial />
+
 		<Notices {problematicFiles} />
 
 		{#if publishing}

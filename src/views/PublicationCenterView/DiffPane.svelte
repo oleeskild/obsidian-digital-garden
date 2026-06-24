@@ -23,7 +23,9 @@
 </script>
 
 {#if !path}
-	<div class="dg-pc-diff-empty">Select a file to see changes.</div>
+	<div class="dg-pc-diff-empty">
+		Select a file from the left to see what changed.
+	</div>
 {:else}
 	<div class="dg-pc-diff-header">
 		<span class="dg-pc-diff-path">
