@@ -112,6 +112,13 @@
 
 		if (progressTotal === 0) return;
 
+		// Track what actually succeeded so we can update the view immediately
+		// without waiting for the backend's git tree to catch up — it is
+		// eventually consistent and lags a publish by a second or two, so an
+		// immediate re-fetch would still report the just-published notes as
+		// "changed". The manual Refresh button re-syncs authoritative state.
+		const publishedPaths = new Set<string>();
+		const removedPaths = new Set<string>();
 		let hadFailure = false;
 		publishing = true;
 		progressDone = 0;
@@ -120,23 +127,28 @@
 			const published = await publisher.publishBatch(plan.notesToPublish);
 			progressDone += plan.notesToPublish.length;
 
-			if (!published && plan.notesToPublish.length > 0) {
+			if (published) {
+				for (const note of plan.notesToPublish) {
+					publishedPaths.add(note.getPath());
+				}
+			} else if (plan.notesToPublish.length > 0) {
 				hadFailure = true;
 			}
 
 			for (const path of plan.notesToDelete) {
 				progressCurrent = `Deleting ${path}`;
 				await publisher.deleteNote(path);
+				removedPaths.add(path);
 				progressDone += 1;
 			}
 
 			for (const path of plan.imagesToDelete) {
 				progressCurrent = `Deleting ${path}`;
 				await publisher.deleteImage(path);
+				removedPaths.add(path);
 				progressDone += 1;
 			}
 
-			await refresh();
 			new Notice(
 				hadFailure
 					? "Some notes failed to publish. Check the console for details."
@@ -150,8 +162,39 @@
 				new Notice("Unable to publish, something went wrong.");
 			}
 		} finally {
+			// Reflect everything that succeeded, even if a later step threw.
+			applyOptimisticUpdate(publishedPaths, removedPaths);
 			publishing = false;
 		}
+	}
+
+	// Move just-published notes to "published" (so they drop out of the
+	// new/changed view) and drop deleted notes/images, without a backend
+	// round-trip.
+	function applyOptimisticUpdate(
+		publishedPaths: Set<string>,
+		removedPaths: Set<string>,
+	) {
+		if (publishedPaths.size === 0 && removedPaths.size === 0) return;
+
+		annotated = annotated
+			.filter((f) => !removedPaths.has(f.path))
+			.map((f) =>
+				publishedPaths.has(f.path) && f.status !== "published"
+					? { ...f, status: "published" as FileStatus }
+					: f,
+			);
+
+		const nextSelected = new Set(selected);
+		for (const p of publishedPaths) nextSelected.delete(p);
+		for (const p of removedPaths) nextSelected.delete(p);
+		selected = nextSelected;
+
+		// The open diff may now be stale (file published or removed).
+		diffCache = new Map();
+		diffData = null;
+		diffLoading = false;
+		activePath = null;
 	}
 
 	onMount(refresh);
