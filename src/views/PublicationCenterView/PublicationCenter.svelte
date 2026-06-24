@@ -15,8 +15,10 @@
 		FileStatus,
 	} from "./annotate";
 	import { buildFileTree, filterTree, FileTreeNode } from "./fileTree";
+	import * as Diff from "diff";
 	import StatusFilters from "./StatusFilters.svelte";
 	import FileTree from "./FileTree.svelte";
+	import DiffPane from "./DiffPane.svelte";
 
 	export let app: App;
 	export let settings: DigitalGardenSettings;
@@ -37,6 +39,19 @@
 	]);
 	let activePath: string | null = null;
 
+	type DiffData =
+		| { kind: "diff"; changes: Diff.Change[] }
+		| { kind: "nochange" }
+		| { kind: "image" }
+		| { kind: "error"; message: string };
+
+	let diffMode: "split" | "unified" = "split";
+	let diffCache = new Map<string, DiffData>();
+	let diffData: DiffData | null = null;
+	let diffLoading = false;
+
+	$: activeFile = annotated.find((f) => f.path === activePath) ?? null;
+
 	$: tree = buildFileTree(annotated);
 	$: visibleTree = filterTree(tree, activeFilters) ?? {
 		name: "",
@@ -46,6 +61,9 @@
 	};
 
 	async function refresh() {
+		diffCache = new Map();
+		diffData = null;
+		activePath = null;
 		error = null;
 		status = null;
 		try {
@@ -85,8 +103,50 @@
 		selected = next;
 	}
 
-	function selectFile(path: string) {
+	async function loadDiff(file: AnnotatedFile): Promise<DiffData> {
+		if (file.isImage) return { kind: "image" };
+
+		const local = file.file ? file.file.getCompiledFile()[0] : "";
+		let remote = "";
+
+		if (file.status !== "new") {
+			try {
+				remote = await siteManager.getNoteContent(file.path);
+			} catch (e) {
+				return { kind: "error", message: String(e) };
+			}
+		}
+
+		if (file.status === "published" || remote === local) {
+			return { kind: "nochange" };
+		}
+
+		return { kind: "diff", changes: Diff.diffLines(remote, local) };
+	}
+
+	async function selectFile(path: string) {
 		activePath = path;
+		const file = annotated.find((f) => f.path === path);
+		if (!file) return;
+
+		if (diffCache.has(path)) {
+			diffData = diffCache.get(path)!;
+
+			return;
+		}
+
+		diffLoading = true;
+		diffData = null;
+		const data = await loadDiff(file);
+		diffCache.set(path, data);
+
+		// guard against the user having clicked away while loading
+		if (activePath === path) diffData = data;
+		diffLoading = false;
+	}
+
+	function setMode(mode: "split" | "unified") {
+		diffMode = mode;
 	}
 
 	const bigRotatingCog = () => {
@@ -125,8 +185,15 @@
 				/>
 			</div>
 			<div class="dg-pc-diff-pane">
-				<!-- DiffPane added in Task 6 -->
-				<div class="dg-pc-empty">Select a file to see changes.</div>
+				<DiffPane
+					path={activePath}
+					status={activeFile?.status ?? null}
+					data={diffData}
+					loading={diffLoading}
+					mode={diffMode}
+					on:setMode={(e) => setMode(e.detail.mode)}
+					on:open={(e) => openFile(e.detail.path)}
+				/>
 			</div>
 		</div>
 		<!-- PublishBar added in Task 7 -->
