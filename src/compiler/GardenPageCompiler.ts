@@ -5,6 +5,8 @@ import {
 	Vault,
 	arrayBufferToBase64,
 	getLinkpath,
+	parseYaml,
+	stringifyYaml,
 } from "obsidian";
 import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManager";
@@ -57,6 +59,52 @@ export type TCompilerStep = (
 ) =>
 	| ((partiallyCompiledContent: string) => Promise<string>)
 	| ((partiallyCompiledContent: string) => string);
+
+export function selectBaseView(
+	baseFileText: string,
+	viewName?: string,
+): string {
+	if (!viewName) {
+		return baseFileText;
+	}
+
+	try {
+		const parsedBase = parseYaml(baseFileText);
+
+		if (
+			!parsedBase ||
+			typeof parsedBase !== "object" ||
+			!Array.isArray(parsedBase.views)
+		) {
+			return baseFileText;
+		}
+
+		const selectedView = parsedBase.views.find(
+			(view: { name?: unknown }) => view?.name === viewName,
+		);
+
+		if (!selectedView) {
+			return baseFileText;
+		}
+
+		return stringifyYaml({
+			...parsedBase,
+			views: [selectedView],
+		});
+	} catch {
+		return baseFileText;
+	}
+}
+
+export function createBaseCodeBlock(
+	baseFileText: string,
+	transclusionFileName: string,
+): string {
+	const selectedViewName = transclusionFileName.split("#")[1]?.trim();
+	const selectedBaseFileText = selectBaseView(baseFileText, selectedViewName);
+
+	return "\n```base\n" + selectedBaseFileText + "\n```\n";
+}
 
 export class GardenPageCompiler implements ITextNodeProcessor {
 	private readonly vault: Vault;
@@ -482,8 +530,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						// Embed .base file contents as a ```base code block
 						const baseFileText = await this.vault.read(linkedFile);
 
-						const baseCodeBlock =
-							"\n```base\n" + baseFileText + "\n```\n";
+						const baseCodeBlock = createBaseCodeBlock(
+							baseFileText,
+							transclusionFileName,
+						);
 
 						transcludedText = transcludedText.replace(
 							transclusionMatch,
