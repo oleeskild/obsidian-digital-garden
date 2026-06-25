@@ -1,10 +1,23 @@
-import { MetadataCache, TFile, Vault } from "obsidian";
+import {
+	MetadataCache,
+	parseYaml,
+	stringifyYaml,
+	TFile,
+	Vault,
+} from "obsidian";
 import DigitalGardenSettings from "../models/settings";
-import { GardenPageCompiler } from "../compiler/GardenPageCompiler";
+import {
+	createBaseCodeBlock,
+	GardenPageCompiler,
+	selectBaseView,
+} from "../compiler/GardenPageCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
 import { TRANSCLUDED_SVG_REGEX } from "../utils/regexes";
 
-jest.mock("obsidian");
+jest.mock("obsidian", () => ({
+	parseYaml: jest.fn(),
+	stringifyYaml: jest.fn(),
+}));
 
 describe("Compiler", () => {
 	const getTestCompiler = (settings: Partial<DigitalGardenSettings>) => {
@@ -94,6 +107,72 @@ describe("Compiler", () => {
 			expect(result).toBe(
 				"Link with [[folder/test#My Header\\|custom display]] text",
 			);
+		});
+	});
+
+	describe("selectBaseView", () => {
+		const baseFileText = "original base yaml";
+
+		const parsedBase = {
+			filters: 'file.inFolder("lessons")',
+			properties: {
+				module: {
+					displayName: "Module",
+				},
+			},
+			views: [
+				{
+					type: "table",
+					name: "Lessons by Module",
+					filters: 'file.hasProperty("module")',
+				},
+				{
+					type: "cards",
+					name: "Hardware Modules",
+					filters: 'file.hasTag("hardware")',
+				},
+			],
+		};
+
+		beforeEach(() => {
+			jest.clearAllMocks();
+		});
+
+		it("keeps only the requested named view while preserving global configuration", () => {
+			jest.mocked(parseYaml).mockReturnValue(parsedBase);
+			jest.mocked(stringifyYaml).mockReturnValue("selected view yaml");
+
+			const result = selectBaseView(baseFileText, "Hardware Modules");
+
+			expect(parseYaml).toHaveBeenCalledWith(baseFileText);
+
+			expect(stringifyYaml).toHaveBeenCalledWith({
+				filters: parsedBase.filters,
+				properties: parsedBase.properties,
+				views: [parsedBase.views[1]],
+			});
+			expect(result).toBe("selected view yaml");
+		});
+
+		it("leaves the Base unchanged when the requested view does not exist", () => {
+			jest.mocked(parseYaml).mockReturnValue(parsedBase);
+
+			const result = selectBaseView(baseFileText, "Missing View");
+
+			expect(stringifyYaml).not.toHaveBeenCalled();
+			expect(result).toBe(baseFileText);
+		});
+
+		it("uses the fragment in a Base embed to build a single-view code block", () => {
+			jest.mocked(parseYaml).mockReturnValue(parsedBase);
+			jest.mocked(stringifyYaml).mockReturnValue("selected view yaml");
+
+			const result = createBaseCodeBlock(
+				baseFileText,
+				"Access-Control.base#Hardware Modules",
+			);
+
+			expect(result).toBe("\n```base\nselected view yaml\n```\n");
 		});
 	});
 
