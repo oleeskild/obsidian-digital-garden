@@ -173,6 +173,19 @@ You can export your garden to a local folder instead of publishing to GitHub. Th
 
 This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
 
+## Publishing into a subfolder / monorepo
+
+By default the plugin assumes the [digitalgarden](https://github.com/oleeskild/digitalgarden) template lives at the **root** of your target repository (notes go to `src/site/notes/`, images to `src/site/img/user/`, settings to `.env`).
+
+If your Eleventy garden template lives in a **subdirectory** of the repo instead — a monorepo layout where, for example, the garden is under `Web/` — set the **Content base directory (advanced)** field in the GitHub settings to that subfolder (e.g. `Web`). Every published path is then prefixed with it:
+
+| Setting               | Notes are written to    | Settings file |
+| --------------------- | ----------------------- | ------------- |
+| _(empty)_ (default)   | `src/site/notes/`       | `.env`        |
+| `Web`                 | `Web/src/site/notes/`   | `Web/.env`    |
+
+This affects **GitHub publishing**, **"Load remote settings"**, and **local export** consistently. Leaving the field empty keeps the historical repo-root behavior unchanged.
+
 ## Local development
 
 NOTE: this plugin contains a testing vault at `src/dg-testVault`, which is recommended for local development.

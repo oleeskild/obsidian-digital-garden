@@ -90,4 +90,5 @@ export default interface DigitalGardenSettings {
 	devPluginPath?: string;
 	logLevel?: ILogLevel;
 	localExportPath?: string;
+	contentBaseDir?: string;
 }

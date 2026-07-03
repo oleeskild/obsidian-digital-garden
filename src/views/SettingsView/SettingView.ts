@@ -19,6 +19,7 @@ import { Base64 } from "js-base64";
 
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
+import { envPath } from "../../publisher/paths";
 import { arrayBufferToBase64 } from "../../utils/utils";
 import {
 	ImageFileSuggest,
@@ -366,7 +367,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);
@@ -738,7 +742,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);
@@ -1151,7 +1158,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);

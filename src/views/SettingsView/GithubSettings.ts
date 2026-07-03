@@ -24,6 +24,7 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
+		this.initializeContentBaseDirSetting();
 	}
 
 	initializeHeader = () => {
@@ -246,6 +247,23 @@ export class GithubSettings {
 					.setValue(this.settings.settings.githubToken)
 					.onChange(async (value) => {
 						this.settings.settings.githubToken = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeContentBaseDirSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Content base directory (advanced)")
+			.setDesc(
+				"Subdirectory inside your repository where the digital garden template lives (e.g. Web). Leave empty if the template is at the repo root. Affects GitHub publishing, remote settings, and local export.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("Web")
+					.setValue(this.settings.settings.contentBaseDir ?? "")
+					.onChange(async (value) => {
+						this.settings.settings.contentBaseDir = value;
 						await this.checkConnectionAndSaveSettings();
 					}),
 			);

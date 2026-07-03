@@ -16,14 +16,12 @@ import { RepositoryConnection } from "../repositoryConnection/RepositoryConnecti
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
+import { imagePathBase, notePathBase, sitePath } from "./paths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
 	images: string[];
 }
-
-export const IMAGE_PATH_BASE = "src/site/img/user/";
-export const NOTE_PATH_BASE = "src/site/notes/";
 
 /**
  * Prepares files to be published and publishes them to Github
@@ -187,13 +185,13 @@ export default class Publisher {
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
-		const path = `${NOTE_PATH_BASE}${vaultFilePath}`;
+		const path = notePathBase(this.settings) + vaultFilePath;
 
 		return await this.delete(path, sha);
 	}
 
 	async deleteImage(vaultFilePath: string, sha?: string) {
-		const path = `${IMAGE_PATH_BASE}${vaultFilePath}`;
+		const path = imagePathBase(this.settings) + vaultFilePath;
 
 		return await this.delete(path, sha);
 	}
@@ -352,12 +350,12 @@ export default class Publisher {
 
 	private async uploadText(filePath: string, content: string, sha?: string) {
 		content = Base64.encode(content);
-		const path = `${NOTE_PATH_BASE}${filePath}`;
+		const path = notePathBase(this.settings) + filePath;
 		await this.uploadToGithub(path, content, sha);
 	}
 
 	private async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = `src/site${filePath}`;
+		const path = sitePath(this.settings, filePath);
 		await this.uploadToGithub(path, content, sha);
 	}
 
