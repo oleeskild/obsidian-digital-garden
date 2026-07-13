@@ -1,6 +1,7 @@
 import { Setting, debounce, getIcon } from "obsidian";
 import SettingView from "./SettingView";
 import { Octokit } from "@octokit/core";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 export class GithubSettings {
 	settings: SettingView;
@@ -24,7 +25,79 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
+		// Rendered last with prepend() so the nudge sits above the header.
+		this.initializeForestryUpgradeNotice();
 	}
+
+	/**
+	 * Nudge self-hosted users toward the managed Forestry.md platform right at
+	 * the point of setup friction (GitHub token/repo config). Dismissible and
+	 * persisted so it's shown at most until the user opts out.
+	 */
+	initializeForestryUpgradeNotice = () => {
+		if (this.settings.settings.hideForestryUpgradeNotice) {
+			return;
+		}
+
+		const notice = createEl("div", { cls: "dg-forestry-upgrade-notice" });
+
+		const dismissButton = notice.createEl("button", {
+			cls: "dg-forestry-upgrade-dismiss",
+			attr: { "aria-label": "Dismiss" },
+		});
+		const dismissIcon = getIcon("x");
+
+		if (dismissIcon) {
+			dismissButton.appendChild(dismissIcon);
+		} else {
+			dismissButton.setText("×");
+		}
+
+		dismissButton.addEventListener("click", async () => {
+			this.settings.settings.hideForestryUpgradeNotice = true;
+			await this.settings.saveSettings();
+			notice.remove();
+		});
+
+		const heading = notice.createEl("div", {
+			cls: "dg-forestry-upgrade-heading",
+		});
+		const headingIcon = getIcon("trees");
+
+		if (headingIcon) {
+			heading.appendChild(headingIcon);
+		}
+		heading.createSpan({ text: "Rather skip the GitHub setup?" });
+
+		notice.createEl("p", {
+			cls: "dg-forestry-upgrade-text",
+			text: "Forestry.md hosts your digital garden for you — no GitHub account, personal access tokens, or repository config required. Connect once with a Garden Key and publish straight from Obsidian.",
+		});
+
+		const actions = notice.createEl("div", {
+			cls: "dg-forestry-upgrade-actions",
+		});
+
+		const switchButton = actions.createEl("button", {
+			text: "Switch to Forestry.md",
+			cls: "mod-cta",
+		});
+
+		switchButton.addEventListener("click", async () => {
+			await this.settings.switchPublishPlatform(
+				PublishPlatform.ForestryMd,
+			);
+		});
+
+		actions.createEl("a", {
+			text: "Learn more",
+			cls: "dg-forestry-upgrade-link",
+			href: "https://dashboard.forestry.md",
+			attr: { target: "_blank", rel: "noopener" },
+		});
+
+		this.settingsRootElement.prepend(notice);
+	};
 
 	initializeHeader = () => {
 		this.checkConnectionAndSaveSettings();
