@@ -96,7 +96,7 @@
 		class:active={activePath === node.path}
 		on:click={selectFile}
 	>
-		<span class="dg-pc-arrow-spacer" />
+		<span class="dg-pc-arrow-spacer"></span>
 		<input
 			type="checkbox"
 			checked={selected.has(node.path)}
@@ -105,7 +105,7 @@
 		<span
 			class="dg-pc-status-dot dg-pc-dot-{node.status}"
 			title={node.status}
-		/>
+		></span>
 		<span class="dg-pc-name">{node.name}</span>
 	</div>
 {/if}

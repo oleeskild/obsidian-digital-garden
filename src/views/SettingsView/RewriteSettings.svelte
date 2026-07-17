@@ -78,8 +78,7 @@
 			placeholder="Personal/Journal:Journal"
 			rows="10"
 			cols="5"
-			on:input={onChange}
-		/>
+			on:input={onChange}></textarea>
 	</div>
 	<div class="setting-item-description changes">
 		{#if diff.length > 0}

@@ -1,5 +1,6 @@
 import { Octokit } from "@octokit/core";
 import axios from "axios";
+import { mount, unmount } from "svelte";
 import {
 	App,
 	ButtonComponent,
@@ -266,7 +267,7 @@ export default class SettingView {
 		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
 			new GithubSettings(this, target);
 		} else {
-			new ForestrySettings({
+			mount(ForestrySettings, {
 				target,
 				props: {
 					settings: this.settings,
@@ -2170,7 +2171,7 @@ export default class SettingView {
 		const rewriteRulesModal = new Modal(this.app);
 		rewriteRulesModal.open();
 
-		const modalContent: RewriteSettings = new RewriteSettings({
+		const modalContent = mount(RewriteSettings, {
 			target: rewriteRulesModal.contentEl,
 			props: {
 				publisher,
@@ -2180,7 +2181,7 @@ export default class SettingView {
 		});
 
 		rewriteRulesModal.onClose = () => {
-			modalContent.$destroy();
+			unmount(modalContent);
 		};
 	}
 

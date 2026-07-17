@@ -1,4 +1,5 @@
 import { ItemView, WorkspaceLeaf, TFile, type App } from "obsidian";
+import { mount, unmount } from "svelte";
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import PublishStatusManager from "../../publisher/PublishStatusManager";
@@ -13,7 +14,7 @@ interface PublicationCenterViewPlugin {
 
 export class PublicationCenterView extends ItemView {
 	private plugin: PublicationCenterViewPlugin;
-	private component?: PublicationCenter;
+	private component?: ReturnType<typeof mount>;
 	private refreshApi?: { maybeRefresh: () => void };
 
 	constructor(leaf: WorkspaceLeaf, plugin: PublicationCenterViewPlugin) {
@@ -48,7 +49,7 @@ export class PublicationCenterView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass("dg-publication-center-view");
 
-		this.component = new PublicationCenter({
+		this.component = mount(PublicationCenter, {
 			target: this.contentEl,
 			props: {
 				siteManager,
@@ -71,7 +72,9 @@ export class PublicationCenterView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
-		this.component?.$destroy();
+		if (this.component) {
+			unmount(this.component);
+		}
 		this.component = undefined;
 		this.refreshApi = undefined;
 	}

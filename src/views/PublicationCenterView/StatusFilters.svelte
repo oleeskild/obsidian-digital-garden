@@ -24,7 +24,7 @@
 			data-status={status}
 			on:click={() => dispatch("toggle", { status })}
 		>
-			<span class="dg-pc-dot dg-pc-dot-{status}" />
+			<span class="dg-pc-dot dg-pc-dot-{status}"></span>
 			{label}
 			<span class="dg-pc-count">{counts[status] ?? 0}</span>
 		</button>
