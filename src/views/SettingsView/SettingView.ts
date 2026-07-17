@@ -89,6 +89,17 @@ export default class SettingView {
 		}
 	}
 
+	/**
+	 * Switch the active publish platform and re-render the settings tab so the
+	 * platform dropdown and its panel reflect the new choice. Used by the
+	 * self-hosted setup nudge to move users onto Forestry.md in one click.
+	 */
+	async switchPublishPlatform(platform: PublishPlatform) {
+		this.settings.publishPlatform = platform;
+		await this.saveSettings();
+		this.reInitializeSettings();
+	}
+
 	private updateSectionAnchor: HTMLElement | null = null;
 
 	async initialize(prModal: Modal) {
