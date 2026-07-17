@@ -92,7 +92,7 @@ export class GithubSettings {
 		actions.createEl("a", {
 			text: "Learn more",
 			cls: "dg-forestry-upgrade-link",
-			href: "https://dashboard.forestry.md",
+			href: "https://forestry.md",
 			attr: { target: "_blank", rel: "noopener" },
 		});
 
