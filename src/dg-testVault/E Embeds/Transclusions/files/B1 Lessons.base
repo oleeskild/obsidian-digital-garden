@@ -1,0 +1,17 @@
+filters:
+  and:
+    - file.inFolder("E Embeds")
+properties:
+  note.module:
+    displayName: Module
+views:
+  - type: table
+    name: All lessons
+    order:
+      - file.name
+      - module
+  - type: cards
+    name: Hardware lessons
+    filters:
+      and:
+        - file.hasTag("hardware")
