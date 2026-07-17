@@ -184,7 +184,7 @@ If your Eleventy garden template lives in a **subdirectory** of the repo instead
 | _(empty)_ (default)   | `src/site/notes/`       | `.env`        |
 | `Web`                 | `Web/src/site/notes/`   | `Web/.env`    |
 
-This affects **GitHub publishing**, **"Load remote settings"**, and **local export** consistently. Leaving the field empty keeps the historical repo-root behavior unchanged.
+This affects **GitHub publishing**, **"Load remote settings"**, **template updates**, and **local export** consistently. The setting only applies to self-hosted (GitHub) publishing — it is ignored on managed platforms like Forestry. Values containing `..` segments are invalid and treated as empty. Leaving the field empty keeps the historical repo-root behavior unchanged.
 
 ## Local development
 

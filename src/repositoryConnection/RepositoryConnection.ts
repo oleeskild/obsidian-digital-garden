@@ -36,6 +36,11 @@ export class RepositoryConnection {
 		this.octokit = octoKit;
 	}
 
+	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
+	get contentBaseDir(): string {
+		return this.contentBase;
+	}
+
 	getRepositoryName() {
 		return this.userName + "/" + this.pageName;
 	}
