@@ -63,10 +63,13 @@ export type TCompilerStep = (
 export function selectBaseView(
 	baseFileText: string,
 	viewName?: string,
+	baseFileName?: string,
 ): string {
 	if (!viewName) {
 		return baseFileText;
 	}
+
+	const baseFileLabel = baseFileName ?? "Base file";
 
 	try {
 		const parsedBase = parseYaml(baseFileText);
@@ -84,6 +87,10 @@ export function selectBaseView(
 		);
 
 		if (!selectedView) {
+			Logger.warn(
+				`Base view "${viewName}" not found in ${baseFileLabel}. Embedding all views.`,
+			);
+
 			return baseFileText;
 		}
 
@@ -91,7 +98,12 @@ export function selectBaseView(
 			...parsedBase,
 			views: [selectedView],
 		});
-	} catch {
+	} catch (error) {
+		Logger.warn(
+			`Failed to parse ${baseFileLabel} while selecting view "${viewName}". Embedding all views.`,
+			error,
+		);
+
 		return baseFileText;
 	}
 }
@@ -100,10 +112,13 @@ export function createBaseCodeBlock(
 	baseFileText: string,
 	transclusionFileName: string,
 ): string {
-	const selectedViewName = transclusionFileName.split("#")[1]?.trim();
-	const selectedBaseFileText = selectBaseView(baseFileText, selectedViewName);
+	const [baseFileName, selectedViewName] = transclusionFileName.split("#");
 
-	return "\n```base\n" + selectedBaseFileText + "\n```\n";
+	return (
+		"\n```base\n" +
+		selectBaseView(baseFileText, selectedViewName?.trim(), baseFileName) +
+		"\n```\n"
+	);
 }
 
 export class GardenPageCompiler implements ITextNodeProcessor {
