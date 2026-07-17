@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DigitalGardenSettings from "../../models/settings";
+	import type DigitalGardenSettings from "../../models/settings";
 	import ForestryApi from "src/forestry/ForestryApi";
 	import type { IUserLimitsResponse } from "src/forestry/UserLimitsResponse";
 	import { Notice } from "obsidian";

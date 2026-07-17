@@ -7,7 +7,7 @@
 		"dev": "node esbuild.config.mjs",
 		"postdev": "node scripts/generateGardenSettings.mjs",
 		"dev1": "parcel main.ts",
-		"build": "node esbuild.config.mjs production",
+		"build": "node esbuild.config.mjs production && node scripts/verifyBundle.mjs",
 		"test": "jest",
 		"prepare": "husky install",
 		"lint": "eslint . --ext .ts --ext .svelte",

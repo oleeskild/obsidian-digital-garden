@@ -1,7 +1,7 @@
 <!-- src/views/PublicationCenterView/StatusFilters.svelte -->
 <script lang="ts">
 	import { createEventDispatcher } from "svelte";
-	import { FileStatus } from "./annotate";
+	import type { FileStatus } from "./annotate";
 
 	export let counts: Record<FileStatus, number>;
 	export let active: Set<FileStatus>;

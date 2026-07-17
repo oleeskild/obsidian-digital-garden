@@ -33,7 +33,12 @@ esbuild.build({
 	plugins: [
 		esbuildSvelte({
 		  compilerOptions: { css: 'injected'},
-		  preprocess: sveltePreprocess(),
+		  // verbatimModuleSyntax is required by svelte-preprocess v6: without it
+		  // the TS transpile strips component imports that are only used in
+		  // markup, leaving undefined references in the bundle.
+		  preprocess: sveltePreprocess({
+		    typescript: { compilerOptions: { verbatimModuleSyntax: true } },
+		  }),
 		}),
 	],
 	define: {

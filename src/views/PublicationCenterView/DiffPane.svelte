@@ -3,7 +3,7 @@
 	import { createEventDispatcher } from "svelte";
 	import * as Diff from "diff";
 	import Icon from "../../ui/Icon.svelte";
-	import { FileStatus } from "./annotate";
+	import type { FileStatus } from "./annotate";
 	import UnifiedDiff from "./UnifiedDiff.svelte";
 	import SplitDiff from "./SplitDiff.svelte";
 
