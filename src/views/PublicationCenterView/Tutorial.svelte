@@ -29,10 +29,10 @@
 		<ul class="dg-pc-tutorial-list">
 			<li>
 				The left column lists your notes, each with a status dot:
-				<span class="dg-pc-tut-dot dg-pc-dot-new" /> new,
-				<span class="dg-pc-tut-dot dg-pc-dot-changed" /> changed,
-				<span class="dg-pc-tut-dot dg-pc-dot-deleted" /> deleted,
-				<span class="dg-pc-tut-dot dg-pc-dot-published" /> published.
+				<span class="dg-pc-tut-dot dg-pc-dot-new"></span> new,
+				<span class="dg-pc-tut-dot dg-pc-dot-changed"></span> changed,
+				<span class="dg-pc-tut-dot dg-pc-dot-deleted"></span> deleted,
+				<span class="dg-pc-tut-dot dg-pc-dot-published"></span> published.
 			</li>
 			<li>
 				Use the filter chips at the top to focus on the statuses you

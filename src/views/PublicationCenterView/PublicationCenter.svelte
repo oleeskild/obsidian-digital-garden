@@ -392,7 +392,7 @@
 						style="width: {progressTotal
 							? (progressDone / progressTotal) * 100
 							: 0}%"
-					/>
+					></div>
 				</div>
 				<div class="dg-pc-progress-current">{progressCurrent}</div>
 			</div>

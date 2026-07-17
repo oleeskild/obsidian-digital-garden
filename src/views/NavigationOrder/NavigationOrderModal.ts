@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { mount, unmount } from "svelte";
 import NavigationOrderView from "./NavigationOrderView.svelte";
 import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 import Publisher from "../../publisher/Publisher";
@@ -6,7 +7,7 @@ import DigitalGardenSettings from "../../models/settings";
 
 export class NavigationOrderModal {
 	modal: Modal;
-	private view: NavigationOrderView | undefined;
+	private view: ReturnType<typeof mount> | undefined;
 
 	constructor(
 		app: App,
@@ -21,14 +22,17 @@ export class NavigationOrderModal {
 
 	open = () => {
 		this.modal.onClose = () => {
-			this.view?.$destroy();
+			if (this.view) {
+				unmount(this.view);
+				this.view = undefined;
+			}
 		};
 
 		this.modal.onOpen = () => {
 			this.modal.contentEl.empty();
 			this.modal.contentEl.addClass("dg-navigation-order-modal");
 
-			this.view = new NavigationOrderView({
+			this.view = mount(NavigationOrderView, {
 				target: this.modal.contentEl,
 				props: {
 					repositoryConnection: this.repositoryConnection,

@@ -112,7 +112,7 @@
 		{:else if !isRoot}
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<span>
-				<span class="no-arrow" />
+				<span class="no-arrow"></span>
 				<Icon name="file" />
 				{#if !readOnly}
 					<input
