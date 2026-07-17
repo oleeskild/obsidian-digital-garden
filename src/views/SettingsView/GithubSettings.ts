@@ -71,7 +71,7 @@ export class GithubSettings {
 
 		notice.createEl("p", {
 			cls: "dg-forestry-upgrade-text",
-			text: "Forestry.md hosts your digital garden for you — no GitHub account, personal access tokens, or repository config required. Connect once with a Garden Key and publish straight from Obsidian. There's a free tier to get started.",
+			text: "Forestry.md hosts your digital garden for you. No GitHub account, personal access tokens, or repository config required. Connect once with a Garden Key and publish straight from Obsidian. There's a free tier to get started.",
 		});
 
 		const actions = notice.createEl("div", {
