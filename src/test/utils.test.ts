@@ -135,6 +135,14 @@ describe("utils", () => {
 			expect(hash1).toBe(hash2);
 		});
 
+		it("matches the hash git itself computes for the same blob", () => {
+			// printf 'Hello World' | git hash-object --stdin
+			const base64Content = "SGVsbG8gV29ybGQ=";
+			const hash = generateBlobHashFromBase64(base64Content);
+
+			expect(hash).toBe("5e1c309dae7f45e0f39b1bf3ac3cd9db12e7d689");
+		});
+
 		it("produces different hashes for different content", () => {
 			const content1 = "SGVsbG8gV29ybGQ="; // "Hello World"
 			const content2 = "R29vZGJ5ZSBXb3JsZA=="; // "Goodbye World"
