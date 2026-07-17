@@ -1,4 +1,5 @@
 import type DigitalGardenSettings from "../models/settings";
+import { PublishPlatform } from "../models/PublishPlatform";
 
 /**
  * Un-prefixed suffixes describing the Eleventy garden template layout.
@@ -8,8 +9,11 @@ import type DigitalGardenSettings from "../models/settings";
 export const NOTE_PATH_BASE = "src/site/notes/";
 export const IMAGE_PATH_BASE = "src/site/img/user/";
 
-/** Only the field the path builders actually depend on. */
-type ContentBaseSettings = Pick<DigitalGardenSettings, "contentBaseDir">;
+/** Only the fields the path builders actually depend on. */
+type ContentBaseSettings = Pick<
+	DigitalGardenSettings,
+	"contentBaseDir" | "publishPlatform"
+>;
 
 /**
  * Normalize the configured content base directory into a repo-path prefix.
@@ -20,6 +24,9 @@ type ContentBaseSettings = Pick<DigitalGardenSettings, "contentBaseDir">;
  *
  * The result never has a leading `/` and always ends with exactly one `/` when non-empty,
  * so concatenating it with a suffix never produces `//` or a leading `/`.
+ *
+ * Values containing `.` or `..` segments are invalid (they could escape the target
+ * directory, e.g. in local export) and collapse to `""` (the repo root).
  */
 export function normalizeContentBaseDir(base?: string): string {
 	// Strip surrounding whitespace and all leading/trailing slashes, then re-append a
@@ -29,11 +36,34 @@ export function normalizeContentBaseDir(base?: string): string {
 		.replace(/^\/+/, "")
 		.replace(/\/+$/, "");
 
-	return stripped === "" ? "" : `${stripped}/`;
+	if (stripped === "") {
+		return "";
+	}
+
+	const segments = stripped.split("/");
+
+	if (segments.some((s) => s === "." || s === "..")) {
+		return "";
+	}
+
+	return `${stripped}/`;
 }
 
-/** Normalized content base prefix derived from the settings (`""` or e.g. `"Web/"`). */
+/**
+ * Normalized content base prefix derived from the settings (`""` or e.g. `"Web/"`).
+ *
+ * The setting only applies to self-hosted (GitHub) publishing — on managed platforms
+ * like Forestry the repository layout is fixed, so the base is ignored there. Local
+ * export is platform-independent and uses {@link normalizeContentBaseDir} directly.
+ */
 export function contentBaseDir(settings: ContentBaseSettings): string {
+	if (
+		settings.publishPlatform !== undefined &&
+		settings.publishPlatform !== PublishPlatform.SelfHosted
+	) {
+		return "";
+	}
+
 	return normalizeContentBaseDir(settings.contentBaseDir);
 }
 

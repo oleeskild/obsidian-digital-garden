@@ -1,4 +1,5 @@
 import DigitalGardenSettings from "../models/settings";
+import { PublishPlatform } from "../models/PublishPlatform";
 import {
 	NOTE_PATH_BASE,
 	IMAGE_PATH_BASE,
@@ -28,6 +29,12 @@ describe("paths", () => {
 			{ input: "  Web  ", expected: "Web/" },
 			{ input: "a/b", expected: "a/b/" },
 			{ input: "/a/b/", expected: "a/b/" },
+			// Traversal or relative segments are invalid — fall back to the repo root.
+			{ input: "..", expected: "" },
+			{ input: "../escape", expected: "" },
+			{ input: "a/../b", expected: "" },
+			{ input: ".", expected: "" },
+			{ input: "a/./b", expected: "" },
 		];
 
 		it.each(CASES)(
@@ -121,6 +128,37 @@ describe("paths", () => {
 				expect(p.startsWith("/")).toBe(false);
 				expect(p.includes("//")).toBe(false);
 			}
+		});
+	});
+
+	describe("path builders — publish platform gating", () => {
+		const withPlatform = (
+			contentBase: string,
+			publishPlatform: PublishPlatform,
+		) =>
+			({
+				contentBaseDir: contentBase,
+				publishPlatform,
+			}) as DigitalGardenSettings;
+
+		it("ignores contentBaseDir on the Forestry platform", () => {
+			const settings = withPlatform("Web", PublishPlatform.ForestryMd);
+
+			expect(contentBaseDir(settings)).toBe("");
+			expect(notePathBase(settings)).toBe("src/site/notes/");
+			expect(imagePathBase(settings)).toBe("src/site/img/user/");
+
+			expect(sitePath(settings, "/favicon.svg")).toBe(
+				"src/site/favicon.svg",
+			);
+			expect(envPath(settings)).toBe(".env");
+		});
+
+		it("applies contentBaseDir on the self-hosted (GitHub) platform", () => {
+			const settings = withPlatform("Web", PublishPlatform.SelfHosted);
+
+			expect(notePathBase(settings)).toBe("Web/src/site/notes/");
+			expect(envPath(settings)).toBe("Web/.env");
 		});
 	});
 });

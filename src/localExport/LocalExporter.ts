@@ -7,7 +7,7 @@ import Publisher from "../publisher/Publisher";
 import {
 	NOTE_PATH_BASE,
 	IMAGE_PATH_BASE,
-	contentBaseDir,
+	normalizeContentBaseDir,
 } from "../publisher/paths";
 import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
 
@@ -39,7 +39,7 @@ export class LocalExporter {
 			throw new Error("localExportPath is not configured");
 		}
 
-		const base = contentBaseDir(this.settings);
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 
 		await this.validateTargetPath(targetPath);
 		await this.writeEnvFile(targetPath);
@@ -157,7 +157,7 @@ export class LocalExporter {
 	}
 
 	private async validateTargetPath(targetPath: string): Promise<void> {
-		const base = contentBaseDir(this.settings);
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 
 		try {
 			await fs.access(targetPath);
@@ -184,7 +184,7 @@ export class LocalExporter {
 	}
 
 	private async writeEnvFile(targetPath: string): Promise<void> {
-		const base = contentBaseDir(this.settings);
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 		const envValues = generateEnvValues(this.settings);
 		const envContent = serializeEnvValues(envValues);
 
@@ -196,7 +196,7 @@ export class LocalExporter {
 	}
 
 	private async writeNavigationOrder(targetPath: string): Promise<void> {
-		const base = contentBaseDir(this.settings);
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 
 		const navOrderPath = path.join(
 			targetPath,
