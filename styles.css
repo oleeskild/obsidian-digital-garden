@@ -506,3 +506,74 @@ h4 {
 	color: var(--interactive-accent);
 	text-decoration: underline;
 }
+
+/* Forestry.md upgrade nudge (shown in the self-hosted setup panel) */
+.dg-forestry-upgrade-notice {
+	position: relative;
+	margin: 4px 0 20px;
+	padding: 14px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--interactive-accent);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+
+.dg-forestry-upgrade-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	margin-bottom: 6px;
+	padding-right: 24px;
+}
+
+.dg-forestry-upgrade-heading .svg-icon {
+	width: 18px;
+	height: 18px;
+	color: var(--interactive-accent);
+}
+
+.dg-forestry-upgrade-text {
+	margin: 0 0 12px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.dg-forestry-upgrade-actions {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.dg-forestry-upgrade-link {
+	font-size: 0.9em;
+	color: var(--text-accent);
+}
+
+.dg-forestry-upgrade-dismiss {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.dg-forestry-upgrade-dismiss:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.dg-forestry-upgrade-dismiss .svg-icon {
+	width: 16px;
+	height: 16px;
+}
