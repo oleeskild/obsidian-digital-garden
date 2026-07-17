@@ -3,10 +3,12 @@ import fs from "fs/promises";
 import path from "path";
 import Logger from "js-logger";
 import DigitalGardenSettings from "../models/settings";
-import Publisher, {
+import Publisher from "../publisher/Publisher";
+import {
 	NOTE_PATH_BASE,
 	IMAGE_PATH_BASE,
-} from "../publisher/Publisher";
+	normalizeContentBaseDir,
+} from "../publisher/paths";
 import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
 
 const PRESERVED_FILES = new Set(["notes.json", "notes.11tydata.js"]);
@@ -37,6 +39,8 @@ export class LocalExporter {
 			throw new Error("localExportPath is not configured");
 		}
 
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
+
 		await this.validateTargetPath(targetPath);
 		await this.writeEnvFile(targetPath);
 		await this.writeNavigationOrder(targetPath);
@@ -44,7 +48,7 @@ export class LocalExporter {
 		try {
 			await this.copyFromVault(
 				this.settings.faviconPath,
-				path.join(targetPath, "src", "site"),
+				path.join(targetPath, base, "src", "site"),
 				"favicon.svg",
 			);
 		} catch (e) {
@@ -54,7 +58,7 @@ export class LocalExporter {
 		try {
 			await this.copyFromVault(
 				this.settings.logoPath,
-				path.join(targetPath, "src", "site"),
+				path.join(targetPath, base, "src", "site"),
 				"logo",
 			);
 		} catch (e) {
@@ -63,8 +67,8 @@ export class LocalExporter {
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
-		const notesDir = path.join(targetPath, NOTE_PATH_BASE);
-		const imagesDir = path.join(targetPath, IMAGE_PATH_BASE);
+		const notesDir = path.join(targetPath, base, NOTE_PATH_BASE);
+		const imagesDir = path.join(targetPath, base, IMAGE_PATH_BASE);
 
 		await fs.mkdir(notesDir, { recursive: true });
 		await fs.mkdir(imagesDir, { recursive: true });
@@ -92,6 +96,7 @@ export class LocalExporter {
 				for (const image of assets.images) {
 					const imagePath = path.join(
 						targetPath,
+						base,
 						"src",
 						"site",
 						image.path,
@@ -152,6 +157,8 @@ export class LocalExporter {
 	}
 
 	private async validateTargetPath(targetPath: string): Promise<void> {
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
+
 		try {
 			await fs.access(targetPath);
 		} catch {
@@ -159,29 +166,41 @@ export class LocalExporter {
 			throw new Error(`Target path does not exist: ${targetPath}`);
 		}
 
+		const expectedSiteDir = path.join(targetPath, base, "src", "site");
+
 		try {
-			await fs.access(path.join(targetPath, "src", "site"));
+			await fs.access(expectedSiteDir);
 		} catch {
+			const expectedRelative = base ? `${base}src/site/` : "src/site/";
+
 			new Notice(
-				"Folder doesn't look like a digital garden — expected src/site/ directory at " +
+				`Folder doesn't look like a digital garden — expected ${expectedRelative} directory at ` +
 					targetPath,
 			);
 			throw new Error(
-				`Target path missing src/site/ directory: ${targetPath}`,
+				`Target path missing ${expectedRelative} directory: ${targetPath}`,
 			);
 		}
 	}
 
 	private async writeEnvFile(targetPath: string): Promise<void> {
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 		const envValues = generateEnvValues(this.settings);
 		const envContent = serializeEnvValues(envValues);
 
-		await fs.writeFile(path.join(targetPath, ".env"), envContent, "utf-8");
+		await fs.writeFile(
+			path.join(targetPath, base, ".env"),
+			envContent,
+			"utf-8",
+		);
 	}
 
 	private async writeNavigationOrder(targetPath: string): Promise<void> {
+		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
+
 		const navOrderPath = path.join(
 			targetPath,
+			base,
 			"src",
 			"site",
 			"_data",

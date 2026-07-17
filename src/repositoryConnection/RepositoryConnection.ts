@@ -3,6 +3,7 @@ import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
+import { normalizeContentBaseDir } from "src/publisher/paths";
 
 const logger = Logger.get("repository-connection");
 
@@ -20,12 +21,24 @@ interface IPutPayload {
 export class RepositoryConnection {
 	private userName: string;
 	private pageName: string;
+	private contentBase: string;
 	octokit: Octokit;
 
-	constructor({ octoKit, userName, pageName }: IPublishPlatformConnection) {
+	constructor({
+		octoKit,
+		userName,
+		pageName,
+		contentBaseDir,
+	}: IPublishPlatformConnection) {
 		this.pageName = pageName;
 		this.userName = userName;
+		this.contentBase = normalizeContentBaseDir(contentBaseDir);
 		this.octokit = octoKit;
+	}
+
+	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
+	get contentBaseDir(): string {
+		return this.contentBase;
 	}
 
 	getRepositoryName() {
@@ -208,10 +221,14 @@ export class RepositoryConnection {
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${NOTE_PATH_BASE}${normalizePath(path)}`;
+				return `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
+					path,
+				)}`;
 			}
 
-			return `${IMAGE_PATH_BASE}${normalizePath(path)}`;
+			return `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
+				path,
+			)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -321,7 +338,9 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${NOTE_PATH_BASE}${normalizePath(file.getPath())}`,
+					path: `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
+						file.getPath(),
+					)}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
@@ -366,7 +385,9 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${IMAGE_PATH_BASE}${normalizePath(asset.path)}`,
+					path: `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
+						asset.path,
+					)}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,

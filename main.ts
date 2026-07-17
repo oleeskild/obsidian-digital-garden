@@ -121,6 +121,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	logLevel: undefined,
 	localExportPath: "",
+	contentBaseDir: "",
 };
 
 Logger.useDefaults({

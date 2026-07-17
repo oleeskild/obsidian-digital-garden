@@ -19,6 +19,7 @@ import { Base64 } from "js-base64";
 
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
+import { envPath, sitePath } from "../../publisher/paths";
 import { arrayBufferToBase64 } from "../../utils/utils";
 import {
 	ImageFileSuggest,
@@ -377,7 +378,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);
@@ -749,7 +753,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);
@@ -1162,7 +1169,10 @@ export default class SettingView {
 
 				const connection =
 					await gardenManager.getUserGardenConnection();
-				const envFile = await connection.getFile(".env");
+
+				const envFile = await connection.getFile(
+					envPath(this.settings),
+				);
 
 				if (envFile?.content) {
 					const envContent = Base64.decode(envFile.content);
@@ -1912,7 +1922,7 @@ export default class SettingView {
 				{
 					owner,
 					repo,
-					path: "src/site/favicon.svg",
+					path: sitePath(this.settings, "/favicon.svg"),
 				},
 			);
 
@@ -1935,7 +1945,7 @@ export default class SettingView {
 			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
 				owner,
 				repo,
-				path: "src/site/favicon.svg",
+				path: sitePath(this.settings, "/favicon.svg"),
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
 				// @ts-expect-error TODO: abstract octokit response
@@ -1948,7 +1958,7 @@ export default class SettingView {
 		Logger.info(
 			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
 		);
-		const logoBasePath = "src/site/logo";
+		const logoBasePath = sitePath(this.settings, "/logo");
 
 		// First, try to delete any existing logo files
 		const logoExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp"];

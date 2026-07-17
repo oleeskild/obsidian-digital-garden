@@ -13,7 +13,7 @@ import {
 } from "./RepositoryConnection";
 import Logger from "js-logger";
 import { TemplateUpdateChecker } from "./TemplateManager";
-import { NOTE_PATH_BASE, IMAGE_PATH_BASE } from "../publisher/Publisher";
+import { envPath, imagePathBase, notePathBase } from "../publisher/paths";
 import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
@@ -85,7 +85,7 @@ export default class DigitalGardenSiteManager {
 
 		const currentFile = await (
 			await this.getUserGardenConnection()
-		).getFile(".env");
+		).getFile(envPath(this.settings));
 
 		const decodedCurrentFile = Base64.decode(currentFile?.content ?? "");
 
@@ -125,7 +125,7 @@ export default class DigitalGardenSiteManager {
 		await (
 			await this.getUserGardenConnection()
 		).updateFile({
-			path: ".env",
+			path: envPath(this.settings),
 			content: base64Settings,
 			message: "Update settings",
 			sha: currentFile?.sha,
@@ -174,7 +174,7 @@ export default class DigitalGardenSiteManager {
 
 		const response = await (
 			await this.getUserGardenConnection()
-		).getFile(NOTE_PATH_BASE + path);
+		).getFile(notePathBase(this.settings) + path);
 
 		if (!response) {
 			return "";
@@ -189,18 +189,19 @@ export default class DigitalGardenSiteManager {
 		contentTree: NonNullable<TRepositoryContent>,
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree;
+		const noteBase = notePathBase(this.settings);
 
 		const notes = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(NOTE_PATH_BASE) &&
+				x.path.startsWith(noteBase) &&
 				x.type === "blob" &&
-				x.path !== `${NOTE_PATH_BASE}notes.json`,
+				x.path !== `${noteBase}notes.json`,
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const note of notes) {
-			const vaultPath = note.path.replace(NOTE_PATH_BASE, "");
+			const vaultPath = note.path.replace(noteBase, "");
 			hashes[vaultPath] = note.sha;
 		}
 
@@ -211,17 +212,18 @@ export default class DigitalGardenSiteManager {
 		contentTree: NonNullable<TRepositoryContent>,
 	): Promise<Record<string, string>> {
 		const files = contentTree.tree ?? [];
+		const imageBase = imagePathBase(this.settings);
 
 		const images = files.filter(
 			(x): x is ContentTreeItem =>
 				typeof x.path === "string" &&
-				x.path.startsWith(IMAGE_PATH_BASE) &&
+				x.path.startsWith(imageBase) &&
 				x.type === "blob",
 		);
 		const hashes: Record<string, string> = {};
 
 		for (const img of images) {
-			const vaultPath = img.path.replace(IMAGE_PATH_BASE, "");
+			const vaultPath = img.path.replace(imageBase, "");
 			hashes[vaultPath] = img.sha;
 		}
 

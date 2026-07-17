@@ -6,6 +6,7 @@
 	import type Publisher from "../../publisher/Publisher";
 	import type DigitalGardenSettings from "../../models/settings";
 	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
+	import { sitePath } from "../../publisher/paths";
 	import SortableTree from "./SortableTree.svelte";
 
 	export let repositoryConnection: RepositoryConnection;
@@ -28,7 +29,7 @@
 	let tree: TreeItem[] = [];
 	let remoteSha: string | null = null;
 
-	const NAV_ORDER_PATH = "src/site/_data/navigationOrder.json";
+	const NAV_ORDER_PATH = sitePath(settings, "/_data/navigationOrder.json");
 
 	onMount(async () => {
 		await loadTree();
