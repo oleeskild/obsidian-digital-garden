@@ -5,6 +5,8 @@ import {
 	Vault,
 	arrayBufferToBase64,
 	getLinkpath,
+	parseYaml,
+	stringifyYaml,
 } from "obsidian";
 import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRule } from "../repositoryConnection/DigitalGardenSiteManager";
@@ -57,6 +59,67 @@ export type TCompilerStep = (
 ) =>
 	| ((partiallyCompiledContent: string) => Promise<string>)
 	| ((partiallyCompiledContent: string) => string);
+
+export function selectBaseView(
+	baseFileText: string,
+	viewName?: string,
+	baseFileName?: string,
+): string {
+	if (!viewName) {
+		return baseFileText;
+	}
+
+	const baseFileLabel = baseFileName ?? "Base file";
+
+	try {
+		const parsedBase = parseYaml(baseFileText);
+
+		if (
+			!parsedBase ||
+			typeof parsedBase !== "object" ||
+			!Array.isArray(parsedBase.views)
+		) {
+			return baseFileText;
+		}
+
+		const selectedView = parsedBase.views.find(
+			(view: { name?: unknown }) => view?.name === viewName,
+		);
+
+		if (!selectedView) {
+			Logger.warn(
+				`Base view "${viewName}" not found in ${baseFileLabel}. Embedding all views.`,
+			);
+
+			return baseFileText;
+		}
+
+		return stringifyYaml({
+			...parsedBase,
+			views: [selectedView],
+		});
+	} catch (error) {
+		Logger.warn(
+			`Failed to parse ${baseFileLabel} while selecting view "${viewName}". Embedding all views.`,
+			error,
+		);
+
+		return baseFileText;
+	}
+}
+
+export function createBaseCodeBlock(
+	baseFileText: string,
+	transclusionFileName: string,
+): string {
+	const [baseFileName, selectedViewName] = transclusionFileName.split("#");
+
+	return (
+		"\n```base\n" +
+		selectBaseView(baseFileText, selectedViewName?.trim(), baseFileName) +
+		"\n```\n"
+	);
+}
 
 export class GardenPageCompiler implements ITextNodeProcessor {
 	private readonly vault: Vault;
@@ -482,8 +545,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						// Embed .base file contents as a ```base code block
 						const baseFileText = await this.vault.read(linkedFile);
 
-						const baseCodeBlock =
-							"\n```base\n" + baseFileText + "\n```\n";
+						const baseCodeBlock = createBaseCodeBlock(
+							baseFileText,
+							transclusionFileName,
+						);
 
 						transcludedText = transcludedText.replace(
 							transclusionMatch,
