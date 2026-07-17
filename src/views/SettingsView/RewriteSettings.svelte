@@ -1,10 +1,11 @@
 <script lang="ts">
 	import Publisher from "src/publisher/Publisher";
 
-	import { ChangeEventHandler } from "svelte/elements";
+	import type { ChangeEventHandler } from "svelte/elements";
 	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
-	import DigitalGardenSettings from "../../models/settings";
-	import { Change, diffLines } from "diff";
+	import type DigitalGardenSettings from "../../models/settings";
+	import { diffLines } from "diff";
+	import type { Change } from "diff";
 	import LineDiff from "../../ui/LineDiff.svelte";
 
 	export let publisher: Publisher;

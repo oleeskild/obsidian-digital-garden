@@ -5,17 +5,16 @@
 	import { LimitReachedError } from "../../forestry/LimitReachedError";
 	import { notifyLimitReached } from "../../forestry/limitNotice";
 	import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
-	import {
+	import type {
 		IPublishStatusManager,
 		PublishStatus,
 	} from "../../publisher/PublishStatusManager";
 	import {
 		annotateFiles,
 		defaultSelection,
-		AnnotatedFile,
-		FileStatus,
 		buildPublishPlan,
 	} from "./annotate";
+	import type { AnnotatedFile, FileStatus } from "./annotate";
 	import { buildFileTree, filterTree } from "./fileTree";
 	import * as Diff from "diff";
 	import StatusFilters from "./StatusFilters.svelte";

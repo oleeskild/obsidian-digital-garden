@@ -1,6 +1,6 @@
 <!-- src/views/PublicationCenterView/FileTree.svelte -->
 <script lang="ts">
-	import { FileTreeNode } from "./fileTree";
+	import type { FileTreeNode } from "./fileTree";
 	import Node from "./FileTreeNode.svelte";
 
 	export let node: FileTreeNode;

@@ -6,7 +6,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from "svelte";
 	import Icon from "../../ui/Icon.svelte";
-	import { FileTreeNode, collectFilePaths } from "./fileTree";
+	import { collectFilePaths } from "./fileTree";
+	import type { FileTreeNode } from "./fileTree";
 
 	export let node: FileTreeNode;
 	export let selected: Set<string>;
