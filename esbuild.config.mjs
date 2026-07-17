@@ -4,6 +4,8 @@ import builtins from 'builtin-modules'
 import esbuildSvelte from "esbuild-svelte";
 import sveltePreprocess from "svelte-preprocess";
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -16,8 +18,34 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === 'production');
+const watch = (process.argv[2] === 'watch');
 
-esbuild.build({
+const TEST_VAULT_PLUGIN_DIR = 'src/dg-testVault/.obsidian/plugins/obsidian-digital-garden';
+
+// After each successful rebuild, copy the output into the test vault so the
+// hot-reload plugin picks it up and reloads the plugin inside Obsidian.
+const copyToTestVault = {
+	name: 'copy-to-test-vault',
+	setup(build) {
+		build.onEnd(async (result) => {
+			if (result.errors.length > 0) return;
+
+			// The hot-reload plugin only watches plugins marked with this file
+			await fs.writeFile(path.join(TEST_VAULT_PLUGIN_DIR, '.hotreload'), '');
+
+			for (const file of ['main.js', 'styles.css', 'manifest.json']) {
+				try {
+					await fs.copyFile(file, path.join(TEST_VAULT_PLUGIN_DIR, file));
+				} catch (e) {
+					console.error(`Failed to copy ${file} to test vault:`, e.message);
+				}
+			}
+			console.log(`[${new Date().toLocaleTimeString()}] Copied build output to test vault`);
+		});
+	},
+};
+
+const buildOptions = {
 	banner: {
 		js: banner,
 	},
@@ -40,8 +68,17 @@ esbuild.build({
 		    typescript: { compilerOptions: { verbatimModuleSyntax: true } },
 		  }),
 		}),
+		...(watch ? [copyToTestVault] : []),
 	],
 	define: {
 		'process.env.FORESTRY_BASE_URL': JSON.stringify(process.env.FORESTRY_BASE_URL || "https://api.forestry.md/app"),
 	},
-}).catch(() => process.exit(1));
+};
+
+if (watch) {
+	const ctx = await esbuild.context(buildOptions);
+	await ctx.watch();
+	console.log('Watching for changes...');
+} else {
+	esbuild.build(buildOptions).catch(() => process.exit(1));
+}

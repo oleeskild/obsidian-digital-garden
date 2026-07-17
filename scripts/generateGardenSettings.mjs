@@ -1,5 +1,6 @@
 import dotevnt from "dotenv";
 import fs from "fs";
+import path from "path";
 dotevnt.config();
 import copyfiles from "copyfiles";
 import Logger from "js-logger";
@@ -65,7 +66,12 @@ Path Rewriting/Subfolder:this-will-never-hit`,
 	ENABLE_DEVELOPER_TOOLS: true,
 	devPluginPath: `${process.cwd()}`,
 	logLevel: Logger.DEBUG,
-	localExportPath: process.env.LOCAL_GARDEN_PATH || "",
+	// Resolve to an absolute path: a relative path in data.json would resolve
+	// against Obsidian's cwd at runtime, not the plugin repo.
+	localExportPath: process.env.LOCAL_GARDEN_PATH
+		? path.resolve(process.env.LOCAL_GARDEN_PATH)
+		: "",
+	localExportOnLoad: Boolean(process.env.LOCAL_GARDEN_PATH),
 };
 
 const TEST_VAULT_PATH =
