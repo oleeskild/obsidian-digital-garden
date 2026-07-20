@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"postdev": "node scripts/generateGardenSettings.mjs",
+		"dev:watch": "node esbuild.config.mjs watch",
 		"dev1": "parcel main.ts",
 		"build": "node esbuild.config.mjs production && node scripts/verifyBundle.mjs",
 		"test": "jest",

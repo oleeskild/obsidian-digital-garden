@@ -10,6 +10,7 @@ import DigitalGardenSettings from "../models/settings";
 import {
 	createBaseCodeBlock,
 	GardenPageCompiler,
+	getFrontmatterImageLinkpath,
 	selectBaseView,
 } from "../compiler/GardenPageCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
@@ -18,6 +19,7 @@ import { TRANSCLUDED_SVG_REGEX } from "../utils/regexes";
 jest.mock("obsidian", () => ({
 	parseYaml: jest.fn(),
 	stringifyYaml: jest.fn(),
+	getLinkpath: (linkpath: string) => linkpath,
 }));
 
 describe("Compiler", () => {
@@ -108,6 +110,96 @@ describe("Compiler", () => {
 			expect(result).toBe(
 				"Link with [[folder/test#My Header\\|custom display]] text",
 			);
+		});
+	});
+
+	describe("convertEmbeddedAssets", () => {
+		const getCompilerWithImageFile = () => {
+			return new GardenPageCompiler(
+				{} as Vault,
+				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{
+					getFirstLinkpathDest: jest.fn(() => ({
+						path: "A Assets/travolta.png",
+						extension: "png",
+					})),
+				} as unknown as MetadataCache,
+				jest.fn(),
+			);
+		};
+
+		const publishFile = {
+			getPath: () => "B Bases/Books/B1 Book.md",
+		} as PublishFile;
+
+		it("converts linked image wikilinks in the note body", async () => {
+			const compiler = getCompilerWithImageFile();
+
+			const [text] = await compiler.convertEmbeddedAssets(publishFile)(
+				"---\n" +
+					'{"dg-publish":true}\n' +
+					"---\n" +
+					"See [[A Assets/travolta.png]] for details.\n",
+			);
+
+			expect(text).toContain(
+				"[A Assets/travolta.png](/img/user/A%20Assets/travolta.png)",
+			);
+		});
+
+		it("leaves image wikilinks inside the frontmatter block untouched", async () => {
+			const compiler = getCompilerWithImageFile();
+
+			const frontmatter =
+				'{"dg-publish":true,"dg-note-properties":{"cover":"[[A Assets/travolta.png]]"}}';
+
+			const [text] = await compiler.convertEmbeddedAssets(publishFile)(
+				"---\n" +
+					frontmatter +
+					"\n---\n" +
+					"Body link [[A Assets/travolta.png]] still converts.\n",
+			);
+
+			expect(text).toContain(frontmatter);
+
+			expect(text).toContain(
+				"[A Assets/travolta.png](/img/user/A%20Assets/travolta.png)",
+			);
+		});
+	});
+
+	describe("getFrontmatterImageLinkpath", () => {
+		it("returns plain image paths as-is", () => {
+			expect(getFrontmatterImageLinkpath("attachments/cover.jpg")).toBe(
+				"attachments/cover.jpg",
+			);
+		});
+
+		it("unwraps wikilink image values", () => {
+			expect(getFrontmatterImageLinkpath("[[cover.jpg]]")).toBe(
+				"cover.jpg",
+			);
+		});
+
+		it("unwraps embed wikilinks with alias", () => {
+			expect(
+				getFrontmatterImageLinkpath("![[A Assets/cover.png|300]]"),
+			).toBe("A Assets/cover.png");
+		});
+
+		it("returns null for external URLs", () => {
+			expect(
+				getFrontmatterImageLinkpath("https://example.com/cover.jpg"),
+			).toBe(null);
+		});
+
+		it("returns null for non-image values", () => {
+			expect(getFrontmatterImageLinkpath("just a description")).toBe(
+				null,
+			);
+			expect(getFrontmatterImageLinkpath("[[Some note]]")).toBe(null);
+			expect(getFrontmatterImageLinkpath(42)).toBe(null);
+			expect(getFrontmatterImageLinkpath(null)).toBe(null);
 		});
 	});
 

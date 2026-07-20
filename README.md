@@ -218,9 +218,14 @@ LOCAL_GARDEN_PATH=../digitalgarden
 
 To preview plugin changes in the actual garden site:
 
-1. `npm run dev` in this repo (builds plugin, copies to test vault)
-2. Open test vault in Obsidian, run **"Export Garden to Local Folder"**
-3. `npm run dev` in the `digitalgarden/` folder (serves garden with hot reload)
+1. `npm run dev` in this repo (builds plugin, copies to test vault, generates the test vault settings from `.env`)
+2. `npm run dev:watch` in this repo (rebuilds and copies to the test vault on every save)
+3. Open the test vault in Obsidian
+4. `npm run dev` in the `digitalgarden/` folder (serves the garden on `http://localhost:8080` with hot reload)
+
+When `LOCAL_GARDEN_PATH` is set in `.env`, the generated test vault settings enable `localExportOnLoad`, so the plugin exports the garden to that folder automatically on every load. Combined with the `hot-reload` plugin in the test vault, every save gives you: rebuild → plugin reload in Obsidian → re-export → eleventy rebuild.
+
+To trigger an export manually (or from another vault), run the **"Export Garden to Local Folder"** command. The automatic export only runs when `ENABLE_DEVELOPER_TOOLS`, `localExportOnLoad`, and `localExportPath` are all set in the plugin's `data.json` — regular installs are unaffected.
 
 Note: this repository uses prettier and eslint to enforce code formatting and style. It is recommended to install these to your IDE for automatic formatting and error highlighting.
 

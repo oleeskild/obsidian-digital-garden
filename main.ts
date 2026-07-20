@@ -168,6 +168,7 @@ export default class DigitalGarden extends Plugin {
 		);
 
 		this.checkForTemplateUpdates();
+		this.registerDevAutoExport();
 	}
 
 	private async checkForTemplateUpdates() {
@@ -458,42 +459,60 @@ export default class DigitalGarden extends Plugin {
 				id: "export-garden-to-local-folder",
 				name: "Export Garden to Local Folder",
 				callback: async () => {
-					try {
-						new Notice("Exporting garden to local folder...");
-						const { vault, metadataCache } = this.app;
-
-						const publisher = new Publisher(
-							vault,
-							metadataCache,
-							this.settings,
-						);
-
-						const exporter = new LocalExporter(
-							vault,
-							publisher,
-							this.settings,
-						);
-
-						const result = await exporter.export();
-
-						if (result.failed > 0) {
-							new Notice(
-								`Exported ${result.notes} notes and ${result.images} images (${result.failed} failed). Check console for details.`,
-								8000,
-							);
-						} else {
-							new Notice(
-								`Exported ${result.notes} notes and ${result.images} images to ${this.settings.localExportPath}`,
-								8000,
-							);
-						}
-					} catch (e) {
-						// Validation errors already show Notices
-						Logger.error("Local export failed", e);
-					}
+					await this.runLocalExport();
 				},
 			});
 		}
+	}
+
+	private async runLocalExport() {
+		try {
+			new Notice("Exporting garden to local folder...");
+			const { vault, metadataCache } = this.app;
+
+			const publisher = new Publisher(
+				vault,
+				metadataCache,
+				this.settings,
+			);
+
+			const exporter = new LocalExporter(vault, publisher, this.settings);
+
+			const result = await exporter.export();
+
+			if (result.failed > 0) {
+				new Notice(
+					`Exported ${result.notes} notes and ${result.images} images (${result.failed} failed). Check console for details.`,
+					8000,
+				);
+			} else {
+				new Notice(
+					`Exported ${result.notes} notes and ${result.images} images to ${this.settings.localExportPath}`,
+					8000,
+				);
+			}
+		} catch (e) {
+			// Validation errors already show Notices
+			Logger.error("Local export failed", e);
+		}
+	}
+
+	private registerDevAutoExport() {
+		if (
+			!Platform.isDesktop ||
+			!this.settings.ENABLE_DEVELOPER_TOOLS ||
+			!this.settings.localExportOnLoad ||
+			!this.settings.localExportPath
+		) {
+			return;
+		}
+
+		this.app.workspace.onLayoutReady(() => {
+			// Let the metadata cache and plugins like Dataview settle first
+			window.setTimeout(() => {
+				this.runLocalExport();
+			}, 2000);
+		});
 	}
 
 	private getActiveFile(workspace: Workspace) {

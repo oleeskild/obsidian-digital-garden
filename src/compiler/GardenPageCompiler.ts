@@ -121,6 +121,38 @@ export function createBaseCodeBlock(
 	);
 }
 
+const FRONTMATTER_IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+
+/**
+ * Extract a resolvable vault linkpath from a frontmatter property value
+ * that references an image. Handles plain paths ("attachments/cover.jpg")
+ * and wikilinks ("[[cover.jpg]]", "![[cover.jpg|300]]"). Returns null for
+ * external URLs and values that don't point at an image.
+ */
+export function getFrontmatterImageLinkpath(value: unknown): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	let linkpath = value.trim();
+
+	const wikilink = linkpath.match(/^!?\[\[([^\]]+)\]\]$/);
+
+	if (wikilink) {
+		linkpath = wikilink[1].split("|")[0].split("#")[0].trim();
+	}
+
+	if (linkpath.startsWith("http")) {
+		return null;
+	}
+
+	if (!FRONTMATTER_IMAGE_EXTENSIONS.test(linkpath)) {
+		return null;
+	}
+
+	return linkpath;
+}
+
 export class GardenPageCompiler implements ITextNodeProcessor {
 	private readonly vault: Vault;
 	private readonly settings: DigitalGardenSettings;
@@ -815,16 +847,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		if (!frontmatter) return assets;
 
-		const imageExtensions = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
-
 		const scanValue = async (value: unknown) => {
-			if (typeof value === "string" && imageExtensions.test(value)) {
-				// Skip external URLs
-				if (value.startsWith("http")) return;
+			const linkpath = getFrontmatterImageLinkpath(value);
 
+			if (linkpath) {
 				try {
 					const linkedFile = this.resolveLinkedFile(
-						value,
+						linkpath,
 						file.getPath(),
 					);
 
@@ -968,6 +997,15 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		async (text: string): Promise<[string, Array<Asset>]> => {
 			const filePath = file.getPath();
 			const assets = [];
+
+			// Split off the frontmatter block and only convert the body:
+			// property values like cover: "[[image.png]]" must reach the
+			// site untouched so the bases engine can resolve them.
+			const frontmatterBlock = text.match(
+				/^\s*?---[\r\n][\s\S]*?[\r\n]---/,
+			);
+			const frontmatter = frontmatterBlock ? frontmatterBlock[0] : "";
+			text = text.slice(frontmatter.length);
 
 			let imageText = text;
 
@@ -1453,7 +1491,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				}
 			}
 
-			return [imageText, assets];
+			return [frontmatter + imageText, assets];
 		};
 
 	generateTransclusionHeader(
