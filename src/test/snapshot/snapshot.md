@@ -393,6 +393,104 @@ And for sanity, here's some block references outside of code blocks: foobar
 { #test-123}
 
 ==========
+B Bases/B0 Cards with covers.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/b0-cards-with-covers/","dg-note-properties":{}}
+---
+
+
+QA for base cards views with cover thumbnails. Every card below should show an image: the wikilink cover (travolta png), the plain path cover (travolta webp), and the external cover (hotlinked). See the notes in [[B Bases/Books/B1 Book with wikilink cover\|Books]] for the three cover property shapes.
+
+## Embedded base, Obsidian syntax (`image: note.cover`)
+
+This is what Obsidian writes when you pick a card image in the UI:
+
+```base
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+views:
+  - type: cards
+    name: Covers obsidian syntax
+    image: note.cover
+    order:
+      - file.name
+      - year
+```
+
+## Embedded base, bare property name (`image: cover`)
+
+```base
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+views:
+  - type: cards
+    name: Covers bare syntax
+    image: cover
+    order:
+      - file.name
+      - year
+```
+
+## Transcluded standalone base
+
+
+```base
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+properties:
+  note.year:
+    displayName: Year
+views:
+  - type: cards
+    name: Covers
+    order:
+      - file.name
+      - year
+    image: note.cover
+
+```
+
+
+==========
+B Bases/Books/B1 Book with wikilink cover.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/books/b1-book-with-wikilink-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"[[A Assets/travolta.png]]","year":2020}}
+---
+
+
+Book note whose `cover` property is a wikilink, the format Obsidian's image property picker produces. The cards views in [[B Bases/B0 Cards with covers\|B0 Cards with covers]] should show the travolta png as this note's thumbnail.
+
+/img/user/A Assets/travolta.png
+==========
+B Bases/Books/B2 Book with plain path cover.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/books/b2-book-with-plain-path-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"A Assets/travolta.webp","year":2021}}
+---
+
+
+Book note whose `cover` property is a plain vault-relative path. The cards views in [[B Bases/B0 Cards with covers\|B0 Cards with covers]] should show the travolta webp as this note's thumbnail.
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
+==========
+B Bases/Books/B3 Book with external cover.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/books/b3-book-with-external-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"https://docs.forestry.md/img/user/img/obsidianlogo.png","year":2022}}
+---
+
+
+Book note whose `cover` property is an external URL. The cards views in [[B Bases/B0 Cards with covers\|B0 Cards with covers]] should hotlink it unchanged (nothing is uploaded to the site repo for this one).
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
+==========
 E Embeds/E02 PNG published.md
 ==========
 ---
@@ -403,6 +501,7 @@ E Embeds/E02 PNG published.md
 
 ![travolta.png](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
 ==========
 E Embeds/E04 PNG reuse.md
 ==========
@@ -414,6 +513,7 @@ This file uses the same image as in [[E Embeds/E03 PNG_not_published\|E03 PNG_no
 
 ![unused_image.png\|100](/img/user/A%20Assets/unused_image.png)
 /img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
 ,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/E05 WEBP published.md
@@ -425,8 +525,8 @@ E Embeds/E05 WEBP published.md
 
 ![travolta.webp](/img/user/A%20Assets/travolta.webp)
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/E07 Image with alt attributes.md
 ==========
@@ -443,15 +543,14 @@ This should render to an image with the alt text "left", like so:
 `[travolta.png\|left](/img/user/A%20Assets/travolta.png)`
 ![travolta.png\|left](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/E08 Images in tables.md
 ==========
 ---
 {"dg-publish":true,"permalink":"/e-embeds/e08-images-in-tables/","dg-note-properties":{}}
 ---
-
 
 Images with resize syntax inside tables should render correctly.
 The pipe in the image size syntax is escaped as `\|` inside tables.
@@ -462,8 +561,8 @@ The pipe in the image size syntax is escaped as `\|` inside tables.
 | ![travolta.png](/img/user/A%20Assets/travolta.png) | Travolta full size |
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T1 BaseFile.md
 ==========
@@ -547,8 +646,8 @@ Bonus pic:
 </div></div>
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T2 Too deep to transclude.md
 ==========
@@ -560,8 +659,8 @@ This one isn't isn't transcluded anymore (too deep)
 
 ![travolta.png\|100](/img/user/A%20Assets/travolta.png)
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T3 Transcluded block.md
 ==========
@@ -583,8 +682,8 @@ cheese
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T4 Transcluded header.md
 ==========
@@ -609,8 +708,8 @@ This should be in this header block
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T5 transclude custom filters.md
 ==========
@@ -636,8 +735,8 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 </div></div>
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T6 transclusion inside codeblock.md
 ==========
@@ -685,8 +784,8 @@ this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). 
 
 ```
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 E Embeds/Transclusions/T7 Transcluded base views.md
 ==========
@@ -766,8 +865,8 @@ views:
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 L Languages/Transclude Headers.md
 ==========
@@ -791,8 +890,8 @@ This should be visible when transcluding the header above
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 L Links/01 Link to header.md
 ==========
@@ -824,8 +923,8 @@ Same-file header link should be converted
 Same-file header link with custom display text
 [[L Links/01 Link to header#Some Header\|custom display]]
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD1 Dataview.md
 ==========
@@ -848,8 +947,8 @@ I'm a list of all files in this folder:
 { .block-language-dataview}
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD2 Inline queries.md
 ==========
@@ -864,8 +963,8 @@ PD2 Inline queries
 this note is about foo
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD3 Inline JS queries.md
 ==========
@@ -875,12 +974,12 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-116
+124
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD4 DataviewJs queries.md
 ==========
@@ -894,8 +993,8 @@ P Plugins/PD Dataview/PD4 DataviewJs queries.md
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD5.1 Dataview in transclusions.md
 ==========
@@ -909,8 +1008,8 @@ This should be a working link -> [kagi](https://kagi.com)
 
 See if those tran: [[P Plugins/PD Dataview/PD5.2 Dataview in transclusions\|PD5.2 Dataview in transclusions]]
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PD Dataview/PD5.2 Dataview in transclusions.md
 ==========
@@ -936,8 +1035,8 @@ See if those tran: [[P Plugins/PD Dataview/PD5.2 Dataview in transclusions\|PD5.
 
 The transcluded, Dataview-containing transclusion above should have been processed as expected with the Dataview having been processed. e.g. the text and link should use the frontmatter from the original file per the Dataview queries in that file.
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PE Excalidraw/PE1 Transcluded excalidraw.md
 ==========
@@ -948,8 +1047,8 @@ P Plugins/PE Excalidraw/PE1 Transcluded excalidraw.md
 
 <style> .container {font-family: sans-serif; text-align: center;} .button-wrapper button {z-index: 1;height: 40px; width: 100px; margin: 10px;padding: 5px;} .excalidraw .App-menu_top .buttonList { display: flex;} .excalidraw-wrapper { height: 800px; margin: 50px; position: relative;} :root[dir="ltr"] .excalidraw .layer-ui__wrapper .zen-mode-transition.App-menu_bottom--transition-left {transform: none;} </style><script src="https://cdn.jsdelivr.net/npm/react@17/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@17/umd/react-dom.production.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0/dist/excalidraw.production.min.js"></script><div id="Drawing_2023-09-23_2241.09.excalidraw.md1"></div><script>(function(){const InitialData={"type":"excalidraw","version":2,"source":"https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/tag/1.9.19","elements":[{"id":"CZsgDfedEqsrXkSK9gQJH","type":"rectangle","x":-231.33984375,"y":-252.75,"width":222,"height":93.296875,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":{"type":3},"seed":834466567,"version":54,"versionNonce":1029562215,"isDeleted":false,"boundElements":[{"id":"ezIUrt6yrVW9zFYWBb6Fx","type":"arrow"}],"updated":1695498089101,"link":null,"locked":false},{"id":"SvNLuaih","type":"text","x":-179.35546875,"y":-209.0703125,"width":41.89994812011719,"height":25,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":null,"seed":1422140583,"version":5,"versionNonce":655470793,"isDeleted":false,"boundElements":null,"updated":1695498085088,"link":null,"locked":false,"text":"beep","rawText":"beep","fontSize":20,"fontFamily":1,"textAlign":"left","verticalAlign":"top","baseline":18,"containerId":null,"originalText":"beep","lineHeight":1.25},{"id":"ezIUrt6yrVW9zFYWBb6Fx","type":"arrow","x":-8.67578125,"y":-157.16796875,"width":105.06640625,"height":109.1796875,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":{"type":2},"seed":1011929737,"version":32,"versionNonce":1434943559,"isDeleted":false,"boundElements":null,"updated":1695498089101,"link":null,"locked":false,"points":[[0,0],[105.06640625,109.1796875]],"lastCommittedPoint":null,"startBinding":{"elementId":"CZsgDfedEqsrXkSK9gQJH","focus":-0.4142254509017335,"gap":2.28515625},"endBinding":null,"startArrowhead":null,"endArrowhead":"arrow"},{"id":"DCQM7O8k","type":"text","x":112.515625,"y":-27.84375,"width":42.17994689941406,"height":25,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":null,"seed":358308487,"version":5,"versionNonce":1560033513,"isDeleted":false,"boundElements":null,"updated":1695498093145,"link":null,"locked":false,"text":"boop","rawText":"boop","fontSize":20,"fontFamily":1,"textAlign":"left","verticalAlign":"top","baseline":18,"containerId":null,"originalText":"boop","lineHeight":1.25},{"id":"rN0xD5d1otB0Txp8mrVKE","type":"rectangle","x":94.73046875,"y":-44.63671875,"width":76.48046875,"height":59.0703125,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":{"type":3},"seed":1024447145,"version":54,"versionNonce":1399780105,"isDeleted":false,"boundElements":null,"updated":1695498097327,"link":null,"locked":false},{"id":"EAi6LVWi5tLJIMLTDPXa7","type":"line","x":93.21875,"y":24.30078125,"width":80.23046875,"height":83.078125,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":{"type":2},"seed":795411751,"version":27,"versionNonce":309139625,"isDeleted":false,"boundElements":null,"updated":1695498103612,"link":null,"locked":false,"points":[[0,0],[-80.23046875,83.078125]],"lastCommittedPoint":null,"startBinding":null,"endBinding":null,"startArrowhead":null,"endArrowhead":null},{"id":"LIzHXsQpdg5HRqdFJywOn","type":"rectangle","x":-90.056640625,"y":115.9765625,"width":103,"height":59,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":{"type":3},"seed":611720073,"version":64,"versionNonce":2050110535,"isDeleted":false,"boundElements":[{"type":"text","id":"ASLeSCTL"}],"updated":1695498114978,"link":null,"locked":false},{"id":"ASLeSCTL","type":"text","x":-64.65660858154297,"y":132.9765625,"width":52.19993591308594,"height":25,"angle":0,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"groupIds":[],"frameId":null,"roundness":null,"seed":1398305225,"version":6,"versionNonce":1100335623,"isDeleted":false,"boundElements":null,"updated":1695498114039,"link":null,"locked":false,"text":"bebop","rawText":"bebop","fontSize":20,"fontFamily":1,"textAlign":"center","verticalAlign":"middle","baseline":18,"containerId":"LIzHXsQpdg5HRqdFJywOn","originalText":"bebop","lineHeight":1.25}],"appState":{"theme":"light","viewBackgroundColor":"#ffffff","currentItemStrokeColor":"#1e1e1e","currentItemBackgroundColor":"transparent","currentItemFillStyle":"hachure","currentItemStrokeWidth":1,"currentItemStrokeStyle":"solid","currentItemRoughness":1,"currentItemOpacity":100,"currentItemFontFamily":1,"currentItemFontSize":20,"currentItemTextAlign":"left","currentItemStartArrowhead":null,"currentItemEndArrowhead":"arrow","scrollX":339,"scrollY":360.9765625,"zoom":{"value":1},"currentItemRoundness":"round","gridSize":null,"gridColor":{"Bold":"#C9C9C9FF","Regular":"#EDEDEDFF"},"currentStrokeOptions":null,"previousGridSize":null,"frameRendering":{"enabled":true,"clip":true,"name":true,"outline":true}},"files":{}};InitialData.scrollToContent=true;App=()=>{const e=React.useRef(null),t=React.useRef(null),[n,i]=React.useState({width:void 0,height:void 0});return React.useEffect(()=>{i({width:t.current.getBoundingClientRect().width,height:t.current.getBoundingClientRect().height});const e=()=>{i({width:t.current.getBoundingClientRect().width,height:t.current.getBoundingClientRect().height})};return window.addEventListener("resize",e),()=>window.removeEventListener("resize",e)},[t]),React.createElement(React.Fragment,null,React.createElement("div",{className:"excalidraw-wrapper",ref:t},React.createElement(ExcalidrawLib.Excalidraw,{ref:e,width:n.width,height:n.height,initialData:InitialData,viewModeEnabled:!0,zenModeEnabled:!0,gridModeEnabled:!1})))},excalidrawWrapper=document.getElementById("Drawing_2023-09-23_2241.09.excalidraw.md1");ReactDOM.render(React.createElement(App),excalidrawWrapper);})();</script>
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 P Plugins/PE Excalidraw/PE2 excalidraw with image.md
 ==========
@@ -964,8 +1063,8 @@ P Plugins/PE Excalidraw/PE2 excalidraw with image.md
 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 Path Rewriting/004 Folder set to root.md
 ==========
@@ -982,8 +1081,8 @@ This means this file should be in the root directory :)
 This subfolder also contains path rewrite testing! 
 
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 Path Rewriting/Subfolder/How deep do the rewrite rules go.md
 ==========
@@ -1003,8 +1102,8 @@ Will this file be in folder `subfolder-rewritten` or in `Subfolder`?
 
 It should be in Subfolder as "matching exits on first hit"
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========
 Path Rewriting/Subfolder2/More specific path rewriting.md
 ==========
@@ -1019,6 +1118,6 @@ Path Rewriting/Subfolder2:fun-folder
 Path Rewriting:
 ```
 /img/user/A Assets/travolta.png
-,/img/user/A Assets/unused_image.png
 ,/img/user/A Assets/travolta.webp
+,/img/user/A Assets/unused_image.png
 ==========

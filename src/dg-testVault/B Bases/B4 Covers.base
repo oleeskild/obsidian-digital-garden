@@ -1,0 +1,13 @@
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+properties:
+  note.year:
+    displayName: Year
+views:
+  - type: cards
+    name: Covers
+    order:
+      - file.name
+      - year
+    image: note.cover
