@@ -834,6 +834,36 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	};
 
 	/**
+	 * Collect image linkpaths referenced by frontmatter properties
+	 * (plain paths, wikilinks, or arrays of either).
+	 */
+	private getFrontmatterImageLinkpaths(file: PublishFile): string[] {
+		const linkpaths: string[] = [];
+
+		const frontmatter = this.metadataCache.getFileCache(file.file)
+			?.frontmatter;
+
+		if (!frontmatter) return linkpaths;
+
+		const scanValue = (value: unknown) => {
+			const linkpath = getFrontmatterImageLinkpath(value);
+
+			if (linkpath) {
+				linkpaths.push(linkpath);
+			} else if (Array.isArray(value)) {
+				value.forEach(scanValue);
+			}
+		};
+
+		for (const [key, value] of Object.entries(frontmatter)) {
+			if (key === "position") continue;
+			scanValue(value);
+		}
+
+		return linkpaths;
+	}
+
+	/**
 	 * Scan frontmatter properties for values that look like image paths
 	 * and include them as assets so they get published alongside the note.
 	 */
@@ -842,44 +872,26 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	): Promise<Array<Asset>> {
 		const assets: Array<Asset> = [];
 
-		const frontmatter = this.metadataCache.getFileCache(file.file)
-			?.frontmatter;
+		for (const linkpath of this.getFrontmatterImageLinkpaths(file)) {
+			try {
+				const linkedFile = this.resolveLinkedFile(
+					linkpath,
+					file.getPath(),
+				);
 
-		if (!frontmatter) return assets;
+				if (!linkedFile) continue;
 
-		const scanValue = async (value: unknown) => {
-			const linkpath = getFrontmatterImageLinkpath(value);
+				const image = await this.vault.readBinary(linkedFile);
+				const imageBase64 = arrayBufferToBase64(image);
 
-			if (linkpath) {
-				try {
-					const linkedFile = this.resolveLinkedFile(
-						linkpath,
-						file.getPath(),
-					);
-
-					if (!linkedFile) return;
-
-					const image = await this.vault.readBinary(linkedFile);
-					const imageBase64 = arrayBufferToBase64(image);
-
-					assets.push({
-						path: `/img/user/${linkedFile.path}`,
-						content: imageBase64,
-						localHash: generateBlobHashFromBase64(imageBase64),
-					});
-				} catch {
-					// Skip unresolvable paths
-				}
-			} else if (Array.isArray(value)) {
-				for (const item of value) {
-					await scanValue(item);
-				}
+				assets.push({
+					path: `/img/user/${linkedFile.path}`,
+					content: imageBase64,
+					localHash: generateBlobHashFromBase64(imageBase64),
+				});
+			} catch {
+				// Skip unresolvable paths
 			}
-		};
-
-		for (const [key, value] of Object.entries(frontmatter)) {
-			if (key === "position") continue;
-			await scanValue(value);
 		}
 
 		return assets;
@@ -986,6 +998,17 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				assets.push(linkedFile.path);
 			} catch {
 				continue;
+			}
+		}
+
+		// Frontmatter image properties (e.g. cover) are published by
+		// extractFrontmatterAssets, so they must be tracked here too or
+		// they get flagged as orphaned and deleted on batch publishes.
+		for (const linkpath of this.getFrontmatterImageLinkpaths(file)) {
+			const linkedFile = this.resolveLinkedFile(linkpath, file.getPath());
+
+			if (linkedFile) {
+				assets.push(linkedFile.path);
 			}
 		}
 

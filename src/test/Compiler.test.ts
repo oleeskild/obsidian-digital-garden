@@ -168,6 +168,104 @@ describe("Compiler", () => {
 		});
 	});
 
+	describe("extractImageLinks", () => {
+		const getCompilerWithFrontmatter = (
+			frontmatter: Record<string, unknown>,
+		) => {
+			return new GardenPageCompiler(
+				{} as Vault,
+				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{
+					getFirstLinkpathDest: jest.fn((linkpath: string) => ({
+						path: linkpath,
+						extension: linkpath.split(".").pop(),
+					})),
+					getFileCache: jest.fn(() => ({ frontmatter })),
+				} as unknown as MetadataCache,
+				jest.fn(),
+			);
+		};
+
+		const getPublishFile = (rawText: string) =>
+			({
+				file: {} as TFile,
+				getPath: () => "B Bases/Books/B2 Book.md",
+				cachedRead: async () => rawText,
+			}) as unknown as PublishFile;
+
+		it("includes plain-path frontmatter cover images", async () => {
+			const compiler = getCompilerWithFrontmatter({
+				"dg-publish": true,
+				cover: "A Assets/travolta.webp",
+			});
+
+			const assets = await compiler.extractImageLinks(
+				getPublishFile(
+					"---\ndg-publish: true\ncover: A Assets/travolta.webp\n---\nBody text.\n",
+				),
+			);
+
+			expect(assets).toContain("A Assets/travolta.webp");
+		});
+
+		it("includes wikilink frontmatter cover images", async () => {
+			const compiler = getCompilerWithFrontmatter({
+				"dg-publish": true,
+				cover: "[[A Assets/travolta.png]]",
+			});
+
+			const assets = await compiler.extractImageLinks(
+				getPublishFile(
+					'---\ndg-publish: true\ncover: "[[A Assets/travolta.png]]"\n---\nBody text.\n',
+				),
+			);
+
+			expect(assets).toContain("A Assets/travolta.png");
+		});
+
+		it("includes covers listed in array frontmatter properties", async () => {
+			const compiler = getCompilerWithFrontmatter({
+				"dg-publish": true,
+				covers: ["A Assets/one.png", "[[A Assets/two.jpg]]"],
+			});
+
+			const assets = await compiler.extractImageLinks(
+				getPublishFile("---\ndg-publish: true\n---\nBody text.\n"),
+			);
+
+			expect(assets).toContain("A Assets/one.png");
+			expect(assets).toContain("A Assets/two.jpg");
+		});
+
+		it("ignores external URL and non-image frontmatter values", async () => {
+			const compiler = getCompilerWithFrontmatter({
+				"dg-publish": true,
+				cover: "https://example.com/cover.jpg",
+				description: "just text",
+			});
+
+			const assets = await compiler.extractImageLinks(
+				getPublishFile("---\ndg-publish: true\n---\nBody text.\n"),
+			);
+
+			expect(assets).toEqual([]);
+		});
+
+		it("still extracts body image embeds", async () => {
+			const compiler = getCompilerWithFrontmatter({
+				"dg-publish": true,
+			});
+
+			const assets = await compiler.extractImageLinks(
+				getPublishFile(
+					"---\ndg-publish: true\n---\n![[A Assets/travolta.png]]\n",
+				),
+			);
+
+			expect(assets).toContain("A Assets/travolta.png");
+		});
+	});
+
 	describe("getFrontmatterImageLinkpath", () => {
 		it("returns plain image paths as-is", () => {
 			expect(getFrontmatterImageLinkpath("attachments/cover.jpg")).toBe(
