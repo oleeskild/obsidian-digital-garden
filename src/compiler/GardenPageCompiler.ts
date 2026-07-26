@@ -685,7 +685,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 								(f) => f.getPath() == linkedFile.path,
 							);
 
-						if (publishedFilesContainsLinkedFile) {
+						if (!publishedFilesContainsLinkedFile) {
+							const lockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+							fileText = `\n<div style="padding: 12px 16px; margin: 1rem 0; border-radius: 8px; border: 1px dashed var(--text-muted); background: var(--background-secondary); display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 0.9em;">${lockIcon}<span>Protected block: <code>${transclusionFileName}</code></span></div>\n\n`;
+						} else {
 							const permalink =
 								metadata?.frontmatter &&
 								metadata.frontmatter["dg-permalink"];
@@ -700,17 +703,17 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 										this.settings.slugifyEnabled,
 								  )}`;
 							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
-						}
 
-						fileText =
-							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
-							fileText +
-							"\n\n</div></div>\n";
+							fileText =
+								`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
+								fileText +
+								"\n\n</div></div>\n";
 
-						if (fileText.match(transcludedRegex)) {
-							fileText = await this.createTranscludedText(
-								currentDepth + 1,
-							)(publishLinkedFile)(fileText);
+							if (fileText.match(transcludedRegex)) {
+								fileText = await this.createTranscludedText(
+									currentDepth + 1,
+								)(publishLinkedFile)(fileText);
+							}
 						}
 
 						// compile dataview in transcluded text
