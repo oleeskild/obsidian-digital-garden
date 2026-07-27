@@ -9,7 +9,7 @@ import {
 import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
-import { resolveFrontmatterImageValue } from "./frontmatterImageLinks";
+import { resolveFrontmatterValue } from "./frontmatterLinks";
 
 export type TFrontmatter = Record<string, unknown> & {
 	"dg-path"?: string;
@@ -88,7 +88,7 @@ export class FrontmatterCompiler {
 		// under "dg-note-properties" to avoid clashing with 11ty reserved
 		// keys (date, layout, pagination, etc.) that would crash the build.
 		// The bases engine reads from this nested object when evaluating queries.
-		const userProperties = this.resolveImageProperties(
+		const userProperties = this.resolveLinkProperties(
 			this.extractUserProperties(fileFrontMatter),
 			file,
 		);
@@ -306,23 +306,19 @@ export class FrontmatterCompiler {
 	}
 
 	/**
-	 * Extracts all user-defined frontmatter properties, excluding
-	 * Obsidian internal fields and dg-* plugin fields that are already
-	 * handled by the compilation pipeline.
+	 * Rewrite link-shaped property values (images and note wikilinks,
+	 * including arrays of them) to full vault paths via the vault's own
+	 * link resolution, so the published values match where assets are
+	 * uploaded and which notes they target.
 	 */
-	/**
-	 * Rewrite image-referencing property values (e.g. cover: "[[img.jpg]]")
-	 * to their full vault path via the vault's own link resolution, so the
-	 * published value matches where the asset is actually uploaded.
-	 */
-	private resolveImageProperties(
+	private resolveLinkProperties(
 		userProps: Record<string, unknown>,
 		file: PublishFile,
 	): Record<string, unknown> {
 		const resolved: Record<string, unknown> = {};
 
 		for (const [key, value] of Object.entries(userProps)) {
-			resolved[key] = resolveFrontmatterImageValue(
+			resolved[key] = resolveFrontmatterValue(
 				value,
 				(linkpath) =>
 					file.metadataCache.getFirstLinkpathDest(
