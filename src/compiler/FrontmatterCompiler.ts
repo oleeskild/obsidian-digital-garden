@@ -9,6 +9,7 @@ import {
 import DigitalGardenSettings from "../models/settings";
 import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 import { PublishFile } from "../publishFile/PublishFile";
+import { resolveFrontmatterImageValue } from "./frontmatterImageLinks";
 
 export type TFrontmatter = Record<string, unknown> & {
 	"dg-path"?: string;
@@ -87,7 +88,10 @@ export class FrontmatterCompiler {
 		// under "dg-note-properties" to avoid clashing with 11ty reserved
 		// keys (date, layout, pagination, etc.) that would crash the build.
 		// The bases engine reads from this nested object when evaluating queries.
-		const userProperties = this.extractUserProperties(fileFrontMatter);
+		const userProperties = this.resolveImageProperties(
+			this.extractUserProperties(fileFrontMatter),
+			file,
+		);
 
 		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
 			? {
@@ -306,6 +310,31 @@ export class FrontmatterCompiler {
 	 * Obsidian internal fields and dg-* plugin fields that are already
 	 * handled by the compilation pipeline.
 	 */
+	/**
+	 * Rewrite image-referencing property values (e.g. cover: "[[img.jpg]]")
+	 * to their full vault path via the vault's own link resolution, so the
+	 * published value matches where the asset is actually uploaded.
+	 */
+	private resolveImageProperties(
+		userProps: Record<string, unknown>,
+		file: PublishFile,
+	): Record<string, unknown> {
+		const resolved: Record<string, unknown> = {};
+
+		for (const [key, value] of Object.entries(userProps)) {
+			resolved[key] = resolveFrontmatterImageValue(
+				value,
+				(linkpath) =>
+					file.metadataCache.getFirstLinkpathDest(
+						linkpath,
+						file.getPath(),
+					)?.path ?? null,
+			);
+		}
+
+		return resolved;
+	}
+
 	private extractUserProperties(
 		frontmatter: Record<string, unknown>,
 	): Record<string, unknown> {

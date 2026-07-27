@@ -42,6 +42,9 @@ const PDF_IFRAME_HEIGHT = "900px";
 const PDF_IFRAME_STYLE = "border:1px solid #ccc;";
 import { PublishFile } from "../publishFile/PublishFile";
 import { replaceBlockIDs } from "./replaceBlockIDs";
+import { getFrontmatterImageLinkpath } from "./frontmatterImageLinks";
+
+export { getFrontmatterImageLinkpath };
 
 export interface Asset {
 	path: string;
@@ -119,38 +122,6 @@ export function createBaseCodeBlock(
 		selectBaseView(baseFileText, selectedViewName?.trim(), baseFileName) +
 		"\n```\n"
 	);
-}
-
-const FRONTMATTER_IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
-
-/**
- * Extract a resolvable vault linkpath from a frontmatter property value
- * that references an image. Handles plain paths ("attachments/cover.jpg")
- * and wikilinks ("[[cover.jpg]]", "![[cover.jpg|300]]"). Returns null for
- * external URLs and values that don't point at an image.
- */
-export function getFrontmatterImageLinkpath(value: unknown): string | null {
-	if (typeof value !== "string") {
-		return null;
-	}
-
-	let linkpath = value.trim();
-
-	const wikilink = linkpath.match(/^!?\[\[([^\]]+)\]\]$/);
-
-	if (wikilink) {
-		linkpath = wikilink[1].split("|")[0].split("#")[0].trim();
-	}
-
-	if (linkpath.startsWith("http")) {
-		return null;
-	}
-
-	if (!FRONTMATTER_IMAGE_EXTENSIONS.test(linkpath)) {
-		return null;
-	}
-
-	return linkpath;
 }
 
 export class GardenPageCompiler implements ITextNodeProcessor {
