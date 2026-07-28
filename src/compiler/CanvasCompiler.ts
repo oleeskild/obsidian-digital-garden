@@ -12,6 +12,7 @@ import {
 } from "../utils/utils";
 import { FrontmatterCompiler } from "./FrontmatterCompiler";
 import { hasPublishFlag } from "../publishFile/Validator";
+import { Base64 } from "js-base64";
 // Interface for text node processing - allows GardenPageCompiler to provide its compile steps
 export interface ITextNodeProcessor {
 	processTextNodeContent: (
@@ -283,7 +284,7 @@ export class CanvasCompiler {
 		}
 
 		// Store processed markdown in base64 data attribute for 11ty to render at build time
-		const base64Markdown = Buffer.from(processedText).toString("base64");
+		const base64Markdown = Base64.encode(processedText);
 
 		// Apply text alignment from styleAttributes
 		const textAlign = node.styleAttributes?.textAlign;
