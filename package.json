@@ -69,5 +69,8 @@
 			"prettier --write",
 			"eslint --fix ."
 		]
+	},
+	"overrides": {
+		"svelte": "$svelte"
 	}
 }
