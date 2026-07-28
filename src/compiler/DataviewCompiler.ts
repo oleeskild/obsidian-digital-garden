@@ -240,7 +240,11 @@ function tryEval(query: string) {
 	let result = "";
 
 	try {
-		result = (0, eval)("const dv = DataviewAPI;" + query); //https://esbuild.github.io/content-types/#direct-eval
+		const evaluateQuery = new Function("dv", `return ${query}`);
+
+		result = evaluateQuery(
+			(window as unknown as { DataviewAPI?: unknown }).DataviewAPI,
+		);
 	} catch (e) {
 		Logger.warn("eval did not yield any result", e);
 	}

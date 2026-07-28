@@ -1,6 +1,6 @@
 // Polyfill Obsidian's String.prototype extensions used in production code
 if (!String.prototype.contains) {
-	// eslint-disable-next-line no-extend-native
+	// eslint-disable-next-line no-extend-native -- Obsidian extends String.prototype with contains() at runtime; tests need the same polyfill
 	Object.defineProperty(String.prototype, "contains", {
 		value(str: string): boolean {
 			return (this as string).indexOf(str) !== -1;
