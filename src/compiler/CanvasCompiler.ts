@@ -11,7 +11,7 @@ import {
 	sanitizePermalink,
 } from "../utils/utils";
 import { FrontmatterCompiler } from "./FrontmatterCompiler";
-
+import { hasPublishFlag } from "../publishFile/Validator";
 // Interface for text node processing - allows GardenPageCompiler to provide its compile steps
 export interface ITextNodeProcessor {
 	processTextNodeContent: (
@@ -423,6 +423,43 @@ export class CanvasCompiler {
 
 		// For markdown files, use an iframe
 		const label = node.file.replace(/\.md$/, "").split("/").pop() || "";
+
+		const linkedFile = this.metadataCache.getFirstLinkpathDest(
+			getLinkpath(node.file),
+			file.getPath(),
+		);
+		let isPublished = false;
+
+		if (linkedFile) {
+			const frontMatter = this.metadataCache.getCache(linkedFile.path)
+				?.frontmatter;
+			isPublished = hasPublishFlag(frontMatter);
+		}
+
+		if (!isPublished) {
+			const lockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+
+			const redactedHtml = `
+<div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); background: var(--background-secondary); border-radius: 8px; border: 2px dashed var(--background-modifier-border); box-sizing: border-box; padding: 12px; text-align: center; gap: 8px; transition: all 0.2s ease;">
+	${lockIcon}
+	<div style="font-size: 14px; font-weight: 500; opacity: 0.9; letter-spacing: 0.3px;">Protected block</div>
+	<code style="font-size: 11px; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border-hover); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${this.escapeHtml(
+		label,
+	)}</code>
+</div>`;
+
+			return `<div class="canvas-node canvas-node-file ${colorClass}" data-node-id="${
+				node.id
+			}" data-file-path="${this.escapeHtml(
+				node.file,
+			)}" style="${baseStyle}">
+	<div class="canvas-node-container" style="border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow: hidden;">
+		<div class="canvas-node-content" style="height: 100%; width: 100%; padding: 0 !important; overflow: hidden;">
+			${redactedHtml}
+		</div>
+	</div>
+</div>`;
+		}
 
 		return `<div class="canvas-node canvas-node-file ${colorClass}" data-node-id="${
 			node.id
