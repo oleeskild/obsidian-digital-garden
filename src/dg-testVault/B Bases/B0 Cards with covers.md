@@ -39,3 +39,24 @@ views:
 ## Transcluded standalone base
 
 ![[B4 Covers.base]]
+
+## Grouped by author (note links)
+
+Rows should group under "Ada Lovelace" (linked note title), not raw
+wikilink text; the `Editor` value renders as a styled dead link.
+
+```base
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+views:
+  - type: table
+    name: By author
+    groupBy:
+      property: Author
+      direction: ASC
+    order:
+      - file.name
+      - Author
+      - Editor
+```

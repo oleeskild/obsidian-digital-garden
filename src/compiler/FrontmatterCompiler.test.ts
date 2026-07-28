@@ -159,3 +159,68 @@ describe("FrontmatterCompiler image property resolution", () => {
 		expect(props.cover).toBe("https://example.com/cover.jpg");
 	});
 });
+
+describe("FrontmatterCompiler note link resolution", () => {
+	const vaultFiles: Record<string, string> = {
+		"David Berman": "06 Assets/Lyrics/Artists/David Berman.md",
+		"cover.jpg": "06 Assets/covers/cover.jpg",
+	};
+
+	const fakeFileWithNotes = (path = "notes/test.md") =>
+		({
+			getPath: () => path,
+			meta: {
+				getUpdatedAt: () => undefined,
+				getCreatedAt: () => undefined,
+			},
+			metadataCache: {
+				getFirstLinkpathDest: (linkpath: string) =>
+					vaultFiles[linkpath]
+						? { path: vaultFiles[linkpath] }
+						: null,
+			},
+		}) as unknown as PublishFile;
+
+	const getUserProps = (frontmatter: Record<string, unknown>) => {
+		const compiler = getCompiler();
+
+		const result = compiler.compile(
+			fakeFileWithNotes(),
+			frontmatter as unknown as FrontMatterCache,
+		);
+
+		return parsePublished(result)["dg-note-properties"] as Record<
+			string,
+			unknown
+		>;
+	};
+
+	it("resolves bare note wikilinks to full vault paths without .md", () => {
+		const props = getUserProps({ author: "[[David Berman]]" });
+		expect(props.author).toBe("[[06 Assets/Lyrics/Artists/David Berman]]");
+	});
+
+	it("resolves note wikilinks inside arrays", () => {
+		const props = getUserProps({
+			authors: ["[[David Berman]]", "[[Nobody]]"],
+		});
+
+		expect(props.authors).toEqual([
+			"[[06 Assets/Lyrics/Artists/David Berman]]",
+			"[[Nobody]]",
+		]);
+	});
+
+	it("resolves image wikilinks inside arrays", () => {
+		const props = getUserProps({ covers: ["[[cover.jpg]]"] });
+		expect(props.covers).toEqual(["[[06 Assets/covers/cover.jpg]]"]);
+	});
+
+	it("preserves alias on resolved note links", () => {
+		const props = getUserProps({ author: "[[David Berman|Dave]]" });
+
+		expect(props.author).toBe(
+			"[[06 Assets/Lyrics/Artists/David Berman|Dave]]",
+		);
+	});
+});
