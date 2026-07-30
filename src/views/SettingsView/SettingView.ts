@@ -453,6 +453,23 @@ export default class SettingView {
 			});
 
 		new Setting(noteSettingsModal.contentEl)
+			.setName("Show Graph Depth Control (dg-show-graph-depth-control)")
+			.setDesc("When turned on, graph will show a depth slider.")
+			.addToggle((t) => {
+				toggles["dgShowGraphDepthControl"] = t;
+
+				t.setValue(
+					this.settings.defaultNoteSettings.dgShowGraphDepthControl,
+				);
+
+				t.onChange((val) => {
+					this.settings.defaultNoteSettings.dgShowGraphDepthControl =
+						val;
+					markAsChanged();
+				});
+			});
+
+		new Setting(noteSettingsModal.contentEl)
 			.setName("Show backlinks for notes (dg-show-backlinks)")
 			.setDesc(
 				"When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.",

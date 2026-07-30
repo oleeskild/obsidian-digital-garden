@@ -92,6 +92,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 		dgPassFrontmatter: false,
 		dgShowBacklinks: false,
 		dgShowLocalGraph: false,
+		dgShowGraphDepthControl: false,
 		dgShowInlineTitle: false,
 		dgShowFileTree: false,
 		dgEnableSearch: false,
