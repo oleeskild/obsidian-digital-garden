@@ -78,6 +78,15 @@ export function imagePathBase(settings: ContentBaseSettings): string {
 }
 
 /**
+ * Compiled asset paths carry the CMS prefix (`/img/user/<vaultPath>`), while
+ * remote image hashes from {@link DigitalGardenSiteManager.getImageHashes} are
+ * keyed by plain vault path. This converts the former into the latter.
+ */
+export function imageHashKey(assetPath: string): string {
+	return assetPath.replace(/^\/img\/user\//, "");
+}
+
+/**
  * Repo path inside `src/site`, e.g. `sitePath(settings, "/logo.png")` → `src/site/logo.png`.
  * `sub` is expected to begin with `/`.
  */

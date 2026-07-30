@@ -8,6 +8,10 @@ const NOTE_PATH = "06 Assets/Lyrics/Bright Flight.md";
 const NOTE_CONTENT = "compiled note content";
 const COVER_PATH = "06 Assets/Blog/Album Covers/Bright Flight.jpg";
 
+// Compiled assets carry the CMS prefix (see GardenPageCompiler), while
+// remote image hashes are keyed by plain vault path (see getImageHashes).
+const COVER_ASSET_PATH = `/img/user/${COVER_PATH}`;
+
 const makeCompiledNote = (
 	path: string,
 	content: string,
@@ -57,7 +61,9 @@ const makeManager = (options: {
 
 describe("getPublishStatus", () => {
 	it("treats an unchanged note with all images on the remote as published", async () => {
-		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [COVER_PATH]);
+		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [
+			COVER_ASSET_PATH,
+		]);
 
 		const manager = makeManager({
 			remoteNoteHashes: { [NOTE_PATH]: generateBlobHash(NOTE_CONTENT) },
@@ -78,7 +84,9 @@ describe("getPublishStatus", () => {
 		// Regression: notes published before frontmatter covers were
 		// uploaded (< 2.80.2) never get their covers published, because
 		// the note itself hashes as unchanged and is skipped forever.
-		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [COVER_PATH]);
+		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [
+			COVER_ASSET_PATH,
+		]);
 
 		const manager = makeManager({
 			remoteNoteHashes: { [NOTE_PATH]: generateBlobHash(NOTE_CONTENT) },

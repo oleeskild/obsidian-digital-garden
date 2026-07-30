@@ -16,7 +16,7 @@ import { RepositoryConnection } from "../repositoryConnection/RepositoryConnecti
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
-import { imagePathBase, notePathBase, sitePath } from "./paths";
+import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -364,9 +364,7 @@ export default class Publisher {
 		remoteImageHashes: Record<string, string> = {},
 	) {
 		for (const image of assets.images) {
-			// Convert asset path to hash key: /img/user/attachments/image.png -> attachments/image.png
-			const hashKey = image.path.replace("/img/user/", "");
-			const remoteHash = remoteImageHashes[hashKey];
+			const remoteHash = remoteImageHashes[imageHashKey(image.path)];
 
 			// Skip if unchanged (local hash matches remote hash)
 			if (

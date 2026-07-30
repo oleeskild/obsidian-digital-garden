@@ -2,6 +2,7 @@ import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteM
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
+import { imageHashKey } from "./paths";
 
 /**
  *  Manages the publishing status of notes and images for a digital garden.
@@ -74,7 +75,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			// (e.g. frontmatter covers published with plugin < 2.80.2) is
 			// not fully published, even if the note text is unchanged.
 			const hasMissingRemoteImage = assets.images.some(
-				(image) => !remoteImageHashes[image.path],
+				(image) => !remoteImageHashes[imageHashKey(image.path)],
 			);
 
 			if (!remoteHash) {
