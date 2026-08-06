@@ -19,6 +19,12 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import {
+	GitProvider,
+	PublicationProvider,
+	platformForProvider,
+	providerForPlatform,
+} from "src/models/PublicationProvider";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { notifyLimitReached } from "src/forestry/limitNotice";
@@ -42,9 +48,9 @@ const defaultTheme = {
 };
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
-	githubRepo: "",
-	githubToken: "",
-	githubUserName: "",
+	gitRepo: "",
+	gitToken: "",
+	gitUsername: "",
 	forgejoApiUrl: "",
 	gardenBaseUrl: "",
 	prHistory: [],
@@ -78,6 +84,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	pathRewriteRules: "",
 	customFilters: [],
 	publishPlatform: PublishPlatform.GitHub,
+	publicationProvider: PublicationProvider.Git,
+	gitProvider: GitProvider.GitHub,
 
 	contentClassesKey: "dg-content-classes",
 
@@ -204,10 +212,25 @@ export default class DigitalGarden extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData(),
+		const saved = (await this.loadData()) ?? {};
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+
+		if (saved.publicationProvider === undefined) {
+			this.settings.publicationProvider = providerForPlatform(
+				this.settings.publishPlatform,
+			);
+		}
+
+		if (saved.gitProvider === undefined) {
+			this.settings.gitProvider =
+				this.settings.publishPlatform === PublishPlatform.Forgejo
+					? GitProvider.Forgejo
+					: GitProvider.GitHub;
+		}
+
+		this.settings.publishPlatform = platformForProvider(
+			this.settings.publicationProvider,
+			this.settings.gitProvider,
 		);
 	}
 
@@ -418,6 +441,18 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
+		for (const [provider, id, label] of [
+			[PublicationProvider.Git, "git", "Git"],
+			[PublicationProvider.LocalFolder, "local-folder", "Local Folder"],
+			[PublicationProvider.Forest, "forest", "Forest"],
+		] as const) {
+			this.addCommand({
+				id: `publish-all-to-${id}`,
+				name: `Publish All Marked Notes to ${label}`,
+				callback: async () => this.publishToProvider(provider, label),
+			});
+		}
+
 		this.addCommand({
 			id: "dg-mark-note-for-publish",
 			name: "Add publish flag",
@@ -508,6 +543,86 @@ export default class DigitalGarden extends Plugin {
 		} catch (e) {
 			// Validation errors already show Notices
 			Logger.error("Local export failed", e);
+		}
+	}
+
+	private async publishToProvider(
+		provider: PublicationProvider,
+		label: string,
+	): Promise<void> {
+		if (this.isPublishing) {
+			new Notice("A publish operation is already in progress.");
+
+			return;
+		}
+
+		if (
+			provider === PublicationProvider.LocalFolder &&
+			!Platform.isDesktop
+		) {
+			new Notice("Local-folder publishing is only available on desktop.");
+
+			return;
+		}
+
+		this.isPublishing = true;
+
+		try {
+			const settings = {
+				...this.settings,
+				publishPlatform: platformForProvider(
+					provider,
+					this.settings.gitProvider,
+				),
+			};
+
+			const publisher = new Publisher(
+				this.app.vault,
+				this.app.metadataCache,
+				settings,
+			);
+			publisher.validateSettings();
+
+			const siteManager = new DigitalGardenSiteManager(
+				this.app.metadataCache,
+				settings,
+			);
+
+			const status = await new PublishStatusManager(
+				siteManager,
+				publisher,
+			).getPublishStatus();
+			const notes = status.changedNotes.concat(status.unpublishedNotes);
+
+			const total =
+				notes.length +
+				status.deletedNotePaths.length +
+				status.deletedImagePaths.length;
+
+			if (total === 0) {
+				new Notice(`${label} is already fully synced.`);
+
+				return;
+			}
+
+			if (!(await publisher.publishBatch(notes)))
+				throw new Error("Batch publish failed");
+			for (const file of status.deletedNotePaths)
+				await publisher.deleteNote(file.path, file.sha);
+			for (const image of status.deletedImagePaths)
+				await publisher.deleteImage(image.path, image.sha);
+			new Notice(`Published ${notes.length} notes to ${label}.`);
+		} catch (error) {
+			if (error instanceof LimitReachedError) this.showLimitNotice(error);
+			else {
+				Logger.error(`Unable to publish to ${label}`, error);
+
+				new Notice(
+					`Unable to publish to ${label}. Check its settings.`,
+				);
+			}
+		} finally {
+			this.isPublishing = false;
 		}
 	}
 

@@ -66,6 +66,16 @@ h4 {
 	margin-left: -9px;
 }
 
+#github-settings .setting-item.is-disabled {
+	opacity: 0.5;
+}
+
+#github-settings .setting-item.is-disabled input:disabled {
+	cursor: not-allowed;
+	background-color: var(--background-modifier-form-field);
+	color: var(--text-faint);
+}
+
 /* Connection status styles */
 .connection-status {
 	display: inline-flex;

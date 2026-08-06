@@ -1,11 +1,12 @@
 import { ILogLevel } from "js-logger";
 import { PublishPlatform } from "./PublishPlatform";
+import { GitProvider, PublicationProvider } from "./PublicationProvider";
 
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
-	githubToken: string;
-	githubRepo: string;
-	githubUserName: string;
+	gitToken: string;
+	gitRepo: string;
+	gitUsername: string;
 	/** REST API root, e.g. https://git.example.com/api/v1. */
 	forgejoApiUrl?: string;
 
@@ -48,6 +49,8 @@ export default interface DigitalGardenSettings {
 	contentClassesKey: string;
 
 	publishPlatform: PublishPlatform;
+	publicationProvider: PublicationProvider;
+	gitProvider: GitProvider;
 	forestrySettings: {
 		forestryPageName: string;
 		apiKey: string;

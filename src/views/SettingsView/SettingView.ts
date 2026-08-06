@@ -26,7 +26,7 @@ import {
 	SvgFileSuggest,
 } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
-import { GithubSettings } from "./GithubSettings";
+import { GitSettings } from "./GitSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
@@ -36,6 +36,11 @@ import {
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import {
+	GitProvider,
+	PublicationProvider,
+	platformForProvider,
+} from "src/models/PublicationProvider";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
 import { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
@@ -129,44 +134,27 @@ export default class SettingView {
 		});
 
 		new Setting(this.settingsRootElement)
-			.setName("Publish Platform")
+			.setName("Default publication provider")
+			.setDesc("Used by publishing commands that do not name a provider.")
 			.addDropdown((dd) => {
-				dd.addOption(PublishPlatform.GitHub, "GitHub");
-
-				dd.addOption(
-					PublishPlatform.Forgejo,
-					"Forgejo / compatible server",
-				);
-				dd.addOption(PublishPlatform.LocalFolder, "Local folder");
-				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
-				dd.setValue(this.settings.publishPlatform);
+				dd.addOption(PublicationProvider.Git, "Git");
+				dd.addOption(PublicationProvider.LocalFolder, "Local folder");
+				dd.addOption(PublicationProvider.Forest, "Forest");
+				dd.setValue(this.settings.publicationProvider);
 
 				dd.onChange(async (val) => {
-					switch (val) {
-						case PublishPlatform.GitHub:
-						case PublishPlatform.Forgejo:
-						case PublishPlatform.LocalFolder:
-						case PublishPlatform.ForestryMd:
-							this.settings.publishPlatform =
-								val as PublishPlatform;
-							break;
-					}
-					await this.saveSettings();
+					this.settings.publicationProvider =
+						val as PublicationProvider;
 
-					this.initializePublishPlatformSettings(
-						publishPlatformSettings,
+					this.settings.publishPlatform = platformForProvider(
+						this.settings.publicationProvider,
+						this.settings.gitProvider,
 					);
+					await this.saveSettings();
 				});
 			});
 
-		const publishPlatformSettings = this.settingsRootElement.createEl(
-			"div",
-			{
-				cls: "publish-platform-settings",
-			},
-		);
-
-		this.initializePublishPlatformSettings(publishPlatformSettings);
+		this.initializeProviderSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
@@ -240,45 +228,91 @@ export default class SettingView {
 		prModal.titleEl.createEl("h1", "Site template settings");
 	}
 
-	private initializePublishPlatformSettings(target: HTMLElement) {
-		target.empty();
+	private initializeProviderSettings() {
+		this.settingsRootElement.createEl("h2", { text: "Git" });
 
-		if (
-			this.settings.publishPlatform === PublishPlatform.GitHub ||
-			this.settings.publishPlatform === PublishPlatform.Forgejo
-		) {
-			new GithubSettings(this, target);
-		} else if (
-			this.settings.publishPlatform === PublishPlatform.LocalFolder
-		) {
-			new Setting(target)
-				.setName("Local garden folder path")
-				.setDesc(
-					"Absolute path to a digitalgarden template folder. Publishing performs a full sync of all notes marked dg-publish.",
-				)
-				.addText((text) => {
-					text.setPlaceholder("/path/to/your/digitalgarden")
-						.setValue(this.settings.localExportPath ?? "")
-						.onChange(async (value) => {
-							this.settings.localExportPath = value;
-							await this.saveSettings();
-						});
-					text.inputEl.style.width = "300px";
-				});
+		const gitTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
+		const gitSettingsRef: { current?: GitSettings } = {};
 
-			initializeCustomPathSettings(this, target);
-		} else {
-			mount(ForestrySettings, {
-				target,
-				props: {
-					settings: this.settings,
-					saveSettings: this.saveSettings,
-					onConnect: async () => {
-						this.reInitializeSettings();
-					},
-				},
+		new Setting(gitTarget).setName("Git service").addDropdown((dd) =>
+			dd
+				.addOption(GitProvider.GitHub, "GitHub")
+				.addOption(GitProvider.Forgejo, "Forgejo")
+				.setValue(this.settings.gitProvider)
+				.onChange(async (value) => {
+					this.settings.gitProvider = value as GitProvider;
+
+					if (
+						this.settings.publicationProvider ===
+						PublicationProvider.Git
+					) {
+						this.settings.publishPlatform = platformForProvider(
+							PublicationProvider.Git,
+							this.settings.gitProvider,
+						);
+					}
+					await this.saveSettings();
+
+					gitSettingsRef.current?.setPlatform(
+						platformForProvider(
+							PublicationProvider.Git,
+							this.settings.gitProvider,
+						),
+					);
+				}),
+		);
+
+		gitSettingsRef.current = new GitSettings(
+			this,
+			gitTarget,
+			platformForProvider(
+				PublicationProvider.Git,
+				this.settings.gitProvider,
+			),
+		);
+
+		this.settingsRootElement.createEl("h2", { text: "Local Folder" });
+
+		const localTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
+
+		new Setting(localTarget)
+			.setName("Local garden folder path")
+			.setDesc("Absolute path to the local site folder.")
+			.addText((text) => {
+				text.setPlaceholder("/path/to/your/digitalgarden")
+					.setValue(this.settings.localExportPath ?? "")
+					.onChange(async (value) => {
+						this.settings.localExportPath = value;
+						await this.saveSettings();
+					});
+				text.inputEl.style.width = "300px";
 			});
-		}
+
+		this.settingsRootElement.createEl("h2", { text: "Forest" });
+
+		const forestTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
+
+		mount(ForestrySettings, {
+			target: forestTarget,
+			props: {
+				settings: this.settings,
+				saveSettings: this.saveSettings,
+				onConnect: async () => {
+					this.reInitializeSettings();
+				},
+			},
+		});
+
+		this.settingsRootElement.createEl("h2", {
+			text: "Git and Local Folder Output Paths",
+		});
+		initializeCustomPathSettings(this, this.settingsRootElement);
 	}
 
 	private async initializeDefaultNoteSettings() {

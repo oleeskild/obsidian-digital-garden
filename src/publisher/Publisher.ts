@@ -406,23 +406,23 @@ export default class Publisher {
 			}
 
 			// Repository destinations share owner, repository, and token settings.
-			if (!this.settings.githubRepo) {
+			if (!this.settings.gitRepo) {
 				new Notice(
-					"Config error: You need to define a GitHub repo in the plugin settings",
+					"Config error: You need to define a Git repo in the plugin settings",
 				);
 				throw {};
 			}
 
-			if (!this.settings.githubUserName) {
+			if (!this.settings.gitUsername) {
 				new Notice(
-					"Config error: You need to define a GitHub Username in the plugin settings",
+					"Config error: You need to define a Git Username in the plugin settings",
 				);
 				throw {};
 			}
 
-			if (!this.settings.githubToken) {
+			if (!this.settings.gitToken) {
 				new Notice(
-					"Config error: You need to define a GitHub Token in the plugin settings",
+					"Config error: You need to define a Git Token in the plugin settings",
 				);
 				throw {};
 			}

@@ -31,11 +31,11 @@ export default class PublishPlatformConnectionFactory {
 		if (settings.publishPlatform === PublishPlatform.GitHub) {
 			return new RepositoryConnection({
 				octoKit: new Octokit({
-					auth: settings.githubToken,
+					auth: settings.gitToken,
 					log: oktokitLogger,
 				}),
-				userName: settings.githubUserName,
-				pageName: settings.githubRepo,
+				userName: settings.gitUsername,
+				pageName: settings.gitRepo,
 				notesDirectory: settings.notesDirectory,
 				assetsDirectory: settings.assetsDirectory,
 			});
@@ -47,9 +47,9 @@ export default class PublishPlatformConnectionFactory {
 			}
 
 			return new ForgejoRepositoryConnection({
-				api: createForgejoApi(baseUrl, settings.githubToken),
-				userName: settings.githubUserName,
-				pageName: settings.githubRepo,
+				api: createForgejoApi(baseUrl, settings.gitToken),
+				userName: settings.gitUsername,
+				pageName: settings.gitRepo,
 				notesDirectory: settings.notesDirectory,
 				assetsDirectory: settings.assetsDirectory,
 			});
