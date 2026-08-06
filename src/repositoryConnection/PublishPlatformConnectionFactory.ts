@@ -10,6 +10,7 @@ import {
 	createForgejoApi,
 	ForgejoRepositoryConnection,
 } from "./ForgejoRepositoryConnection";
+import { LocalFolderRepositoryConnection } from "./LocalFolderRepositoryConnection";
 
 const oktokitLogger = Logger.get("octokit");
 
@@ -35,7 +36,8 @@ export default class PublishPlatformConnectionFactory {
 				}),
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
-				contentBaseDir: settings.contentBaseDir,
+				notesDirectory: settings.notesDirectory,
+				assetsDirectory: settings.assetsDirectory,
 			});
 		} else if (settings.publishPlatform === PublishPlatform.Forgejo) {
 			const baseUrl = settings.forgejoApiUrl?.trim().replace(/\/+$/, "");
@@ -48,7 +50,8 @@ export default class PublishPlatformConnectionFactory {
 				api: createForgejoApi(baseUrl, settings.githubToken),
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
-				contentBaseDir: settings.contentBaseDir,
+				notesDirectory: settings.notesDirectory,
+				assetsDirectory: settings.assetsDirectory,
 			});
 		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
 			const userName = "Forestry";
@@ -71,6 +74,8 @@ export default class PublishPlatformConnectionFactory {
 				pageName,
 				octoKit,
 			});
+		} else if (settings.publishPlatform === PublishPlatform.LocalFolder) {
+			return new LocalFolderRepositoryConnection(settings);
 		} else {
 			throw new Error("Publish platform not supported");
 		}

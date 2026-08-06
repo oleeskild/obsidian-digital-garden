@@ -3,6 +3,7 @@ import SettingView from "./SettingView";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import type { IRepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
+import { initializeCustomPathSettings } from "./CustomPathSettings";
 
 export class GithubSettings {
 	settings: SettingView;
@@ -32,7 +33,7 @@ export class GithubSettings {
 		) {
 			this.initializeForgejoApiUrlSetting();
 		}
-		this.initializeContentBaseDirSetting();
+		initializeCustomPathSettings(this.settings, this.settingsRootElement);
 		// Rendered last with prepend() so the nudge sits above the header.
 		this.initializeForestryUpgradeNotice();
 	}
@@ -359,23 +360,6 @@ export class GithubSettings {
 					.setValue(this.settings.settings.forgejoApiUrl ?? "")
 					.onChange(async (value) => {
 						this.settings.settings.forgejoApiUrl = value;
-						await this.checkConnectionAndSaveSettings();
-					}),
-			);
-	}
-
-	private initializeContentBaseDirSetting() {
-		new Setting(this.settingsRootElement)
-			.setName("Content base directory (advanced)")
-			.setDesc(
-				"Subdirectory inside your repository where the digital garden template lives (e.g. Web). Leave empty if the template is at the repo root. Affects GitHub publishing, remote settings, and local export.",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("Web")
-					.setValue(this.settings.settings.contentBaseDir ?? "")
-					.onChange(async (value) => {
-						this.settings.settings.contentBaseDir = value;
 						await this.checkConnectionAndSaveSettings();
 					}),
 			);

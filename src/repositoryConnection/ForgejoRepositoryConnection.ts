@@ -3,7 +3,7 @@ import { Base64 } from "js-base64";
 import Logger from "js-logger";
 import type { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { throwIfLimitError } from "../forestry/LimitReachedError";
-import { normalizeContentBaseDir } from "../publisher/paths";
+import { normalizeRepoDirectory } from "../publisher/paths";
 import type {
 	IPutPayload,
 	IRepositoryConnection,
@@ -20,29 +20,34 @@ export interface IForgejoConnection {
 	api: ForgejoApi;
 	userName: string;
 	pageName: string;
-	contentBaseDir?: string;
+	notesDirectory?: string;
+	assetsDirectory?: string;
 }
 
 export class ForgejoRepositoryConnection implements IRepositoryConnection {
 	private readonly api: ForgejoApi;
 	private readonly userName: string;
 	private readonly pageName: string;
-	private readonly contentBase: string;
+	private readonly noteBase: string;
+	private readonly assetBase: string;
 
 	constructor({
 		api,
 		userName,
 		pageName,
-		contentBaseDir,
+		notesDirectory,
+		assetsDirectory,
 	}: IForgejoConnection) {
 		this.api = api;
 		this.userName = userName;
 		this.pageName = pageName;
-		this.contentBase = normalizeContentBaseDir(contentBaseDir);
-	}
 
-	get contentBaseDir(): string {
-		return this.contentBase;
+		this.noteBase =
+			normalizeRepoDirectory(notesDirectory) || NOTE_PATH_BASE;
+
+		this.assetBase =
+			normalizeRepoDirectory(assetsDirectory) ||
+			`${IMAGE_PATH_BASE}img/user/`;
 	}
 
 	getRepositoryName() {
@@ -207,8 +212,8 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 			const normalized = path.startsWith("/") ? path.slice(1) : path;
 
 			const repositoryPath = path.endsWith(".md")
-				? `${this.contentBase}${NOTE_PATH_BASE}${normalized}`
-				: `${this.contentBase}${IMAGE_PATH_BASE}${normalized}`;
+				? `${this.noteBase}${normalized}`
+				: `${this.assetBase}${normalized}`;
 
 			return {
 				operation: "delete",
@@ -243,7 +248,7 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 		for (const file of compiledFiles) {
 			const [text, assets] = file.compiledFile;
 
-			const notePath = `${this.contentBase}${NOTE_PATH_BASE}${file
+			const notePath = `${this.noteBase}${file
 				.getPath()
 				.replace(/^\//, "")}`;
 			const noteSha = hashes.get(notePath);
@@ -265,9 +270,10 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 					continue;
 				}
 
-				const imagePath = `${
-					this.contentBase
-				}${IMAGE_PATH_BASE}${asset.path.replace(/^\//, "")}`;
+				const imagePath = `${this.assetBase}${asset.path.replace(
+					/^\/?img\/user\//,
+					"",
+				)}`;
 				const imageSha = hashes.get(imagePath);
 
 				operations.push({

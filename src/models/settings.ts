@@ -98,5 +98,9 @@ export default interface DigitalGardenSettings {
 	localExportPath?: string;
 	/** Dev-only opt-in: run the local export automatically on plugin load. */
 	localExportOnLoad?: boolean;
-	contentBaseDir?: string;
+	/** Repository-relative destinations. Empty values retain the template defaults. */
+	notesDirectory?: string;
+	assetsDirectory?: string;
+	siteDirectory?: string;
+	settingsFilePath?: string;
 }

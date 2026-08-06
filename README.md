@@ -173,18 +173,16 @@ You can export your garden to a local folder instead of publishing to GitHub. Th
 
 This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
 
-## Publishing into a subfolder / monorepo
+## Custom repository layouts
 
-By default the plugin assumes the [digitalgarden](https://github.com/oleeskild/digitalgarden) template lives at the **root** of your target repository (notes go to `src/site/notes/`, images to `src/site/img/user/`, settings to `.env`).
+Self-hosted gardens do not have to use the template's directory layout. The advanced GitHub settings can independently configure:
 
-If your Eleventy garden template lives in a **subdirectory** of the repo instead — a monorepo layout where, for example, the garden is under `Web/` — set the **Content base directory (advanced)** field in the GitHub settings to that subfolder (e.g. `Web`). Every published path is then prefixed with it:
+- **Notes directory** — where compiled Markdown notes are written.
+- **Assets directory** — where note images and other user assets are written.
+- **Site directory** — where site-level files such as the logo and navigation order are written.
+- **Settings file path** — where generated garden settings are written.
 
-| Setting               | Notes are written to    | Settings file |
-| --------------------- | ----------------------- | ------------- |
-| _(empty)_ (default)   | `src/site/notes/`       | `.env`        |
-| `Web`                 | `Web/src/site/notes/`   | `Web/.env`    |
-
-This affects **GitHub publishing**, **"Load remote settings"**, **template updates**, and **local export** consistently. The setting only applies to self-hosted (GitHub) publishing — it is ignored on managed platforms like Forestry. Values containing `..` segments are invalid and treated as empty. Leaving the field empty keeps the historical repo-root behavior unchanged.
+All values are relative to the repository root. For example, `Web/content/articles`, `Web/public/uploads`, `Web/app/site`, and `Web/config/garden.env` can place a custom site under a `Web` monorepo directory. Empty values retain the existing Digital Garden defaults. Absolute paths and paths containing `.` or `..` segments are not accepted.
 
 ## Local development
 
@@ -259,4 +257,3 @@ Huge thanks to all the contributors who helped in making this
 Built with coffee and stubbornness. If this plugin has been useful to you, a coffee would make my day—but it's completely free and always will be.
 
 [<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
-

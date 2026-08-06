@@ -5,7 +5,6 @@ const makeConnection = (repos: Record<string, jest.Mock>) =>
 		api: { repos } as never,
 		userName: "owner",
 		pageName: "garden",
-		contentBaseDir: "Web",
 	});
 
 describe("ForgejoRepositoryConnection", () => {

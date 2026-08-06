@@ -54,16 +54,6 @@ export class TemplateUpdateChecker {
 		return file;
 	}
 
-	/**
-	 * Template file paths (from plugin-info.json) are relative to the template root.
-	 * In the user's repo the template may live under a content base directory, so
-	 * lookups and writes there must be prefixed. IUpdateFileInfo paths stay
-	 * template-relative; the prefix is applied at the user-repo boundary only.
-	 */
-	private get userContentBase(): string {
-		return this.userGardenConnection.contentBaseDir;
-	}
-
 	private getFilesToDelete(
 		pluginInfo: DigitalGardenPluginInfo,
 		userFileList: NonNullable<TRepositoryContent>,
@@ -71,10 +61,7 @@ export class TemplateUpdateChecker {
 		const filesToDelete = [];
 
 		for (const file of pluginInfo.filesToDelete) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			if (currentFile) {
 				filesToDelete.push({ path: file, sha: currentFile.sha });
@@ -91,10 +78,7 @@ export class TemplateUpdateChecker {
 		const filesToUpdate = [];
 
 		for (const file of pluginInfo.filesToModify) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			const baseFile = this.getFileInfoFromContent(
 				baseGardenFileList,
@@ -116,10 +100,7 @@ export class TemplateUpdateChecker {
 		const filesToAdd = [];
 
 		for (const file of pluginInfo.filesToAdd) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			if (!currentFile) {
 				filesToAdd.push({ path: file });
@@ -325,13 +306,10 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToDelete) {
-			await this.userGardenConnection.deleteFile(
-				this.userGardenConnection.contentBaseDir + file.path,
-				{
-					branch,
-					sha: file.sha,
-				},
-			);
+			await this.userGardenConnection.deleteFile(file.path, {
+				branch,
+				sha: file.sha,
+			});
 		}
 	}
 
@@ -340,8 +318,6 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToAdd) {
-			// Content comes from the base template repo (template-relative path),
-			// but lands in the user's repo under its content base directory.
 			const baseTemplateFile = await this.baseGardenConnection.getFile(
 				file.path,
 			);
@@ -352,7 +328,7 @@ export class TemplateUpdater {
 
 			await this.userGardenConnection.updateFile({
 				content: baseTemplateFile.content,
-				path: this.userGardenConnection.contentBaseDir + file.path,
+				path: file.path,
 				branch: branch,
 				sha: file.sha,
 				message: "Update files",

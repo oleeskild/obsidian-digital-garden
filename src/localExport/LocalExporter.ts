@@ -5,9 +5,10 @@ import Logger from "js-logger";
 import DigitalGardenSettings from "../models/settings";
 import Publisher from "../publisher/Publisher";
 import {
-	NOTE_PATH_BASE,
-	IMAGE_PATH_BASE,
-	normalizeContentBaseDir,
+	envPath,
+	imagePathBase,
+	notePathBase,
+	sitePath,
 } from "../publisher/paths";
 import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
 
@@ -39,8 +40,6 @@ export class LocalExporter {
 			throw new Error("localExportPath is not configured");
 		}
 
-		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
-
 		await this.validateTargetPath(targetPath);
 		await this.writeEnvFile(targetPath);
 		await this.writeNavigationOrder(targetPath);
@@ -48,7 +47,7 @@ export class LocalExporter {
 		try {
 			await this.copyFromVault(
 				this.settings.faviconPath,
-				path.join(targetPath, base, "src", "site"),
+				path.join(targetPath, sitePath(this.settings, "")),
 				"favicon.svg",
 			);
 		} catch (e) {
@@ -58,7 +57,7 @@ export class LocalExporter {
 		try {
 			await this.copyFromVault(
 				this.settings.logoPath,
-				path.join(targetPath, base, "src", "site"),
+				path.join(targetPath, sitePath(this.settings, "")),
 				"logo",
 			);
 		} catch (e) {
@@ -67,8 +66,8 @@ export class LocalExporter {
 
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
-		const notesDir = path.join(targetPath, base, NOTE_PATH_BASE);
-		const imagesDir = path.join(targetPath, base, IMAGE_PATH_BASE);
+		const notesDir = path.join(targetPath, notePathBase(this.settings));
+		const imagesDir = path.join(targetPath, imagePathBase(this.settings));
 
 		await fs.mkdir(notesDir, { recursive: true });
 		await fs.mkdir(imagesDir, { recursive: true });
@@ -95,11 +94,8 @@ export class LocalExporter {
 				// Write assets from this note
 				for (const image of assets.images) {
 					const imagePath = path.join(
-						targetPath,
-						base,
-						"src",
-						"site",
-						image.path,
+						imagesDir,
+						image.path.replace(/^\/?img\/user\//, ""),
 					);
 
 					await fs.mkdir(path.dirname(imagePath), {
@@ -157,54 +153,27 @@ export class LocalExporter {
 	}
 
 	private async validateTargetPath(targetPath: string): Promise<void> {
-		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
-
 		try {
 			await fs.access(targetPath);
 		} catch {
 			new Notice(`Local garden folder not found: ${targetPath}`);
 			throw new Error(`Target path does not exist: ${targetPath}`);
 		}
-
-		const expectedSiteDir = path.join(targetPath, base, "src", "site");
-
-		try {
-			await fs.access(expectedSiteDir);
-		} catch {
-			const expectedRelative = base ? `${base}src/site/` : "src/site/";
-
-			new Notice(
-				`Folder doesn't look like a digital garden — expected ${expectedRelative} directory at ` +
-					targetPath,
-			);
-			throw new Error(
-				`Target path missing ${expectedRelative} directory: ${targetPath}`,
-			);
-		}
 	}
 
 	private async writeEnvFile(targetPath: string): Promise<void> {
-		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
 		const envValues = generateEnvValues(this.settings);
 		const envContent = serializeEnvValues(envValues);
+		const destination = path.join(targetPath, envPath(this.settings));
+		await fs.mkdir(path.dirname(destination), { recursive: true });
 
-		await fs.writeFile(
-			path.join(targetPath, base, ".env"),
-			envContent,
-			"utf-8",
-		);
+		await fs.writeFile(destination, envContent, "utf-8");
 	}
 
 	private async writeNavigationOrder(targetPath: string): Promise<void> {
-		const base = normalizeContentBaseDir(this.settings.contentBaseDir);
-
 		const navOrderPath = path.join(
 			targetPath,
-			base,
-			"src",
-			"site",
-			"_data",
-			"navigationOrder.json",
+			sitePath(this.settings, "_data/navigationOrder.json"),
 		);
 
 		if (this.settings.navigationOrder) {
@@ -238,6 +207,7 @@ export class LocalExporter {
 				? rename
 				: `${rename ?? sourceFile.basename}.${sourceFile.extension}`;
 			const targetPath = path.join(targetFolder, fileName);
+			await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
 			await fs.writeFile(
 				targetPath,

@@ -39,6 +39,7 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
 import { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { initializeCustomPathSettings } from "./CustomPathSettings";
 
 interface IObsidianTheme {
 	name: string;
@@ -264,6 +265,8 @@ export default class SettingView {
 						});
 					text.inputEl.style.width = "300px";
 				});
+
+			initializeCustomPathSettings(this, target);
 		} else {
 			mount(ForestrySettings, {
 				target,

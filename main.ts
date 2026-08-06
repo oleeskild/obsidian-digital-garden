@@ -122,7 +122,10 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	logLevel: undefined,
 	localExportPath: "",
-	contentBaseDir: "",
+	notesDirectory: "",
+	assetsDirectory: "",
+	siteDirectory: "",
+	settingsFilePath: "",
 };
 
 Logger.useDefaults({
@@ -283,15 +286,6 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish All Notes Marked for Publish",
 			// TODO: move to publisher?
 			callback: async () => {
-				if (
-					this.settings.publishPlatform ===
-					PublishPlatform.LocalFolder
-				) {
-					await this.runLocalExport();
-
-					return;
-				}
-
 				if (this.isPublishing) {
 					new Notice(
 						"A publish operation is already in progress. Please wait for it to complete.",
@@ -469,7 +463,7 @@ export default class DigitalGarden extends Plugin {
 				id: "export-garden-to-local-folder",
 				name: "Export Garden to Local Folder",
 				callback: async () => {
-					await this.runLocalExport();
+					await this.activatePublicationCenter();
 				},
 			});
 		}
@@ -785,12 +779,6 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async activatePublicationCenter() {
-		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
-			await this.runLocalExport();
-
-			return;
-		}
-
 		const { workspace } = this.app;
 
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];

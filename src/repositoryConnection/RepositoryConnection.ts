@@ -3,7 +3,7 @@ import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
-import { normalizeContentBaseDir } from "src/publisher/paths";
+import { normalizeRepoDirectory } from "src/publisher/paths";
 
 const logger = Logger.get("repository-connection");
 
@@ -21,24 +21,27 @@ export interface IPutPayload {
 export class RepositoryConnection {
 	private userName: string;
 	private pageName: string;
-	private contentBase: string;
+	private noteBase: string;
+	private assetBase: string;
 	octokit: Octokit;
 
 	constructor({
 		octoKit,
 		userName,
 		pageName,
-		contentBaseDir,
+		notesDirectory,
+		assetsDirectory,
 	}: IPublishPlatformConnection) {
 		this.pageName = pageName;
 		this.userName = userName;
-		this.contentBase = normalizeContentBaseDir(contentBaseDir);
-		this.octokit = octoKit;
-	}
 
-	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
-	get contentBaseDir(): string {
-		return this.contentBase;
+		this.noteBase =
+			normalizeRepoDirectory(notesDirectory) || NOTE_PATH_BASE;
+
+		this.assetBase =
+			normalizeRepoDirectory(assetsDirectory) ||
+			`${IMAGE_PATH_BASE}img/user/`;
+		this.octokit = octoKit;
 	}
 
 	getRepositoryName() {
@@ -221,14 +224,10 @@ export class RepositoryConnection {
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
-					path,
-				)}`;
+				return `${this.noteBase}${normalizePath(path)}`;
 			}
 
-			return `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
-				path,
-			)}`;
+			return `${this.assetBase}${normalizePath(path)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -338,9 +337,7 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
-						file.getPath(),
-					)}`,
+					path: `${this.noteBase}${normalizePath(file.getPath())}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
@@ -385,8 +382,8 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
-						asset.path,
+					path: `${this.assetBase}${normalizePath(
+						asset.path.replace(/^\/?img\/user\//, ""),
 					)}`,
 					mode: "100644",
 					type: "blob",
@@ -502,7 +499,6 @@ export class RepositoryConnection {
 }
 
 export interface IRepositoryConnection {
-	readonly contentBaseDir: string;
 	getRepositoryName(): string;
 	getContent(branch: string): Promise<IRepositoryTree | undefined>;
 	getFile(
