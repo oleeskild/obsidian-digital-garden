@@ -75,9 +75,7 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 		await settingView.initialize(prModal);
 
 		// Show template update section at the top for self-hosted (GitHub) platform
-		if (
-			this.plugin.settings.publishPlatform === PublishPlatform.SelfHosted
-		) {
+		if (this.plugin.settings.publishPlatform === PublishPlatform.GitHub) {
 			settingView.renderCreatePr(prModal, handlePR, siteManager);
 
 			settingView.renderPullRequestHistory(

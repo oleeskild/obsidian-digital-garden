@@ -6,6 +6,8 @@ export default interface DigitalGardenSettings {
 	githubToken: string;
 	githubRepo: string;
 	githubUserName: string;
+	/** REST API root, e.g. https://git.example.com/api/v1. */
+	forgejoApiUrl?: string;
 
 	gardenBaseUrl: string;
 	prHistory: string[];

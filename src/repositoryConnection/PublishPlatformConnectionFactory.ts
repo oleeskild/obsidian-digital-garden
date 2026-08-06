@@ -20,9 +20,26 @@ export default class PublishPlatformConnectionFactory {
 	static async createPublishPlatformConnection(
 		settings: DigitalGardenSettings,
 	): Promise<IPublishPlatformConnection> {
-		if (settings.publishPlatform === PublishPlatform.SelfHosted) {
+		if (settings.publishPlatform === PublishPlatform.GitHub) {
 			return {
 				octoKit: new Octokit({
+					auth: settings.githubToken,
+					log: oktokitLogger,
+				}),
+				userName: settings.githubUserName,
+				pageName: settings.githubRepo,
+				contentBaseDir: settings.contentBaseDir,
+			};
+		} else if (settings.publishPlatform === PublishPlatform.Forgejo) {
+			const baseUrl = settings.forgejoApiUrl?.trim().replace(/\/+$/, "");
+
+			if (!baseUrl) {
+				throw new Error("Forgejo API URL is not configured");
+			}
+
+			return {
+				octoKit: new Octokit({
+					baseUrl,
 					auth: settings.githubToken,
 					log: oktokitLogger,
 				}),

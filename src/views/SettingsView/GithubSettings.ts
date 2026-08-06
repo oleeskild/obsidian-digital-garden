@@ -25,6 +25,12 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
+
+		if (
+			this.settings.settings.publishPlatform === PublishPlatform.Forgejo
+		) {
+			this.initializeForgejoApiUrlSetting();
+		}
 		this.initializeContentBaseDirSetting();
 		// Rendered last with prepend() so the nudge sits above the header.
 		this.initializeForestryUpgradeNotice();
@@ -104,7 +110,11 @@ export class GithubSettings {
 		this.checkConnectionAndSaveSettings();
 
 		const githubSettingsHeader = createEl("h3", {
-			text: "GitHub Authentication (required)",
+			text:
+				this.settings.settings.publishPlatform ===
+				PublishPlatform.Forgejo
+					? "Forgejo Authentication (required)"
+					: "GitHub Authentication (required)",
 		});
 		githubSettingsHeader.append(this.connectionStatusElement);
 		githubSettingsHeader.prepend(this.settings.getIcon("github"));
@@ -132,7 +142,22 @@ export class GithubSettings {
 		this.connectionStatusMessage = "";
 		this.updateConnectionStatusIndicator();
 
-		const octokit = new Octokit({ auth: githubToken });
+		const baseUrl = this.settings.settings.forgejoApiUrl
+			?.trim()
+			.replace(/\/+$/, "");
+
+		if (
+			this.settings.settings.publishPlatform ===
+				PublishPlatform.Forgejo &&
+			!baseUrl
+		) {
+			this.setConnectionError("Please enter the Forgejo API URL");
+			this.updateConnectionStatusIndicator();
+
+			return;
+		}
+
+		const octokit = new Octokit({ auth: githubToken, baseUrl });
 
 		try {
 			const repoResponse = await octokit.request(
@@ -320,6 +345,23 @@ export class GithubSettings {
 					.setValue(this.settings.settings.githubToken)
 					.onChange(async (value) => {
 						this.settings.settings.githubToken = value;
+						await this.checkConnectionAndSaveSettings();
+					}),
+			);
+	}
+
+	private initializeForgejoApiUrlSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Forgejo API URL")
+			.setDesc(
+				"Full REST API root for your server, typically https://git.example.com/api/v1.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("https://git.example.com/api/v1")
+					.setValue(this.settings.settings.forgejoApiUrl ?? "")
+					.onChange(async (value) => {
+						this.settings.settings.forgejoApiUrl = value;
 						await this.checkConnectionAndSaveSettings();
 					}),
 			);

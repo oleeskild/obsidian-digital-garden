@@ -46,6 +46,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	githubRepo: "",
 	githubToken: "",
 	githubUserName: "",
+	forgejoApiUrl: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -77,7 +78,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
-	publishPlatform: PublishPlatform.SelfHosted,
+	publishPlatform: PublishPlatform.GitHub,
 
 	contentClassesKey: "dg-content-classes",
 
@@ -173,7 +174,7 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	private async checkForTemplateUpdates() {
-		if (this.settings.publishPlatform !== PublishPlatform.SelfHosted) {
+		if (this.settings.publishPlatform !== PublishPlatform.GitHub) {
 			return;
 		}
 
@@ -283,6 +284,15 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish All Notes Marked for Publish",
 			// TODO: move to publisher?
 			callback: async () => {
+				if (
+					this.settings.publishPlatform ===
+					PublishPlatform.LocalFolder
+				) {
+					await this.runLocalExport();
+
+					return;
+				}
+
 				if (this.isPublishing) {
 					new Notice(
 						"A publish operation is already in progress. Please wait for it to complete.",
@@ -468,6 +478,14 @@ export default class DigitalGarden extends Plugin {
 
 	private async runLocalExport() {
 		try {
+			if (!Platform.isDesktop) {
+				new Notice(
+					"Local-folder publishing is only available on desktop.",
+				);
+
+				return;
+			}
+
 			new Notice("Exporting garden to local folder...");
 			const { vault, metadataCache } = this.app;
 
@@ -492,6 +510,8 @@ export default class DigitalGarden extends Plugin {
 					8000,
 				);
 			}
+
+			return result;
 		} catch (e) {
 			// Validation errors already show Notices
 			Logger.error("Local export failed", e);
@@ -560,6 +580,12 @@ export default class DigitalGarden extends Plugin {
 	// TODO: move to publisher?
 	async publishSingleNote() {
 		try {
+			if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+				const result = await this.runLocalExport();
+
+				return result !== undefined && result.failed === 0;
+			}
+
 			const { vault, workspace, metadataCache } = this.app;
 
 			const activeFile = this.getActiveFile(workspace);
@@ -728,6 +754,14 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async openNavigationOrderModal() {
+		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+			new Notice(
+				"Navigation ordering from the repository is not available for local-folder publishing.",
+			);
+
+			return;
+		}
+
 		const connection =
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
@@ -752,6 +786,12 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async activatePublicationCenter() {
+		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+			await this.runLocalExport();
+
+			return;
+		}
+
 		const { workspace } = this.app;
 
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];

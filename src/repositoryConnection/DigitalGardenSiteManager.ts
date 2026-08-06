@@ -134,7 +134,7 @@ export default class DigitalGardenSiteManager {
 
 	getNoteUrl(file: TFile): string {
 		const savedBaseUrl =
-			this.settings.publishPlatform === PublishPlatform.SelfHosted
+			this.settings.publishPlatform !== PublishPlatform.ForestryMd
 				? this.settings.gardenBaseUrl
 				: this.settings.forestrySettings.baseUrl;
 

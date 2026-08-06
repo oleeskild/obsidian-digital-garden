@@ -131,26 +131,24 @@ export default class SettingView {
 		new Setting(this.settingsRootElement)
 			.setName("Publish Platform")
 			.addDropdown((dd) => {
-				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
-				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
+				dd.addOption(PublishPlatform.GitHub, "GitHub");
 
-				if (
-					this.settings.publishPlatform === PublishPlatform.SelfHosted
-				) {
-					dd.setValue(PublishPlatform.SelfHosted);
-				} else {
-					dd.setValue(PublishPlatform.ForestryMd);
-				}
+				dd.addOption(
+					PublishPlatform.Forgejo,
+					"Forgejo / compatible server",
+				);
+				dd.addOption(PublishPlatform.LocalFolder, "Local folder");
+				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
+				dd.setValue(this.settings.publishPlatform);
 
 				dd.onChange(async (val) => {
 					switch (val) {
-						case PublishPlatform.SelfHosted:
-							this.settings.publishPlatform =
-								PublishPlatform.SelfHosted;
-							break;
+						case PublishPlatform.GitHub:
+						case PublishPlatform.Forgejo:
+						case PublishPlatform.LocalFolder:
 						case PublishPlatform.ForestryMd:
 							this.settings.publishPlatform =
-								PublishPlatform.ForestryMd;
+								val as PublishPlatform;
 							break;
 					}
 					await this.saveSettings();
@@ -239,33 +237,34 @@ export default class SettingView {
 					});
 			});
 
-		this.settingsRootElement
-			.createEl("h3", { text: "Local Export" })
-			.prepend(this.getIcon("folder-output"));
-
-		new Setting(this.settingsRootElement)
-			.setName("Local garden folder path")
-			.setDesc(
-				"Absolute path to your local digital garden folder. Used by the 'Export Garden to Local Folder' command.",
-			)
-			.addText((text) => {
-				text.setPlaceholder("/path/to/your/digitalgarden")
-					.setValue(this.settings.localExportPath ?? "")
-					.onChange(async (value) => {
-						this.settings.localExportPath = value;
-						await this.saveSettings();
-					});
-				text.inputEl.style.width = "300px";
-			});
-
 		prModal.titleEl.createEl("h1", "Site template settings");
 	}
 
 	private initializePublishPlatformSettings(target: HTMLElement) {
 		target.empty();
 
-		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
+		if (
+			this.settings.publishPlatform === PublishPlatform.GitHub ||
+			this.settings.publishPlatform === PublishPlatform.Forgejo
+		) {
 			new GithubSettings(this, target);
+		} else if (
+			this.settings.publishPlatform === PublishPlatform.LocalFolder
+		) {
+			new Setting(target)
+				.setName("Local garden folder path")
+				.setDesc(
+					"Absolute path to a digitalgarden template folder. Publishing performs a full sync of all notes marked dg-publish.",
+				)
+				.addText((text) => {
+					text.setPlaceholder("/path/to/your/digitalgarden")
+						.setValue(this.settings.localExportPath ?? "")
+						.onChange(async (value) => {
+							this.settings.localExportPath = value;
+							await this.saveSettings();
+						});
+					text.inputEl.style.width = "300px";
+				});
 		} else {
 			mount(ForestrySettings, {
 				target,

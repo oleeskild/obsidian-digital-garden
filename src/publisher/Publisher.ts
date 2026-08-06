@@ -381,6 +381,17 @@ export default class Publisher {
 	}
 
 	validateSettings() {
+		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+			if (!this.settings.localExportPath) {
+				new Notice(
+					"Config error: You need to select a local garden folder in the plugin settings",
+				);
+				throw {};
+			}
+
+			return;
+		}
+
 		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
 			// For forestry.md, validate forestry settings instead of GitHub
 			if (!this.settings.forestrySettings.apiKey) {
@@ -390,7 +401,17 @@ export default class Publisher {
 				throw {};
 			}
 		} else {
-			// For SelfHosted, validate GitHub settings
+			if (
+				this.settings.publishPlatform === PublishPlatform.Forgejo &&
+				!this.settings.forgejoApiUrl
+			) {
+				new Notice(
+					"Config error: You need to define a Forgejo API URL in the plugin settings",
+				);
+				throw {};
+			}
+
+			// Repository destinations share owner, repository, and token settings.
 			if (!this.settings.githubRepo) {
 				new Notice(
 					"Config error: You need to define a GitHub repo in the plugin settings",

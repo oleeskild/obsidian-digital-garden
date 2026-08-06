@@ -154,11 +154,21 @@ describe("paths", () => {
 			expect(envPath(settings)).toBe(".env");
 		});
 
-		it("applies contentBaseDir on the self-hosted (GitHub) platform", () => {
-			const settings = withPlatform("Web", PublishPlatform.SelfHosted);
+		it("applies contentBaseDir on the GitHub platform", () => {
+			const settings = withPlatform("Web", PublishPlatform.GitHub);
 
 			expect(notePathBase(settings)).toBe("Web/src/site/notes/");
 			expect(envPath(settings)).toBe("Web/.env");
 		});
+
+		it.each([PublishPlatform.Forgejo, PublishPlatform.LocalFolder])(
+			"applies contentBaseDir on %s",
+			(publishPlatform) => {
+				const settings = withPlatform("Web", publishPlatform);
+
+				expect(notePathBase(settings)).toBe("Web/src/site/notes/");
+				expect(envPath(settings)).toBe("Web/.env");
+			},
+		);
 	});
 });

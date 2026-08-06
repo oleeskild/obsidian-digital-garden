@@ -52,14 +52,14 @@ export function normalizeContentBaseDir(base?: string): string {
 /**
  * Normalized content base prefix derived from the settings (`""` or e.g. `"Web/"`).
  *
- * The setting only applies to self-hosted (GitHub) publishing — on managed platforms
+ * The setting applies to repository and local-folder publishing — on managed platforms
  * like Forestry the repository layout is fixed, so the base is ignored there. Local
  * export is platform-independent and uses {@link normalizeContentBaseDir} directly.
  */
 export function contentBaseDir(settings: ContentBaseSettings): string {
 	if (
 		settings.publishPlatform !== undefined &&
-		settings.publishPlatform !== PublishPlatform.SelfHosted
+		settings.publishPlatform === PublishPlatform.ForestryMd
 	) {
 		return "";
 	}
