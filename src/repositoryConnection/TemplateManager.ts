@@ -1,7 +1,7 @@
 import Logger from "js-logger";
 import DigitalGardenPluginInfo from "../models/pluginInfo";
 import {
-	RepositoryConnection,
+	IRepositoryConnection,
 	TRepositoryContent,
 } from "./RepositoryConnection";
 
@@ -14,8 +14,8 @@ interface IUpdateFileInfo {
 }
 
 interface IUpdateCheckerProps {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 }
 
 interface IUpdateProps extends IUpdateCheckerProps {
@@ -31,8 +31,8 @@ interface IUpdateInfo {
 }
 
 export class TemplateUpdateChecker {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 	defaultBranch?: string;
 	newestTemplateVersion?: string;
 
@@ -219,7 +219,7 @@ export class TemplateUpdateChecker {
 		};
 	}
 
-	private async getPluginInfo(baseGardenConnection: RepositoryConnection) {
+	private async getPluginInfo(baseGardenConnection: IRepositoryConnection) {
 		logger.info("Getting plugin info");
 
 		const pluginInfoResponse =
@@ -249,8 +249,8 @@ export class TemplateUpdateChecker {
 export class TemplateUpdater {
 	filesToChange: IUpdateInfo;
 	defaultBranch: string;
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 	newestTemplateVersion: string;
 
 	constructor({
@@ -287,18 +287,12 @@ export class TemplateUpdater {
 		await this.addOrUpdateFiles(filesToAdd, branchName);
 
 		try {
-			const pr = await this.userGardenConnection.octokit.request(
-				"POST /repos/{owner}/{repo}/pulls",
-				{
-					...this.userGardenConnection.getBasePayload(),
-					title: `Update template to version ${this.newestTemplateVersion}`,
-					head: branchName,
-					base: this.defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
-				},
-			);
-
-			return pr?.data?.html_url;
+			return await this.userGardenConnection.createPullRequest({
+				title: `Update template to version ${this.newestTemplateVersion}`,
+				head: branchName,
+				base: this.defaultBranch,
+				body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
+			});
 		} catch (e) {
 			return "";
 		}

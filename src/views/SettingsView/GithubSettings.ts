@@ -1,7 +1,8 @@
 import { Setting, debounce, getIcon } from "obsidian";
 import SettingView from "./SettingView";
-import { Octokit } from "@octokit/core";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import type { IRepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 
 export class GithubSettings {
 	settings: SettingView;
@@ -157,27 +158,29 @@ export class GithubSettings {
 			return;
 		}
 
-		const octokit = new Octokit({ auth: githubToken, baseUrl });
-
 		try {
-			const repoResponse = await octokit.request(
-				"GET /repos/{owner}/{repo}",
-				{ owner: githubUserName, repo: githubRepo },
-			);
+			const connection =
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings.settings,
+				);
+			const repository = await connection.getRepositoryInfo();
+
+			if (!repository)
+				throw new Error("Repository information unavailable");
 
 			const hasWriteAccess = this.checkWritePermissions(
-				repoResponse.data.permissions,
+				repository.permissions,
 			);
 
 			if (hasWriteAccess) {
 				this.setConnectionSuccess("Connected with full access");
-			} else {
+			} else if (repository.default_branch) {
 				await this.validateContentAccess(
-					octokit,
-					githubUserName,
-					githubRepo,
-					repoResponse.data.default_branch,
+					connection,
+					repository.default_branch,
 				);
+			} else {
+				this.setConnectionError("Repository has no default branch");
 			}
 		} catch (error: unknown) {
 			this.handleConnectionError(error, githubUserName, githubRepo);
@@ -193,17 +196,11 @@ export class GithubSettings {
 	}
 
 	private async validateContentAccess(
-		octokit: Octokit,
-		owner: string,
-		repo: string,
+		connection: IRepositoryConnection,
 		branch: string,
 	): Promise<void> {
 		try {
-			await octokit.request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
-				owner,
-				repo,
-				ref: `heads/${branch}`,
-			});
+			await connection.getContent(branch);
 			this.setConnectionSuccess("Connected");
 		} catch {
 			this.setConnectionError(

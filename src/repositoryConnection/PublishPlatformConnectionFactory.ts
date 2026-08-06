@@ -1,8 +1,15 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
-import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import DigitalGardenSettings from "src/models/settings";
+import {
+	IRepositoryConnection,
+	RepositoryConnection,
+} from "./RepositoryConnection";
+import {
+	createForgejoApi,
+	ForgejoRepositoryConnection,
+} from "./ForgejoRepositoryConnection";
 
 const oktokitLogger = Logger.get("octokit");
 
@@ -10,18 +17,18 @@ const oktokitLogger = Logger.get("octokit");
 const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
 export default class PublishPlatformConnectionFactory {
-	static createBaseGardenConnection(): IPublishPlatformConnection {
-		return {
+	static createBaseGardenConnection(): IRepositoryConnection {
+		return new RepositoryConnection({
 			octoKit: new Octokit({ log: oktokitLogger }),
 			userName: "oleeskild",
 			pageName: "digitalgarden",
-		};
+		});
 	}
 	static async createPublishPlatformConnection(
 		settings: DigitalGardenSettings,
-	): Promise<IPublishPlatformConnection> {
+	): Promise<IRepositoryConnection> {
 		if (settings.publishPlatform === PublishPlatform.GitHub) {
-			return {
+			return new RepositoryConnection({
 				octoKit: new Octokit({
 					auth: settings.githubToken,
 					log: oktokitLogger,
@@ -29,7 +36,7 @@ export default class PublishPlatformConnectionFactory {
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
 				contentBaseDir: settings.contentBaseDir,
-			};
+			});
 		} else if (settings.publishPlatform === PublishPlatform.Forgejo) {
 			const baseUrl = settings.forgejoApiUrl?.trim().replace(/\/+$/, "");
 
@@ -37,16 +44,12 @@ export default class PublishPlatformConnectionFactory {
 				throw new Error("Forgejo API URL is not configured");
 			}
 
-			return {
-				octoKit: new Octokit({
-					baseUrl,
-					auth: settings.githubToken,
-					log: oktokitLogger,
-				}),
+			return new ForgejoRepositoryConnection({
+				api: createForgejoApi(baseUrl, settings.githubToken),
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
 				contentBaseDir: settings.contentBaseDir,
-			};
+			});
 		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
 			const userName = "Forestry";
 			const token = settings.forestrySettings.apiKey;
@@ -63,11 +66,11 @@ export default class PublishPlatformConnectionFactory {
 
 			const pageName = settings.forestrySettings.forestryPageName;
 
-			return {
+			return new RepositoryConnection({
 				userName,
 				pageName,
 				octoKit,
-			};
+			});
 		} else {
 			throw new Error("Publish platform not supported");
 		}

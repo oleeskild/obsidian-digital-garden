@@ -24,7 +24,6 @@ import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { notifyLimitReached } from "src/forestry/limitNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
-import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
@@ -766,7 +765,7 @@ export default class DigitalGarden extends Plugin {
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
-		const repositoryConnection = new RepositoryConnection(connection);
+		const repositoryConnection = connection;
 
 		const publisher = new Publisher(
 			this.app.vault,

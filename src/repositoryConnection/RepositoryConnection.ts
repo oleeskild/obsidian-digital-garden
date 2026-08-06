@@ -10,7 +10,7 @@ const logger = Logger.get("repository-connection");
 const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
 
-interface IPutPayload {
+export interface IPutPayload {
 	path: string;
 	sha?: string;
 	content: string;
@@ -130,7 +130,7 @@ export class RepositoryConnection {
 				branch,
 			};
 
-			const result = await this.octokit.request(
+			await this.octokit.request(
 				"DELETE /repos/{owner}/{repo}/contents/{path}",
 				payload,
 			);
@@ -139,7 +139,7 @@ export class RepositoryConnection {
 				`Deleted file ${path} from repository ${this.getRepositoryName()}`,
 			);
 
-			return result;
+			return true;
 		} catch (error) {
 			throwIfLimitError(error);
 			logger.error(error);
@@ -474,8 +474,93 @@ export class RepositoryConnection {
 			sha,
 		});
 	}
+
+	async createPullRequest({
+		title,
+		head,
+		base,
+		body,
+	}: {
+		title: string;
+		head: string;
+		base: string;
+		body: string;
+	}) {
+		const response = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/pulls",
+			{
+				...this.getBasePayload(),
+				title,
+				head,
+				base,
+				body,
+			},
+		);
+
+		return response.data.html_url;
+	}
 }
 
-export type TRepositoryContent = Awaited<
-	ReturnType<typeof RepositoryConnection.prototype.getContent>
->;
+export interface IRepositoryConnection {
+	readonly contentBaseDir: string;
+	getRepositoryName(): string;
+	getContent(branch: string): Promise<IRepositoryTree | undefined>;
+	getFile(
+		path: string,
+		branch?: string,
+	): Promise<IRepositoryFile | undefined>;
+	deleteFile(
+		path: string,
+		options: { branch?: string; sha?: string },
+	): Promise<boolean>;
+	getLatestRelease(): Promise<{ tag_name?: string } | undefined>;
+	getLatestCommit(): Promise<
+		{ sha: string; commit: { tree: { sha: string } } } | undefined
+	>;
+	updateFile(payload: IPutPayload): Promise<unknown>;
+	deleteFiles(paths: string[]): Promise<void>;
+	updateFiles(
+		files: CompiledPublishFile[],
+		remoteImageHashes?: Record<string, string>,
+	): Promise<void>;
+	getRepositoryInfo(): Promise<IRepositoryInfo | undefined>;
+	createBranch(branchName: string, sha: string): Promise<void>;
+	createPullRequest(input: {
+		title: string;
+		head: string;
+		base: string;
+		body: string;
+	}): Promise<string>;
+}
+
+export interface IRepositoryTreeItem {
+	path?: string;
+	mode?: string;
+	type?: string;
+	sha?: string;
+	size?: number;
+	url?: string;
+}
+
+export interface IRepositoryTree {
+	sha?: string;
+	url?: string;
+	truncated?: boolean;
+	tree: IRepositoryTreeItem[];
+}
+
+export interface IRepositoryFile {
+	type: "file";
+	content: string;
+	sha: string;
+	path?: string;
+	name?: string;
+	encoding?: string;
+}
+
+export interface IRepositoryInfo {
+	default_branch?: string;
+	permissions?: { admin?: boolean; push?: boolean };
+}
+
+export type TRepositoryContent = IRepositoryTree | undefined;

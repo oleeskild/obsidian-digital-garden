@@ -12,7 +12,6 @@ import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
-import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
@@ -199,11 +198,10 @@ export default class Publisher {
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection = new RepositoryConnection(
+		const userGardenConnection =
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
@@ -241,11 +239,10 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection(
+			const userGardenConnection =
 				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				),
-			);
+				);
 
 			await userGardenConnection.deleteFiles(filePaths);
 
@@ -267,11 +264,10 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection(
+			const userGardenConnection =
 				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				),
-			);
+				);
 
 			const remoteImageHashes = await this.getRemoteImageHashes();
 
@@ -292,11 +288,10 @@ export default class Publisher {
 	}
 
 	private async getRemoteImageHashes(): Promise<Record<string, string>> {
-		const userGardenConnection = new RepositoryConnection(
+		const userGardenConnection =
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		const contentTree = await userGardenConnection
 			.getContent("HEAD")
@@ -322,11 +317,10 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection = new RepositoryConnection(
+		const userGardenConnection =
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {

@@ -8,7 +8,7 @@ import {
 } from "../utils/utils";
 import { Base64 } from "js-base64";
 import {
-	RepositoryConnection,
+	IRepositoryConnection,
 	TRepositoryContent,
 } from "./RepositoryConnection";
 import Logger from "js-logger";
@@ -42,18 +42,17 @@ export default class DigitalGardenSiteManager {
 	settings: DigitalGardenSettings;
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
-	baseGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
 
-	private userGardenConnection: RepositoryConnection | null;
+	private userGardenConnection: IRepositoryConnection | null;
 	private templateUpdater: TemplateUpdateChecker | null;
 	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.baseGardenConnection = new RepositoryConnection(
-			PublishPlatformConnectionFactory.createBaseGardenConnection(),
-		);
+		this.baseGardenConnection =
+			PublishPlatformConnectionFactory.createBaseGardenConnection();
 		this.userGardenConnection = null;
 		this.templateUpdater = null;
 	}
@@ -70,11 +69,10 @@ export default class DigitalGardenSiteManager {
 	}
 	async getUserGardenConnection() {
 		if (!this.userGardenConnection) {
-			this.userGardenConnection = new RepositoryConnection(
+			this.userGardenConnection =
 				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				),
-			);
+				);
 		}
 
 		return this.userGardenConnection;
