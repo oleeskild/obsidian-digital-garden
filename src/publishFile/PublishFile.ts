@@ -75,7 +75,7 @@ export class PublishFile {
 	}
 
 	shouldPublish(): boolean {
-		return hasPublishFlag(this.frontmatter);
+		return hasPublishFlag(this.frontmatter, this.settings.publishByDefault);
 	}
 
 	async getImageLinks() {

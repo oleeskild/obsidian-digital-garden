@@ -34,6 +34,7 @@ import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPl
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
+import { hasPublishFlag } from "src/publishFile/Validator";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -86,6 +87,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	publishPlatform: PublishPlatform.GitHub,
 	publicationProvider: PublicationProvider.Git,
 	gitProvider: GitProvider.GitHub,
+	publishByDefault: false,
 
 	contentClassesKey: "dg-content-classes",
 
@@ -776,8 +778,10 @@ export default class DigitalGarden extends Plugin {
 		await this.app.fileManager.processFrontMatter(
 			activeFile as TFile,
 			(frontmatter) => {
-				frontmatter[FRONTMATTER_KEYS.PUBLISH] =
-					!frontmatter[FRONTMATTER_KEYS.PUBLISH];
+				frontmatter[FRONTMATTER_KEYS.PUBLISH] = !hasPublishFlag(
+					frontmatter,
+					this.settings.publishByDefault,
+				);
 			},
 		);
 	}

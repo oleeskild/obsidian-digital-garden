@@ -51,6 +51,7 @@ export default interface DigitalGardenSettings {
 	publishPlatform: PublishPlatform;
 	publicationProvider: PublicationProvider;
 	gitProvider: GitProvider;
+	publishByDefault: boolean;
 	forestrySettings: {
 		forestryPageName: string;
 		apiKey: string;

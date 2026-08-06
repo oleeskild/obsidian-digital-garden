@@ -316,6 +316,20 @@ export default class SettingView {
 	}
 
 	private async initializeDefaultNoteSettings() {
+		new Setting(this.settingsRootElement)
+			.setName("Publish notes by default")
+			.setDesc(
+				"Publish notes without a dg-publish property. Notes with dg-publish: false remain private.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.publishByDefault)
+					.onChange(async (value) => {
+						this.settings.publishByDefault = value;
+						await this.saveSettings();
+					}),
+			);
+
 		const noteSettingsModal = new Modal(this.app);
 		let hasUnsavedChanges = false;
 

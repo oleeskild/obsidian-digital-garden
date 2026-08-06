@@ -53,7 +53,7 @@ export default class Publisher {
 	shouldPublish(file: TFile): boolean {
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
-		return hasPublishFlag(frontMatter);
+		return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 	}
 
 	/**
@@ -70,7 +70,7 @@ export default class Publisher {
 			const canvasData = JSON.parse(content);
 			const frontMatter = canvasData?.metadata?.frontmatter;
 
-			return hasPublishFlag(frontMatter);
+			return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 		} catch {
 			return false;
 		}
@@ -211,7 +211,12 @@ export default class Publisher {
 	}
 
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
-		if (!isPublishFrontmatterValid(file.frontmatter)) {
+		if (
+			!isPublishFrontmatterValid(
+				file.frontmatter,
+				this.settings.publishByDefault,
+			)
+		) {
 			return false;
 		}
 
@@ -256,7 +261,10 @@ export default class Publisher {
 
 	public async publishBatch(files: CompiledPublishFile[]): Promise<boolean> {
 		const filesToPublish = files.filter((f) =>
-			isPublishFrontmatterValid(f.frontmatter),
+			isPublishFrontmatterValid(
+				f.frontmatter,
+				this.settings.publishByDefault,
+			),
 		);
 
 		if (filesToPublish.length === 0) {
