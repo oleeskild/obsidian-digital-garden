@@ -356,6 +356,20 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
 		let convertedText = text;
 
+		const markdownLink = (label: string, destination: string) =>
+			`[${label.replace(/]/g, "\\]")}](${destination
+				.replace(/ /g, "%20")
+				.replace(/\)/g, "%29")})`;
+
+		const formatLink = (
+			label: string,
+			markdownDestination: string,
+			wikilinkDestination: string,
+		) =>
+			this.settings.linkFormat === "wikilink"
+				? `[[${wikilinkDestination}\\|${label}]]`
+				: markdownLink(label, markdownDestination);
+
 		const textToBeProcessed =
 			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
 
@@ -397,15 +411,16 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (linkedFileName === "" && headerPath !== "") {
 						const currentFilePath = file.getPath();
 
-						const currentExtensionlessPath =
-							currentFilePath.substring(
-								0,
-								currentFilePath.lastIndexOf("."),
-							);
-
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
+							formatLink(
+								linkDisplayName,
+								`${currentFilePath}${headerPath}`,
+								`${currentFilePath.replace(
+									/\.[^.]+$/,
+									"",
+								)}${headerPath}`,
+							),
 						);
 						continue;
 					}
@@ -424,7 +439,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (!linkedFile) {
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
+							formatLink(
+								linkDisplayName,
+								`${linkedFileName}${headerPath}`,
+								`${linkedFileName}${headerPath}`,
+							),
 						);
 						continue;
 					}
@@ -433,20 +452,18 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						linkedFile.extension === "md" ||
 						linkedFile.extension === "canvas"
 					) {
-						const extensionlessPath = linkedFile.path.substring(
-							0,
-							linkedFile.path.lastIndexOf("."),
-						);
-
-						// Keep .canvas extension in links for canvas files
-						const linkPath =
-							linkedFile.extension === "canvas"
-								? `${extensionlessPath}.canvas`
-								: extensionlessPath;
+						const wikilinkPath =
+							linkedFile.extension === "md"
+								? linkedFile.path.replace(/\.md$/, "")
+								: linkedFile.path;
 
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+							formatLink(
+								linkDisplayName,
+								`${linkedFile.path}${headerPath}`,
+								`${wikilinkPath}${headerPath}`,
+							),
 						);
 					}
 				} catch (e) {

@@ -317,6 +317,24 @@ export default class SettingView {
 
 	private async initializeDefaultNoteSettings() {
 		new Setting(this.settingsRootElement)
+			.setName("Internal link format")
+			.setDesc(
+				"Format used for internal note links in exported Markdown.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("markdown", "Markdown links")
+					.addOption("wikilink", "Obsidian wikilinks")
+					.setValue(this.settings.linkFormat)
+					.onChange(async (value) => {
+						this.settings.linkFormat = value as
+							| "markdown"
+							| "wikilink";
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(this.settingsRootElement)
 			.setName("Publish notes by default")
 			.setDesc(
 				"Publish notes without a dg-publish property. Notes with dg-publish: false remain private.",

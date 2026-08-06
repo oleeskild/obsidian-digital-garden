@@ -23,7 +23,10 @@ jest.mock("obsidian", () => ({
 }));
 
 describe("Compiler", () => {
-	const getTestCompiler = (settings: Partial<DigitalGardenSettings>) => {
+	const getTestCompiler = (
+		settings: Partial<DigitalGardenSettings>,
+		metadataCache = {} as MetadataCache,
+	) => {
 		return new GardenPageCompiler(
 			// TODO add jest-mock-creator
 			{} as Vault,
@@ -31,7 +34,7 @@ describe("Compiler", () => {
 				pathRewriteRules: "",
 				...settings,
 			} as DigitalGardenSettings,
-			{} as MetadataCache,
+			metadataCache,
 			jest.fn(),
 		);
 	};
@@ -88,7 +91,7 @@ describe("Compiler", () => {
 			getPath: () => "folder/test.md",
 		} as unknown as PublishFile;
 
-		it("should convert same-file header link [[#Header]] with full file path", async () => {
+		it("should convert same-file header links to standard Markdown", async () => {
 			const testCompiler = getTestCompiler({});
 
 			const result = await testCompiler.convertLinksToFullPath(
@@ -96,7 +99,7 @@ describe("Compiler", () => {
 			)("Some text with [[#My Header]] in it");
 
 			expect(result).toBe(
-				"Some text with [[folder/test#My Header\\|#My Header]] in it",
+				"Some text with [#My Header](folder/test.md#My%20Header) in it",
 			);
 		});
 
@@ -108,8 +111,40 @@ describe("Compiler", () => {
 			)("Link with [[#My Header|custom display]] text");
 
 			expect(result).toBe(
-				"Link with [[folder/test#My Header\\|custom display]] text",
+				"Link with [custom display](folder/test.md#My%20Header) text",
 			);
+		});
+
+		it("resolves note wikilinks as standard Markdown links", async () => {
+			const testCompiler = getTestCompiler({}, {
+				getFirstLinkpathDest: jest.fn(() => ({
+					path: "Example/Test.md",
+					extension: "md",
+				})),
+			} as unknown as MetadataCache);
+
+			const result =
+				await testCompiler.convertLinksToFullPath(mockPublishFile)(
+					"[[Test.md]]",
+				);
+
+			expect(result).toBe("[Test.md](Example/Test.md)");
+		});
+
+		it("can preserve Obsidian wikilink output", async () => {
+			const testCompiler = getTestCompiler({ linkFormat: "wikilink" }, {
+				getFirstLinkpathDest: jest.fn(() => ({
+					path: "Example/Test.md",
+					extension: "md",
+				})),
+			} as unknown as MetadataCache);
+
+			const result =
+				await testCompiler.convertLinksToFullPath(mockPublishFile)(
+					"[[Test.md]]",
+				);
+
+			expect(result).toBe("[[Example/Test\\|Test.md]]");
 		});
 	});
 

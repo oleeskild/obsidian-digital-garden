@@ -52,6 +52,7 @@ export default interface DigitalGardenSettings {
 	publicationProvider: PublicationProvider;
 	gitProvider: GitProvider;
 	publishByDefault: boolean;
+	linkFormat: "markdown" | "wikilink";
 	forestrySettings: {
 		forestryPageName: string;
 		apiKey: string;
