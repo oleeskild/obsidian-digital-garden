@@ -1326,7 +1326,7 @@ export default class SettingView {
 				await this.saveSettingsAndUpdateEnv();
 
 				const connection =
-					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					PublishPlatformConnectionFactory.createPublishPlatformConnection(
 						this.settings,
 					);
 
@@ -2193,7 +2193,7 @@ export default class SettingView {
 
 	private async openNavigationOrderModal() {
 		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
 		const repositoryConnection = connection;

@@ -1,4 +1,4 @@
-import { MetadataCache, Notice, Platform, TFile, Vault } from "obsidian";
+import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
 import { getRewriteRules } from "../utils/utils";
 import {
@@ -13,10 +13,8 @@ import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
-import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
-import { publicationManifestStore } from "./PublicationManifestStore";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -190,18 +188,15 @@ export default class Publisher {
 	}
 
 	usesPublicationManifest(): boolean {
-		return (
-			this.settings.publishPlatform === PublishPlatform.Sftp ||
-			this.settings.publishPlatform === PublishPlatform.LocalFolder
-		);
+		return PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.settings,
+		).usesPublicationManifest();
 	}
 
 	async clearPublicationManifest(): Promise<void> {
-		if (this.settings.publishPlatform === PublishPlatform.Sftp)
-			await publicationManifestStore.remove("sftp");
-		else if (this.settings.publishPlatform === PublishPlatform.LocalFolder)
-			await publicationManifestStore.remove("local");
-
+		PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.settings,
+		).clearPublicationManifest();
 		this.cachedRemoteImageHashes = undefined;
 	}
 
@@ -221,7 +216,7 @@ export default class Publisher {
 		this.validateSettings();
 
 		const userGardenConnection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
 
@@ -267,7 +262,7 @@ export default class Publisher {
 
 		try {
 			const userGardenConnection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
 				);
 
@@ -298,7 +293,7 @@ export default class Publisher {
 
 		try {
 			const userGardenConnection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
 				);
 
@@ -325,7 +320,7 @@ export default class Publisher {
 		if (this.cachedRemoteImageHashes) return this.cachedRemoteImageHashes;
 
 		const userGardenConnection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
 
@@ -357,7 +352,7 @@ export default class Publisher {
 		let message = `Update content ${path}`;
 
 		const userGardenConnection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
 
@@ -414,78 +409,17 @@ export default class Publisher {
 	}
 
 	validateSettings() {
-		if (this.settings.publishPlatform === PublishPlatform.Sftp) {
-			if (!Platform.isDesktop) {
-				new Notice("SFTP publishing is only available on desktop");
-				throw new Error("SFTP publishing is only available on desktop");
-			}
-
-			if (!this.settings.sftpHost || !this.settings.sftpUsername) {
-				new Notice("Config error: SFTP host and username are required");
-				throw new Error("SFTP host and username are required");
-			}
-
-			if (!this.settings.sftpRemoteRoot) {
-				new Notice(
-					"Config error: An SFTP remote garden folder is required",
-				);
-				throw new Error("SFTP remote garden folder is required");
-			}
-
-			return;
-		}
-
-		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
-			if (!this.settings.localExportPath) {
-				new Notice(
-					"Config error: You need to select a local garden folder in the plugin settings",
-				);
-				throw {};
-			}
-
-			return;
-		}
-
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			// For forestry.md, validate forestry settings instead of GitHub
-			if (!this.settings.forestrySettings.apiKey) {
-				new Notice(
-					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
-				);
-				throw {};
-			}
-		} else {
-			if (
-				this.settings.publishPlatform === PublishPlatform.Forgejo &&
-				!this.settings.forgejoApiUrl
-			) {
-				new Notice(
-					"Config error: You need to define a Forgejo API URL in the plugin settings",
-				);
-				throw {};
-			}
-
-			// Repository destinations share owner, repository, and token settings.
-			if (!this.settings.gitRepo) {
-				new Notice(
-					"Config error: You need to define a Git repo in the plugin settings",
-				);
-				throw {};
-			}
-
-			if (!this.settings.gitUsername) {
-				new Notice(
-					"Config error: You need to define a Git Username in the plugin settings",
-				);
-				throw {};
-			}
-
-			if (!this.settings.gitToken) {
-				new Notice(
-					"Config error: You need to define a Git Token in the plugin settings",
-				);
-				throw {};
-			}
+		try {
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			).validateSettings();
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Invalid publication settings";
+			new Notice(`Config error: ${message}`);
+			throw error;
 		}
 	}
 }

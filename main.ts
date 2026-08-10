@@ -895,7 +895,7 @@ export default class DigitalGarden extends Plugin {
 		}
 
 		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
 		const repositoryConnection = connection;

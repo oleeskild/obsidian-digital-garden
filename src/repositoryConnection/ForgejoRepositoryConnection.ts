@@ -2,6 +2,7 @@ import { forgejoApi, type ChangeFileOperation } from "@maks1ms/forgejo-js";
 import { Base64 } from "js-base64";
 import Logger from "js-logger";
 import type { CompiledPublishFile } from "src/publishFile/PublishFile";
+import type DigitalGardenSettings from "src/models/settings";
 import { throwIfLimitError } from "../forestry/LimitReachedError";
 import { normalizeRepoDirectory } from "../publisher/paths";
 import type {
@@ -16,39 +17,48 @@ const NOTE_PATH_BASE = "src/site/notes/";
 
 type ForgejoApi = ReturnType<typeof forgejoApi>;
 
-export interface IForgejoConnection {
-	api: ForgejoApi;
-	userName: string;
-	pageName: string;
-	notesDirectory?: string;
-	assetsDirectory?: string;
-}
-
 export class ForgejoRepositoryConnection implements IRepositoryConnection {
 	private readonly api: ForgejoApi;
 	private readonly userName: string;
 	private readonly pageName: string;
 	private readonly noteBase: string;
 	private readonly assetBase: string;
+	private readonly settings: DigitalGardenSettings;
 
-	constructor({
-		api,
-		userName,
-		pageName,
-		notesDirectory,
-		assetsDirectory,
-	}: IForgejoConnection) {
-		this.api = api;
-		this.userName = userName;
-		this.pageName = pageName;
+	constructor(settings: DigitalGardenSettings) {
+		this.api = createForgejoApi(
+			settings.forgejoApiUrl || "http://localhost/api/v1",
+			settings.gitToken,
+		);
+		this.userName = settings.gitUsername;
+		this.pageName = settings.gitRepo;
+		this.settings = settings;
 
 		this.noteBase =
-			normalizeRepoDirectory(notesDirectory) || NOTE_PATH_BASE;
+			normalizeRepoDirectory(settings.notesDirectory) || NOTE_PATH_BASE;
 
 		this.assetBase =
-			normalizeRepoDirectory(assetsDirectory) ||
+			normalizeRepoDirectory(settings.assetsDirectory) ||
 			`${IMAGE_PATH_BASE}img/user/`;
 	}
+
+	validateSettings(): void {
+		if (!this.settings.forgejoApiUrl)
+			throw new Error("Define a Forgejo API URL");
+
+		if (!this.settings.gitRepo) throw new Error("Define a Git repository");
+
+		if (!this.settings.gitUsername)
+			throw new Error("Define a Git username");
+
+		if (!this.settings.gitToken) throw new Error("Define a Git token");
+	}
+
+	usesPublicationManifest(): boolean {
+		return false;
+	}
+
+	async clearPublicationManifest(): Promise<void> {}
 
 	getRepositoryName() {
 		return `${this.userName}/${this.pageName}`;

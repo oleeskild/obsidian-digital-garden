@@ -1,11 +1,21 @@
+import { forgejoApi } from "@maks1ms/forgejo-js";
+import { PublishPlatform } from "../models/PublishPlatform";
+import DigitalGardenSettings from "../models/settings";
 import { ForgejoRepositoryConnection } from "../repositoryConnection/ForgejoRepositoryConnection";
 
-const makeConnection = (repos: Record<string, jest.Mock>) =>
-	new ForgejoRepositoryConnection({
-		api: { repos } as never,
-		userName: "owner",
-		pageName: "garden",
-	});
+jest.mock("@maks1ms/forgejo-js", () => ({ forgejoApi: jest.fn() }));
+
+const makeConnection = (repos: Record<string, jest.Mock>) => {
+	jest.mocked(forgejoApi).mockReturnValue({ repos } as never);
+
+	return new ForgejoRepositoryConnection({
+		publishPlatform: PublishPlatform.Forgejo,
+		forgejoApiUrl: "https://forgejo.example/api/v1",
+		gitToken: "token",
+		gitUsername: "owner",
+		gitRepo: "garden",
+	} as DigitalGardenSettings);
+};
 
 describe("ForgejoRepositoryConnection", () => {
 	it("uses Forgejo's generated tree endpoint and normalizes its response", async () => {

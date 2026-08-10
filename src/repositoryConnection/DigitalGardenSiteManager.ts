@@ -70,7 +70,7 @@ export default class DigitalGardenSiteManager {
 	async getUserGardenConnection() {
 		if (!this.userGardenConnection) {
 			this.userGardenConnection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
 				);
 		}

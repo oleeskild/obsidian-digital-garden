@@ -18,6 +18,19 @@ import type {
 export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 	constructor(private settings: DigitalGardenSettings) {}
 
+	validateSettings(): void {
+		if (!this.settings.localExportPath)
+			throw new Error("Select a local garden folder in plugin settings");
+	}
+
+	usesPublicationManifest(): boolean {
+		return true;
+	}
+
+	async clearPublicationManifest(): Promise<void> {
+		await publicationManifestStore.remove("local");
+	}
+
 	getRepositoryName() {
 		return this.root();
 	}

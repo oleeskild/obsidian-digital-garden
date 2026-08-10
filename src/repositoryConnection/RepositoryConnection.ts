@@ -1,14 +1,16 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
-import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
 import { normalizeRepoDirectory } from "src/publisher/paths";
+import DigitalGardenSettings from "src/models/settings";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("repository-connection");
 
 const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
+const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
 export interface IPutPayload {
 	path: string;
@@ -24,25 +26,73 @@ export class RepositoryConnection {
 	private noteBase: string;
 	private assetBase: string;
 	octokit: Octokit;
+	private settings: DigitalGardenSettings;
 
-	constructor({
-		octoKit,
-		userName,
-		pageName,
-		notesDirectory,
-		assetsDirectory,
-	}: IPublishPlatformConnection) {
-		this.pageName = pageName;
-		this.userName = userName;
+	constructor(settings: DigitalGardenSettings) {
+		const isForestry =
+			settings.publishPlatform === PublishPlatform.ForestryMd;
+
+		this.pageName = isForestry
+			? settings.forestrySettings.forestryPageName
+			: settings.gitRepo;
+		this.userName = isForestry ? "Forestry" : settings.gitUsername;
 
 		this.noteBase =
-			normalizeRepoDirectory(notesDirectory) || NOTE_PATH_BASE;
+			normalizeRepoDirectory(
+				isForestry ? undefined : settings.notesDirectory,
+			) || NOTE_PATH_BASE;
 
 		this.assetBase =
-			normalizeRepoDirectory(assetsDirectory) ||
-			`${IMAGE_PATH_BASE}img/user/`;
-		this.octokit = octoKit;
+			normalizeRepoDirectory(
+				isForestry ? undefined : settings.assetsDirectory,
+			) || `${IMAGE_PATH_BASE}img/user/`;
+
+		this.octokit = new Octokit({
+			...(isForestry && {
+				baseUrl: `${
+					process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL
+				}/Garden`,
+			}),
+			auth: isForestry
+				? settings.forestrySettings.apiKey
+				: settings.gitToken,
+			log: Logger.get("octokit"),
+		});
+		this.settings = settings;
 	}
+
+	static createBaseGardenConnection(): RepositoryConnection {
+		return new RepositoryConnection({
+			publishPlatform: PublishPlatform.GitHub,
+			gitUsername: "oleeskild",
+			gitRepo: "digitalgarden",
+			gitToken: "",
+		} as DigitalGardenSettings);
+	}
+
+	validateSettings(): void {
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			if (!this.settings.forestrySettings.apiKey)
+				throw new Error(
+					"Define a Forestry.md Garden Key in plugin settings",
+				);
+
+			return;
+		}
+
+		if (!this.settings.gitRepo) throw new Error("Define a Git repository");
+
+		if (!this.settings.gitUsername)
+			throw new Error("Define a Git username");
+
+		if (!this.settings.gitToken) throw new Error("Define a Git token");
+	}
+
+	usesPublicationManifest(): boolean {
+		return false;
+	}
+
+	async clearPublicationManifest(): Promise<void> {}
 
 	getRepositoryName() {
 		return this.userName + "/" + this.pageName;
@@ -506,6 +556,9 @@ export class RepositoryConnection {
 }
 
 export interface IRepositoryConnection {
+	validateSettings(): void;
+	usesPublicationManifest(): boolean;
+	clearPublicationManifest(): Promise<void>;
 	getRepositoryName(): string;
 	getContent(
 		branch: string,

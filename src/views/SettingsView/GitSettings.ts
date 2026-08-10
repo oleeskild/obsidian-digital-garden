@@ -196,7 +196,7 @@ export class GitSettings {
 
 		try {
 			const connection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					{
 						...this.settings.settings,
 						publishPlatform: this.platform,

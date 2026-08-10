@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/core";
+import type DigitalGardenSettings from "./settings";
 
 export interface IPublishPlatformConnection {
 	octoKit: Octokit;
@@ -6,4 +7,5 @@ export interface IPublishPlatformConnection {
 	pageName: string;
 	notesDirectory?: string;
 	assetsDirectory?: string;
+	settings?: DigitalGardenSettings;
 }

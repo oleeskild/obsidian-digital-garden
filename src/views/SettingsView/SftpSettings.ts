@@ -193,7 +193,7 @@ export class SftpSettings {
 
 		try {
 			const connection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					{
 						...this.settings,
 						publishPlatform: PublishPlatform.Sftp,

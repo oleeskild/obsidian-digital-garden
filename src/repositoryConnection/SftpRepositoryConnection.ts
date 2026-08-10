@@ -4,6 +4,7 @@ import path from "path";
 import posixPath from "path/posix";
 import { createHash } from "crypto";
 import type SftpClientType from "ssh2-sftp-client";
+import { Platform } from "obsidian";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import DigitalGardenSettings, {
 	DEFAULT_SFTP_PRIVATE_KEY_PATH,
@@ -25,6 +26,25 @@ import type {
 /** Repository-compatible storage backed by the SFTP subsystem of an SSH server. */
 export class SftpRepositoryConnection implements IRepositoryConnection {
 	constructor(private settings: DigitalGardenSettings) {}
+
+	validateSettings(): void {
+		if (!Platform.isDesktop)
+			throw new Error("SFTP publishing is only available on desktop");
+
+		if (!this.settings.sftpHost || !this.settings.sftpUsername)
+			throw new Error("SFTP host and username are required");
+
+		if (!this.settings.sftpRemoteRoot)
+			throw new Error("An SFTP remote garden folder is required");
+	}
+
+	usesPublicationManifest(): boolean {
+		return true;
+	}
+
+	async clearPublicationManifest(): Promise<void> {
+		await publicationManifestStore.remove("sftp");
+	}
 
 	getRepositoryName(): string {
 		return `${this.settings.sftpUsername}@${
