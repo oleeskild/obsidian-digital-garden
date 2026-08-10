@@ -18,6 +18,18 @@ const makeConnection = (repos: Record<string, jest.Mock>) => {
 };
 
 describe("ForgejoRepositoryConnection", () => {
+	beforeEach(() => {
+		jest.mocked(forgejoApi).mockClear();
+	});
+
+	it("normalizes the configured API URL", () => {
+		makeConnection({});
+
+		expect(forgejoApi).toHaveBeenCalledWith("https://forgejo.example", {
+			token: "token",
+		});
+	});
+
 	it("uses Forgejo's generated tree endpoint and normalizes its response", async () => {
 		const getTree = jest.fn().mockResolvedValue({
 			data: {

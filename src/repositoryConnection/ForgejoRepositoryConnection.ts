@@ -12,7 +12,7 @@ import type {
 } from "./RepositoryConnection";
 
 const logger = Logger.get("forgejo-repository-connection");
-const IMAGE_PATH_BASE = "src/site/";
+const IMAGE_PATH_BASE = "src/site/img/user/";
 const NOTE_PATH_BASE = "src/site/notes/";
 
 type ForgejoApi = ReturnType<typeof forgejoApi>;
@@ -38,8 +38,7 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 			normalizeRepoDirectory(settings.notesDirectory) || NOTE_PATH_BASE;
 
 		this.assetBase =
-			normalizeRepoDirectory(settings.assetsDirectory) ||
-			`${IMAGE_PATH_BASE}img/user/`;
+			normalizeRepoDirectory(settings.assetsDirectory) || IMAGE_PATH_BASE;
 	}
 
 	validateSettings(): void {

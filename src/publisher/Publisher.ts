@@ -194,7 +194,7 @@ export default class Publisher {
 	}
 
 	async clearPublicationManifest(): Promise<void> {
-		PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 			this.settings,
 		).clearPublicationManifest();
 		this.cachedRemoteImageHashes = undefined;

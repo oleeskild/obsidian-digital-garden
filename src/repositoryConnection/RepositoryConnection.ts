@@ -8,9 +8,20 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("repository-connection");
 
-const IMAGE_PATH_BASE = "src/site/";
+const IMAGE_PATH_BASE = "src/site/img/user/";
 const NOTE_PATH_BASE = "src/site/notes/";
 const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
+
+type RepositoryConnectionSettings = Pick<
+	DigitalGardenSettings,
+	| "publishPlatform"
+	| "gitToken"
+	| "gitRepo"
+	| "gitUsername"
+	| "forestrySettings"
+	| "notesDirectory"
+	| "assetsDirectory"
+>;
 
 export interface IPutPayload {
 	path: string;
@@ -21,43 +32,43 @@ export interface IPutPayload {
 }
 
 export class RepositoryConnection {
-	private userName: string;
-	private pageName: string;
-	private noteBase: string;
-	private assetBase: string;
-	octokit: Octokit;
-	private settings: DigitalGardenSettings;
+	private readonly userName: string;
+	private readonly pageName: string;
+	private readonly noteBase: string;
+	private readonly assetBase: string;
+	readonly octokit: Octokit;
+	private readonly settings: RepositoryConnectionSettings;
 
-	constructor(settings: DigitalGardenSettings) {
-		const isForestry =
-			settings.publishPlatform === PublishPlatform.ForestryMd;
-
-		this.pageName = isForestry
-			? settings.forestrySettings.forestryPageName
-			: settings.gitRepo;
-		this.userName = isForestry ? "Forestry" : settings.gitUsername;
+	constructor(settings: RepositoryConnectionSettings) {
+		this.pageName = settings.gitRepo;
+		this.userName = settings.gitUsername;
 
 		this.noteBase =
-			normalizeRepoDirectory(
-				isForestry ? undefined : settings.notesDirectory,
-			) || NOTE_PATH_BASE;
+			normalizeRepoDirectory(settings.notesDirectory) || NOTE_PATH_BASE;
 
 		this.assetBase =
-			normalizeRepoDirectory(
-				isForestry ? undefined : settings.assetsDirectory,
-			) || `${IMAGE_PATH_BASE}img/user/`;
+			normalizeRepoDirectory(settings.assetsDirectory) || IMAGE_PATH_BASE;
 
-		this.octokit = new Octokit({
-			...(isForestry && {
+		if (settings.publishPlatform === PublishPlatform.ForestryMd) {
+			this.pageName = settings.forestrySettings.forestryPageName;
+			this.userName = "Forestry";
+			this.noteBase = NOTE_PATH_BASE;
+			this.assetBase = IMAGE_PATH_BASE;
+
+			this.octokit = new Octokit({
 				baseUrl: `${
 					process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL
 				}/Garden`,
-			}),
-			auth: isForestry
-				? settings.forestrySettings.apiKey
-				: settings.gitToken,
-			log: Logger.get("octokit"),
-		});
+				auth: settings.forestrySettings.apiKey,
+				log: Logger.get("octokit"),
+			});
+		} else {
+			this.octokit = new Octokit({
+				auth: settings.gitToken,
+				log: Logger.get("octokit"),
+			});
+		}
+
 		this.settings = settings;
 	}
 
@@ -67,7 +78,12 @@ export class RepositoryConnection {
 			gitUsername: "oleeskild",
 			gitRepo: "digitalgarden",
 			gitToken: "",
-		} as DigitalGardenSettings);
+			forestrySettings: {
+				forestryPageName: "",
+				apiKey: "",
+				baseUrl: "",
+			},
+		});
 	}
 
 	validateSettings(): void {

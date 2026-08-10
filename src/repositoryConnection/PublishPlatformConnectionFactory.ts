@@ -12,21 +12,22 @@ export default class PublishPlatformConnectionFactory {
 	static createBaseGardenConnection(): IRepositoryConnection {
 		return RepositoryConnection.createBaseGardenConnection();
 	}
+
 	static createPublishPlatformConnection(
 		settings: DigitalGardenSettings,
 	): IRepositoryConnection {
-		if (settings.publishPlatform === PublishPlatform.GitHub) {
-			return new RepositoryConnection(settings);
-		} else if (settings.publishPlatform === PublishPlatform.Forgejo) {
-			return new ForgejoRepositoryConnection(settings);
-		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
-			return new RepositoryConnection(settings);
-		} else if (settings.publishPlatform === PublishPlatform.LocalFolder) {
-			return new LocalFolderRepositoryConnection(settings);
-		} else if (settings.publishPlatform === PublishPlatform.Sftp) {
-			return new SftpRepositoryConnection(settings);
-		} else {
-			throw new Error("Publish platform not supported");
+		switch (settings.publishPlatform) {
+			case PublishPlatform.GitHub:
+			case PublishPlatform.ForestryMd:
+				return new RepositoryConnection(settings);
+			case PublishPlatform.Forgejo:
+				return new ForgejoRepositoryConnection(settings);
+			case PublishPlatform.LocalFolder:
+				return new LocalFolderRepositoryConnection(settings);
+			case PublishPlatform.Sftp:
+				return new SftpRepositoryConnection(settings);
+			default:
+				throw new Error("Publish platform not supported");
 		}
 	}
 }
