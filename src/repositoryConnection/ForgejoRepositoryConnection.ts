@@ -231,6 +231,7 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 	async updateFiles(
 		compiledFiles: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
+		onProgress?: (completed: number, currentPath: string) => void,
 	) {
 		const repository = await this.getRepositoryInfo();
 		const branch = repository?.default_branch;
@@ -244,6 +245,8 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 			(tree?.tree ?? []).map((entry) => [entry.path, entry.sha]),
 		);
 		const operations: ChangeFileOperation[] = [];
+
+		let completed = 0;
 
 		for (const file of compiledFiles) {
 			const [text, assets] = file.compiledFile;
@@ -283,6 +286,9 @@ export class ForgejoRepositoryConnection implements IRepositoryConnection {
 					content: asset.content,
 				});
 			}
+
+			completed++;
+			onProgress?.(completed, file.getPath());
 		}
 
 		if (operations.length === 0) return;

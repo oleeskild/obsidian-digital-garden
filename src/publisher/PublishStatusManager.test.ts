@@ -50,6 +50,7 @@ const makeManager = (options: {
 	} as unknown as DigitalGardenSiteManager;
 
 	const publisher = {
+		setRemoteImageHashes: jest.fn(),
 		getFilesMarkedForPublishing: async () => ({
 			notes: options.notes,
 			images: options.images ?? [],

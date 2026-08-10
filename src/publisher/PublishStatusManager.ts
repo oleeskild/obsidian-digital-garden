@@ -43,28 +43,48 @@ export default class PublishStatusManager implements IPublishStatusManager {
 
 		return pathsWithSha;
 	}
-	async getPublishStatus(): Promise<PublishStatus> {
+	async getPublishStatus(
+		onProgress?: (progress: PublishStatusProgress) => void,
+	): Promise<PublishStatus> {
 		const unpublishedNotes: Array<CompiledPublishFile> = [];
 		const publishedNotes: Array<CompiledPublishFile> = [];
 		const changedNotes: Array<CompiledPublishFile> = [];
 
+		onProgress?.({
+			completed: 0,
+			message: "Connecting to publication provider…",
+		});
+
 		const contentTree = await (
 			await this.siteManager.getUserGardenConnection()
-		).getContent("HEAD");
+		).getContent("HEAD", (progress) => onProgress?.(progress));
 
 		if (!contentTree) {
 			throw new Error("Could not get content tree from base garden");
 		}
+
+		onProgress?.({ completed: 0, message: "Indexing remote content…" });
 
 		const remoteNoteHashes =
 			await this.siteManager.getNoteHashes(contentTree);
 
 		const remoteImageHashes =
 			await this.siteManager.getImageHashes(contentTree);
+		this.publisher.setRemoteImageHashes(remoteImageHashes);
 
+		onProgress?.({
+			completed: 0,
+			message: "Finding marked notes and assets…",
+		});
 		const marked = await this.publisher.getFilesMarkedForPublishing();
+		let compiled = 0;
 
 		for (const file of marked.notes) {
+			onProgress?.({
+				completed: compiled,
+				total: marked.notes.length,
+				message: `Compiling note: ${file.getPath()}`,
+			});
 			const compiledFile = await file.compile();
 			const [content, assets] = compiledFile.getCompiledFile();
 
@@ -87,7 +107,14 @@ export default class PublishStatusManager implements IPublishStatusManager {
 				compiledFile.setRemoteHash(remoteHash);
 				changedNotes.push(compiledFile);
 			}
+			compiled++;
 		}
+
+		onProgress?.({
+			completed: marked.notes.length,
+			total: marked.notes.length,
+			message: "Finalizing publication status…",
+		});
 
 		const deletedNotePaths = this.generateDeletedContentPaths(
 			remoteNoteHashes,
@@ -128,5 +155,13 @@ export interface PublishStatus {
 }
 
 export interface IPublishStatusManager {
-	getPublishStatus(): Promise<PublishStatus>;
+	getPublishStatus(
+		onProgress?: (progress: PublishStatusProgress) => void,
+	): Promise<PublishStatus>;
+}
+
+export interface PublishStatusProgress {
+	completed: number;
+	total?: number;
+	message: string;
 }

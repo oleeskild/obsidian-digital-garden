@@ -301,6 +301,7 @@ export class RepositoryConnection {
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
+		onProgress?: (completed: number, currentPath: string) => void,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -323,6 +324,8 @@ export class RepositoryConnection {
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
+		let completedNotes = 0;
+
 		const treePromises = files.map(async (file) => {
 			const [text, _] = file.compiledFile;
 
@@ -336,12 +339,16 @@ export class RepositoryConnection {
 					},
 				);
 
-				return {
+				const entry = {
 					path: `${this.noteBase}${normalizePath(file.getPath())}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
 				};
+				completedNotes++;
+				onProgress?.(completedNotes, file.getPath());
+
+				return entry;
 			} catch (error) {
 				throwIfLimitError(error);
 				logger.error(error);
@@ -500,7 +507,10 @@ export class RepositoryConnection {
 
 export interface IRepositoryConnection {
 	getRepositoryName(): string;
-	getContent(branch: string): Promise<IRepositoryTree | undefined>;
+	getContent(
+		branch: string,
+		onProgress?: (progress: RepositoryProgress) => void,
+	): Promise<IRepositoryTree | undefined>;
 	getFile(
 		path: string,
 		branch?: string,
@@ -518,6 +528,7 @@ export interface IRepositoryConnection {
 	updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes?: Record<string, string>,
+		onProgress?: (completed: number, currentPath: string) => void,
 	): Promise<void>;
 	getRepositoryInfo(): Promise<IRepositoryInfo | undefined>;
 	createBranch(branchName: string, sha: string): Promise<void>;
@@ -527,6 +538,11 @@ export interface IRepositoryConnection {
 		base: string;
 		body: string;
 	}): Promise<string>;
+}
+
+export interface RepositoryProgress {
+	completed: number;
+	message: string;
 }
 
 export interface IRepositoryTreeItem {

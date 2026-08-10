@@ -31,6 +31,7 @@ export default class Publisher {
 	compiler: GardenPageCompiler;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
+	private cachedRemoteImageHashes?: Record<string, string>;
 
 	constructor(
 		vault: Vault,
@@ -183,6 +184,10 @@ export default class Publisher {
 		};
 	}
 
+	setRemoteImageHashes(hashes: Record<string, string>): void {
+		this.cachedRemoteImageHashes = hashes;
+	}
+
 	async deleteNote(vaultFilePath: string, sha?: string) {
 		const path = notePathBase(this.settings) + vaultFilePath;
 
@@ -259,7 +264,10 @@ export default class Publisher {
 		}
 	}
 
-	public async publishBatch(files: CompiledPublishFile[]): Promise<boolean> {
+	public async publishBatch(
+		files: CompiledPublishFile[],
+		onProgress?: (completed: number, currentPath: string) => void,
+	): Promise<boolean> {
 		const filesToPublish = files.filter((f) =>
 			isPublishFrontmatterValid(
 				f.frontmatter,
@@ -282,6 +290,7 @@ export default class Publisher {
 			await userGardenConnection.updateFiles(
 				filesToPublish,
 				remoteImageHashes,
+				onProgress,
 			);
 
 			return true;
@@ -296,6 +305,8 @@ export default class Publisher {
 	}
 
 	private async getRemoteImageHashes(): Promise<Record<string, string>> {
+		if (this.cachedRemoteImageHashes) return this.cachedRemoteImageHashes;
+
 		const userGardenConnection =
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
@@ -314,7 +325,10 @@ export default class Publisher {
 			this.settings,
 		);
 
-		return siteManager.getImageHashes(contentTree);
+		const hashes = await siteManager.getImageHashes(contentTree);
+		this.cachedRemoteImageHashes = hashes;
+
+		return hashes;
 	}
 
 	private async uploadToGithub(

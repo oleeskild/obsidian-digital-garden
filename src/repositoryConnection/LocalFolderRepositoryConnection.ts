@@ -70,7 +70,13 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 		await fs.writeFile(destination, Buffer.from(payload.content, "base64"));
 	}
 
-	async updateFiles(files: CompiledPublishFile[]): Promise<void> {
+	async updateFiles(
+		files: CompiledPublishFile[],
+		_remoteImageHashes?: Record<string, string>,
+		onProgress?: (completed: number, currentPath: string) => void,
+	): Promise<void> {
+		let completed = 0;
+
 		for (const file of files) {
 			const [content, assets] = file.getCompiledFile();
 
@@ -96,6 +102,9 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 					Buffer.from(asset.content, "base64"),
 				);
 			}
+
+			completed++;
+			onProgress?.(completed, file.getPath());
 		}
 	}
 

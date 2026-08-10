@@ -8,6 +8,7 @@
 	import type {
 		IPublishStatusManager,
 		PublishStatus,
+		PublishStatusProgress,
 	} from "../../publisher/PublishStatusManager";
 	import {
 		annotateFiles,
@@ -35,6 +36,10 @@
 	let status: PublishStatus | null = null;
 	let error: string | null = null;
 	let refreshing = false;
+	let statusProgress: PublishStatusProgress = {
+		completed: 0,
+		message: "Preparing publication status…",
+	};
 	let lastRefreshAt = 0;
 	const REFRESH_DEBOUNCE_MS = 3000;
 	let annotated: AnnotatedFile[] = [];
@@ -77,6 +82,11 @@
 		if (refreshing) return;
 		refreshing = true;
 
+		statusProgress = {
+			completed: 0,
+			message: "Preparing publication status…",
+		};
+
 		const prevAllPaths = new Set(annotated.map((f) => f.path));
 		const prevSelected = selected;
 
@@ -94,7 +104,9 @@
 		}
 
 		try {
-			const s = await statusManager.getPublishStatus();
+			const s = await statusManager.getPublishStatus((progress) => {
+				statusProgress = progress;
+			});
 			status = s;
 			annotated = annotateFiles(s);
 
@@ -199,8 +211,15 @@
 
 		try {
 			progressCurrent = "Publishing notes…";
-			const published = await publisher.publishBatch(plan.notesToPublish);
-			progressDone += plan.notesToPublish.length;
+
+			const published = await publisher.publishBatch(
+				plan.notesToPublish,
+				(completed, currentPath) => {
+					progressDone = completed;
+					progressCurrent = `Published ${currentPath}`;
+				},
+			);
+			progressDone = plan.notesToPublish.length;
 
 			if (published) {
 				for (const note of plan.notesToPublish) {
@@ -369,7 +388,22 @@
 	{:else if !status}
 		<div class="dg-pc-loading">
 			{@html bigRotatingCog()?.outerHTML ?? ""}
-			<div>Calculating publication status…</div>
+			<div>{statusProgress.message}</div>
+			{#if statusProgress.total !== undefined}
+				<div class="dg-pc-status-count">
+					{statusProgress.completed} of {statusProgress.total}
+				</div>
+				<div class="dg-pc-progress-track dg-pc-status-progress">
+					<div
+						class="dg-pc-progress-fill"
+						style="width: {statusProgress.total
+							? (statusProgress.completed /
+									statusProgress.total) *
+							  100
+							: 100}%"
+					></div>
+				</div>
+			{/if}
 		</div>
 	{:else}
 		<Tutorial />
@@ -377,7 +411,7 @@
 		<Notices {problematicFiles} />
 
 		{#if refreshing}
-			<div class="dg-pc-syncing">Updating…</div>
+			<div class="dg-pc-syncing">{statusProgress.message}</div>
 		{/if}
 
 		{#if publishing}
@@ -475,6 +509,15 @@
 	.dg-pc-error {
 		color: var(--text-error);
 		padding: 16px;
+	}
+
+	.dg-pc-status-count {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.dg-pc-status-progress {
+		width: min(360px, 80%);
 	}
 
 	.dg-pc-syncing {
