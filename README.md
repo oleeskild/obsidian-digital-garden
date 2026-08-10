@@ -173,9 +173,21 @@ You can export your garden to a local folder instead of publishing to GitHub. Th
 
 This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
 
+## SFTP over SSH
+
+On Obsidian Desktop, the garden source can be synchronized directly to a server through the SFTP subsystem provided by OpenSSH. No separate FTP server is needed.
+
+1. In plugin settings, choose **SFTP** as the default publication provider.
+2. Enter the SSH host, port, username, and absolute remote garden folder.
+3. Configure a private key path (recommended) or a password. Encrypted private keys can use a passphrase.
+4. Optionally enter the server's OpenSSH `SHA256:...` host-key fingerprint to pin its identity.
+5. Run **Publish All Marked Notes to SFTP** or use the Publication Center.
+
+SFTP synchronizes garden source files and removes remotely published notes or assets that were unpublished locally. It does not execute a remote build command; configure the server to build the Eleventy garden after changes, or run the build separately. SFTP credentials are saved in the plugin's local Obsidian settings, so key-based authentication with a narrowly scoped deployment account is recommended.
+
 ## Custom repository layouts
 
-Self-hosted gardens do not have to use the template's directory layout. The advanced GitHub settings can independently configure:
+Self-hosted gardens do not have to use the template's directory layout. The advanced Git, SFTP, and local-folder settings can independently configure:
 
 - **Notes directory** — where compiled Markdown notes are written.
 - **Assets directory** — where note images and other user assets are written.

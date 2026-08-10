@@ -9,7 +9,9 @@ import {
 	App,
 } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
-import DigitalGardenSettings from "./src/models/settings";
+import DigitalGardenSettings, {
+	DEFAULT_SFTP_PRIVATE_KEY_PATH,
+} from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
@@ -53,6 +55,14 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	gitToken: "",
 	gitUsername: "",
 	forgejoApiUrl: "",
+	sftpHost: "",
+	sftpPort: 22,
+	sftpUsername: "",
+	sftpPassword: "",
+	sftpPrivateKeyPath: DEFAULT_SFTP_PRIVATE_KEY_PATH,
+	sftpPrivateKeyPassphrase: "",
+	sftpRemoteRoot: "",
+	sftpHostKeyFingerprint: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -446,6 +456,7 @@ export default class DigitalGarden extends Plugin {
 
 		for (const [provider, id, label] of [
 			[PublicationProvider.Git, "git", "Git"],
+			[PublicationProvider.Sftp, "sftp", "SFTP"],
 			[PublicationProvider.LocalFolder, "local-folder", "Local Folder"],
 			[PublicationProvider.Forest, "forest", "Forest"],
 		] as const) {
@@ -560,10 +571,11 @@ export default class DigitalGarden extends Plugin {
 		}
 
 		if (
-			provider === PublicationProvider.LocalFolder &&
+			(provider === PublicationProvider.LocalFolder ||
+				provider === PublicationProvider.Sftp) &&
 			!Platform.isDesktop
 		) {
-			new Notice("Local-folder publishing is only available on desktop.");
+			new Notice(`${label} publishing is only available on desktop.`);
 
 			return;
 		}

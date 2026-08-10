@@ -1,4 +1,4 @@
-import { MetadataCache, Notice, TFile, Vault } from "obsidian";
+import { MetadataCache, Notice, Platform, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
 import { getRewriteRules } from "../utils/utils";
 import {
@@ -383,6 +383,27 @@ export default class Publisher {
 	}
 
 	validateSettings() {
+		if (this.settings.publishPlatform === PublishPlatform.Sftp) {
+			if (!Platform.isDesktop) {
+				new Notice("SFTP publishing is only available on desktop");
+				throw new Error("SFTP publishing is only available on desktop");
+			}
+
+			if (!this.settings.sftpHost || !this.settings.sftpUsername) {
+				new Notice("Config error: SFTP host and username are required");
+				throw new Error("SFTP host and username are required");
+			}
+
+			if (!this.settings.sftpRemoteRoot) {
+				new Notice(
+					"Config error: An SFTP remote garden folder is required",
+				);
+				throw new Error("SFTP remote garden folder is required");
+			}
+
+			return;
+		}
+
 		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
 			if (!this.settings.localExportPath) {
 				new Notice(

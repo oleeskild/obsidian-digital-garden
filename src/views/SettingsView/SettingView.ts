@@ -9,6 +9,7 @@ import {
 	MetadataCache,
 	Modal,
 	Notice,
+	Platform,
 	Setting,
 	TextComponent,
 	TFile,
@@ -27,6 +28,7 @@ import {
 } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GitSettings } from "./GitSettings";
+import { SftpSettings } from "./SftpSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
@@ -138,6 +140,9 @@ export default class SettingView {
 			.setDesc("Used by publishing commands that do not name a provider.")
 			.addDropdown((dd) => {
 				dd.addOption(PublicationProvider.Git, "Git");
+
+				if (Platform.isDesktop)
+					dd.addOption(PublicationProvider.Sftp, "SFTP");
 				dd.addOption(PublicationProvider.LocalFolder, "Local folder");
 				dd.addOption(PublicationProvider.Forest, "Forest");
 				dd.setValue(this.settings.publicationProvider);
@@ -273,6 +278,13 @@ export default class SettingView {
 			),
 		);
 
+		if (Platform.isDesktop)
+			new SftpSettings(
+				this.settingsRootElement,
+				this.settings,
+				this.saveSettings,
+			);
+
 		this.settingsRootElement.createEl("h2", { text: "Local Folder" });
 
 		const localTarget = this.settingsRootElement.createDiv({
@@ -310,7 +322,7 @@ export default class SettingView {
 		});
 
 		this.settingsRootElement.createEl("h2", {
-			text: "Git and Local Folder Output Paths",
+			text: "Git, SFTP, and Local Folder Output Paths",
 		});
 		initializeCustomPathSettings(this, this.settingsRootElement);
 	}

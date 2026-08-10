@@ -11,6 +11,7 @@ import {
 	ForgejoRepositoryConnection,
 } from "./ForgejoRepositoryConnection";
 import { LocalFolderRepositoryConnection } from "./LocalFolderRepositoryConnection";
+import { SftpRepositoryConnection } from "./SftpRepositoryConnection";
 
 const oktokitLogger = Logger.get("octokit");
 
@@ -76,6 +77,8 @@ export default class PublishPlatformConnectionFactory {
 			});
 		} else if (settings.publishPlatform === PublishPlatform.LocalFolder) {
 			return new LocalFolderRepositoryConnection(settings);
+		} else if (settings.publishPlatform === PublishPlatform.Sftp) {
+			return new SftpRepositoryConnection(settings);
 		} else {
 			throw new Error("Publish platform not supported");
 		}

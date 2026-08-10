@@ -1,4 +1,11 @@
-import { ItemView, WorkspaceLeaf, TFile, Setting, type App } from "obsidian";
+import {
+	ItemView,
+	WorkspaceLeaf,
+	TFile,
+	Setting,
+	Platform,
+	type App,
+} from "obsidian";
 import { mount, unmount } from "svelte";
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
@@ -89,9 +96,13 @@ export class PublicationCenterView extends ItemView {
 	private renderProviderPicker(): void {
 		new Setting(this.contentEl)
 			.setName("Publication provider")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption(PublicationProvider.Git, "Git")
+			.addDropdown((dropdown) => {
+				dropdown.addOption(PublicationProvider.Git, "Git");
+
+				if (Platform.isDesktop)
+					dropdown.addOption(PublicationProvider.Sftp, "SFTP");
+
+				return dropdown
 					.addOption(PublicationProvider.LocalFolder, "Local folder")
 					.addOption(PublicationProvider.Forest, "Forest")
 					.setValue(this.provider)
@@ -105,8 +116,8 @@ export class PublicationCenterView extends ItemView {
 							.querySelector(".dg-pc-provider-content")
 							?.remove();
 						this.mountCenter();
-					}),
-			);
+					});
+			});
 	}
 
 	async onClose(): Promise<void> {

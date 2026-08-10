@@ -2,6 +2,8 @@ import { ILogLevel } from "js-logger";
 import { PublishPlatform } from "./PublishPlatform";
 import { GitProvider, PublicationProvider } from "./PublicationProvider";
 
+export const DEFAULT_SFTP_PRIVATE_KEY_PATH = "~/.ssh/id_ed25519";
+
 /** Saved to data.json, changing requires a migration */
 export default interface DigitalGardenSettings {
 	gitToken: string;
@@ -9,6 +11,17 @@ export default interface DigitalGardenSettings {
 	gitUsername: string;
 	/** REST API root, e.g. https://git.example.com/api/v1. */
 	forgejoApiUrl?: string;
+
+	// SFTP
+	sftpHost: string;
+	sftpPort: number;
+	sftpUsername: string;
+	sftpPassword: string;
+	sftpPrivateKeyPath: string;
+	sftpPrivateKeyPassphrase: string;
+	sftpRemoteRoot: string;
+	/** OpenSSH SHA256 fingerprint, for example SHA256:abc... */
+	sftpHostKeyFingerprint: string;
 
 	gardenBaseUrl: string;
 	prHistory: string[];
