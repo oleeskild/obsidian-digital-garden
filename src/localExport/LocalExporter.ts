@@ -11,6 +11,7 @@ import {
 	sitePath,
 } from "../publisher/paths";
 import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
+import { publicationManifestStore } from "../publisher/PublicationManifestStore";
 
 const PRESERVED_FILES = new Set(["notes.json", "notes.11tydata.js"]);
 const IMG_USER_PREFIX = "/img/user/";
@@ -148,6 +149,9 @@ export class LocalExporter {
 		// Clean stale files
 		await this.cleanStaleFiles(notesDir, writtenNotePaths, PRESERVED_FILES);
 		await this.cleanStaleFiles(imagesDir, writtenImagePaths, new Set());
+		// This exporter writes the destination directly rather than through the
+		// repository connection, so force one local cache rebuild next time.
+		await publicationManifestStore.remove("local");
 
 		return { notes: notesWritten, images: imagesWritten, failed };
 	}

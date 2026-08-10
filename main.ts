@@ -37,6 +37,7 @@ import { PublicationCenterView } from "src/views/PublicationCenterView/Publicati
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
 import { hasPublishFlag } from "src/publishFile/Validator";
+import { publicationManifestStore } from "src/publisher/PublicationManifestStore";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -164,6 +165,12 @@ export default class DigitalGarden extends Plugin {
 
 	async onload() {
 		this.appVersion = this.manifest.version;
+
+		publicationManifestStore.configure(
+			this.app.vault.adapter,
+			this.manifest.dir ??
+				`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
+		);
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();

@@ -142,6 +142,12 @@
 		return loadStatus({ background: false });
 	}
 
+	async function fullRefresh() {
+		if (refreshing || publishing) return;
+		await publisher.clearPublicationManifest();
+		await refresh();
+	}
+
 	// Quiet, debounced refresh that keeps the tree visible and preserves the
 	// user's current checkbox selection. Called when the view becomes active.
 	function maybeRefresh() {
@@ -463,8 +469,11 @@
 		<PublishBar
 			{selectedCount}
 			{publishing}
+			{refreshing}
+			showFullRefresh={publisher.usesPublicationManifest()}
 			on:publish={publishSelected}
 			on:refresh={refresh}
+			on:fullrefresh={fullRefresh}
 		/>
 	{/if}
 </div>

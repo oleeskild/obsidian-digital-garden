@@ -55,4 +55,42 @@ describe("SFTP publication provider", () => {
 		expect(toBuffer("text", "note").toString()).toBe("text");
 		expect(toBuffer([], "empty-note")).toEqual(Buffer.alloc(0));
 	});
+
+	it("converts managed hashes between manifests and repository trees", () => {
+		const connection = new SftpRepositoryConnection({
+			sftpRemoteRoot: "/garden",
+			notesDirectory: "content/notes",
+			assetsDirectory: "content/assets",
+		} as DigitalGardenSettings);
+
+		const internals = connection as unknown as {
+			treeToManifest(
+				tree: {
+					path?: string;
+					sha?: string;
+					type?: string;
+				}[],
+			): { version: 1; files: Record<string, string> };
+			manifestToTree(manifest: {
+				version: 1;
+				files: Record<string, string>;
+			}): { tree: { path?: string; sha?: string }[] };
+		};
+
+		const manifest = internals.treeToManifest([
+			{ path: "content/notes/a.md", sha: "note", type: "blob" },
+			{ path: "content/assets/a.png", sha: "asset", type: "blob" },
+			{ path: "unmanaged.txt", sha: "ignored", type: "blob" },
+		]);
+
+		expect(manifest.files).toEqual({
+			"content/notes/a.md": "note",
+			"content/assets/a.png": "asset",
+		});
+
+		expect(internals.manifestToTree(manifest).tree).toEqual([
+			{ path: "content/assets/a.png", sha: "asset", type: "blob" },
+			{ path: "content/notes/a.md", sha: "note", type: "blob" },
+		]);
+	});
 });

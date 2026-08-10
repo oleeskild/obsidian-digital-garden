@@ -10,6 +10,10 @@ import DigitalGardenSettings, {
 } from "src/models/settings";
 import { generateBlobHash, generateBlobHashFromBase64 } from "src/utils/utils";
 import { imagePathBase, notePathBase } from "src/publisher/paths";
+import {
+	publicationManifestStore,
+	type PublicationManifest,
+} from "src/publisher/PublicationManifestStore";
 import type {
 	IPutPayload,
 	IRepositoryConnection,
@@ -33,6 +37,18 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		onProgress?: (progress: RepositoryProgress) => void,
 	): Promise<IRepositoryTree> {
 		return this.withClient(async (client) => {
+			onProgress?.({
+				completed: 0,
+				message: "Loading hash manifest…",
+			});
+			const manifest = await this.readManifest();
+
+			if (manifest) return this.manifestToTree(manifest);
+
+			onProgress?.({
+				completed: 0,
+				message: "Building hash manifest for the first time…",
+			});
 			const tree: IRepositoryTree["tree"] = [];
 			const progress = { completed: 0 };
 
@@ -45,6 +61,8 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 				const relative = contentRoot.replace(/\/+$/, "");
 				await this.walk(client, relative, tree, progress, onProgress);
 			}
+
+			await this.writeManifest(this.treeToManifest(tree));
 
 			return { tree };
 		});
@@ -75,6 +93,7 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 
 			if (!(await client.exists(remotePath))) return false;
 			await client.delete(remotePath);
+			await this.removeManifestPaths(client, [filePath]);
 
 			return true;
 		});
@@ -82,11 +101,18 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 
 	async updateFile(payload: IPutPayload): Promise<void> {
 		await this.withClient(async (client) => {
-			await this.put(
-				client,
-				payload.path,
-				Buffer.from(payload.content, "base64"),
-			);
+			const content = Buffer.from(payload.content, "base64");
+			await this.put(client, payload.path, content);
+
+			if (this.isManagedPath(payload.path)) {
+				const manifest = await this.getOrBuildManifest(client);
+
+				manifest.files[payload.path] = this.hashContent(
+					payload.path,
+					content,
+				);
+				await this.writeManifest(manifest);
+			}
 		});
 	}
 
@@ -96,6 +122,7 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		onProgress?: (completed: number, currentPath: string) => void,
 	): Promise<void> {
 		await this.withClient(async (client) => {
+			const manifest = await this.getOrBuildManifest(client);
 			const uploadedAssets = new Set<string>();
 
 			let completed = 0;
@@ -103,11 +130,10 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 			for (const file of files) {
 				const [content, assets] = file.getCompiledFile();
 
-				await this.put(
-					client,
-					notePathBase(this.settings) + file.getPath(),
-					Buffer.from(content, "utf-8"),
-				);
+				const notePath = notePathBase(this.settings) + file.getPath();
+				const noteContent = Buffer.from(content, "utf-8");
+				await this.put(client, notePath, noteContent);
+				manifest.files[notePath] = generateBlobHash(content);
 
 				for (const asset of assets.images) {
 					const relative = asset.path.replace(/^\/?img\/user\//, "");
@@ -121,16 +147,20 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 					)
 						continue;
 
-					await this.put(
-						client,
-						imagePathBase(this.settings) + relative,
-						Buffer.from(asset.content, "base64"),
-					);
+					const assetPath = imagePathBase(this.settings) + relative;
+					const assetContent = Buffer.from(asset.content, "base64");
+					await this.put(client, assetPath, assetContent);
+
+					manifest.files[assetPath] =
+						asset.localHash ??
+						generateBlobHashFromBase64(asset.content);
 				}
 
 				completed++;
 				onProgress?.(completed, file.getPath());
 			}
+
+			await this.writeManifest(manifest);
 		});
 	}
 
@@ -142,6 +172,8 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 				if (await client.exists(remotePath))
 					await client.delete(remotePath);
 			}
+
+			await this.removeManifestPaths(client, paths);
 		});
 	}
 
@@ -308,6 +340,117 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 				progress.completed++;
 			}
 		}
+	}
+
+	private async readManifest(): Promise<PublicationManifest | undefined> {
+		const manifest = await publicationManifestStore.read(
+			"sftp",
+			this.manifestTarget(),
+		);
+
+		if (!manifest) return undefined;
+
+		manifest.files = Object.fromEntries(
+			Object.entries(manifest.files).filter(([filePath]) =>
+				this.isManagedPath(filePath),
+			),
+		);
+
+		return manifest;
+	}
+
+	private async getOrBuildManifest(
+		client: SftpClientType,
+	): Promise<PublicationManifest> {
+		const existing = await this.readManifest();
+
+		if (existing) return existing;
+
+		const tree: IRepositoryTree["tree"] = [];
+		const progress = { completed: 0 };
+
+		for (const contentRoot of new Set([
+			notePathBase(this.settings),
+			imagePathBase(this.settings),
+		])) {
+			await this.walk(
+				client,
+				contentRoot.replace(/\/+$/, ""),
+				tree,
+				progress,
+			);
+		}
+
+		return this.treeToManifest(tree);
+	}
+
+	private async writeManifest(manifest: PublicationManifest): Promise<void> {
+		await publicationManifestStore.write("sftp", manifest);
+	}
+
+	private async removeManifestPaths(
+		client: SftpClientType,
+		paths: string[],
+	): Promise<void> {
+		const managedPaths = paths.filter((filePath) =>
+			this.isManagedPath(filePath),
+		);
+
+		if (managedPaths.length === 0) return;
+
+		const manifest = await this.getOrBuildManifest(client);
+
+		for (const filePath of managedPaths) delete manifest.files[filePath];
+		await this.writeManifest(manifest);
+	}
+
+	private manifestToTree(manifest: PublicationManifest): IRepositoryTree {
+		return {
+			tree: Object.entries(manifest.files)
+				.sort(([a], [b]) =>
+					a.localeCompare(b, undefined, { numeric: true }),
+				)
+				.map(([filePath, sha]) => ({
+					path: filePath,
+					type: "blob",
+					sha,
+				})),
+		};
+	}
+
+	private treeToManifest(tree: IRepositoryTree["tree"]): PublicationManifest {
+		const files: Record<string, string> = {};
+
+		for (const entry of tree) {
+			if (entry.path && entry.sha && this.isManagedPath(entry.path))
+				files[entry.path] = entry.sha;
+		}
+
+		return { version: 1, target: this.manifestTarget(), files };
+	}
+
+	private manifestTarget(): string {
+		return JSON.stringify({
+			host: (this.settings.sftpHost ?? "").trim(),
+			port: this.settings.sftpPort || 22,
+			username: (this.settings.sftpUsername ?? "").trim(),
+			root: this.root(),
+			notes: notePathBase(this.settings),
+			assets: imagePathBase(this.settings),
+		});
+	}
+
+	private isManagedPath(filePath: string): boolean {
+		return (
+			filePath.startsWith(notePathBase(this.settings)) ||
+			filePath.startsWith(imagePathBase(this.settings))
+		);
+	}
+
+	private hashContent(filePath: string, content: Buffer): string {
+		return filePath.startsWith(notePathBase(this.settings))
+			? generateBlobHash(content.toString("utf-8"))
+			: generateBlobHashFromBase64(content.toString("base64"));
 	}
 
 	private fingerprint(key: Buffer): string {

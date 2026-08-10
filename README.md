@@ -185,6 +185,8 @@ On Obsidian Desktop, the garden source can be synchronized directly to a server 
 
 SFTP synchronizes garden source files and removes remotely published notes or assets that were unpublished locally. It does not execute a remote build command; configure the server to build the Eleventy garden after changes, or run the build separately. SFTP credentials are saved in the plugin's local Obsidian settings, so key-based authentication with a narrowly scoped deployment account is recommended.
 
+Publication status caches are stored beside the plugin as `sftp-manifest.json` and `local-manifest.json`. They record hashes for managed notes and assets so later checks do not need to reread every published file. Changing a publication destination invalidates its cache automatically. If managed files are changed outside the plugin, delete the corresponding manifest once to rebuild it from the published content.
+
 ## Custom repository layouts
 
 Self-hosted gardens do not have to use the template's directory layout. The advanced Git, SFTP, and local-folder settings can independently configure:

@@ -16,6 +16,7 @@ import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPl
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { publicationManifestStore } from "./PublicationManifestStore";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -186,6 +187,22 @@ export default class Publisher {
 
 	setRemoteImageHashes(hashes: Record<string, string>): void {
 		this.cachedRemoteImageHashes = hashes;
+	}
+
+	usesPublicationManifest(): boolean {
+		return (
+			this.settings.publishPlatform === PublishPlatform.Sftp ||
+			this.settings.publishPlatform === PublishPlatform.LocalFolder
+		);
+	}
+
+	async clearPublicationManifest(): Promise<void> {
+		if (this.settings.publishPlatform === PublishPlatform.Sftp)
+			await publicationManifestStore.remove("sftp");
+		else if (this.settings.publishPlatform === PublishPlatform.LocalFolder)
+			await publicationManifestStore.remove("local");
+
+		this.cachedRemoteImageHashes = undefined;
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
