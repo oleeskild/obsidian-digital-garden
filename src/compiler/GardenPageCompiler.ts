@@ -172,6 +172,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			this.createTranscludedText(0),
 			this.convertDataViews,
 			this.convertLinksToFullPath,
+			this.convertMarkdownLinksToFullPath,
 			this.removeObsidianComments,
 			this.createSvgEmbeds,
 		];
@@ -262,6 +263,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			this.createTranscludedText(0),
 			this.convertDataViews,
 			this.convertLinksToFullPath,
+			this.convertMarkdownLinksToFullPath,
 			this.removeObsidianComments,
 			this.createSvgEmbeds,
 		];
@@ -453,6 +455,132 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					console.log(e);
 					continue;
 				}
+			}
+		}
+
+		return convertedText;
+	};
+
+	/**
+	 * Converts markdown-style links to vault files (e.g. [X](../a/b.md),
+	 * written by Obsidian's "relative"/"shortest path" markdown link formats
+	 * or by external tools) into full-path wikilinks, the same output as
+	 * convertLinksToFullPath. Published relative hrefs would otherwise break
+	 * under the site's trailing-slash URLs and stay invisible to the graph.
+	 */
+	convertMarkdownLinksToFullPath: TCompilerStep = (file) => async (text) => {
+		let convertedText = text;
+
+		const textToBeProcessed =
+			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
+
+		const markdownLinkRegex =
+			/(?<!!)\[([^[\]]*)\]\(\s*([^)\s]+?\.(?:md|markdown|canvas))((?:#[^)\s]*)?)\s*\)/gi;
+
+		const decode = (value: string) => {
+			try {
+				return decodeURIComponent(value);
+			} catch {
+				return value;
+			}
+		};
+
+		// Resolve "./" and "../" against the source file's directory,
+		// since getFirstLinkpathDest expects vault-rooted link paths.
+		const resolveRelative = (target: string): string | null => {
+			const sourcePath = file.getPath();
+
+			const sourceDir = sourcePath.includes("/")
+				? sourcePath.substring(0, sourcePath.lastIndexOf("/"))
+				: "";
+
+			const segments: string[] = sourceDir ? sourceDir.split("/") : [];
+
+			for (const part of target.split("/")) {
+				if (part === "" || part === ".") continue;
+
+				if (part === "..") {
+					if (segments.length === 0) return null;
+					segments.pop();
+					continue;
+				}
+				segments.push(part);
+			}
+
+			return segments.join("/");
+		};
+
+		let match;
+
+		while ((match = markdownLinkRegex.exec(textToBeProcessed))) {
+			try {
+				const [fullMatch, displayText, rawTarget, rawFragment] = match;
+
+				if (/^[a-z][a-z0-9+.-]*:/i.test(rawTarget)) {
+					continue;
+				}
+
+				const target = decode(rawTarget);
+
+				const isExplicitRelative =
+					target.startsWith("./") || target.startsWith("../");
+
+				const relativeTarget = resolveRelative(target);
+
+				// Obsidian resolves markdown links against the vault
+				// (full path or unique basename) with the raw target;
+				// explicitly relative targets resolve against the file.
+				const candidates = isExplicitRelative
+					? [relativeTarget, target]
+					: [target, relativeTarget];
+
+				let linkedFile: TFile | null = null;
+
+				for (const candidate of candidates) {
+					if (candidate === null) continue;
+
+					linkedFile = this.metadataCache.getFirstLinkpathDest(
+						candidate,
+						file.getPath(),
+					);
+
+					if (linkedFile) break;
+				}
+
+				if (
+					!linkedFile ||
+					(linkedFile.extension !== "md" &&
+						linkedFile.extension !== "canvas")
+				) {
+					continue;
+				}
+
+				const extensionlessPath = linkedFile.path.substring(
+					0,
+					linkedFile.path.lastIndexOf("."),
+				);
+
+				// Keep .canvas extension in links for canvas files
+				const linkPath =
+					linkedFile.extension === "canvas"
+						? `${extensionlessPath}.canvas`
+						: extensionlessPath;
+
+				const headerPath = decode(rawFragment ?? "");
+
+				const linkDisplayName =
+					displayText ||
+					extensionlessPath.substring(
+						extensionlessPath.lastIndexOf("/") + 1,
+					);
+
+				convertedText = convertedText.replaceAll(
+					fullMatch,
+					`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+				);
+			} catch (e) {
+				console.log(e);
+				continue;
 			}
 		}
 

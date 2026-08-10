@@ -113,6 +113,171 @@ describe("Compiler", () => {
 		});
 	});
 
+	describe("convertMarkdownLinksToFullPath", () => {
+		const sourcePath = "wiki/concepts/high-impact-practices.md";
+
+		const mockPublishFile = {
+			getPath: () => sourcePath,
+		} as unknown as PublishFile;
+
+		// Resolves like Obsidian: vault files addressed by full path,
+		// unique-basename lookup, or path relative to the source file.
+		const vaultFiles: Record<string, string> = {
+			"wiki/authors/andrade.md": "wiki/authors/andrade.md",
+			"../authors/andrade.md": "wiki/authors/andrade.md",
+			"feedback.md": "wiki/concepts/feedback.md",
+			"wiki/concepts/feedback.md": "wiki/concepts/feedback.md",
+			"My Note.md": "My Note.md",
+			"board.canvas": "wiki/board.canvas",
+		};
+
+		const getCompiler = () => {
+			return new GardenPageCompiler(
+				{} as Vault,
+				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{
+					getFirstLinkpathDest: jest.fn((linkpath: string) => {
+						const path = vaultFiles[linkpath];
+
+						if (!path) return null;
+
+						return {
+							path,
+							extension: path.substring(
+								path.lastIndexOf(".") + 1,
+							),
+						};
+					}),
+				} as unknown as MetadataCache,
+				jest.fn(),
+			);
+		};
+
+		it("converts a relative markdown link to a full-path wikilink", async () => {
+			const result = await getCompiler().convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("See [Andrade](../authors/andrade.md) for details");
+
+			expect(result).toBe(
+				"See [[wiki/authors/andrade\\|Andrade]] for details",
+			);
+		});
+
+		it("converts a shortest-path markdown link via vault lookup", async () => {
+			const result = await getCompiler().convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("See [Feedback](feedback.md)");
+
+			expect(result).toBe("See [[wiki/concepts/feedback\\|Feedback]]");
+		});
+
+		it("preserves and decodes header fragments", async () => {
+			const result = await getCompiler().convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("[Model](feedback.md#The%20Model)");
+
+			expect(result).toBe("[[wiki/concepts/feedback#The Model\\|Model]]");
+		});
+
+		it("decodes URL-encoded link targets", async () => {
+			const result = await getCompiler().convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("[Note](My%20Note.md)");
+
+			expect(result).toBe("[[My Note\\|Note]]");
+		});
+
+		it("keeps the .canvas extension for canvas links", async () => {
+			const result = await getCompiler().convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("[Board](board.canvas)");
+
+			expect(result).toBe("[[wiki/board.canvas\\|Board]]");
+		});
+
+		it("resolves explicit relative paths even when the raw target has no vault match", async () => {
+			const compiler = new GardenPageCompiler(
+				{} as Vault,
+				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{
+					// Only resolves normalized vault-root paths, like a vault
+					// where getFirstLinkpathDest does not understand "../".
+					getFirstLinkpathDest: jest.fn((linkpath: string) =>
+						linkpath === "wiki/authors/andrade.md"
+							? {
+									path: "wiki/authors/andrade.md",
+									extension: "md",
+							  }
+							: null,
+					),
+				} as unknown as MetadataCache,
+				jest.fn(),
+			);
+
+			const result = await compiler.convertMarkdownLinksToFullPath(
+				mockPublishFile,
+			)("[Andrade](../authors/andrade.md)");
+
+			expect(result).toBe("[[wiki/authors/andrade\\|Andrade]]");
+		});
+
+		it("leaves external links untouched", async () => {
+			const text =
+				"[ext](https://example.com/a.md) [mail](mailto:a@b.md)";
+
+			const result =
+				await getCompiler().convertMarkdownLinksToFullPath(
+					mockPublishFile,
+				)(text);
+
+			expect(result).toBe(text);
+		});
+
+		it("leaves unresolved links untouched", async () => {
+			const text = "[missing](does/not/exist.md)";
+
+			const result =
+				await getCompiler().convertMarkdownLinksToFullPath(
+					mockPublishFile,
+				)(text);
+
+			expect(result).toBe(text);
+		});
+
+		it("leaves image embeds untouched", async () => {
+			const text = "![embed](../authors/andrade.md)";
+
+			const result =
+				await getCompiler().convertMarkdownLinksToFullPath(
+					mockPublishFile,
+				)(text);
+
+			expect(result).toBe(text);
+		});
+
+		it("leaves links inside code fences untouched", async () => {
+			const text = "```\n[Andrade](../authors/andrade.md)\n```";
+
+			const result =
+				await getCompiler().convertMarkdownLinksToFullPath(
+					mockPublishFile,
+				)(text);
+
+			expect(result).toBe(text);
+		});
+
+		it("does not touch non-md/canvas file links", async () => {
+			const text = "[doc](files/report.pdf)";
+
+			const result =
+				await getCompiler().convertMarkdownLinksToFullPath(
+					mockPublishFile,
+				)(text);
+
+			expect(result).toBe(text);
+		});
+	});
+
 	describe("convertEmbeddedAssets", () => {
 		const getCompilerWithImageFile = () => {
 			return new GardenPageCompiler(
