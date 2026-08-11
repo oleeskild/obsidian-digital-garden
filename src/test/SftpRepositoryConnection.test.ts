@@ -93,4 +93,77 @@ describe("SFTP publication provider", () => {
 			{ path: "content/notes/a.md", sha: "note", type: "blob" },
 		]);
 	});
+
+	it("discovers every remote file before reading with determinate progress", async () => {
+		const connection = new SftpRepositoryConnection({
+			sftpRemoteRoot: "/garden",
+			notesDirectory: "content/notes",
+			assetsDirectory: "content/assets",
+		} as DigitalGardenSettings);
+		const operations: string[] = [];
+
+		const progress: Array<{
+			completed: number;
+			total?: number;
+			message: string;
+		}> = [];
+
+		const client = {
+			exists: jest.fn(async () => true),
+			list: jest.fn(async (remotePath: string) => {
+				operations.push(`list:${remotePath}`);
+
+				return remotePath.endsWith("/nested")
+					? [{ name: "b.md", type: "-" }]
+					: [
+							{ name: "a.md", type: "-" },
+							{ name: "nested", type: "d" },
+					  ];
+			}),
+			get: jest.fn(async (remotePath: string) => {
+				operations.push(`get:${remotePath}`);
+
+				return Buffer.from(remotePath);
+			}),
+		};
+
+		const internals = connection as unknown as {
+			listFiles(
+				remoteClient: typeof client,
+				relative: string,
+				files: string[],
+				onProgress: (update: (typeof progress)[number]) => void,
+			): Promise<void>;
+			readFiles(
+				remoteClient: typeof client,
+				files: string[],
+				tree: { path?: string }[],
+				onProgress: (update: (typeof progress)[number]) => void,
+			): Promise<void>;
+		};
+		const files: string[] = [];
+		const tree: { path?: string }[] = [];
+
+		await internals.listFiles(client, "content/notes", files, (update) =>
+			progress.push(update),
+		);
+
+		await internals.readFiles(client, files, tree, (update) =>
+			progress.push(update),
+		);
+
+		expect(files).toEqual([
+			"content/notes/a.md",
+			"content/notes/nested/b.md",
+		]);
+
+		expect(operations).toEqual([
+			"list:/garden/content/notes",
+			"list:/garden/content/notes/nested",
+			"get:/garden/content/notes/a.md",
+			"get:/garden/content/notes/nested/b.md",
+		]);
+		expect(progress.at(-1)).toMatchObject({ completed: 2, total: 2 });
+		expect(tree.map((entry) => entry.path)).toEqual(files);
+	});
 });

@@ -13,6 +13,7 @@ import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
+import type { RepositoryProgress } from "src/repositoryConnection/RepositoryConnection";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
 
@@ -198,6 +199,19 @@ export default class Publisher {
 			this.settings,
 		).clearPublicationManifest();
 		this.cachedRemoteImageHashes = undefined;
+	}
+
+	async rebuildPublicationManifest(
+		onProgress?: (progress: RepositoryProgress) => void,
+	): Promise<void> {
+		const connection =
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			);
+
+		await connection.clearPublicationManifest();
+		this.cachedRemoteImageHashes = undefined;
+		await connection.getContent("HEAD", onProgress);
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {

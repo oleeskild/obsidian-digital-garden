@@ -145,8 +145,23 @@
 
 	async function fullRefresh() {
 		if (refreshing || publishing) return;
-		await publisher.clearPublicationManifest();
-		await refresh();
+		refreshing = true;
+
+		statusProgress = {
+			completed: 0,
+			message: "Rebuilding remote manifest…",
+		};
+
+		try {
+			await publisher.rebuildPublicationManifest((progress) => {
+				statusProgress = progress;
+			});
+			lastRefreshAt = Date.now();
+		} catch (e) {
+			error = String(e);
+		} finally {
+			refreshing = false;
+		}
 	}
 
 	// Quiet, debounced refresh that keeps the tree visible and preserves the
@@ -429,7 +444,24 @@
 		<Notices {problematicFiles} />
 
 		{#if refreshing}
-			<div class="dg-pc-syncing">{statusProgress.message}</div>
+			<div class="dg-pc-syncing">
+				<div>{statusProgress.message}</div>
+				{#if statusProgress.total !== undefined}
+					<div class="dg-pc-status-count">
+						{statusProgress.completed} of {statusProgress.total}
+					</div>
+					<div class="dg-pc-progress-track dg-pc-status-progress">
+						<div
+							class="dg-pc-progress-fill"
+							style="width: {statusProgress.total
+								? (statusProgress.completed /
+										statusProgress.total) *
+								  100
+								: 100}%"
+						></div>
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		{#if publishing}

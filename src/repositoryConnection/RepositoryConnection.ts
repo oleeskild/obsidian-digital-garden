@@ -611,6 +611,7 @@ export interface IRepositoryConnection {
 
 export interface RepositoryProgress {
 	completed: number;
+	total?: number;
 	message: string;
 }
 

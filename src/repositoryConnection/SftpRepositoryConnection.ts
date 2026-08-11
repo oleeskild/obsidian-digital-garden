@@ -70,7 +70,7 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 				message: "Building hash manifest for the first time…",
 			});
 			const tree: IRepositoryTree["tree"] = [];
-			const progress = { completed: 0 };
+			const files: string[] = [];
 
 			const roots = new Set([
 				notePathBase(this.settings),
@@ -79,8 +79,10 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 
 			for (const contentRoot of roots) {
 				const relative = contentRoot.replace(/\/+$/, "");
-				await this.walk(client, relative, tree, progress, onProgress);
+				await this.listFiles(client, relative, files, onProgress);
 			}
+
+			await this.readFiles(client, files, tree, onProgress);
 
 			await this.writeManifest(this.treeToManifest(tree));
 
@@ -312,17 +314,16 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		await client.put(content, destination);
 	}
 
-	private async walk(
+	private async listFiles(
 		client: SftpClientType,
 		relative: string,
-		tree: IRepositoryTree["tree"],
-		progress: { completed: number },
+		files: string[],
 		onProgress?: (progress: RepositoryProgress) => void,
 	): Promise<void> {
 		const remotePath = this.resolve(relative);
 
 		onProgress?.({
-			completed: progress.completed,
+			completed: files.length,
 			message: `Scanning remote folder: ${relative}`,
 		});
 
@@ -341,24 +342,50 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 			const child = relative ? `${relative}/${entry.name}` : entry.name;
 
 			if (entry.type === "d")
-				await this.walk(client, child, tree, progress, onProgress);
-			else if (entry.type === "-") {
-				onProgress?.({
-					completed: progress.completed,
-					message: `Reading remote file: ${child}`,
-				});
-				const content = await client.get(this.resolve(child));
-				const buffer = this.toBuffer(content, child);
+				await this.listFiles(client, child, files, onProgress);
+			else if (entry.type === "-") files.push(child);
+		}
+	}
 
-				tree.push({
-					path: child,
-					type: "blob",
-					sha: child.startsWith(notePathBase(this.settings))
-						? generateBlobHash(buffer.toString("utf-8"))
-						: generateBlobHashFromBase64(buffer.toString("base64")),
-				});
-				progress.completed++;
-			}
+	private async readFiles(
+		client: SftpClientType,
+		files: string[],
+		tree: IRepositoryTree["tree"],
+		onProgress?: (progress: RepositoryProgress) => void,
+	): Promise<void> {
+		const total = files.length;
+
+		onProgress?.({
+			completed: 0,
+			total,
+			message:
+				total === 0
+					? "No remote files to read"
+					: `Reading ${total} remote files…`,
+		});
+
+		for (const [index, child] of files.entries()) {
+			onProgress?.({
+				completed: index,
+				total,
+				message: `Reading remote file: ${child}`,
+			});
+			const content = await client.get(this.resolve(child));
+			const buffer = this.toBuffer(content, child);
+
+			tree.push({
+				path: child,
+				type: "blob",
+				sha: child.startsWith(notePathBase(this.settings))
+					? generateBlobHash(buffer.toString("utf-8"))
+					: generateBlobHashFromBase64(buffer.toString("base64")),
+			});
+
+			onProgress?.({
+				completed: index + 1,
+				total,
+				message: `Read remote file: ${child}`,
+			});
 		}
 	}
 
@@ -387,19 +414,20 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		if (existing) return existing;
 
 		const tree: IRepositoryTree["tree"] = [];
-		const progress = { completed: 0 };
+		const files: string[] = [];
 
 		for (const contentRoot of new Set([
 			notePathBase(this.settings),
 			imagePathBase(this.settings),
 		])) {
-			await this.walk(
+			await this.listFiles(
 				client,
 				contentRoot.replace(/\/+$/, ""),
-				tree,
-				progress,
+				files,
 			);
 		}
+
+		await this.readFiles(client, files, tree);
 
 		return this.treeToManifest(tree);
 	}
