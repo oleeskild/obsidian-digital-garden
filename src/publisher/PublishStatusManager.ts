@@ -101,9 +101,11 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			// A note whose referenced images never made it to the remote
 			// (e.g. frontmatter covers published with plugin < 2.80.2) is
 			// not fully published, even if the note text is unchanged.
-			const hasMissingRemoteImage = assets.images.some(
-				(image) => !remoteImageHashes[imageHashKey(image.path)],
-			);
+			const missingRemoteAssets = assets.images
+				.filter((image) => !remoteImageHashes[imageHashKey(image.path)])
+				.map((image) => image.path);
+			const hasMissingRemoteImage = missingRemoteAssets.length > 0;
+			compiledFile.setMissingRemoteAssets(missingRemoteAssets);
 
 			if (!remoteHash) {
 				unpublishedNotes.push(compiledFile);

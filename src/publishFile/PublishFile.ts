@@ -138,6 +138,7 @@ export class PublishFile {
 export class CompiledPublishFile extends PublishFile {
 	compiledFile: TCompiledFile;
 	remoteHash?: string;
+	missingRemoteAssets: string[] = [];
 
 	constructor(props: IPublishFileProps, compiledFile: TCompiledFile) {
 		super(props);
@@ -151,5 +152,9 @@ export class CompiledPublishFile extends PublishFile {
 
 	setRemoteHash(hash: string) {
 		this.remoteHash = hash;
+	}
+
+	setMissingRemoteAssets(paths: string[]) {
+		this.missingRemoteAssets = paths;
 	}
 }

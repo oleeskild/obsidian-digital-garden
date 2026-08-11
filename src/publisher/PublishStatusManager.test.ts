@@ -32,6 +32,13 @@ const makeCompiledNote = (
 			},
 		],
 		setRemoteHash: () => {},
+		missingRemoteAssets: [] as string[],
+		setMissingRemoteAssets(
+			this: { missingRemoteAssets: string[] },
+			paths: string[],
+		) {
+			this.missingRemoteAssets = paths;
+		},
 		compare: () => 0,
 	}) as unknown as CompiledPublishFile & { compile: () => unknown };
 
@@ -136,6 +143,10 @@ describe("getPublishStatus", () => {
 
 		expect(status.changedNotes.map((f) => f.getPath())).toEqual([
 			NOTE_PATH,
+		]);
+
+		expect(status.changedNotes[0].missingRemoteAssets).toEqual([
+			COVER_ASSET_PATH,
 		]);
 		expect(status.publishedNotes).toEqual([]);
 	});

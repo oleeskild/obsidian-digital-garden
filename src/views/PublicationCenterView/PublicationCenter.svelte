@@ -52,6 +52,7 @@
 	type DiffData =
 		| { kind: "diff"; changes: Diff.Change[] }
 		| { kind: "nochange" }
+		| { kind: "assets"; paths: string[] }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
 
@@ -340,6 +341,17 @@
 			} catch (e) {
 				return { kind: "error", message: String(e) };
 			}
+		}
+
+		if (
+			remote === local &&
+			file.file &&
+			file.file.missingRemoteAssets.length > 0
+		) {
+			return {
+				kind: "assets",
+				paths: file.file.missingRemoteAssets,
+			};
 		}
 
 		if (file.status === "published" || remote === local) {

@@ -330,10 +330,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return text;
 	};
 
-	convertFrontMatter: TCompilerStep = (file) => (text) => {
-		const compiledFrontmatter = file.getCompiledFrontmatter();
-
-		return text.replace(FRONTMATTER_REGEX, () => compiledFrontmatter);
+	convertFrontMatter: TCompilerStep = () => (text) => {
+		return text;
 	};
 
 	convertDataViews: TCompilerStep = (file) => async (text) => {

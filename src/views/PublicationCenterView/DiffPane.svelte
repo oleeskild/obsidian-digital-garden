@@ -10,6 +10,7 @@
 	type DiffData =
 		| { kind: "diff"; changes: Diff.Change[] }
 		| { kind: "nochange" }
+		| { kind: "assets"; paths: string[] }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
 
@@ -71,6 +72,16 @@
 		{:else if data.kind === "nochange"}
 			<div class="dg-pc-diff-msg">
 				No changes — local and published versions match.
+			</div>
+		{:else if data.kind === "assets"}
+			<div class="dg-pc-diff-msg">
+				The note text is unchanged, but these referenced assets are
+				missing from the published garden:
+				<ul>
+					{#each data.paths as assetPath}
+						<li>{assetPath}</li>
+					{/each}
+				</ul>
 			</div>
 		{:else if mode === "split"}
 			<SplitDiff changes={data.changes} />

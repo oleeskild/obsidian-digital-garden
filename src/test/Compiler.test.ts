@@ -148,6 +148,27 @@ describe("Compiler", () => {
 		});
 	});
 
+	describe("convertFrontMatter", () => {
+		const publishFile = {} as PublishFile;
+
+		it("preserves only the frontmatter authored in the note", () => {
+			const compiler = getTestCompiler({});
+			const source = "---\ntitle: Test\n---\nBody\n";
+
+			const result = compiler.convertFrontMatter(publishFile)(source);
+
+			expect(result).toBe(source);
+		});
+
+		it("does not add frontmatter when the note has none", () => {
+			const compiler = getTestCompiler({});
+
+			const result = compiler.convertFrontMatter(publishFile)("Body\n");
+
+			expect(result).toBe("Body\n");
+		});
+	});
+
 	describe("convertEmbeddedAssets", () => {
 		const getCompilerWithImageFile = () => {
 			return new GardenPageCompiler(
