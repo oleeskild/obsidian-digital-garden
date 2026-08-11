@@ -61,6 +61,42 @@ const makeManager = (options: {
 };
 
 describe("getPublishStatus", () => {
+	it("reports each note before compiling it", async () => {
+		const compileOrder: string[] = [];
+
+		const notes = ["first.md", "second.md"].map((path) => ({
+			...makeCompiledNote(path, NOTE_CONTENT, []),
+			compile: async function () {
+				compileOrder.push(path);
+
+				return this;
+			},
+		}));
+
+		const manager = makeManager({
+			remoteNoteHashes: {},
+			remoteImageHashes: {},
+			notes,
+		});
+		const progress: string[] = [];
+
+		await manager.getPublishStatus((update) => {
+			if (update.message.startsWith("Compiling note:")) {
+				progress.push(`${update.completed}/${update.total}`);
+				compileOrder.push(update.message);
+			}
+		});
+
+		expect(progress).toEqual(["0/2", "1/2"]);
+
+		expect(compileOrder).toEqual([
+			"Compiling note: first.md",
+			"first.md",
+			"Compiling note: second.md",
+			"second.md",
+		]);
+	});
+
 	it("treats an unchanged note with all images on the remote as published", async () => {
 		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [
 			COVER_ASSET_PATH,

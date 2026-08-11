@@ -85,6 +85,13 @@ export default class PublishStatusManager implements IPublishStatusManager {
 				total: marked.notes.length,
 				message: `Compiling note: ${file.getPath()}`,
 			});
+
+			// Most compiler steps resolve through microtasks. Without yielding to a
+			// new task here, a large batch can prevent the browser from painting any
+			// of the progress updates until every note has finished compiling.
+			if (onProgress) {
+				await new Promise<void>((resolve) => setTimeout(resolve, 0));
+			}
 			const compiledFile = await file.compile();
 			const [content, assets] = compiledFile.getCompiledFile();
 
