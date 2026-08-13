@@ -50,6 +50,10 @@ export class PublishFile {
 	async compile(): Promise<CompiledPublishFile> {
 		const compiledFile = await this.compiler.generateMarkdown(this);
 
+		return this.withCompiledFile(compiledFile);
+	}
+
+	withCompiledFile(compiledFile: TCompiledFile): CompiledPublishFile {
 		return new CompiledPublishFile(
 			{
 				file: this.file,

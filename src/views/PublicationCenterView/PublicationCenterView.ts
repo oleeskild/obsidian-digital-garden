@@ -21,6 +21,7 @@ import {
 interface PublicationCenterViewPlugin {
 	app: App;
 	settings: DigitalGardenSettings;
+	appVersion?: string;
 }
 
 export class PublicationCenterView extends ItemView {
@@ -75,7 +76,12 @@ export class PublicationCenterView extends ItemView {
 			settings,
 		);
 
-		const publisher = new Publisher(app.vault, app.metadataCache, settings);
+		const publisher = new Publisher(
+			app.vault,
+			app.metadataCache,
+			settings,
+			this.plugin.appVersion,
+		);
 
 		const statusManager = new PublishStatusManager(siteManager, publisher);
 

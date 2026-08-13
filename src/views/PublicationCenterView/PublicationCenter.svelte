@@ -146,6 +146,12 @@
 	async function fullRefresh() {
 		if (refreshing || publishing) return;
 		refreshing = true;
+		status = null;
+		error = null;
+		diffCache = new Map();
+		diffData = null;
+		diffLoading = false;
+		activePath = null;
 
 		statusProgress = {
 			completed: 0,
@@ -156,6 +162,23 @@
 			await publisher.rebuildPublicationManifest((progress) => {
 				statusProgress = progress;
 			});
+
+			// Re-read publication status against the rebuilt manifest while keeping
+			// the full-screen progress view visible.
+			statusProgress = {
+				completed: 0,
+				message: "Refreshing publication status…",
+			};
+
+			const nextStatus = await statusManager.getPublishStatus(
+				(progress) => {
+					statusProgress = progress;
+				},
+			);
+			status = nextStatus;
+			annotated = annotateFiles(nextStatus);
+			selected = defaultSelection(annotated);
+			validate(nextStatus);
 			lastRefreshAt = Date.now();
 		} catch (e) {
 			error = String(e);

@@ -1,6 +1,6 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
-import { getRewriteRules } from "../utils/utils";
+import { generateBlobHash, getRewriteRules } from "../utils/utils";
 import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
@@ -32,15 +32,18 @@ export default class Publisher {
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
 	private cachedRemoteImageHashes?: Record<string, string>;
+	private compilerVersion: string;
 
 	constructor(
 		vault: Vault,
 		metadataCache: MetadataCache,
 		settings: DigitalGardenSettings,
+		compilerVersion = "unknown",
 	) {
 		this.vault = vault;
 		this.metadataCache = metadataCache;
 		this.settings = settings;
+		this.compilerVersion = compilerVersion;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
 		this.compiler = new GardenPageCompiler(
@@ -48,6 +51,17 @@ export default class Publisher {
 			settings,
 			metadataCache,
 			() => this.getFilesMarkedForPublishing(),
+		);
+	}
+
+	getCompilerFingerprint(): string {
+		// Credentials do not affect output, but hashing the complete settings object
+		// is deliberately conservative when new compiler settings are introduced.
+		return generateBlobHash(
+			JSON.stringify({
+				version: this.compilerVersion,
+				settings: this.settings,
+			}),
 		);
 	}
 

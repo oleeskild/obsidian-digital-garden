@@ -19,6 +19,7 @@ node_modules
 data.json
 sftp-manifest.json
 local-manifest.json
+compilation-cache.json
 
 # mac
 .DS_Store

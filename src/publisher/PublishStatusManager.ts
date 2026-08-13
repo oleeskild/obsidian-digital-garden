@@ -3,6 +3,12 @@ import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
 import { imageHashKey } from "./paths";
+import { TFile, getLinkpath } from "obsidian";
+import {
+	CompilationCacheEntry,
+	CompilationCacheStore,
+	compilationCacheStore,
+} from "./CompilationCacheStore";
 
 /**
  *  Manages the publishing status of notes and images for a digital garden.
@@ -10,9 +16,15 @@ import { imageHashKey } from "./paths";
 export default class PublishStatusManager implements IPublishStatusManager {
 	siteManager: DigitalGardenSiteManager;
 	publisher: Publisher;
-	constructor(siteManager: DigitalGardenSiteManager, publisher: Publisher) {
+	private cacheStore: CompilationCacheStore;
+	constructor(
+		siteManager: DigitalGardenSiteManager,
+		publisher: Publisher,
+		cacheStore: CompilationCacheStore = compilationCacheStore,
+	) {
 		this.siteManager = siteManager;
 		this.publisher = publisher;
+		this.cacheStore = cacheStore;
 	}
 	getDeletedNotePaths(): Promise<string[]> {
 		throw new Error("Method not implemented.");
@@ -77,26 +89,70 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			message: "Finding marked notes and assets…",
 		});
 		const marked = await this.publisher.getFilesMarkedForPublishing();
-		let compiled = 0;
+		const cache = await this.cacheStore.read();
+		const nextCache: Record<string, CompilationCacheEntry> = {};
+
+		const compilerFingerprint =
+			this.publisher.getCompilerFingerprint?.() ?? "unknown";
+		let processed = 0;
 
 		for (const file of marked.notes) {
+			const remoteHash = remoteNoteHashes[file.getPath()];
+			const signature = await this.getInputSignature(file.file);
+			const cached = cache[file.getPath()];
+
+			const canReuse =
+				remoteHash !== undefined &&
+				signature !== undefined &&
+				cached?.signature === signature &&
+				cached.compilerFingerprint === compilerFingerprint &&
+				cached.compiledHash === remoteHash &&
+				cached.assetPaths.every(
+					(path) =>
+						remoteImageHashes[imageHashKey(path)] !== undefined,
+				);
+
+			if (canReuse) {
+				const compiledFile = file.withCompiledFile([
+					"",
+					{
+						images: cached.assetPaths.map((path) => ({
+							path,
+							content: "",
+						})),
+					},
+				]);
+				compiledFile.setRemoteHash(remoteHash);
+				publishedNotes.push(compiledFile);
+				nextCache[file.getPath()] = cached;
+				processed++;
+				continue;
+			}
+
 			onProgress?.({
-				completed: compiled,
+				completed: processed,
 				total: marked.notes.length,
 				message: `Compiling note: ${file.getPath()}`,
 			});
 
-			// Most compiler steps resolve through microtasks. Without yielding to a
-			// new task here, a large batch can prevent the browser from painting any
-			// of the progress updates until every note has finished compiling.
+			// Yield only for real compilation work. Cache hits stay on the fast path.
 			if (onProgress) {
 				await new Promise<void>((resolve) => setTimeout(resolve, 0));
 			}
+
 			const compiledFile = await file.compile();
 			const [content, assets] = compiledFile.getCompiledFile();
 
 			const localHash = generateBlobHash(content);
-			const remoteHash = remoteNoteHashes[file.getPath()];
+
+			if (signature) {
+				nextCache[file.getPath()] = {
+					signature,
+					compilerFingerprint,
+					compiledHash: localHash,
+					assetPaths: assets.images.map((image) => image.path),
+				};
+			}
 
 			// A note whose referenced images never made it to the remote
 			// (e.g. frontmatter covers published with plugin < 2.80.2) is
@@ -116,8 +172,10 @@ export default class PublishStatusManager implements IPublishStatusManager {
 				compiledFile.setRemoteHash(remoteHash);
 				changedNotes.push(compiledFile);
 			}
-			compiled++;
+			processed++;
 		}
+
+		await this.cacheStore.write(nextCache);
 
 		onProgress?.({
 			completed: marked.notes.length,
@@ -147,6 +205,62 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			deletedNotePaths,
 			deletedImagePaths,
 		};
+	}
+
+	private async getInputSignature(
+		file: TFile | undefined,
+	): Promise<string | undefined> {
+		if (
+			!file ||
+			file.extension !== "md" ||
+			file.name.endsWith(".excalidraw.md")
+		)
+			return undefined;
+
+		const source = await this.publisher.vault.cachedRead(file);
+
+		// Dataview and DataviewJS can depend on arbitrary vault state. Until the
+		// Dataview API exposes dependencies, compiling these notes is the safe path.
+		if (/```\s*dataview(?:js)?\b|`\s*=\s*[^`]+`/i.test(source))
+			return undefined;
+
+		const snapshots: Array<[string, number, number]> = [];
+		const visited = new Set<string>();
+
+		const visit = (current: TFile, depth: number) => {
+			if (visited.has(current.path) || depth > 4) return;
+			visited.add(current.path);
+
+			snapshots.push([
+				current.path,
+				current.stat.mtime,
+				current.stat.size,
+			]);
+
+			const metadata = this.publisher.metadataCache.getCache(
+				current.path,
+			);
+
+			const links = [
+				...(metadata?.links ?? []),
+				...(metadata?.embeds ?? []),
+			];
+
+			for (const link of links) {
+				const linked =
+					this.publisher.metadataCache.getFirstLinkpathDest(
+						getLinkpath(link.link),
+						current.path,
+					);
+
+				if (linked) visit(linked, depth + 1);
+			}
+		};
+
+		visit(file, 0);
+		snapshots.sort(([a], [b]) => a.localeCompare(b));
+
+		return generateBlobHash(JSON.stringify(snapshots));
 	}
 }
 
