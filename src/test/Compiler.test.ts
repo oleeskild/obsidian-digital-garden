@@ -187,10 +187,10 @@ describe("Compiler", () => {
 			"board.canvas": "wiki/board.canvas",
 		};
 
-		const getCompiler = () => {
+		const getCompiler = (settings: Partial<DigitalGardenSettings> = {}) => {
 			return new GardenPageCompiler(
 				{} as Vault,
-				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{ pathRewriteRules: "", ...settings } as DigitalGardenSettings,
 				{
 					getFirstLinkpathDest: jest.fn((linkpath: string) => {
 						const path = vaultFiles[linkpath];
@@ -209,13 +209,13 @@ describe("Compiler", () => {
 			);
 		};
 
-		it("converts a relative markdown link to a full-path wikilink", async () => {
+		it("converts a relative markdown link to a full-path markdown link", async () => {
 			const result = await getCompiler().convertMarkdownLinksToFullPath(
 				mockPublishFile,
 			)("See [Andrade](../authors/andrade.md) for details");
 
 			expect(result).toBe(
-				"See [[wiki/authors/andrade\\|Andrade]] for details",
+				"See [Andrade](wiki/authors/andrade.md) for details",
 			);
 		});
 
@@ -224,7 +224,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("See [Feedback](feedback.md)");
 
-			expect(result).toBe("See [[wiki/concepts/feedback\\|Feedback]]");
+			expect(result).toBe("See [Feedback](wiki/concepts/feedback.md)");
 		});
 
 		it("preserves and decodes header fragments", async () => {
@@ -232,7 +232,9 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Model](feedback.md#The%20Model)");
 
-			expect(result).toBe("[[wiki/concepts/feedback#The Model\\|Model]]");
+			expect(result).toBe(
+				"[Model](wiki/concepts/feedback.md#The%20Model)",
+			);
 		});
 
 		it("decodes URL-encoded link targets", async () => {
@@ -240,7 +242,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Note](My%20Note.md)");
 
-			expect(result).toBe("[[My Note\\|Note]]");
+			expect(result).toBe("[Note](My%20Note.md)");
 		});
 
 		it("keeps the .canvas extension for canvas links", async () => {
@@ -248,7 +250,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Board](board.canvas)");
 
-			expect(result).toBe("[[wiki/board.canvas\\|Board]]");
+			expect(result).toBe("[Board](wiki/board.canvas)");
 		});
 
 		it("resolves explicit relative paths even when the raw target has no vault match", async () => {
@@ -273,6 +275,16 @@ describe("Compiler", () => {
 			const result = await compiler.convertMarkdownLinksToFullPath(
 				mockPublishFile,
 			)("[Andrade](../authors/andrade.md)");
+
+			expect(result).toBe("[Andrade](wiki/authors/andrade.md)");
+		});
+
+		it("uses wikilinks when configured", async () => {
+			const result = await getCompiler({
+				linkFormat: "wikilink",
+			}).convertMarkdownLinksToFullPath(mockPublishFile)(
+				"[Andrade](../authors/andrade.md)",
+			);
 
 			expect(result).toBe("[[wiki/authors/andrade\\|Andrade]]");
 		});

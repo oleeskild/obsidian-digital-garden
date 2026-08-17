@@ -353,22 +353,22 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return textToBeProcessed;
 	};
 
+	private formatInternalLink = (
+		label: string,
+		markdownDestination: string,
+		wikilinkDestination: string,
+	): string => {
+		if (this.settings.linkFormat === "wikilink") {
+			return `[[${wikilinkDestination}\\|${label}]]`;
+		}
+
+		return `[${label.replace(/]/g, "\\]")}](${markdownDestination
+			.replace(/ /g, "%20")
+			.replace(/\)/g, "%29")})`;
+	};
+
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
 		let convertedText = text;
-
-		const markdownLink = (label: string, destination: string) =>
-			`[${label.replace(/]/g, "\\]")}](${destination
-				.replace(/ /g, "%20")
-				.replace(/\)/g, "%29")})`;
-
-		const formatLink = (
-			label: string,
-			markdownDestination: string,
-			wikilinkDestination: string,
-		) =>
-			this.settings.linkFormat === "wikilink"
-				? `[[${wikilinkDestination}\\|${label}]]`
-				: markdownLink(label, markdownDestination);
 
 		const textToBeProcessed =
 			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
@@ -413,7 +413,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							formatLink(
+							this.formatInternalLink(
 								linkDisplayName,
 								`${currentFilePath}${headerPath}`,
 								`${currentFilePath.replace(
@@ -439,7 +439,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (!linkedFile) {
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							formatLink(
+							this.formatInternalLink(
 								linkDisplayName,
 								`${linkedFileName}${headerPath}`,
 								`${linkedFileName}${headerPath}`,
@@ -459,7 +459,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							formatLink(
+							this.formatInternalLink(
 								linkDisplayName,
 								`${linkedFile.path}${headerPath}`,
 								`${wikilinkPath}${headerPath}`,
@@ -479,8 +479,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	/**
 	 * Converts markdown-style links to vault files (e.g. [X](../a/b.md),
 	 * written by Obsidian's "relative"/"shortest path" markdown link formats
-	 * or by external tools) into full-path wikilinks, the same output as
-	 * convertLinksToFullPath. Published relative hrefs would otherwise break
+	 * or by external tools) into full-path internal links using the configured
+	 * link format. Published relative hrefs would otherwise break
 	 * under the site's trailing-slash URLs and stay invisible to the graph.
 	 */
 	convertMarkdownLinksToFullPath: TCompilerStep = (file) => async (text) => {
@@ -570,28 +570,24 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					continue;
 				}
 
-				const extensionlessPath = linkedFile.path.substring(
-					0,
-					linkedFile.path.lastIndexOf("."),
-				);
-
-				// Keep .canvas extension in links for canvas files
-				const linkPath =
-					linkedFile.extension === "canvas"
-						? `${extensionlessPath}.canvas`
-						: extensionlessPath;
+				const wikilinkPath =
+					linkedFile.extension === "md"
+						? linkedFile.path.replace(/\.md$/, "")
+						: linkedFile.path;
 
 				const headerPath = decode(rawFragment ?? "");
 
 				const linkDisplayName =
 					displayText ||
-					extensionlessPath.substring(
-						extensionlessPath.lastIndexOf("/") + 1,
-					);
+					wikilinkPath.substring(wikilinkPath.lastIndexOf("/") + 1);
 
 				convertedText = convertedText.replaceAll(
 					fullMatch,
-					`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+					this.formatInternalLink(
+						linkDisplayName,
+						`${linkedFile.path}${headerPath}`,
+						`${wikilinkPath}${headerPath}`,
+					),
 				);
 			} catch (e) {
 				console.log(e);
