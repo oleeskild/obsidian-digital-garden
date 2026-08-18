@@ -11,6 +11,7 @@ import DigitalGardenSettings, {
 } from "src/models/settings";
 import { generateBlobHash, generateBlobHashFromBase64 } from "src/utils/utils";
 import { imagePathBase, notePathBase } from "src/publisher/paths";
+import { isPublishedPathIgnored } from "src/publisher/ignoredPaths";
 import {
 	publicationManifestStore,
 	type PublicationManifest,
@@ -320,6 +321,8 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		files: string[],
 		onProgress?: (progress: RepositoryProgress) => void,
 	): Promise<void> {
+		if (this.isIgnoredPath(relative)) return;
+
 		const remotePath = this.resolve(relative);
 
 		onProgress?.({
@@ -398,8 +401,10 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		if (!manifest) return undefined;
 
 		manifest.files = Object.fromEntries(
-			Object.entries(manifest.files).filter(([filePath]) =>
-				this.isManagedPath(filePath),
+			Object.entries(manifest.files).filter(
+				([filePath]) =>
+					this.isManagedPath(filePath) &&
+					!this.isIgnoredPath(filePath),
 			),
 		);
 
@@ -470,7 +475,12 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		const files: Record<string, string> = {};
 
 		for (const entry of tree) {
-			if (entry.path && entry.sha && this.isManagedPath(entry.path))
+			if (
+				entry.path &&
+				entry.sha &&
+				this.isManagedPath(entry.path) &&
+				!this.isIgnoredPath(entry.path)
+			)
 				files[entry.path] = entry.sha;
 		}
 
@@ -492,6 +502,15 @@ export class SftpRepositoryConnection implements IRepositoryConnection {
 		return (
 			filePath.startsWith(notePathBase(this.settings)) ||
 			filePath.startsWith(imagePathBase(this.settings))
+		);
+	}
+
+	private isIgnoredPath(filePath: string): boolean {
+		return isPublishedPathIgnored(
+			filePath,
+			notePathBase(this.settings),
+			imagePathBase(this.settings),
+			this.settings.ignoredPaths,
 		);
 	}
 

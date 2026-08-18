@@ -4,6 +4,7 @@ import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { generateBlobHash, generateBlobHashFromBase64 } from "src/utils/utils";
 import { imagePathBase, notePathBase } from "src/publisher/paths";
 import DigitalGardenSettings from "src/models/settings";
+import { isPublishedPathIgnored } from "src/publisher/ignoredPaths";
 import {
 	publicationManifestStore,
 	type PublicationManifest,
@@ -221,6 +222,7 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 	private manifestToTree(manifest: PublicationManifest): IRepositoryTree {
 		return {
 			tree: Object.entries(manifest.files)
+				.filter(([filePath]) => !this.isIgnoredPath(filePath))
 				.sort(([a], [b]) =>
 					a.localeCompare(b, undefined, { numeric: true }),
 				)
@@ -236,7 +238,12 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 		const files: Record<string, string> = {};
 
 		for (const entry of tree) {
-			if (entry.path && entry.sha && this.isManagedPath(entry.path))
+			if (
+				entry.path &&
+				entry.sha &&
+				this.isManagedPath(entry.path) &&
+				!this.isIgnoredPath(entry.path)
+			)
 				files[entry.path] = entry.sha;
 		}
 
@@ -247,6 +254,15 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 		return (
 			filePath.startsWith(notePathBase(this.settings)) ||
 			filePath.startsWith(imagePathBase(this.settings))
+		);
+	}
+
+	private isIgnoredPath(filePath: string): boolean {
+		return isPublishedPathIgnored(
+			filePath,
+			notePathBase(this.settings),
+			imagePathBase(this.settings),
+			this.settings.ignoredPaths,
 		);
 	}
 
@@ -289,6 +305,8 @@ export class LocalFolderRepositoryConnection implements IRepositoryConnection {
 		relative: string,
 		tree: IRepositoryTree["tree"],
 	): Promise<void> {
+		if (this.isIgnoredPath(relative)) return;
+
 		let entries;
 
 		try {

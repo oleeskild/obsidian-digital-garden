@@ -100,6 +100,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	publicationProvider: PublicationProvider.Git,
 	gitProvider: GitProvider.GitHub,
 	publishByDefault: false,
+	ignoredPaths: [],
 	linkFormat: "markdown",
 
 	contentClassesKey: "dg-content-classes",

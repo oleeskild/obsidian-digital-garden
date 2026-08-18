@@ -183,13 +183,25 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			message: "Finalizing publication status…",
 		});
 
+		const visibleRemoteNoteHashes = Object.fromEntries(
+			Object.entries(remoteNoteHashes).filter(
+				([path]) => !this.publisher.isPathIgnored?.(path),
+			),
+		);
+
+		const visibleRemoteImageHashes = Object.fromEntries(
+			Object.entries(remoteImageHashes).filter(
+				([path]) => !this.publisher.isPathIgnored?.(path),
+			),
+		);
+
 		const deletedNotePaths = this.generateDeletedContentPaths(
-			remoteNoteHashes,
+			visibleRemoteNoteHashes,
 			marked.notes.map((f) => f.getPath()),
 		);
 
 		const deletedImagePaths = this.generateDeletedContentPaths(
-			remoteImageHashes,
+			visibleRemoteImageHashes,
 			marked.images,
 		);
 		// These might already be sorted, as getFilesMarkedForPublishing sorts already

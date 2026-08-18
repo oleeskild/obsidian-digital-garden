@@ -62,6 +62,7 @@ Check out [gardens built by the community](https://vaults.obsidian-community.com
 ### 🔒 Privacy & Control
 -   **Selective publishing** - Only notes explicitly marked with `dg-publish: true` are published
 -   **No accidental leaks** - Linked notes are never auto-published; you decide what goes public
+-   **Ignored paths** - Configure vault-relative notes, assets, or folders that should never be scanned or published, even when they carry a publish flag
 -   **Full control** - Your private notes stay private until you choose to share them
 
 ### ☁️ Hosting Options

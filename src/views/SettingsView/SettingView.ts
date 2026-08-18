@@ -360,6 +360,24 @@ export default class SettingView {
 					}),
 			);
 
+		new Setting(this.settingsRootElement)
+			.setName("Ignored paths")
+			.setDesc(
+				"Vault-relative notes, assets, or folders to ignore completely. Enter one path per line. Folder descendants are also ignored. These paths will not be scanned, listed, published, or deleted remotely.",
+			)
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("Private\nArchive/Old note.md")
+					.setValue((this.settings.ignoredPaths ?? []).join("\n"))
+					.onChange(async (value) => {
+						this.settings.ignoredPaths = value
+							.split("\n")
+							.map((folder) => folder.trim())
+							.filter(Boolean);
+						await this.saveSettings();
+					}),
+			);
+
 		const noteSettingsModal = new Modal(this.app);
 		let hasUnsavedChanges = false;
 

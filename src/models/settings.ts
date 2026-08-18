@@ -65,6 +65,8 @@ export default interface DigitalGardenSettings {
 	publicationProvider: PublicationProvider;
 	gitProvider: GitProvider;
 	publishByDefault: boolean;
+	/** Vault-relative notes, assets, or folders ignored by publication. */
+	ignoredPaths: string[];
 	linkFormat: "markdown" | "wikilink";
 	forestrySettings: {
 		forestryPageName: string;

@@ -16,6 +16,7 @@ import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPl
 import type { RepositoryProgress } from "src/repositoryConnection/RepositoryConnection";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { isPathIgnored } from "./ignoredPaths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -66,6 +67,8 @@ export default class Publisher {
 	}
 
 	shouldPublish(file: TFile): boolean {
+		if (this.isPathIgnored(file.path)) return false;
+
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
 		return hasPublishFlag(frontMatter, this.settings.publishByDefault);
@@ -76,6 +79,8 @@ export default class Publisher {
 	 * Canvas files store frontmatter in the metadata.frontmatter field.
 	 */
 	async shouldPublishCanvas(file: TFile): Promise<boolean> {
+		if (this.isPathIgnored(file.path)) return false;
+
 		if (file.extension !== "canvas") {
 			return this.shouldPublish(file);
 		}
@@ -89,6 +94,10 @@ export default class Publisher {
 		} catch {
 			return false;
 		}
+	}
+
+	isPathIgnored(path: string): boolean {
+		return isPathIgnored(path, this.settings.ignoredPaths);
 	}
 
 	/**
@@ -194,7 +203,9 @@ export default class Publisher {
 
 		return {
 			notes: notesToPublish.sort((a, b) => a.compare(b)),
-			images: Array.from(imagesToPublish),
+			images: Array.from(imagesToPublish).filter(
+				(path) => !this.isPathIgnored(path),
+			),
 		};
 	}
 
@@ -257,6 +268,7 @@ export default class Publisher {
 
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
 		if (
+			this.isPathIgnored(file.file.path) ||
 			!isPublishFrontmatterValid(
 				file.frontmatter,
 				this.settings.publishByDefault,
@@ -308,11 +320,13 @@ export default class Publisher {
 		files: CompiledPublishFile[],
 		onProgress?: (completed: number, currentPath: string) => void,
 	): Promise<boolean> {
-		const filesToPublish = files.filter((f) =>
-			isPublishFrontmatterValid(
-				f.frontmatter,
-				this.settings.publishByDefault,
-			),
+		const filesToPublish = files.filter(
+			(f) =>
+				!this.isPathIgnored(f.file.path) &&
+				isPublishFrontmatterValid(
+					f.frontmatter,
+					this.settings.publishByDefault,
+				),
 		);
 
 		if (filesToPublish.length === 0) {
