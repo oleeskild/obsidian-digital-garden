@@ -23,7 +23,10 @@ jest.mock("obsidian", () => ({
 }));
 
 describe("Compiler", () => {
-	const getTestCompiler = (settings: Partial<DigitalGardenSettings>) => {
+	const getTestCompiler = (
+		settings: Partial<DigitalGardenSettings>,
+		metadataCache = {} as MetadataCache,
+	) => {
 		return new GardenPageCompiler(
 			// TODO add jest-mock-creator
 			{} as Vault,
@@ -31,7 +34,7 @@ describe("Compiler", () => {
 				pathRewriteRules: "",
 				...settings,
 			} as DigitalGardenSettings,
-			{} as MetadataCache,
+			metadataCache,
 			jest.fn(),
 		);
 	};
@@ -88,7 +91,7 @@ describe("Compiler", () => {
 			getPath: () => "folder/test.md",
 		} as unknown as PublishFile;
 
-		it("should convert same-file header link [[#Header]] with full file path", async () => {
+		it("should convert same-file header links to standard Markdown", async () => {
 			const testCompiler = getTestCompiler({});
 
 			const result = await testCompiler.convertLinksToFullPath(
@@ -96,7 +99,7 @@ describe("Compiler", () => {
 			)("Some text with [[#My Header]] in it");
 
 			expect(result).toBe(
-				"Some text with [[folder/test#My Header\\|#My Header]] in it",
+				"Some text with [#My Header](folder/test.md#My%20Header) in it",
 			);
 		});
 
@@ -108,8 +111,61 @@ describe("Compiler", () => {
 			)("Link with [[#My Header|custom display]] text");
 
 			expect(result).toBe(
-				"Link with [[folder/test#My Header\\|custom display]] text",
+				"Link with [custom display](folder/test.md#My%20Header) text",
 			);
+		});
+
+		it("resolves note wikilinks as standard Markdown links", async () => {
+			const testCompiler = getTestCompiler({}, {
+				getFirstLinkpathDest: jest.fn(() => ({
+					path: "Example/Test.md",
+					extension: "md",
+				})),
+			} as unknown as MetadataCache);
+
+			const result =
+				await testCompiler.convertLinksToFullPath(mockPublishFile)(
+					"[[Test.md]]",
+				);
+
+			expect(result).toBe("[Test.md](Example/Test.md)");
+		});
+
+		it("can preserve Obsidian wikilink output", async () => {
+			const testCompiler = getTestCompiler({ linkFormat: "wikilink" }, {
+				getFirstLinkpathDest: jest.fn(() => ({
+					path: "Example/Test.md",
+					extension: "md",
+				})),
+			} as unknown as MetadataCache);
+
+			const result =
+				await testCompiler.convertLinksToFullPath(mockPublishFile)(
+					"[[Test.md]]",
+				);
+
+			expect(result).toBe("[[Example/Test\\|Test.md]]");
+		});
+	});
+
+	describe("convertFrontMatter", () => {
+		const publishFile = {} as PublishFile;
+
+		it("preserves only the frontmatter authored in the note", () => {
+			const compiler = getTestCompiler({});
+			const source = "---\ntitle: Test\n---\nBody\n";
+
+			const result = compiler.convertFrontMatter(publishFile)(source);
+
+			expect(result).toBe(source);
+		});
+
+		it("does not add frontmatter when the note has none", () => {
+			const compiler = getTestCompiler({});
+
+			const result = compiler.convertFrontMatter(publishFile)("Body\n");
+
+			expect(result).toBe("Body\n");
 		});
 	});
 
@@ -131,10 +187,10 @@ describe("Compiler", () => {
 			"board.canvas": "wiki/board.canvas",
 		};
 
-		const getCompiler = () => {
+		const getCompiler = (settings: Partial<DigitalGardenSettings> = {}) => {
 			return new GardenPageCompiler(
 				{} as Vault,
-				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{ pathRewriteRules: "", ...settings } as DigitalGardenSettings,
 				{
 					getFirstLinkpathDest: jest.fn((linkpath: string) => {
 						const path = vaultFiles[linkpath];
@@ -153,13 +209,13 @@ describe("Compiler", () => {
 			);
 		};
 
-		it("converts a relative markdown link to a full-path wikilink", async () => {
+		it("converts a relative markdown link to a full-path markdown link", async () => {
 			const result = await getCompiler().convertMarkdownLinksToFullPath(
 				mockPublishFile,
 			)("See [Andrade](../authors/andrade.md) for details");
 
 			expect(result).toBe(
-				"See [[wiki/authors/andrade\\|Andrade]] for details",
+				"See [Andrade](wiki/authors/andrade.md) for details",
 			);
 		});
 
@@ -168,7 +224,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("See [Feedback](feedback.md)");
 
-			expect(result).toBe("See [[wiki/concepts/feedback\\|Feedback]]");
+			expect(result).toBe("See [Feedback](wiki/concepts/feedback.md)");
 		});
 
 		it("preserves and decodes header fragments", async () => {
@@ -176,7 +232,9 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Model](feedback.md#The%20Model)");
 
-			expect(result).toBe("[[wiki/concepts/feedback#The Model\\|Model]]");
+			expect(result).toBe(
+				"[Model](wiki/concepts/feedback.md#The%20Model)",
+			);
 		});
 
 		it("decodes URL-encoded link targets", async () => {
@@ -184,7 +242,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Note](My%20Note.md)");
 
-			expect(result).toBe("[[My Note\\|Note]]");
+			expect(result).toBe("[Note](My%20Note.md)");
 		});
 
 		it("keeps the .canvas extension for canvas links", async () => {
@@ -192,7 +250,7 @@ describe("Compiler", () => {
 				mockPublishFile,
 			)("[Board](board.canvas)");
 
-			expect(result).toBe("[[wiki/board.canvas\\|Board]]");
+			expect(result).toBe("[Board](wiki/board.canvas)");
 		});
 
 		it("resolves explicit relative paths even when the raw target has no vault match", async () => {
@@ -217,6 +275,16 @@ describe("Compiler", () => {
 			const result = await compiler.convertMarkdownLinksToFullPath(
 				mockPublishFile,
 			)("[Andrade](../authors/andrade.md)");
+
+			expect(result).toBe("[Andrade](wiki/authors/andrade.md)");
+		});
+
+		it("uses wikilinks when configured", async () => {
+			const result = await getCompiler({
+				linkFormat: "wikilink",
+			}).convertMarkdownLinksToFullPath(mockPublishFile)(
+				"[Andrade](../authors/andrade.md)",
+			);
 
 			expect(result).toBe("[[wiki/authors/andrade\\|Andrade]]");
 		});

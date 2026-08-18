@@ -1,6 +1,6 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
-import { getRewriteRules } from "../utils/utils";
+import { generateBlobHash, getRewriteRules } from "../utils/utils";
 import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
@@ -12,11 +12,11 @@ import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
-import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
-import { PublishPlatform } from "../models/PublishPlatform";
+import type { RepositoryProgress } from "src/repositoryConnection/RepositoryConnection";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { isPathIgnored } from "./ignoredPaths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -32,15 +32,19 @@ export default class Publisher {
 	compiler: GardenPageCompiler;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
+	private cachedRemoteImageHashes?: Record<string, string>;
+	private compilerVersion: string;
 
 	constructor(
 		vault: Vault,
 		metadataCache: MetadataCache,
 		settings: DigitalGardenSettings,
+		compilerVersion = "unknown",
 	) {
 		this.vault = vault;
 		this.metadataCache = metadataCache;
 		this.settings = settings;
+		this.compilerVersion = compilerVersion;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
 		this.compiler = new GardenPageCompiler(
@@ -51,10 +55,23 @@ export default class Publisher {
 		);
 	}
 
+	getCompilerFingerprint(): string {
+		// Credentials do not affect output, but hashing the complete settings object
+		// is deliberately conservative when new compiler settings are introduced.
+		return generateBlobHash(
+			JSON.stringify({
+				version: this.compilerVersion,
+				settings: this.settings,
+			}),
+		);
+	}
+
 	shouldPublish(file: TFile): boolean {
+		if (this.isPathIgnored(file.path)) return false;
+
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
-		return hasPublishFlag(frontMatter);
+		return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 	}
 
 	/**
@@ -62,6 +79,8 @@ export default class Publisher {
 	 * Canvas files store frontmatter in the metadata.frontmatter field.
 	 */
 	async shouldPublishCanvas(file: TFile): Promise<boolean> {
+		if (this.isPathIgnored(file.path)) return false;
+
 		if (file.extension !== "canvas") {
 			return this.shouldPublish(file);
 		}
@@ -71,10 +90,14 @@ export default class Publisher {
 			const canvasData = JSON.parse(content);
 			const frontMatter = canvasData?.metadata?.frontmatter;
 
-			return hasPublishFlag(frontMatter);
+			return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 		} catch {
 			return false;
 		}
+	}
+
+	isPathIgnored(path: string): boolean {
+		return isPathIgnored(path, this.settings.ignoredPaths);
 	}
 
 	/**
@@ -180,8 +203,40 @@ export default class Publisher {
 
 		return {
 			notes: notesToPublish.sort((a, b) => a.compare(b)),
-			images: Array.from(imagesToPublish),
+			images: Array.from(imagesToPublish).filter(
+				(path) => !this.isPathIgnored(path),
+			),
 		};
+	}
+
+	setRemoteImageHashes(hashes: Record<string, string>): void {
+		this.cachedRemoteImageHashes = hashes;
+	}
+
+	usesPublicationManifest(): boolean {
+		return PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.settings,
+		).usesPublicationManifest();
+	}
+
+	async clearPublicationManifest(): Promise<void> {
+		await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.settings,
+		).clearPublicationManifest();
+		this.cachedRemoteImageHashes = undefined;
+	}
+
+	async rebuildPublicationManifest(
+		onProgress?: (progress: RepositoryProgress) => void,
+	): Promise<void> {
+		const connection =
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			);
+
+		await connection.clearPublicationManifest();
+		this.cachedRemoteImageHashes = undefined;
+		await connection.getContent("HEAD", onProgress);
 	}
 
 	async deleteNote(vaultFilePath: string, sha?: string) {
@@ -199,11 +254,10 @@ export default class Publisher {
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection = new RepositoryConnection(
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		const userGardenConnection =
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
@@ -213,7 +267,13 @@ export default class Publisher {
 	}
 
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
-		if (!isPublishFrontmatterValid(file.frontmatter)) {
+		if (
+			this.isPathIgnored(file.file.path) ||
+			!isPublishFrontmatterValid(
+				file.frontmatter,
+				this.settings.publishByDefault,
+			)
+		) {
 			return false;
 		}
 
@@ -241,11 +301,10 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection(
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			const userGardenConnection =
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				),
-			);
+				);
 
 			await userGardenConnection.deleteFiles(filePaths);
 
@@ -257,9 +316,17 @@ export default class Publisher {
 		}
 	}
 
-	public async publishBatch(files: CompiledPublishFile[]): Promise<boolean> {
-		const filesToPublish = files.filter((f) =>
-			isPublishFrontmatterValid(f.frontmatter),
+	public async publishBatch(
+		files: CompiledPublishFile[],
+		onProgress?: (completed: number, currentPath: string) => void,
+	): Promise<boolean> {
+		const filesToPublish = files.filter(
+			(f) =>
+				!this.isPathIgnored(f.file.path) &&
+				isPublishFrontmatterValid(
+					f.frontmatter,
+					this.settings.publishByDefault,
+				),
 		);
 
 		if (filesToPublish.length === 0) {
@@ -267,17 +334,17 @@ export default class Publisher {
 		}
 
 		try {
-			const userGardenConnection = new RepositoryConnection(
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			const userGardenConnection =
+				PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				),
-			);
+				);
 
 			const remoteImageHashes = await this.getRemoteImageHashes();
 
 			await userGardenConnection.updateFiles(
 				filesToPublish,
 				remoteImageHashes,
+				onProgress,
 			);
 
 			return true;
@@ -292,11 +359,12 @@ export default class Publisher {
 	}
 
 	private async getRemoteImageHashes(): Promise<Record<string, string>> {
-		const userGardenConnection = new RepositoryConnection(
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		if (this.cachedRemoteImageHashes) return this.cachedRemoteImageHashes;
+
+		const userGardenConnection =
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		const contentTree = await userGardenConnection
 			.getContent("HEAD")
@@ -311,7 +379,10 @@ export default class Publisher {
 			this.settings,
 		);
 
-		return siteManager.getImageHashes(contentTree);
+		const hashes = await siteManager.getImageHashes(contentTree);
+		this.cachedRemoteImageHashes = hashes;
+
+		return hashes;
 	}
 
 	private async uploadToGithub(
@@ -322,11 +393,10 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection = new RepositoryConnection(
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		const userGardenConnection =
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			),
-		);
+			);
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {
@@ -381,36 +451,17 @@ export default class Publisher {
 	}
 
 	validateSettings() {
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			// For forestry.md, validate forestry settings instead of GitHub
-			if (!this.settings.forestrySettings.apiKey) {
-				new Notice(
-					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
-				);
-				throw {};
-			}
-		} else {
-			// For SelfHosted, validate GitHub settings
-			if (!this.settings.githubRepo) {
-				new Notice(
-					"Config error: You need to define a GitHub repo in the plugin settings",
-				);
-				throw {};
-			}
-
-			if (!this.settings.githubUserName) {
-				new Notice(
-					"Config error: You need to define a GitHub Username in the plugin settings",
-				);
-				throw {};
-			}
-
-			if (!this.settings.githubToken) {
-				new Notice(
-					"Config error: You need to define a GitHub Token in the plugin settings",
-				);
-				throw {};
-			}
+		try {
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+				this.settings,
+			).validateSettings();
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Invalid publication settings";
+			new Notice(`Config error: ${message}`);
+			throw error;
 		}
 	}
 }

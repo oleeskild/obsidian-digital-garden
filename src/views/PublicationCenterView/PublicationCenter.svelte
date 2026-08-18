@@ -8,6 +8,7 @@
 	import type {
 		IPublishStatusManager,
 		PublishStatus,
+		PublishStatusProgress,
 	} from "../../publisher/PublishStatusManager";
 	import {
 		annotateFiles,
@@ -35,6 +36,10 @@
 	let status: PublishStatus | null = null;
 	let error: string | null = null;
 	let refreshing = false;
+	let statusProgress: PublishStatusProgress = {
+		completed: 0,
+		message: "Preparing publication status…",
+	};
 	let lastRefreshAt = 0;
 	const REFRESH_DEBOUNCE_MS = 3000;
 	let annotated: AnnotatedFile[] = [];
@@ -47,6 +52,7 @@
 	type DiffData =
 		| { kind: "diff"; changes: Diff.Change[] }
 		| { kind: "nochange" }
+		| { kind: "assets"; paths: string[] }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
 
@@ -77,6 +83,11 @@
 		if (refreshing) return;
 		refreshing = true;
 
+		statusProgress = {
+			completed: 0,
+			message: "Preparing publication status…",
+		};
+
 		const prevAllPaths = new Set(annotated.map((f) => f.path));
 		const prevSelected = selected;
 
@@ -94,7 +105,9 @@
 		}
 
 		try {
-			const s = await statusManager.getPublishStatus();
+			const s = await statusManager.getPublishStatus((progress) => {
+				statusProgress = progress;
+			});
 			status = s;
 			annotated = annotateFiles(s);
 
@@ -128,6 +141,50 @@
 	// Used on first open and by the manual Refresh button.
 	function refresh() {
 		return loadStatus({ background: false });
+	}
+
+	async function fullRefresh() {
+		if (refreshing || publishing) return;
+		refreshing = true;
+		status = null;
+		error = null;
+		diffCache = new Map();
+		diffData = null;
+		diffLoading = false;
+		activePath = null;
+
+		statusProgress = {
+			completed: 0,
+			message: "Rebuilding remote manifest…",
+		};
+
+		try {
+			await publisher.rebuildPublicationManifest((progress) => {
+				statusProgress = progress;
+			});
+
+			// Re-read publication status against the rebuilt manifest while keeping
+			// the full-screen progress view visible.
+			statusProgress = {
+				completed: 0,
+				message: "Refreshing publication status…",
+			};
+
+			const nextStatus = await statusManager.getPublishStatus(
+				(progress) => {
+					statusProgress = progress;
+				},
+			);
+			status = nextStatus;
+			annotated = annotateFiles(nextStatus);
+			selected = defaultSelection(annotated);
+			validate(nextStatus);
+			lastRefreshAt = Date.now();
+		} catch (e) {
+			error = String(e);
+		} finally {
+			refreshing = false;
+		}
 	}
 
 	// Quiet, debounced refresh that keeps the tree visible and preserves the
@@ -199,8 +256,15 @@
 
 		try {
 			progressCurrent = "Publishing notes…";
-			const published = await publisher.publishBatch(plan.notesToPublish);
-			progressDone += plan.notesToPublish.length;
+
+			const published = await publisher.publishBatch(
+				plan.notesToPublish,
+				(completed, currentPath) => {
+					progressDone = completed;
+					progressCurrent = `Published ${currentPath}`;
+				},
+			);
+			progressDone = plan.notesToPublish.length;
 
 			if (published) {
 				for (const note of plan.notesToPublish) {
@@ -317,6 +381,17 @@
 			}
 		}
 
+		if (
+			remote === local &&
+			file.file &&
+			file.file.missingRemoteAssets.length > 0
+		) {
+			return {
+				kind: "assets",
+				paths: file.file.missingRemoteAssets,
+			};
+		}
+
 		if (file.status === "published" || remote === local) {
 			return { kind: "nochange" };
 		}
@@ -369,7 +444,22 @@
 	{:else if !status}
 		<div class="dg-pc-loading">
 			{@html bigRotatingCog()?.outerHTML ?? ""}
-			<div>Calculating publication status…</div>
+			<div>{statusProgress.message}</div>
+			{#if statusProgress.total !== undefined}
+				<div class="dg-pc-status-count">
+					{statusProgress.completed} of {statusProgress.total}
+				</div>
+				<div class="dg-pc-progress-track dg-pc-status-progress">
+					<div
+						class="dg-pc-progress-fill"
+						style="width: {statusProgress.total
+							? (statusProgress.completed /
+									statusProgress.total) *
+							  100
+							: 100}%"
+					></div>
+				</div>
+			{/if}
 		</div>
 	{:else}
 		<Tutorial />
@@ -377,7 +467,24 @@
 		<Notices {problematicFiles} />
 
 		{#if refreshing}
-			<div class="dg-pc-syncing">Updating…</div>
+			<div class="dg-pc-syncing">
+				<div>{statusProgress.message}</div>
+				{#if statusProgress.total !== undefined}
+					<div class="dg-pc-status-count">
+						{statusProgress.completed} of {statusProgress.total}
+					</div>
+					<div class="dg-pc-progress-track dg-pc-status-progress">
+						<div
+							class="dg-pc-progress-fill"
+							style="width: {statusProgress.total
+								? (statusProgress.completed /
+										statusProgress.total) *
+								  100
+								: 100}%"
+						></div>
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		{#if publishing}
@@ -429,8 +536,11 @@
 		<PublishBar
 			{selectedCount}
 			{publishing}
+			{refreshing}
+			showFullRefresh={publisher.usesPublicationManifest()}
 			on:publish={publishSelected}
 			on:refresh={refresh}
+			on:fullrefresh={fullRefresh}
 		/>
 	{/if}
 </div>
@@ -475,6 +585,15 @@
 	.dg-pc-error {
 		color: var(--text-error);
 		padding: 16px;
+	}
+
+	.dg-pc-status-count {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.dg-pc-status-progress {
+		width: min(360px, 80%);
 	}
 
 	.dg-pc-syncing {

@@ -9,7 +9,9 @@ import {
 	App,
 } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
-import DigitalGardenSettings from "./src/models/settings";
+import DigitalGardenSettings, {
+	DEFAULT_SFTP_PRIVATE_KEY_PATH,
+} from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
@@ -19,16 +21,24 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import {
+	GitProvider,
+	PublicationProvider,
+	platformForProvider,
+	providerForPlatform,
+} from "src/models/PublicationProvider";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { notifyLimitReached } from "src/forestry/limitNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
-import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
+import { hasPublishFlag } from "src/publishFile/Validator";
+import { publicationManifestStore } from "src/publisher/PublicationManifestStore";
+import { compilationCacheStore } from "src/publisher/CompilationCacheStore";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -43,9 +53,18 @@ const defaultTheme = {
 };
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
-	githubRepo: "",
-	githubToken: "",
-	githubUserName: "",
+	gitRepo: "",
+	gitToken: "",
+	gitUsername: "",
+	forgejoApiUrl: "",
+	sftpHost: "",
+	sftpPort: 22,
+	sftpUsername: "",
+	sftpPassword: "",
+	sftpPrivateKeyPath: DEFAULT_SFTP_PRIVATE_KEY_PATH,
+	sftpPrivateKeyPassphrase: "",
+	sftpRemoteRoot: "",
+	sftpHostKeyFingerprint: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -77,7 +96,12 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
-	publishPlatform: PublishPlatform.SelfHosted,
+	publishPlatform: PublishPlatform.GitHub,
+	publicationProvider: PublicationProvider.Git,
+	gitProvider: GitProvider.GitHub,
+	publishByDefault: false,
+	ignoredPaths: [],
+	linkFormat: "markdown",
 
 	contentClassesKey: "dg-content-classes",
 
@@ -122,7 +146,10 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	logLevel: undefined,
 	localExportPath: "",
-	contentBaseDir: "",
+	notesDirectory: "",
+	assetsDirectory: "",
+	siteDirectory: "",
+	settingsFilePath: "",
 };
 
 Logger.useDefaults({
@@ -140,6 +167,18 @@ export default class DigitalGarden extends Plugin {
 
 	async onload() {
 		this.appVersion = this.manifest.version;
+
+		publicationManifestStore.configure(
+			this.app.vault.adapter,
+			this.manifest.dir ??
+				`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
+		);
+
+		compilationCacheStore.configure(
+			this.app.vault.adapter,
+			this.manifest.dir ??
+				`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
+		);
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -173,7 +212,7 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	private async checkForTemplateUpdates() {
-		if (this.settings.publishPlatform !== PublishPlatform.SelfHosted) {
+		if (this.settings.publishPlatform !== PublishPlatform.GitHub) {
 			return;
 		}
 
@@ -201,10 +240,25 @@ export default class DigitalGarden extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData(),
+		const saved = (await this.loadData()) ?? {};
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
+
+		if (saved.publicationProvider === undefined) {
+			this.settings.publicationProvider = providerForPlatform(
+				this.settings.publishPlatform,
+			);
+		}
+
+		if (saved.gitProvider === undefined) {
+			this.settings.gitProvider =
+				this.settings.publishPlatform === PublishPlatform.Forgejo
+					? GitProvider.Forgejo
+					: GitProvider.GitHub;
+		}
+
+		this.settings.publishPlatform = platformForProvider(
+			this.settings.publicationProvider,
+			this.settings.gitProvider,
 		);
 	}
 
@@ -415,6 +469,19 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
+		for (const [provider, id, label] of [
+			[PublicationProvider.Git, "git", "Git"],
+			[PublicationProvider.Sftp, "sftp", "SFTP"],
+			[PublicationProvider.LocalFolder, "local-folder", "Local Folder"],
+			[PublicationProvider.Forest, "forest", "Forest"],
+		] as const) {
+			this.addCommand({
+				id: `publish-all-to-${id}`,
+				name: `Publish All Marked Notes to ${label}`,
+				callback: async () => this.publishToProvider(provider, label),
+			});
+		}
+
 		this.addCommand({
 			id: "dg-mark-note-for-publish",
 			name: "Add publish flag",
@@ -460,7 +527,7 @@ export default class DigitalGarden extends Plugin {
 				id: "export-garden-to-local-folder",
 				name: "Export Garden to Local Folder",
 				callback: async () => {
-					await this.runLocalExport();
+					await this.activatePublicationCenter();
 				},
 			});
 		}
@@ -468,6 +535,14 @@ export default class DigitalGarden extends Plugin {
 
 	private async runLocalExport() {
 		try {
+			if (!Platform.isDesktop) {
+				new Notice(
+					"Local-folder publishing is only available on desktop.",
+				);
+
+				return;
+			}
+
 			new Notice("Exporting garden to local folder...");
 			const { vault, metadataCache } = this.app;
 
@@ -492,9 +567,92 @@ export default class DigitalGarden extends Plugin {
 					8000,
 				);
 			}
+
+			return result;
 		} catch (e) {
 			// Validation errors already show Notices
 			Logger.error("Local export failed", e);
+		}
+	}
+
+	private async publishToProvider(
+		provider: PublicationProvider,
+		label: string,
+	): Promise<void> {
+		if (this.isPublishing) {
+			new Notice("A publish operation is already in progress.");
+
+			return;
+		}
+
+		if (
+			(provider === PublicationProvider.LocalFolder ||
+				provider === PublicationProvider.Sftp) &&
+			!Platform.isDesktop
+		) {
+			new Notice(`${label} publishing is only available on desktop.`);
+
+			return;
+		}
+
+		this.isPublishing = true;
+
+		try {
+			const settings = {
+				...this.settings,
+				publishPlatform: platformForProvider(
+					provider,
+					this.settings.gitProvider,
+				),
+			};
+
+			const publisher = new Publisher(
+				this.app.vault,
+				this.app.metadataCache,
+				settings,
+			);
+			publisher.validateSettings();
+
+			const siteManager = new DigitalGardenSiteManager(
+				this.app.metadataCache,
+				settings,
+			);
+
+			const status = await new PublishStatusManager(
+				siteManager,
+				publisher,
+			).getPublishStatus();
+			const notes = status.changedNotes.concat(status.unpublishedNotes);
+
+			const total =
+				notes.length +
+				status.deletedNotePaths.length +
+				status.deletedImagePaths.length;
+
+			if (total === 0) {
+				new Notice(`${label} is already fully synced.`);
+
+				return;
+			}
+
+			if (!(await publisher.publishBatch(notes)))
+				throw new Error("Batch publish failed");
+			for (const file of status.deletedNotePaths)
+				await publisher.deleteNote(file.path, file.sha);
+			for (const image of status.deletedImagePaths)
+				await publisher.deleteImage(image.path, image.sha);
+			new Notice(`Published ${notes.length} notes to ${label}.`);
+		} catch (error) {
+			if (error instanceof LimitReachedError) this.showLimitNotice(error);
+			else {
+				Logger.error(`Unable to publish to ${label}`, error);
+
+				new Notice(
+					`Unable to publish to ${label}. Check its settings.`,
+				);
+			}
+		} finally {
+			this.isPublishing = false;
 		}
 	}
 
@@ -560,6 +718,12 @@ export default class DigitalGarden extends Plugin {
 	// TODO: move to publisher?
 	async publishSingleNote() {
 		try {
+			if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+				const result = await this.runLocalExport();
+
+				return result !== undefined && result.failed === 0;
+			}
+
 			const { vault, workspace, metadataCache } = this.app;
 
 			const activeFile = this.getActiveFile(workspace);
@@ -642,8 +806,10 @@ export default class DigitalGarden extends Plugin {
 		await this.app.fileManager.processFrontMatter(
 			activeFile as TFile,
 			(frontmatter) => {
-				frontmatter[FRONTMATTER_KEYS.PUBLISH] =
-					!frontmatter[FRONTMATTER_KEYS.PUBLISH];
+				frontmatter[FRONTMATTER_KEYS.PUBLISH] = !hasPublishFlag(
+					frontmatter,
+					this.settings.publishByDefault,
+				);
 			},
 		);
 	}
@@ -728,11 +894,19 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async openNavigationOrderModal() {
+		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
+			new Notice(
+				"Navigation ordering from the repository is not available for local-folder publishing.",
+			);
+
+			return;
+		}
+
 		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
-		const repositoryConnection = new RepositoryConnection(connection);
+		const repositoryConnection = connection;
 
 		const publisher = new Publisher(
 			this.app.vault,

@@ -1,16 +1,29 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
-import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
-import { normalizeContentBaseDir } from "src/publisher/paths";
+import { normalizeRepoDirectory } from "src/publisher/paths";
+import DigitalGardenSettings from "src/models/settings";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("repository-connection");
 
-const IMAGE_PATH_BASE = "src/site/";
+const IMAGE_PATH_BASE = "src/site/img/user/";
 const NOTE_PATH_BASE = "src/site/notes/";
+const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
-interface IPutPayload {
+type RepositoryConnectionSettings = Pick<
+	DigitalGardenSettings,
+	| "publishPlatform"
+	| "gitToken"
+	| "gitRepo"
+	| "gitUsername"
+	| "forestrySettings"
+	| "notesDirectory"
+	| "assetsDirectory"
+>;
+
+export interface IPutPayload {
 	path: string;
 	sha?: string;
 	content: string;
@@ -19,27 +32,83 @@ interface IPutPayload {
 }
 
 export class RepositoryConnection {
-	private userName: string;
-	private pageName: string;
-	private contentBase: string;
-	octokit: Octokit;
+	private readonly userName: string;
+	private readonly pageName: string;
+	private readonly noteBase: string;
+	private readonly assetBase: string;
+	readonly octokit: Octokit;
+	private readonly settings: RepositoryConnectionSettings;
 
-	constructor({
-		octoKit,
-		userName,
-		pageName,
-		contentBaseDir,
-	}: IPublishPlatformConnection) {
-		this.pageName = pageName;
-		this.userName = userName;
-		this.contentBase = normalizeContentBaseDir(contentBaseDir);
-		this.octokit = octoKit;
+	constructor(settings: RepositoryConnectionSettings) {
+		this.pageName = settings.gitRepo;
+		this.userName = settings.gitUsername;
+
+		this.noteBase =
+			normalizeRepoDirectory(settings.notesDirectory) || NOTE_PATH_BASE;
+
+		this.assetBase =
+			normalizeRepoDirectory(settings.assetsDirectory) || IMAGE_PATH_BASE;
+
+		if (settings.publishPlatform === PublishPlatform.ForestryMd) {
+			this.pageName = settings.forestrySettings.forestryPageName;
+			this.userName = "Forestry";
+			this.noteBase = NOTE_PATH_BASE;
+			this.assetBase = IMAGE_PATH_BASE;
+
+			this.octokit = new Octokit({
+				baseUrl: `${
+					process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL
+				}/Garden`,
+				auth: settings.forestrySettings.apiKey,
+				log: Logger.get("octokit"),
+			});
+		} else {
+			this.octokit = new Octokit({
+				auth: settings.gitToken,
+				log: Logger.get("octokit"),
+			});
+		}
+
+		this.settings = settings;
 	}
 
-	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
-	get contentBaseDir(): string {
-		return this.contentBase;
+	static createBaseGardenConnection(): RepositoryConnection {
+		return new RepositoryConnection({
+			publishPlatform: PublishPlatform.GitHub,
+			gitUsername: "oleeskild",
+			gitRepo: "digitalgarden",
+			gitToken: "",
+			forestrySettings: {
+				forestryPageName: "",
+				apiKey: "",
+				baseUrl: "",
+			},
+		});
 	}
+
+	validateSettings(): void {
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			if (!this.settings.forestrySettings.apiKey)
+				throw new Error(
+					"Define a Forestry.md Garden Key in plugin settings",
+				);
+
+			return;
+		}
+
+		if (!this.settings.gitRepo) throw new Error("Define a Git repository");
+
+		if (!this.settings.gitUsername)
+			throw new Error("Define a Git username");
+
+		if (!this.settings.gitToken) throw new Error("Define a Git token");
+	}
+
+	usesPublicationManifest(): boolean {
+		return false;
+	}
+
+	async clearPublicationManifest(): Promise<void> {}
 
 	getRepositoryName() {
 		return this.userName + "/" + this.pageName;
@@ -130,7 +199,7 @@ export class RepositoryConnection {
 				branch,
 			};
 
-			const result = await this.octokit.request(
+			await this.octokit.request(
 				"DELETE /repos/{owner}/{repo}/contents/{path}",
 				payload,
 			);
@@ -139,7 +208,7 @@ export class RepositoryConnection {
 				`Deleted file ${path} from repository ${this.getRepositoryName()}`,
 			);
 
-			return result;
+			return true;
 		} catch (error) {
 			throwIfLimitError(error);
 			logger.error(error);
@@ -221,14 +290,10 @@ export class RepositoryConnection {
 
 		const filesToDelete = filePaths.map((path) => {
 			if (path.endsWith(".md")) {
-				return `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
-					path,
-				)}`;
+				return `${this.noteBase}${normalizePath(path)}`;
 			}
 
-			return `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
-				path,
-			)}`;
+			return `${this.assetBase}${normalizePath(path)}`;
 		});
 
 		const repoDataPromise = this.octokit.request(
@@ -302,6 +367,7 @@ export class RepositoryConnection {
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
+		onProgress?: (completed: number, currentPath: string) => void,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -324,6 +390,8 @@ export class RepositoryConnection {
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
+		let completedNotes = 0;
+
 		const treePromises = files.map(async (file) => {
 			const [text, _] = file.compiledFile;
 
@@ -337,14 +405,16 @@ export class RepositoryConnection {
 					},
 				);
 
-				return {
-					path: `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
-						file.getPath(),
-					)}`,
+				const entry = {
+					path: `${this.noteBase}${normalizePath(file.getPath())}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
 				};
+				completedNotes++;
+				onProgress?.(completedNotes, file.getPath());
+
+				return entry;
 			} catch (error) {
 				throwIfLimitError(error);
 				logger.error(error);
@@ -385,8 +455,8 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
-						asset.path,
+					path: `${this.assetBase}${normalizePath(
+						asset.path.replace(/^\/?img\/user\//, ""),
 					)}`,
 					mode: "100644",
 					type: "blob",
@@ -474,8 +544,105 @@ export class RepositoryConnection {
 			sha,
 		});
 	}
+
+	async createPullRequest({
+		title,
+		head,
+		base,
+		body,
+	}: {
+		title: string;
+		head: string;
+		base: string;
+		body: string;
+	}) {
+		const response = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/pulls",
+			{
+				...this.getBasePayload(),
+				title,
+				head,
+				base,
+				body,
+			},
+		);
+
+		return response.data.html_url;
+	}
 }
 
-export type TRepositoryContent = Awaited<
-	ReturnType<typeof RepositoryConnection.prototype.getContent>
->;
+export interface IRepositoryConnection {
+	validateSettings(): void;
+	usesPublicationManifest(): boolean;
+	clearPublicationManifest(): Promise<void>;
+	getRepositoryName(): string;
+	getContent(
+		branch: string,
+		onProgress?: (progress: RepositoryProgress) => void,
+	): Promise<IRepositoryTree | undefined>;
+	getFile(
+		path: string,
+		branch?: string,
+	): Promise<IRepositoryFile | undefined>;
+	deleteFile(
+		path: string,
+		options: { branch?: string; sha?: string },
+	): Promise<boolean>;
+	getLatestRelease(): Promise<{ tag_name?: string } | undefined>;
+	getLatestCommit(): Promise<
+		{ sha: string; commit: { tree: { sha: string } } } | undefined
+	>;
+	updateFile(payload: IPutPayload): Promise<unknown>;
+	deleteFiles(paths: string[]): Promise<void>;
+	updateFiles(
+		files: CompiledPublishFile[],
+		remoteImageHashes?: Record<string, string>,
+		onProgress?: (completed: number, currentPath: string) => void,
+	): Promise<void>;
+	getRepositoryInfo(): Promise<IRepositoryInfo | undefined>;
+	createBranch(branchName: string, sha: string): Promise<void>;
+	createPullRequest(input: {
+		title: string;
+		head: string;
+		base: string;
+		body: string;
+	}): Promise<string>;
+}
+
+export interface RepositoryProgress {
+	completed: number;
+	total?: number;
+	message: string;
+}
+
+export interface IRepositoryTreeItem {
+	path?: string;
+	mode?: string;
+	type?: string;
+	sha?: string;
+	size?: number;
+	url?: string;
+}
+
+export interface IRepositoryTree {
+	sha?: string;
+	url?: string;
+	truncated?: boolean;
+	tree: IRepositoryTreeItem[];
+}
+
+export interface IRepositoryFile {
+	type: "file";
+	content: string;
+	sha: string;
+	path?: string;
+	name?: string;
+	encoding?: string;
+}
+
+export interface IRepositoryInfo {
+	default_branch?: string;
+	permissions?: { admin?: boolean; push?: boolean };
+}
+
+export type TRepositoryContent = IRepositoryTree | undefined;

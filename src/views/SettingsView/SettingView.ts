@@ -1,4 +1,3 @@
-import { Octokit } from "@octokit/core";
 import axios from "axios";
 import { mount, unmount } from "svelte";
 import {
@@ -10,6 +9,7 @@ import {
 	MetadataCache,
 	Modal,
 	Notice,
+	Platform,
 	Setting,
 	TextComponent,
 	TFile,
@@ -27,7 +27,8 @@ import {
 	SvgFileSuggest,
 } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
-import { GithubSettings } from "./GithubSettings";
+import { GitSettings } from "./GitSettings";
+import { SftpSettings } from "./SftpSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
@@ -37,9 +38,15 @@ import {
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import {
+	GitProvider,
+	PublicationProvider,
+	platformForProvider,
+} from "src/models/PublicationProvider";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
-import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { initializeCustomPathSettings } from "./CustomPathSettings";
 
 interface IObsidianTheme {
 	name: string;
@@ -129,46 +136,30 @@ export default class SettingView {
 		});
 
 		new Setting(this.settingsRootElement)
-			.setName("Publish Platform")
+			.setName("Default publication provider")
+			.setDesc("Used by publishing commands that do not name a provider.")
 			.addDropdown((dd) => {
-				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
-				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
+				dd.addOption(PublicationProvider.Git, "Git");
 
-				if (
-					this.settings.publishPlatform === PublishPlatform.SelfHosted
-				) {
-					dd.setValue(PublishPlatform.SelfHosted);
-				} else {
-					dd.setValue(PublishPlatform.ForestryMd);
-				}
+				if (Platform.isDesktop)
+					dd.addOption(PublicationProvider.Sftp, "SFTP");
+				dd.addOption(PublicationProvider.LocalFolder, "Local folder");
+				dd.addOption(PublicationProvider.Forest, "Forest");
+				dd.setValue(this.settings.publicationProvider);
 
 				dd.onChange(async (val) => {
-					switch (val) {
-						case PublishPlatform.SelfHosted:
-							this.settings.publishPlatform =
-								PublishPlatform.SelfHosted;
-							break;
-						case PublishPlatform.ForestryMd:
-							this.settings.publishPlatform =
-								PublishPlatform.ForestryMd;
-							break;
-					}
-					await this.saveSettings();
+					this.settings.publicationProvider =
+						val as PublicationProvider;
 
-					this.initializePublishPlatformSettings(
-						publishPlatformSettings,
+					this.settings.publishPlatform = platformForProvider(
+						this.settings.publicationProvider,
+						this.settings.gitProvider,
 					);
+					await this.saveSettings();
 				});
 			});
 
-		const publishPlatformSettings = this.settingsRootElement.createEl(
-			"div",
-			{
-				cls: "publish-platform-settings",
-			},
-		);
-
-		this.initializePublishPlatformSettings(publishPlatformSettings);
+		this.initializeProviderSettings();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
@@ -239,15 +230,70 @@ export default class SettingView {
 					});
 			});
 
-		this.settingsRootElement
-			.createEl("h3", { text: "Local Export" })
-			.prepend(this.getIcon("folder-output"));
+		prModal.titleEl.createEl("h1", "Site template settings");
+	}
 
-		new Setting(this.settingsRootElement)
+	private initializeProviderSettings() {
+		this.settingsRootElement.createEl("h2", { text: "Git" });
+
+		const gitTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
+		const gitSettingsRef: { current?: GitSettings } = {};
+
+		new Setting(gitTarget).setName("Git service").addDropdown((dd) =>
+			dd
+				.addOption(GitProvider.GitHub, "GitHub")
+				.addOption(GitProvider.Forgejo, "Forgejo")
+				.setValue(this.settings.gitProvider)
+				.onChange(async (value) => {
+					this.settings.gitProvider = value as GitProvider;
+
+					if (
+						this.settings.publicationProvider ===
+						PublicationProvider.Git
+					) {
+						this.settings.publishPlatform = platformForProvider(
+							PublicationProvider.Git,
+							this.settings.gitProvider,
+						);
+					}
+					await this.saveSettings();
+
+					gitSettingsRef.current?.setPlatform(
+						platformForProvider(
+							PublicationProvider.Git,
+							this.settings.gitProvider,
+						),
+					);
+				}),
+		);
+
+		gitSettingsRef.current = new GitSettings(
+			this,
+			gitTarget,
+			platformForProvider(
+				PublicationProvider.Git,
+				this.settings.gitProvider,
+			),
+		);
+
+		if (Platform.isDesktop)
+			new SftpSettings(
+				this.settingsRootElement,
+				this.settings,
+				this.saveSettings,
+			);
+
+		this.settingsRootElement.createEl("h2", { text: "Local Folder" });
+
+		const localTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
+
+		new Setting(localTarget)
 			.setName("Local garden folder path")
-			.setDesc(
-				"Absolute path to your local digital garden folder. Used by the 'Export Garden to Local Folder' command.",
-			)
+			.setDesc("Absolute path to the local site folder.")
 			.addText((text) => {
 				text.setPlaceholder("/path/to/your/digitalgarden")
 					.setValue(this.settings.localExportPath ?? "")
@@ -258,29 +304,80 @@ export default class SettingView {
 				text.inputEl.style.width = "300px";
 			});
 
-		prModal.titleEl.createEl("h1", "Site template settings");
-	}
+		this.settingsRootElement.createEl("h2", { text: "Forest" });
 
-	private initializePublishPlatformSettings(target: HTMLElement) {
-		target.empty();
+		const forestTarget = this.settingsRootElement.createDiv({
+			cls: "publish-provider-settings",
+		});
 
-		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
-			new GithubSettings(this, target);
-		} else {
-			mount(ForestrySettings, {
-				target,
-				props: {
-					settings: this.settings,
-					saveSettings: this.saveSettings,
-					onConnect: async () => {
-						this.reInitializeSettings();
-					},
+		mount(ForestrySettings, {
+			target: forestTarget,
+			props: {
+				settings: this.settings,
+				saveSettings: this.saveSettings,
+				onConnect: async () => {
+					this.reInitializeSettings();
 				},
-			});
-		}
+			},
+		});
+
+		this.settingsRootElement.createEl("h2", {
+			text: "Git, SFTP, and Local Folder Output Paths",
+		});
+		initializeCustomPathSettings(this, this.settingsRootElement);
 	}
 
 	private async initializeDefaultNoteSettings() {
+		new Setting(this.settingsRootElement)
+			.setName("Internal link format")
+			.setDesc(
+				"Format used for internal note links in exported Markdown.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("markdown", "Markdown links")
+					.addOption("wikilink", "Obsidian wikilinks")
+					.setValue(this.settings.linkFormat)
+					.onChange(async (value) => {
+						this.settings.linkFormat = value as
+							| "markdown"
+							| "wikilink";
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(this.settingsRootElement)
+			.setName("Publish notes by default")
+			.setDesc(
+				"Publish notes without a dg-publish property. Notes with dg-publish: false remain private.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.publishByDefault)
+					.onChange(async (value) => {
+						this.settings.publishByDefault = value;
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(this.settingsRootElement)
+			.setName("Ignored paths")
+			.setDesc(
+				"Vault-relative notes, assets, or folders to ignore completely. Enter one path per line. Folder descendants are also ignored. These paths will not be scanned, listed, published, or deleted remotely.",
+			)
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("Private\nArchive/Old note.md")
+					.setValue((this.settings.ignoredPaths ?? []).join("\n"))
+					.onChange(async (value) => {
+						this.settings.ignoredPaths = value
+							.split("\n")
+							.map((folder) => folder.trim())
+							.filter(Boolean);
+						await this.saveSettings();
+					}),
+			);
+
 		const noteSettingsModal = new Modal(this.app);
 		let hasUnsavedChanges = false;
 
@@ -1247,15 +1344,12 @@ export default class SettingView {
 				await this.saveSettingsAndUpdateEnv();
 
 				const connection =
-					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					PublishPlatformConnectionFactory.createPublishPlatformConnection(
 						this.settings,
 					);
-				const octokit = connection.octoKit;
-				const owner = connection.userName;
-				const repo = connection.pageName;
 
 				try {
-					await this.addFavicon(octokit, owner, repo);
+					await this.addFavicon(connection);
 				} catch (error) {
 					Logger.error("Failed to update favicon", error);
 
@@ -1265,7 +1359,7 @@ export default class SettingView {
 				}
 
 				try {
-					await this.addLogo(octokit, owner, repo);
+					await this.addLogo(connection);
 				} catch (error) {
 					Logger.error("Failed to update logo", error);
 
@@ -1899,7 +1993,7 @@ export default class SettingView {
 		return settings;
 	}
 
-	private async addFavicon(octokit: Octokit, owner: string, repo: string) {
+	private async addFavicon(connection: IRepositoryConnection) {
 		let base64SettingsFaviconContent = "";
 
 		if (this.settings.faviconPath) {
@@ -1918,16 +2012,10 @@ export default class SettingView {
 			const baseConnection =
 				PublishPlatformConnectionFactory.createBaseGardenConnection();
 
-			const defaultFavicon = await baseConnection.octoKit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: baseConnection.userName,
-					repo: baseConnection.pageName,
-					path: "src/site/favicon.svg",
-				},
+			const defaultFavicon = await baseConnection.getFile(
+				"src/site/favicon.svg",
 			);
-			// @ts-expect-error TODO: abstract octokit response
-			base64SettingsFaviconContent = defaultFavicon.data.content;
+			base64SettingsFaviconContent = defaultFavicon?.content ?? "";
 		}
 
 		let faviconExists = true;
@@ -1935,20 +2023,15 @@ export default class SettingView {
 		let currentFaviconOnSite = null;
 
 		try {
-			currentFaviconOnSite = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner,
-					repo,
-					path: sitePath(this.settings, "/favicon.svg"),
-				},
+			currentFaviconOnSite = await connection.getFile(
+				sitePath(this.settings, "/favicon.svg"),
 			);
 
 			// GitHub API returns base64 with newlines, strip them for comparison
 			faviconsAreIdentical =
-				// @ts-expect-error TODO: abstract octokit response
-				currentFaviconOnSite.data.content.replace(/\n/g, "") ===
-				base64SettingsFaviconContent;
+				!!currentFaviconOnSite &&
+				currentFaviconOnSite.content.replace(/\n/g, "") ===
+					base64SettingsFaviconContent;
 
 			if (faviconsAreIdentical) {
 				Logger.info("Favicons are identical, skipping update");
@@ -1960,21 +2043,18 @@ export default class SettingView {
 		}
 
 		if (!faviconExists || !faviconsAreIdentical) {
-			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner,
-				repo,
+			await connection.updateFile({
 				path: sitePath(this.settings, "/favicon.svg"),
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
-				// @ts-expect-error TODO: abstract octokit response
-				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
+				sha: faviconExists ? currentFaviconOnSite?.sha : undefined,
 			});
 		}
 	}
 
-	private async addLogo(octokit: Octokit, owner: string, repo: string) {
+	private async addLogo(connection: IRepositoryConnection) {
 		Logger.info(
-			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
+			`addLogo called, logoPath setting: "${this.settings.logoPath}"`,
 		);
 		const logoBasePath = sitePath(this.settings, "/logo");
 
@@ -1983,17 +2063,12 @@ export default class SettingView {
 
 		for (const ext of logoExtensions) {
 			try {
-				const existingLogo = await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner,
-						repo,
-						path: `${logoBasePath}.${ext}`,
-					},
+				const existingLogo = await connection.getFile(
+					`${logoBasePath}.${ext}`,
 				);
 
 				// Delete the existing logo if we're either clearing it or uploading a different format
-				if (existingLogo.data) {
+				if (existingLogo) {
 					const currentPath = this.settings.logoPath;
 
 					const currentExt = currentPath
@@ -2002,17 +2077,9 @@ export default class SettingView {
 
 					// Delete if no logo path set, or if the extension is different
 					if (!currentPath || currentExt !== ext) {
-						await octokit.request(
-							"DELETE /repos/{owner}/{repo}/contents/{path}",
-							{
-								owner,
-								repo,
-								path: `${logoBasePath}.${ext}`,
-								message: `Remove logo.${ext}`,
-								// @ts-expect-error TODO: abstract octokit response
-								sha: existingLogo.data.sha,
-							},
-						);
+						await connection.deleteFile(`${logoBasePath}.${ext}`, {
+							sha: existingLogo.sha,
+						});
 					}
 				}
 			} catch {
@@ -2049,20 +2116,13 @@ export default class SettingView {
 		let currentLogoOnSite = null;
 
 		try {
-			currentLogoOnSite = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner,
-					repo,
-					path: logoPath,
-				},
-			);
+			currentLogoOnSite = await connection.getFile(logoPath);
 
 			// GitHub API returns base64 with newlines, strip them for comparison
 			logosAreIdentical =
-				// @ts-expect-error TODO: abstract octokit response
-				currentLogoOnSite.data.content.replace(/\n/g, "") ===
-				base64LogoContent;
+				!!currentLogoOnSite &&
+				currentLogoOnSite.content.replace(/\n/g, "") ===
+					base64LogoContent;
 
 			if (logosAreIdentical) {
 				Logger.info("Logos are identical, skipping update");
@@ -2076,19 +2136,13 @@ export default class SettingView {
 		if (!logoExists || !logosAreIdentical) {
 			try {
 				const requestPayload = {
-					owner,
-					repo,
 					path: logoPath,
 					message: `Update logo.${logoExtension}`,
 					content: base64LogoContent,
-					// @ts-expect-error TODO: abstract octokit response
-					...(logoExists ? { sha: currentLogoOnSite.data.sha } : {}),
+					...(logoExists ? { sha: currentLogoOnSite?.sha } : {}),
 				};
 
-				await octokit.request(
-					"PUT /repos/{owner}/{repo}/contents/{path}",
-					requestPayload,
-				);
+				await connection.updateFile(requestPayload);
 			} catch (error) {
 				Logger.error("Failed to upload logo", error);
 
@@ -2157,10 +2211,10 @@ export default class SettingView {
 
 	private async openNavigationOrderModal() {
 		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
-		const repositoryConnection = new RepositoryConnection(connection);
+		const repositoryConnection = connection;
 
 		const publisher = new Publisher(
 			this.app.vault,

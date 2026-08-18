@@ -1,100 +1,86 @@
 import type DigitalGardenSettings from "../models/settings";
 import { PublishPlatform } from "../models/PublishPlatform";
 
-/**
- * Un-prefixed suffixes describing the Eleventy garden template layout.
- * These are relative to the (optional) {@link normalizeContentBaseDir content base directory}
- * and are never used directly to build repo paths — always go through the builders below.
- */
+/** Backward-compatible destinations used when no custom path is configured. */
 export const NOTE_PATH_BASE = "src/site/notes/";
 export const IMAGE_PATH_BASE = "src/site/img/user/";
 
-/** Only the fields the path builders actually depend on. */
-type ContentBaseSettings = Pick<
+type RepositoryPathSettings = Pick<
 	DigitalGardenSettings,
-	"contentBaseDir" | "publishPlatform"
+	| "publishPlatform"
+	| "notesDirectory"
+	| "assetsDirectory"
+	| "siteDirectory"
+	| "settingsFilePath"
 >;
 
-/**
- * Normalize the configured content base directory into a repo-path prefix.
- *
- * - `undefined` / `""` / `"/"` → `""` (no prefix — the repo root, current behavior)
- * - `"Web"` / `"/Web/"` / `"  Web  "` → `"Web/"`
- * - `"a/b"` → `"a/b/"`
- *
- * The result never has a leading `/` and always ends with exactly one `/` when non-empty,
- * so concatenating it with a suffix never produces `//` or a leading `/`.
- *
- * Values containing `.` or `..` segments are invalid (they could escape the target
- * directory, e.g. in local export) and collapse to `""` (the repo root).
- */
-export function normalizeContentBaseDir(base?: string): string {
-	// Strip surrounding whitespace and all leading/trailing slashes, then re-append a
-	// single trailing slash. Empty, "/", "//" etc. collapse to "" (the repo root).
-	const stripped = (base ?? "")
-		.trim()
-		.replace(/^\/+/, "")
-		.replace(/\/+$/, "");
+/** Normalize a safe repository-relative directory to exactly one trailing slash. */
+export function normalizeRepoDirectory(value?: string): string {
+	const normalized = normalizeRepoPath(value);
 
-	if (stripped === "") {
-		return "";
-	}
-
-	const segments = stripped.split("/");
-
-	if (segments.some((s) => s === "." || s === "..")) {
-		return "";
-	}
-
-	return `${stripped}/`;
+	return normalized ? `${normalized}/` : "";
 }
 
-/**
- * Normalized content base prefix derived from the settings (`""` or e.g. `"Web/"`).
- *
- * The setting only applies to self-hosted (GitHub) publishing — on managed platforms
- * like Forestry the repository layout is fixed, so the base is ignored there. Local
- * export is platform-independent and uses {@link normalizeContentBaseDir} directly.
- */
-export function contentBaseDir(settings: ContentBaseSettings): string {
+/** Normalize a safe repository-relative path. Invalid/traversing paths are rejected. */
+export function normalizeRepoPath(value?: string): string {
+	const stripped = (value ?? "")
+		.trim()
+		.replace(/\\/g, "/")
+		.replace(/^\/+/, "")
+		.replace(/\/+$/, "")
+		.replace(/\/{2,}/g, "/");
+
+	if (!stripped) return "";
+
 	if (
-		settings.publishPlatform !== undefined &&
-		settings.publishPlatform !== PublishPlatform.SelfHosted
+		stripped
+			.split("/")
+			.some((segment) => segment === "." || segment === "..")
 	) {
 		return "";
 	}
 
-	return normalizeContentBaseDir(settings.contentBaseDir);
+	return stripped;
 }
 
-/** Repo path to the notes directory, e.g. `src/site/notes/` or `Web/src/site/notes/`. */
-export function notePathBase(settings: ContentBaseSettings): string {
-	return `${contentBaseDir(settings)}${NOTE_PATH_BASE}`;
+function customDirectory(
+	settings: RepositoryPathSettings,
+	configured: string | undefined,
+	fallback: string,
+): string {
+	if (settings.publishPlatform === PublishPlatform.ForestryMd)
+		return fallback;
+
+	return normalizeRepoDirectory(configured) || fallback;
 }
 
-/** Repo path to the user image directory, e.g. `src/site/img/user/`. */
-export function imagePathBase(settings: ContentBaseSettings): string {
-	return `${contentBaseDir(settings)}${IMAGE_PATH_BASE}`;
+export function notePathBase(settings: RepositoryPathSettings): string {
+	return customDirectory(settings, settings.notesDirectory, NOTE_PATH_BASE);
 }
 
-/**
- * Compiled asset paths carry the CMS prefix (`/img/user/<vaultPath>`), while
- * remote image hashes from {@link DigitalGardenSiteManager.getImageHashes} are
- * keyed by plain vault path. This converts the former into the latter.
- */
+export function imagePathBase(settings: RepositoryPathSettings): string {
+	return customDirectory(settings, settings.assetsDirectory, IMAGE_PATH_BASE);
+}
+
 export function imageHashKey(assetPath: string): string {
 	return assetPath.replace(/^\/img\/user\//, "");
 }
 
-/**
- * Repo path inside `src/site`, e.g. `sitePath(settings, "/logo.png")` → `src/site/logo.png`.
- * `sub` is expected to begin with `/`.
- */
-export function sitePath(settings: ContentBaseSettings, sub: string): string {
-	return `${contentBaseDir(settings)}src/site${sub}`;
+export function sitePath(
+	settings: RepositoryPathSettings,
+	sub: string,
+): string {
+	const root = customDirectory(settings, settings.siteDirectory, "src/site/");
+
+	return `${root}${sub.replace(/^\/+/, "")}`;
 }
 
-/** Repo path to the garden `.env` file, e.g. `.env` or `Web/.env`. */
-export function envPath(settings: ContentBaseSettings): string {
-	return `${contentBaseDir(settings)}.env`;
+export function envPath(settings: RepositoryPathSettings): string {
+	if (settings.publishPlatform !== PublishPlatform.ForestryMd) {
+		const custom = normalizeRepoPath(settings.settingsFilePath);
+
+		if (custom) return custom;
+	}
+
+	return ".env";
 }

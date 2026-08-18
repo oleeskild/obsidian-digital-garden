@@ -62,6 +62,7 @@ Check out [gardens built by the community](https://vaults.obsidian-community.com
 ### 🔒 Privacy & Control
 -   **Selective publishing** - Only notes explicitly marked with `dg-publish: true` are published
 -   **No accidental leaks** - Linked notes are never auto-published; you decide what goes public
+-   **Ignored paths** - Configure vault-relative notes, assets, or folders that should never be scanned or published, even when they carry a publish flag
 -   **Full control** - Your private notes stay private until you choose to share them
 
 ### ☁️ Hosting Options
@@ -173,18 +174,30 @@ You can export your garden to a local folder instead of publishing to GitHub. Th
 
 This exports all notes marked with `dg-publish: true` and their images to the local folder, ready for the Eleventy build. Note that publish status tracking and diffing are not available with local export — it's a full export each time.
 
-## Publishing into a subfolder / monorepo
+## SFTP over SSH
 
-By default the plugin assumes the [digitalgarden](https://github.com/oleeskild/digitalgarden) template lives at the **root** of your target repository (notes go to `src/site/notes/`, images to `src/site/img/user/`, settings to `.env`).
+On Obsidian Desktop, the garden source can be synchronized directly to a server through the SFTP subsystem provided by OpenSSH. No separate FTP server is needed.
 
-If your Eleventy garden template lives in a **subdirectory** of the repo instead — a monorepo layout where, for example, the garden is under `Web/` — set the **Content base directory (advanced)** field in the GitHub settings to that subfolder (e.g. `Web`). Every published path is then prefixed with it:
+1. In plugin settings, choose **SFTP** as the default publication provider.
+2. Enter the SSH host, port, username, and absolute remote garden folder.
+3. Configure a private key path (recommended) or a password. Encrypted private keys can use a passphrase.
+4. Optionally enter the server's OpenSSH `SHA256:...` host-key fingerprint to pin its identity.
+5. Run **Publish All Marked Notes to SFTP** or use the Publication Center.
 
-| Setting               | Notes are written to    | Settings file |
-| --------------------- | ----------------------- | ------------- |
-| _(empty)_ (default)   | `src/site/notes/`       | `.env`        |
-| `Web`                 | `Web/src/site/notes/`   | `Web/.env`    |
+SFTP synchronizes garden source files and removes remotely published notes or assets that were unpublished locally. It does not execute a remote build command; configure the server to build the Eleventy garden after changes, or run the build separately. SFTP credentials are saved in the plugin's local Obsidian settings, so key-based authentication with a narrowly scoped deployment account is recommended.
 
-This affects **GitHub publishing**, **"Load remote settings"**, **template updates**, and **local export** consistently. The setting only applies to self-hosted (GitHub) publishing — it is ignored on managed platforms like Forestry. Values containing `..` segments are invalid and treated as empty. Leaving the field empty keeps the historical repo-root behavior unchanged.
+Publication status caches are stored beside the plugin as `sftp-manifest.json` and `local-manifest.json`. They record hashes for managed notes and assets so later checks do not need to reread every published file. Changing a publication destination invalidates its cache automatically. If managed files are changed outside the plugin, delete the corresponding manifest once to rebuild it from the published content.
+
+## Custom repository layouts
+
+Self-hosted gardens do not have to use the template's directory layout. The advanced Git, SFTP, and local-folder settings can independently configure:
+
+- **Notes directory** — where compiled Markdown notes are written.
+- **Assets directory** — where note images and other user assets are written.
+- **Site directory** — where site-level files such as the logo and navigation order are written.
+- **Settings file path** — where generated garden settings are written.
+
+All values are relative to the repository root. For example, `Web/content/articles`, `Web/public/uploads`, `Web/app/site`, and `Web/config/garden.env` can place a custom site under a `Web` monorepo directory. Empty values retain the existing Digital Garden defaults. Absolute paths and paths containing `.` or `..` segments are not accepted.
 
 ## Local development
 
@@ -259,4 +272,3 @@ Huge thanks to all the contributors who helped in making this
 Built with coffee and stubbornness. If this plugin has been useful to you, a coffee would make my day—but it's completely free and always will be.
 
 [<img style="float:left" src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="200">](https://ko-fi.com/oleeskild)
-

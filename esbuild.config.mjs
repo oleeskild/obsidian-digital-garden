@@ -45,13 +45,34 @@ const copyToTestVault = {
 	},
 };
 
+// ssh2 optionally loads platform-specific native accelerators. They cannot be
+// embedded in Obsidian's single-file plugin bundle, and ssh2 already falls back
+// to Node's built-in crypto when loading them throws.
+const disableOptionalNativeModules = {
+	name: 'disable-optional-native-modules',
+	setup(build) {
+		build.onResolve({ filter: /\.node$/ }, (args) => ({
+			path: args.path,
+			namespace: 'disabled-native-module',
+		}));
+		build.onLoad(
+			{ filter: /.*/, namespace: 'disabled-native-module' },
+			() => ({
+				contents:
+					'throw new Error("Optional native module disabled in bundled plugin");',
+				loader: 'js',
+			}),
+		);
+	},
+};
+
 const buildOptions = {
 	banner: {
 		js: banner,
 	},
 	entryPoints: ['main.ts'],
 	bundle: true,
-	external: ['obsidian', 'electron', ...builtins],
+	external: ['obsidian', 'electron', 'node:*', ...builtins],
 	format: 'cjs',
 	target: 'es2016',
 	logLevel: "info",
@@ -59,6 +80,7 @@ const buildOptions = {
 	treeShaking: true,
 	outfile: 'main.js',
 	plugins: [
+		disableOptionalNativeModules,
 		esbuildSvelte({
 		  compilerOptions: { css: 'injected'},
 		  // verbatimModuleSyntax is required by svelte-preprocess v6: without it

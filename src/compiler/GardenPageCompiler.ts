@@ -332,10 +332,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return text;
 	};
 
-	convertFrontMatter: TCompilerStep = (file) => (text) => {
-		const compiledFrontmatter = file.getCompiledFrontmatter();
-
-		return text.replace(FRONTMATTER_REGEX, () => compiledFrontmatter);
+	convertFrontMatter: TCompilerStep = () => (text) => {
+		return text;
 	};
 
 	convertDataViews: TCompilerStep = (file) => async (text) => {
@@ -353,6 +351,20 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		textToBeProcessed = textToBeProcessed.replace(FRONTMATTER_REGEX, "");
 
 		return textToBeProcessed;
+	};
+
+	private formatInternalLink = (
+		label: string,
+		markdownDestination: string,
+		wikilinkDestination: string,
+	): string => {
+		if (this.settings.linkFormat === "wikilink") {
+			return `[[${wikilinkDestination}\\|${label}]]`;
+		}
+
+		return `[${label.replace(/]/g, "\\]")}](${markdownDestination
+			.replace(/ /g, "%20")
+			.replace(/\)/g, "%29")})`;
 	};
 
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
@@ -399,15 +411,16 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (linkedFileName === "" && headerPath !== "") {
 						const currentFilePath = file.getPath();
 
-						const currentExtensionlessPath =
-							currentFilePath.substring(
-								0,
-								currentFilePath.lastIndexOf("."),
-							);
-
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
+							this.formatInternalLink(
+								linkDisplayName,
+								`${currentFilePath}${headerPath}`,
+								`${currentFilePath.replace(
+									/\.[^.]+$/,
+									"",
+								)}${headerPath}`,
+							),
 						);
 						continue;
 					}
@@ -426,7 +439,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					if (!linkedFile) {
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
+							this.formatInternalLink(
+								linkDisplayName,
+								`${linkedFileName}${headerPath}`,
+								`${linkedFileName}${headerPath}`,
+							),
 						);
 						continue;
 					}
@@ -435,20 +452,18 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						linkedFile.extension === "md" ||
 						linkedFile.extension === "canvas"
 					) {
-						const extensionlessPath = linkedFile.path.substring(
-							0,
-							linkedFile.path.lastIndexOf("."),
-						);
-
-						// Keep .canvas extension in links for canvas files
-						const linkPath =
-							linkedFile.extension === "canvas"
-								? `${extensionlessPath}.canvas`
-								: extensionlessPath;
+						const wikilinkPath =
+							linkedFile.extension === "md"
+								? linkedFile.path.replace(/\.md$/, "")
+								: linkedFile.path;
 
 						convertedText = convertedText.replaceAll(
 							linkMatch,
-							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+							this.formatInternalLink(
+								linkDisplayName,
+								`${linkedFile.path}${headerPath}`,
+								`${wikilinkPath}${headerPath}`,
+							),
 						);
 					}
 				} catch (e) {
@@ -464,8 +479,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	/**
 	 * Converts markdown-style links to vault files (e.g. [X](../a/b.md),
 	 * written by Obsidian's "relative"/"shortest path" markdown link formats
-	 * or by external tools) into full-path wikilinks, the same output as
-	 * convertLinksToFullPath. Published relative hrefs would otherwise break
+	 * or by external tools) into full-path internal links using the configured
+	 * link format. Published relative hrefs would otherwise break
 	 * under the site's trailing-slash URLs and stay invisible to the graph.
 	 */
 	convertMarkdownLinksToFullPath: TCompilerStep = (file) => async (text) => {
@@ -555,28 +570,24 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					continue;
 				}
 
-				const extensionlessPath = linkedFile.path.substring(
-					0,
-					linkedFile.path.lastIndexOf("."),
-				);
-
-				// Keep .canvas extension in links for canvas files
-				const linkPath =
-					linkedFile.extension === "canvas"
-						? `${extensionlessPath}.canvas`
-						: extensionlessPath;
+				const wikilinkPath =
+					linkedFile.extension === "md"
+						? linkedFile.path.replace(/\.md$/, "")
+						: linkedFile.path;
 
 				const headerPath = decode(rawFragment ?? "");
 
 				const linkDisplayName =
 					displayText ||
-					extensionlessPath.substring(
-						extensionlessPath.lastIndexOf("/") + 1,
-					);
+					wikilinkPath.substring(wikilinkPath.lastIndexOf("/") + 1);
 
 				convertedText = convertedText.replaceAll(
 					fullMatch,
-					`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
+					this.formatInternalLink(
+						linkDisplayName,
+						`${linkedFile.path}${headerPath}`,
+						`${wikilinkPath}${headerPath}`,
+					),
 				);
 			} catch (e) {
 				console.log(e);
