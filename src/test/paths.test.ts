@@ -9,6 +9,8 @@ import {
 	imagePathBase,
 	sitePath,
 	envPath,
+	gardenPluginsPathBase,
+	gardenPluginsRegistryPath,
 } from "../publisher/paths";
 
 const withBase = (contentBase?: string) =>
@@ -89,6 +91,26 @@ describe("paths", () => {
 			expect(notePathBase(undefinedSettings)).toBe("src/site/notes/");
 			expect(imagePathBase(undefinedSettings)).toBe("src/site/img/user/");
 			expect(envPath(undefinedSettings)).toBe(".env");
+		});
+	});
+
+	describe("garden plugin paths", () => {
+		it("builds the plugins base and registry path without a base dir", () => {
+			expect(gardenPluginsPathBase(withBase(""))).toBe("src/plugins/");
+
+			expect(gardenPluginsRegistryPath(withBase(""))).toBe(
+				"src/plugins/plugins.json",
+			);
+		});
+
+		it("applies the content base dir", () => {
+			expect(gardenPluginsPathBase(withBase("Web"))).toBe(
+				"Web/src/plugins/",
+			);
+
+			expect(gardenPluginsRegistryPath(withBase("Web"))).toBe(
+				"Web/src/plugins/plugins.json",
+			);
 		});
 	});
 

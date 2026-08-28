@@ -11,10 +11,18 @@ const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
 export default class PublishPlatformConnectionFactory {
 	static createBaseGardenConnection(): IPublishPlatformConnection {
+		return this.createGitHubConnection("oleeskild", "digitalgarden");
+	}
+
+	/** Unauthenticated connection to an arbitrary public GitHub repo. */
+	static createGitHubConnection(
+		userName: string,
+		pageName: string,
+	): IPublishPlatformConnection {
 		return {
 			octoKit: new Octokit({ log: oktokitLogger }),
-			userName: "oleeskild",
-			pageName: "digitalgarden",
+			userName,
+			pageName,
 		};
 	}
 	static async createPublishPlatformConnection(

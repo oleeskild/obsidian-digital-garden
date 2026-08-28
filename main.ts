@@ -18,6 +18,7 @@ import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
+import { InstallPluginModal } from "./src/views/GardenPluginSettings/InstallPluginModal";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
@@ -248,6 +249,15 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish Active Note",
 			callback: async () => {
 				await this.publishSingleNote();
+			},
+		});
+
+		this.addCommand({
+			id: "install-garden-plugin",
+			name: "Install garden plugin from URL",
+			callback: async () => {
+				const modal = new InstallPluginModal(this.app, this.settings);
+				await modal.open();
 			},
 		});
 
