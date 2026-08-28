@@ -63,7 +63,7 @@ This shouldn't be under a header transclusion
 
 
 
-Cheese 
+Cheese
 
 </div></div>
 
@@ -369,24 +369,7 @@ In medieval Latin a florilegium (plural florilegia) was a compilation of excerpt
 Sample 3
 ```
 This codeblock has a transclusion syntax in it.
-Check it out: 
-<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/001-links/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
-
-
-
-
-[[002 Hidden page]]
-
-[[003 Non published page]]
-
-[[000 Home| Aliased link to home]]
-
-[[000 Home | Link containing whitespace which works in obsidian but doesn't in garden :) - yes, this could be a ticket but lo and behold]]
-
-
-
-</div></div>
-
+Check it out: ![[001 Links]]
 ```
 
 And for sanity, here's some block references outside of code blocks: foobar
@@ -455,15 +438,38 @@ views:
 ```
 
 
+## Grouped by author (note links)
+
+Rows should group under "Ada Lovelace" (linked note title), not raw
+wikilink text; the `Editor` value renders as a styled dead link.
+
+```base
+filters:
+  and:
+    - file.hasTag("bases-cover-test")
+views:
+  - type: table
+    name: By author
+    groupBy:
+      property: Author
+      direction: ASC
+    order:
+      - file.name
+      - Author
+      - Editor
+```
+
 ==========
 B Bases/Books/B1 Book with wikilink cover.md
 ==========
 ---
-{"dg-publish":true,"permalink":"/b-bases/books/b1-book-with-wikilink-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"[[A Assets/travolta.png]]","year":2020}}
+{"dg-publish":true,"permalink":"/b-bases/books/b1-book-with-wikilink-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"[[A Assets/travolta.png]]","year":2020,"Author":"[[B Bases/Books/B6 Author Ada Lovelace]]","Editor":"[[B Bases/Books/B7 Editor Janet Vaultsdottir]]"}}
 ---
 
 
 Book note whose `cover` property is a wikilink, the format Obsidian's image property picker produces. The cards views in [[B Bases/B0 Cards with covers\|B0 Cards with covers]] should show the travolta png as this note's thumbnail.
+
+The `Editor` target exists in the vault but is not published (no `dg-publish`), so base views should render it as a styled dead link labeled with the note's name, "B7 Editor Janet Vaultsdottir" — never a placeholder.
 
 /img/user/A Assets/travolta.png
 ==========
@@ -487,6 +493,32 @@ B Bases/Books/B3 Book with external cover.md
 
 
 Book note whose `cover` property is an external URL. The cards views in [[B Bases/B0 Cards with covers\|B0 Cards with covers]] should hotlink it unchanged (nothing is uploaded to the site repo for this one).
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
+==========
+B Bases/Books/B5 Book with shortest-path cover.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/books/b5-book-with-shortest-path-cover/","tags":["bases-cover-test"],"dg-note-properties":{"tags":["bases-cover-test"],"cover":"[[A Assets/travolta.png]]","year":2023}}
+---
+
+
+Book note whose `cover` property is a shortest-path wikilink (just the filename), the format Obsidian writes with the default "shortest path when possible" link setting. The image actually lives at `A Assets/travolta.png`, so the published site must resolve the bare filename to show the thumbnail in [[B Bases/B0 Cards with covers\|B0 Cards with covers]].
+
+/img/user/A Assets/travolta.png
+,/img/user/A Assets/travolta.webp
+==========
+B Bases/Books/B6 Author Ada Lovelace.md
+==========
+---
+{"dg-publish":true,"permalink":"/b-bases/books/b6-author-ada-lovelace/","title":"Ada Lovelace","dg-note-properties":{"title":"Ada Lovelace"}}
+---
+
+
+Author note targeted by `Author` properties in the B Bases QA folder. Base
+views that show `Author` should render this note's title as a clickable
+internal link.
 
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/travolta.webp
@@ -748,40 +780,10 @@ E Embeds/Transclusions/T6 transclusion inside codeblock.md
 
 Transclusions inside code blocks should not show transcluded content, but the literal text inside. Currently it transcludes the content
 
-`
-<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/005-custom-filters/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
-
-
-
-
-
-
-this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). When published, this file should have a lot of sun-emojis. 
-
-
-🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
-
-
-</div></div>
-`
+`![[005 Custom filters]]`
 
 ```
-
-<div class="transclusion internal-embed is-loaded"><a class="markdown-embed-link" href="/005-custom-filters/" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a><div class="markdown-embed">
-
-
-
-
-
-
-this plugin has custom filter that turns 🌞 (snow emoji) into 🌞 (THE SUN). When published, this file should have a lot of sun-emojis. 
-
-
-🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞🌞
-
-
-</div></div>
-
+![[005 Custom filters]]
 ```
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/travolta.webp
@@ -974,7 +976,7 @@ P Plugins/PD Dataview/PD3 Inline JS queries.md
 
 
 3
-124
+130
 <p><span>A paragraph</span></p>
 
 /img/user/A Assets/travolta.png
