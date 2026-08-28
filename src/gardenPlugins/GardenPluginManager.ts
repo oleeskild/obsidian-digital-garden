@@ -41,7 +41,7 @@ export interface RemoteGardenPlugin {
 
 type PathSettings = Pick<
 	DigitalGardenSettings,
-	"contentBaseDir" | "publishPlatform"
+	"contentBaseDir" | "publishPlatform" | "githubToken"
 >;
 
 /**
@@ -64,6 +64,7 @@ export class GardenPluginManager {
 				PublishPlatformConnectionFactory.createGitHubConnection(
 					owner,
 					repo,
+					PublishPlatformConnectionFactory.githubTokenFor(settings),
 				),
 			),
 	) {}
