@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { Notice } from "obsidian";
 	import type {
 		GardenPluginManager,
@@ -37,6 +37,8 @@
 	let pendingInstall: RemoteGardenPlugin | null = null;
 	let pendingIsUpdate = false;
 
+	let installConfirmEl: HTMLElement | undefined;
+	let installErrorEl: HTMLElement | undefined;
 	let expandedSettingsId: string | null = null;
 	let settingsDraft: Record<string, string | number | boolean> = {};
 	let activeTab: "installed" | "browse" = "installed";
@@ -173,6 +175,20 @@
 		}
 
 		inspecting = false;
+
+		// The confirmation (or error) renders near the top of the tab —
+		// possibly far from the gallery card that was clicked.
+		await tick();
+
+		const target = installConfirmEl ?? installErrorEl;
+
+		target?.scrollIntoView({
+			behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+				.matches
+				? "auto"
+				: "smooth",
+			block: "center",
+		});
 	}
 
 	async function confirmInstall() {
@@ -577,11 +593,13 @@
 		</div>
 
 		{#if installError}
-			<p class="dg-plugins-error">{installError}</p>
+			<p class="dg-plugins-error" bind:this={installErrorEl}>
+				{installError}
+			</p>
 		{/if}
 
 		{#if pendingInstall}
-			<div class="dg-plugin-confirm">
+			<div class="dg-plugin-confirm" bind:this={installConfirmEl}>
 				<p class="dg-plugin-confirm-title">
 					{pendingIsUpdate ? "Update" : "Install"}
 					<strong>{pendingInstall.manifest.name}</strong>
