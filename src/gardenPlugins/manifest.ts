@@ -3,8 +3,8 @@ import { GardenPluginManifest } from "src/models/gardenPlugin";
 /**
  * Pure helpers for the garden plugin installer: GitHub URL parsing and
  * manifest validation. Mirrors the rules enforced by the template's
- * pluginLoader (see docs/PLUGIN_INSTALLER_SPEC.md in oleeskild/digitalgarden)
- * so an invalid plugin is rejected before anything is written.
+ * pluginLoader (oleeskild/digitalgarden, src/helpers/pluginLoader.js) so an
+ * invalid plugin is rejected before anything is written.
  */
 
 export const GARDEN_PLUGIN_MANIFEST_NAME = "garden-plugin.json";

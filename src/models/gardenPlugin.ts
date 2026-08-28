@@ -1,7 +1,7 @@
 /**
  * Types for the garden plugin system. The formats are defined by the garden
- * template repo (oleeskild/digitalgarden): see docs/PLUGINS.md (manifest)
- * and docs/PLUGIN_INSTALLER_SPEC.md (registry, installer contract) there.
+ * template repo (oleeskild/digitalgarden) — the template's pluginLoader is
+ * the authority on manifest and registry semantics.
  */
 
 /** One user-facing setting declared by a plugin manifest. */

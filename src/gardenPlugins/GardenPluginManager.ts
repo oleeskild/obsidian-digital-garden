@@ -49,7 +49,7 @@ type PathSettings = Pick<
  * plugin directories under src/plugins/ and the user-owned registry file
  * src/plugins/plugins.json. The repo is the source of truth — nothing is
  * cached in plugin settings. Installation never executes plugin code; it
- * only copies files (see docs/PLUGIN_INSTALLER_SPEC.md in the template).
+ * only copies files.
  */
 export class GardenPluginManager {
 	constructor(
