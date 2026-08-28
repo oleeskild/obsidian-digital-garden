@@ -52,7 +52,9 @@ export default class DigitalGardenSiteManager {
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
 		this.baseGardenConnection = new RepositoryConnection(
-			PublishPlatformConnectionFactory.createBaseGardenConnection(),
+			PublishPlatformConnectionFactory.createBaseGardenConnection(
+				PublishPlatformConnectionFactory.githubTokenFor(settings),
+			),
 		);
 		this.userGardenConnection = null;
 		this.templateUpdater = null;

@@ -1896,7 +1896,11 @@ export default class SettingView {
 			base64SettingsFaviconContent = arrayBufferToBase64(faviconContent);
 		} else {
 			const baseConnection =
-				PublishPlatformConnectionFactory.createBaseGardenConnection();
+				PublishPlatformConnectionFactory.createBaseGardenConnection(
+					PublishPlatformConnectionFactory.githubTokenFor(
+						this.settings,
+					),
+				);
 
 			const defaultFavicon = await baseConnection.octoKit.request(
 				"GET /repos/{owner}/{repo}/contents/{path}",
