@@ -14,7 +14,6 @@ import {
 	selectBaseView,
 } from "../compiler/GardenPageCompiler";
 import { PublishFile } from "../publishFile/PublishFile";
-import { TRANSCLUDED_SVG_REGEX } from "../utils/regexes";
 
 jest.mock("obsidian", () => ({
 	parseYaml: jest.fn(),
@@ -594,65 +593,78 @@ describe("Compiler", () => {
 		});
 	});
 
-	describe("image regexes match escaped pipes in tables", () => {
-		it("TRANSCLUDED_SVG_REGEX matches ![[image.svg\\|size]] with escaped pipe", () => {
-			const input = "| ![[garden-gate.svg\\|50]] | description |";
-			TRANSCLUDED_SVG_REGEX.lastIndex = 0;
-			const match = TRANSCLUDED_SVG_REGEX.exec(input);
-			expect(match).not.toBeNull();
-			expect(match![1]).toBe("garden-gate");
-			expect(match![4]).toBe("50");
+	describe("createSvgEmbeds handles escaped pipes in tables", () => {
+		// Minimal DOM stubs: setWidth() runs DOMParser/XMLSerializer,
+		// which the node test environment doesn't provide.
+		beforeAll(() => {
+			const svgElement = {
+				setAttribute: jest.fn(),
+				getElementsByTagName: jest.fn(() => []),
+			};
+
+			(global as Record<string, unknown>).DOMParser = class {
+				parseFromString() {
+					return {
+						getElementsByTagName: (tag: string) =>
+							tag === "svg" ? [svgElement] : [],
+					};
+				}
+			};
+
+			(global as Record<string, unknown>).XMLSerializer = class {
+				serializeToString() {
+					return "<svg sized/>";
+				}
+			};
 		});
 
-		it("TRANSCLUDED_SVG_REGEX still matches ![[image.svg|size]] with normal pipe", () => {
-			const input = "![[garden-gate.svg|50]]";
-			TRANSCLUDED_SVG_REGEX.lastIndex = 0;
-			const match = TRANSCLUDED_SVG_REGEX.exec(input);
-			expect(match).not.toBeNull();
-			expect(match![1]).toBe("garden-gate");
-			expect(match![4]).toBe("50");
+		afterAll(() => {
+			delete (global as Record<string, unknown>).DOMParser;
+			delete (global as Record<string, unknown>).XMLSerializer;
 		});
 
-		it("TRANSCLUDED_SVG_REGEX matches ![[image.svg]] without size", () => {
-			const input = "![[garden-gate.svg]]";
-			TRANSCLUDED_SVG_REGEX.lastIndex = 0;
-			const match = TRANSCLUDED_SVG_REGEX.exec(input);
-			expect(match).not.toBeNull();
-			expect(match![5]).toBe("garden-gate");
+		const getSvgCompiler = () => {
+			return new GardenPageCompiler(
+				{
+					read: jest.fn(async () => "<svg/>"),
+				} as unknown as Vault,
+				{ pathRewriteRules: "" } as DigitalGardenSettings,
+				{
+					getFirstLinkpathDest: jest.fn(() => ({
+						path: "garden-gate.svg",
+						extension: "svg",
+					})),
+				} as unknown as MetadataCache,
+				jest.fn(),
+			);
+		};
+
+		const publishFile = {
+			getPath: () => "note.md",
+		} as PublishFile;
+
+		it("inlines ![[image.svg\\|size]] with escaped pipe in a table", async () => {
+			const result = await getSvgCompiler().createSvgEmbeds(publishFile)(
+				"| ![[garden-gate.svg\\|50]] | description |",
+			);
+
+			expect(result).toBe("| <svg sized/> | description |");
 		});
 
-		it("image regex matches ![[image.png\\|size]] with escaped pipe in table", () => {
-			const regex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
-			const input = "| ![[travolta.png\\|100]] | name |";
-			const match = regex.exec(input);
-			expect(match).not.toBeNull();
-			expect(match![1]).toBe("travolta");
-			expect(match![4]).toBe("100");
+		it("inlines ![[image.svg|size]] with a normal pipe", async () => {
+			const result = await getSvgCompiler().createSvgEmbeds(publishFile)(
+				"![[garden-gate.svg|50]]",
+			);
+
+			expect(result).toBe("<svg sized/>");
 		});
 
-		it("image regex still matches ![[image.png|size]] with normal pipe", () => {
-			const regex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
-			const input = "![[travolta.png|100]]";
-			const match = regex.exec(input);
-			expect(match).not.toBeNull();
-			expect(match![1]).toBe("travolta");
-			expect(match![4]).toBe("100");
-		});
+		it("inlines ![[image.svg]] without a size", async () => {
+			const result = await getSvgCompiler().createSvgEmbeds(publishFile)(
+				"![[garden-gate.svg]]",
+			);
 
-		it("split with escaped pipe extracts image name and size correctly", () => {
-			const tableImageRef = "travolta.png\\|100";
-			const [name, size] = tableImageRef.split(/\\?\|/);
-			expect(name).toBe("travolta.png");
-			expect(size).toBe("100");
-		});
-
-		it("split with normal pipe still works", () => {
-			const imageRef = "travolta.png|100";
-			const [name, size] = imageRef.split(/\\?\|/);
-			expect(name).toBe("travolta.png");
-			expect(size).toBe("100");
+			expect(result).toBe("<svg/>");
 		});
 	});
 });

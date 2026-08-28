@@ -22,19 +22,16 @@ import {
 import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
 import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
-import {
-	CODEBLOCK_REGEX,
-	CODE_FENCE_REGEX,
-	EXCALIDRAW_REGEX,
-	FRONTMATTER_REGEX,
-	BLOCKREF_REGEX,
-	TRANSCLUDED_SVG_REGEX,
-	PDF_REGEX,
-	TRANSCLUDED_PDF_REGEX,
-} from "../utils/regexes";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
 import { CanvasCompiler, ITextNodeProcessor } from "./CanvasCompiler";
+import {
+	MarkdownLinkNode,
+	WikilinkNode,
+	parseMarkdown,
+	transformMarkdown,
+	transformMarkdownSync,
+} from "./ast";
 
 // PDF embedding constants
 const PDF_MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
@@ -45,6 +42,22 @@ import { replaceBlockIDs } from "./replaceBlockIDs";
 import { getFrontmatterImageLinkpath } from "./frontmatterImageLinks";
 
 export { getFrontmatterImageLinkpath };
+
+/** Extensions treated as embeddable images in the note body */
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
+/** Extensions rewritten to asset links when wiki-linked (not embedded) */
+const LINKED_ASSET_EXTENSIONS = [...IMAGE_EXTENSIONS, ".svg", ".pdf"];
+
+/** Markdown-style link targets that resolve to publishable vault notes */
+const NOTE_LINK_DESTINATION =
+	/^\s*([^)\s]+?\.(?:md|markdown|canvas))((?:#[^)\s]*)?)\s*$/i;
+
+const YOUTUBE_URL_REGEX =
+	/^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\S+$/;
+
+const hasExtension = (target: string, extensions: string[]): boolean =>
+	extensions.some((extension) => target.endsWith(extension));
 
 export interface Asset {
 	path: string;
@@ -206,19 +219,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		);
 	};
 
-	private extractWikilinkTarget = (wikilink: string): string => {
-		const start = wikilink.indexOf("[[") + 2;
-		const end = wikilink.indexOf("]]");
-
-		if (start < 2 || end < 0) {
-			return "";
-		}
-
-		const [name] = wikilink.substring(start, end).split("|");
-
-		return getLinkpath(name);
-	};
-
 	runCompilerSteps =
 		(file: PublishFile, compilerSteps: TCompilerStep[]) =>
 		async (text: string): Promise<string> => {
@@ -310,32 +310,19 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	};
 
 	removeObsidianComments: TCompilerStep = () => (text) => {
-		const obsidianCommentsRegex = /%%.+?%%/gms;
-		const obsidianCommentsMatches = text.match(obsidianCommentsRegex);
-
-		const codeBlocks = text.match(CODEBLOCK_REGEX) || [];
-		const codeFences = text.match(CODE_FENCE_REGEX) || [];
-		const excalidraw = text.match(EXCALIDRAW_REGEX) || [];
-		const matchesToSkip = [...codeBlocks, ...codeFences, ...excalidraw];
-
-		if (!obsidianCommentsMatches) return text;
-
-		for (const commentMatch of obsidianCommentsMatches) {
-			//If comment is in a code block, code fence, or excalidrawing, leave it in
-			if (matchesToSkip.findIndex((x) => x.contains(commentMatch)) > -1) {
-				continue;
-			}
-
-			text = text.replace(commentMatch, "");
-		}
-
-		return text;
+		// Comments inside code blocks, inline code and injected scripts are
+		// parsed as part of those nodes, so they are naturally left alone.
+		return transformMarkdownSync(text, (node) =>
+			node.type === "comment" ? "" : undefined,
+		);
 	};
 
 	convertFrontMatter: TCompilerStep = (file) => (text) => {
 		const compiledFrontmatter = file.getCompiledFrontmatter();
 
-		return text.replace(FRONTMATTER_REGEX, () => compiledFrontmatter);
+		return transformMarkdownSync(text, (node) =>
+			node.type === "frontmatter" ? compiledFrontmatter : undefined,
+		);
 	};
 
 	convertDataViews: TCompilerStep = (file) => async (text) => {
@@ -344,121 +331,92 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		return await dataviewCompiler.compile(file)(text);
 	};
 
-	private stripAwayCodeFencesAndFrontmatter: TCompilerStep = () => (text) => {
-		let textToBeProcessed = text;
-		textToBeProcessed = textToBeProcessed.replace(EXCALIDRAW_REGEX, "");
-		textToBeProcessed = textToBeProcessed.replace(CODEBLOCK_REGEX, "");
-		textToBeProcessed = textToBeProcessed.replace(CODE_FENCE_REGEX, "");
-
-		textToBeProcessed = textToBeProcessed.replace(FRONTMATTER_REGEX, "");
-
-		return textToBeProcessed;
-	};
-
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
-		let convertedText = text;
-
-		const textToBeProcessed =
-			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
-
-		const linkedFileRegex = /\[\[(.+?)\]\]/g;
-		const linkedFileMatches = textToBeProcessed.match(linkedFileRegex);
-
-		if (linkedFileMatches) {
-			for (const linkMatch of linkedFileMatches) {
-				try {
-					const textInsideBrackets = linkMatch.substring(
-						linkMatch.indexOf("[") + 2,
-						linkMatch.lastIndexOf("]") - 1,
-					);
-
-					let [linkedFileName, linkDisplayName] =
-						textInsideBrackets.split("|");
-
-					if (linkedFileName.endsWith("\\")) {
-						linkedFileName = linkedFileName.substring(
-							0,
-							linkedFileName.length - 1,
-						);
-					}
-
-					linkDisplayName = linkDisplayName || linkedFileName;
-					let headerPath = "";
-
-					// detect links to headers or blocks
-					if (linkedFileName.includes("#")) {
-						const headerSplit = linkedFileName.split("#");
-						linkedFileName = headerSplit[0];
-
-						//currently no support for linking to nested heading with multiple #s
-						headerPath =
-							headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
-					}
-
-					// Same-file header link, e.g. [[#My Header]] or [[#My Header|display]]
-					if (linkedFileName === "" && headerPath !== "") {
-						const currentFilePath = file.getPath();
-
-						const currentExtensionlessPath =
-							currentFilePath.substring(
-								0,
-								currentFilePath.lastIndexOf("."),
-							);
-
-						convertedText = convertedText.replaceAll(
-							linkMatch,
-							`[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`,
-						);
-						continue;
-					}
-
-					const fullLinkedFilePath = getLinkpath(linkedFileName);
-
-					if (fullLinkedFilePath === "") {
-						continue;
-					}
-
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						fullLinkedFilePath,
-						file.getPath(),
-					);
-
-					if (!linkedFile) {
-						convertedText = convertedText.replaceAll(
-							linkMatch,
-							`[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`,
-						);
-						continue;
-					}
-
-					if (
-						linkedFile.extension === "md" ||
-						linkedFile.extension === "canvas"
-					) {
-						const extensionlessPath = linkedFile.path.substring(
-							0,
-							linkedFile.path.lastIndexOf("."),
-						);
-
-						// Keep .canvas extension in links for canvas files
-						const linkPath =
-							linkedFile.extension === "canvas"
-								? `${extensionlessPath}.canvas`
-								: extensionlessPath;
-
-						convertedText = convertedText.replaceAll(
-							linkMatch,
-							`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
-						);
-					}
-				} catch (e) {
-					console.log(e);
-					continue;
-				}
+		return await transformMarkdown(text, (node) => {
+			if (node.type !== "wikilink") {
+				return;
 			}
-		}
 
-		return convertedText;
+			// Embeds still present at this point (e.g. past the
+			// transclusion depth cap, or unresolvable) get their inner
+			// link converted too; the ! prefix is kept.
+			const embedPrefix = node.embed ? "!" : "";
+
+			try {
+				let linkedFileName = node.targetWithRef;
+
+				if (linkedFileName.endsWith("\\")) {
+					linkedFileName = linkedFileName.substring(
+						0,
+						linkedFileName.length - 1,
+					);
+				}
+
+				const linkDisplayName = node.parts[1] || linkedFileName;
+				let headerPath = "";
+
+				// detect links to headers or blocks
+				if (linkedFileName.includes("#")) {
+					const headerSplit = linkedFileName.split("#");
+					linkedFileName = headerSplit[0];
+
+					//currently no support for linking to nested heading with multiple #s
+					headerPath =
+						headerSplit.length > 1 ? `#${headerSplit[1]}` : "";
+				}
+
+				// Same-file header link, e.g. [[#My Header]] or [[#My Header|display]]
+				if (linkedFileName === "" && headerPath !== "") {
+					const currentFilePath = file.getPath();
+
+					const currentExtensionlessPath = currentFilePath.substring(
+						0,
+						currentFilePath.lastIndexOf("."),
+					);
+
+					return `${embedPrefix}[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`;
+				}
+
+				const fullLinkedFilePath = getLinkpath(linkedFileName);
+
+				if (fullLinkedFilePath === "") {
+					return;
+				}
+
+				const linkedFile = this.metadataCache.getFirstLinkpathDest(
+					fullLinkedFilePath,
+					file.getPath(),
+				);
+
+				if (!linkedFile) {
+					return `${embedPrefix}[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`;
+				}
+
+				if (
+					linkedFile.extension === "md" ||
+					linkedFile.extension === "canvas"
+				) {
+					const extensionlessPath = linkedFile.path.substring(
+						0,
+						linkedFile.path.lastIndexOf("."),
+					);
+
+					// Keep .canvas extension in links for canvas files
+					const linkPath =
+						linkedFile.extension === "canvas"
+							? `${extensionlessPath}.canvas`
+							: extensionlessPath;
+
+					return `${embedPrefix}[[${linkPath}${headerPath}\\|${linkDisplayName}]]`;
+				}
+
+				return;
+			} catch (e) {
+				console.log(e);
+
+				return;
+			}
+		});
 	};
 
 	/**
@@ -469,14 +427,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	 * under the site's trailing-slash URLs and stay invisible to the graph.
 	 */
 	convertMarkdownLinksToFullPath: TCompilerStep = (file) => async (text) => {
-		let convertedText = text;
-
-		const textToBeProcessed =
-			await this.stripAwayCodeFencesAndFrontmatter(file)(text);
-
-		const markdownLinkRegex =
-			/(?<!!)\[([^[\]]*)\]\(\s*([^)\s]+?\.(?:md|markdown|canvas))((?:#[^)\s]*)?)\s*\)/gi;
-
 		const decode = (value: string) => {
 			try {
 				return decodeURIComponent(value);
@@ -510,14 +460,25 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			return segments.join("/");
 		};
 
-		let match;
+		return await transformMarkdown(text, (node) => {
+			if (node.type !== "mdlink" || node.embed) {
+				return;
+			}
 
-		while ((match = markdownLinkRegex.exec(textToBeProcessed))) {
+			const destinationMatch = NOTE_LINK_DESTINATION.exec(
+				node.destination,
+			);
+
+			if (!destinationMatch) {
+				return;
+			}
+
 			try {
-				const [fullMatch, displayText, rawTarget, rawFragment] = match;
+				const [, rawTarget, rawFragment] = destinationMatch;
+				const displayText = node.label;
 
 				if (/^[a-z][a-z0-9+.-]*:/i.test(rawTarget)) {
-					continue;
+					return;
 				}
 
 				const target = decode(rawTarget);
@@ -552,7 +513,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					(linkedFile.extension !== "md" &&
 						linkedFile.extension !== "canvas")
 				) {
-					continue;
+					return;
 				}
 
 				const extensionlessPath = linkedFile.path.substring(
@@ -574,17 +535,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						extensionlessPath.lastIndexOf("/") + 1,
 					);
 
-				convertedText = convertedText.replaceAll(
-					fullMatch,
-					`[[${linkPath}${headerPath}\\|${linkDisplayName}]]`,
-				);
+				return `[[${linkPath}${headerPath}\\|${linkDisplayName}]]`;
 			} catch (e) {
 				console.log(e);
-				continue;
-			}
-		}
 
-		return convertedText;
+				return;
+			}
+		});
 	};
 
 	createTranscludedText =
@@ -598,40 +555,30 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			const { notes: publishedFiles } =
 				await this.getFilesMarkedForPublishing();
 
-			let transcludedText = text;
-
-			const transcludedRegex = /!\[\[(.+?)\]\]/g;
-			const transclusionMatches = text.match(transcludedRegex);
 			let numberOfExcaliDraws = 0;
 
-			for (const transclusionMatch of transclusionMatches ?? []) {
+			return await transformMarkdown(text, async (node) => {
+				if (node.type !== "wikilink" || !node.embed) {
+					return;
+				}
+
 				try {
-					const [transclusionFileName, headerName] = transclusionMatch
-						.substring(
-							transclusionMatch.indexOf("[") + 2,
-							transclusionMatch.indexOf("]"),
-						)
-						.split("|");
+					const transclusionFileName = node.targetWithRef;
+					const headerName = node.parts[1];
 
 					// Check if it's a YouTube URL embed
 					const youtubeId =
 						this.extractYouTubeId(transclusionFileName);
 
 					if (youtubeId) {
-						const youtubeEmbed = `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							youtubeEmbed,
-						);
-						continue;
+						return `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
 					}
 
 					const transclusionFilePath =
 						getLinkpath(transclusionFileName);
 
 					if (transclusionFilePath === "") {
-						continue;
+						return;
 					}
 
 					const linkedFile = this.metadataCache.getFirstLinkpathDest(
@@ -643,7 +590,8 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						console.error(
 							`can't find transcluded file ${transclusionFilePath}`,
 						);
-						continue;
+
+						return;
 					}
 
 					const publishLinkedFile = new PublishFile({
@@ -661,177 +609,165 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						const fileText = await publishLinkedFile.cachedRead();
 
-						const excaliDrawCode =
-							await this.excalidrawCompiler.compileMarkdown({
-								includeExcaliDrawJs: isFirstDrawing,
-								idAppendage: `${numberOfExcaliDraws}`,
-								includeFrontMatter: false,
-							})(publishLinkedFile)(fileText);
+						return await this.excalidrawCompiler.compileMarkdown({
+							includeExcaliDrawJs: isFirstDrawing,
+							idAppendage: `${numberOfExcaliDraws}`,
+							includeFrontMatter: false,
+						})(publishLinkedFile)(fileText);
+					}
 
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							excaliDrawCode,
-						);
-					} else if (linkedFile.extension === "base") {
+					if (linkedFile.extension === "base") {
 						// Embed .base file contents as a ```base code block
 						const baseFileText = await this.vault.read(linkedFile);
 
-						const baseCodeBlock = createBaseCodeBlock(
+						return createBaseCodeBlock(
 							baseFileText,
 							transclusionFileName,
 						);
+					}
 
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							baseCodeBlock,
+					if (linkedFile.extension !== "md") {
+						// Images, PDFs etc. are handled by later steps
+						return;
+					}
+
+					let fileText = await publishLinkedFile.cachedRead();
+
+					const metadata = publishLinkedFile.getMetadata();
+
+					if (transclusionFileName.includes("#^")) {
+						// Transclude Block
+						const refBlock = transclusionFileName.split("#^")[1];
+
+						sectionID = `#${slugify(refBlock)}`;
+
+						const blockInFile =
+							publishLinkedFile.getBlock(refBlock);
+
+						if (blockInFile) {
+							fileText = fileText
+								.split("\n")
+								.slice(
+									blockInFile.position.start.line,
+									blockInFile.position.end.line + 1,
+								)
+								.join("\n")
+								.replace(`^${refBlock}`, "");
+						}
+					} else if (transclusionFileName.includes("#")) {
+						// transcluding header only
+						const refHeader = transclusionFileName.split("#")[1];
+
+						// This is to mitigate the issue where the header matching doesn't work properly with headers with special characters (e.g. :)
+						// Obsidian's autocomplete for transclusion omits such charcters which leads to full page transclusion instead of just the heading
+						const headerSlug = slugify(refHeader);
+
+						const headerInFile = metadata?.headings?.find(
+							(header) => slugify(header.heading) === headerSlug,
 						);
-					} else if (linkedFile.extension === "md") {
-						let fileText = await publishLinkedFile.cachedRead();
 
-						const metadata = publishLinkedFile.getMetadata();
+						sectionID = `#${slugify(refHeader)}`;
 
-						if (transclusionFileName.includes("#^")) {
-							// Transclude Block
-							const refBlock =
-								transclusionFileName.split("#^")[1];
+						if (headerInFile && metadata?.headings) {
+							const headerPosition =
+								metadata.headings.indexOf(headerInFile);
 
-							sectionID = `#${slugify(refBlock)}`;
+							// Embed should copy the content proparly under the given block
+							const cutTo = metadata.headings
+								.slice(headerPosition + 1)
+								.find(
+									(header) =>
+										header.level <= headerInFile.level,
+								);
 
-							const blockInFile =
-								publishLinkedFile.getBlock(refBlock);
+							if (cutTo) {
+								const cutToLine = cutTo?.position?.start?.line;
 
-							if (blockInFile) {
 								fileText = fileText
 									.split("\n")
 									.slice(
-										blockInFile.position.start.line,
-										blockInFile.position.end.line + 1,
+										headerInFile.position.start.line,
+										cutToLine,
 									)
-									.join("\n")
-									.replace(`^${refBlock}`, "");
-							}
-						} else if (transclusionFileName.includes("#")) {
-							// transcluding header only
-							const refHeader =
-								transclusionFileName.split("#")[1];
-
-							// This is to mitigate the issue where the header matching doesn't work properly with headers with special characters (e.g. :)
-							// Obsidian's autocomplete for transclusion omits such charcters which leads to full page transclusion instead of just the heading
-							const headerSlug = slugify(refHeader);
-
-							const headerInFile = metadata?.headings?.find(
-								(header) =>
-									slugify(header.heading) === headerSlug,
-							);
-
-							sectionID = `#${slugify(refHeader)}`;
-
-							if (headerInFile && metadata?.headings) {
-								const headerPosition =
-									metadata.headings.indexOf(headerInFile);
-
-								// Embed should copy the content proparly under the given block
-								const cutTo = metadata.headings
-									.slice(headerPosition + 1)
-									.find(
-										(header) =>
-											header.level <= headerInFile.level,
-									);
-
-								if (cutTo) {
-									const cutToLine =
-										cutTo?.position?.start?.line;
-
-									fileText = fileText
-										.split("\n")
-										.slice(
-											headerInFile.position.start.line,
-											cutToLine,
-										)
-										.join("\n");
-								} else {
-									fileText = fileText
-										.split("\n")
-										.slice(headerInFile.position.start.line)
-										.join("\n");
-								}
+									.join("\n");
+							} else {
+								fileText = fileText
+									.split("\n")
+									.slice(headerInFile.position.start.line)
+									.join("\n");
 							}
 						}
-						//Remove frontmatter from transclusion
-						fileText = fileText.replace(FRONTMATTER_REGEX, "");
-
-						// Apply custom filters to transclusion
-						fileText =
-							await this.convertCustomFilters(publishLinkedFile)(
-								fileText,
-							);
-
-						// Remove block reference
-						fileText = fileText.replace(BLOCKREF_REGEX, "");
-
-						const header = this.generateTransclusionHeader(
-							headerName,
-							linkedFile,
-						);
-
-						const headerSection = header
-							? `<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
-							: "";
-						let embedded_link = "";
-
-						const publishedFilesContainsLinkedFile =
-							publishedFiles.find(
-								(f) => f.getPath() == linkedFile.path,
-							);
-
-						if (publishedFilesContainsLinkedFile) {
-							const permalink =
-								metadata?.frontmatter &&
-								metadata.frontmatter["dg-permalink"];
-
-							const gardenPath = permalink
-								? sanitizePermalink(permalink)
-								: `/${generateUrlPath(
-										getGardenPathForNote(
-											linkedFile.path,
-											this.rewriteRules,
-										),
-										this.settings.slugifyEnabled,
-								  )}`;
-							embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
-						}
-
-						fileText =
-							`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
-							fileText +
-							"\n\n</div></div>\n";
-
-						if (fileText.match(transcludedRegex)) {
-							fileText = await this.createTranscludedText(
-								currentDepth + 1,
-							)(publishLinkedFile)(fileText);
-						}
-
-						// compile dataview in transcluded text
-						const withDvCompiledText = await this.runCompilerSteps(
-							publishLinkedFile,
-							[this.convertDataViews],
-						)(fileText);
-						fileText = withDvCompiledText;
-
-						//This should be recursive up to a certain depth
-						transcludedText = transcludedText.replace(
-							transclusionMatch,
-							() => fileText,
-						);
 					}
+
+					//Remove frontmatter and block references from transclusion
+					fileText = transformMarkdownSync(fileText, (inner) =>
+						inner.type === "frontmatter" || inner.type === "blockid"
+							? ""
+							: undefined,
+					);
+
+					// Apply custom filters to transclusion
+					fileText =
+						await this.convertCustomFilters(publishLinkedFile)(
+							fileText,
+						);
+
+					const header = this.generateTransclusionHeader(
+						headerName,
+						linkedFile,
+					);
+
+					const headerSection = header
+						? `<div class="markdown-embed-title">\n\n${header}\n\n</div>\n`
+						: "";
+					let embedded_link = "";
+
+					const publishedFilesContainsLinkedFile =
+						publishedFiles.find(
+							(f) => f.getPath() == linkedFile.path,
+						);
+
+					if (publishedFilesContainsLinkedFile) {
+						const permalink =
+							metadata?.frontmatter &&
+							metadata.frontmatter["dg-permalink"];
+
+						const gardenPath = permalink
+							? sanitizePermalink(permalink)
+							: `/${generateUrlPath(
+									getGardenPathForNote(
+										linkedFile.path,
+										this.rewriteRules,
+									),
+									this.settings.slugifyEnabled,
+							  )}`;
+						embedded_link = `<a class="markdown-embed-link" href="${gardenPath}${sectionID}" aria-label="Open link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></a>`;
+					}
+
+					fileText =
+						`\n<div class="transclusion internal-embed is-loaded">${embedded_link}<div class="markdown-embed">\n\n${headerSection}\n\n` +
+						fileText +
+						"\n\n</div></div>\n";
+
+					// Recurse into nested transclusions (up to the depth cap)
+					if (fileText.includes("![[")) {
+						fileText = await this.createTranscludedText(
+							currentDepth + 1,
+						)(publishLinkedFile)(fileText);
+					}
+
+					// compile dataview in transcluded text
+					fileText = await this.runCompilerSteps(publishLinkedFile, [
+						this.convertDataViews,
+					])(fileText);
+
+					return fileText;
 				} catch (error) {
 					console.error(error);
-					continue;
-				}
-			}
 
-			return transcludedText;
+					return;
+				}
+			});
 		};
 
 	createSvgEmbeds: TCompilerStep = (file) => async (text) => {
@@ -846,90 +782,82 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			return svgSerializer.serializeToString(svgDoc);
 		}
 
-		const transcludedSvgs = text.match(TRANSCLUDED_SVG_REGEX);
+		const readSvg = async (
+			imagePath: string,
+			size: string | undefined,
+		): Promise<string | null> => {
+			if (imagePath === "") {
+				return null;
+			}
 
-		if (transcludedSvgs) {
-			for (const svg of transcludedSvgs) {
+			const linkedFile = this.metadataCache.getFirstLinkpathDest(
+				imagePath,
+				file.getPath(),
+			);
+
+			if (!linkedFile) {
+				return null;
+			}
+
+			let svgText = await this.vault.read(linkedFile);
+
+			if (svgText && size) {
+				svgText = setWidth(svgText, size);
+			}
+
+			return svgText;
+		};
+
+		return await transformMarkdown(text, async (node) => {
+			// ![[image.svg]] or ![[image.svg|size]]
+			if (
+				node.type === "wikilink" &&
+				node.embed &&
+				node.targetWithRef.endsWith(".svg")
+			) {
 				try {
-					const [imageName, size] = svg
-						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
-						.split(/\\?\|/);
-					const imagePath = getLinkpath(imageName);
+					const [imageName, size] = node.parts;
 
-					if (imagePath === "") {
-						continue;
+					let svgText = await readSvg(getLinkpath(imageName), size);
+
+					if (!svgText) {
+						return;
 					}
 
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						imagePath,
-						file.getPath(),
-					);
+					//Remove whitespace, as markdown-it will insert a <p> tag otherwise
+					svgText = svgText.replace(/[\t\n\r]/g, "");
 
-					if (!linkedFile) {
-						continue;
-					}
-
-					let svgText = await this.vault.read(linkedFile);
-
-					if (svgText && size) {
-						svgText = setWidth(svgText, size);
-					}
-
-					if (svgText) {
-						//Remove whitespace, as markdown-it will insert a <p> tag otherwise
-						svgText = svgText.replace(/[\t\n\r]/g, "");
-					}
-					text = text.replace(svg, svgText);
+					return svgText;
 				} catch {
-					continue;
+					return;
 				}
 			}
-		}
 
-		//!()[image.svg]
-		const linkedSvgRegex = /!\[(.*?)\]\((.*?)(\.(svg))\)/g;
-		const linkedSvgMatches = text.match(linkedSvgRegex);
-
-		if (linkedSvgMatches) {
-			for (const svg of linkedSvgMatches) {
+			// ![alt](image.svg)
+			if (
+				node.type === "mdlink" &&
+				node.embed &&
+				node.destination.endsWith(".svg")
+			) {
 				try {
-					const [_imageName, size] = svg
-						.substring(svg.indexOf("[") + 2, svg.indexOf("]"))
-						.split(/\\?\|/);
-					const pathStart = svg.lastIndexOf("(") + 1;
-					const pathEnd = svg.lastIndexOf(")");
-					const imagePath = svg.substring(pathStart, pathEnd);
+					const imagePath = node.destination;
 
 					if (imagePath.startsWith("http")) {
-						continue;
+						return;
 					}
 
-					if (imagePath === "") {
-						continue;
-					}
+					const size = node.label.split(/\\?\|/)[1];
 
-					const linkedFile = this.metadataCache.getFirstLinkpathDest(
-						imagePath,
-						file.getPath(),
-					);
+					const svgText = await readSvg(imagePath, size);
 
-					if (!linkedFile) {
-						continue;
-					}
-
-					let svgText = await this.vault.read(linkedFile);
-
-					if (svgText && size) {
-						svgText = setWidth(svgText, size);
-					}
-					text = text.replace(svg, svgText);
+					return svgText ?? undefined;
 				} catch {
-					continue;
+					return;
 				}
 			}
-		}
 
-		return text;
+			return;
+		});
 	};
 
 	/**
@@ -998,103 +926,66 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 	extractImageLinks = async (file: PublishFile) => {
 		const text = await file.cachedRead();
-		const assets = [];
+		const assets: string[] = [];
 
-		//![[image.png]] or ![[file.pdf]]
-		const transcludedImageRegex =
-			/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\]\]/g;
-		const transcludedImageMatches = text.match(transcludedImageRegex);
-
-		if (transcludedImageMatches) {
-			for (let i = 0; i < transcludedImageMatches.length; i++) {
-				try {
-					const imageMatch = transcludedImageMatches[i];
-
-					const [imageName, _] = imageMatch
-						.substring(
-							imageMatch.indexOf("[") + 2,
-							imageMatch.indexOf("]"),
-						)
-						.split(/\\?\|/);
-					const imagePath = getLinkpath(imageName);
-
-					const linkedFile = this.resolveLinkedFile(
-						imagePath,
-						file.getPath(),
-					);
-
-					if (!linkedFile) {
-						continue;
-					}
-
-					assets.push(linkedFile.path);
-				} catch (e) {
-					continue;
-				}
-			}
-		}
-
-		//![](image.png) or ![](file.pdf)
-		const imageRegex =
-			/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp|pdf))\)/g;
-		const imageMatches = text.match(imageRegex);
-
-		if (imageMatches) {
-			for (let i = 0; i < imageMatches.length; i++) {
-				try {
-					const imageMatch = imageMatches[i];
-
-					const pathStart = imageMatch.lastIndexOf("(") + 1;
-					const pathEnd = imageMatch.lastIndexOf(")");
-					const imagePath = imageMatch.substring(pathStart, pathEnd);
-
-					if (imagePath.startsWith("http")) {
-						continue;
-					}
-
-					const decodedImagePath = decodeURI(imagePath);
-
-					const linkedFile = this.resolveLinkedFile(
-						decodedImagePath,
-						file.getPath(),
-					);
-
-					if (!linkedFile) {
-						continue;
-					}
-
-					assets.push(linkedFile.path);
-				} catch {
-					continue;
-				}
-			}
-		}
-
-		// [[image.png]] or [[file.pdf]] (linked, not embedded)
-		const linkedImageRegex =
-			/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
-		const linkedImageMatches = text.matchAll(linkedImageRegex);
-
-		for (const match of linkedImageMatches) {
+		for (const node of parseMarkdown(text)) {
 			try {
-				const matchIndex = match.index ?? -1;
+				// ![[image.png]] or ![[file.pdf]]
+				if (
+					node.type === "wikilink" &&
+					node.embed &&
+					hasExtension(node.targetWithRef, [
+						...IMAGE_EXTENSIONS,
+						".pdf",
+					])
+				) {
+					const linkedFile = this.resolveLinkedFile(
+						getLinkpath(node.parts[0]),
+						file.getPath(),
+					);
 
-				if (matchIndex > 0 && text[matchIndex - 1] === "!") {
+					if (linkedFile) {
+						assets.push(linkedFile.path);
+					}
 					continue;
 				}
 
-				const imagePath = this.extractWikilinkTarget(match[0]);
+				// ![](image.png) or ![](file.pdf)
+				if (
+					node.type === "mdlink" &&
+					node.embed &&
+					hasExtension(node.destination, [
+						...IMAGE_EXTENSIONS,
+						".pdf",
+					]) &&
+					!node.destination.startsWith("http")
+				) {
+					const linkedFile = this.resolveLinkedFile(
+						decodeURI(node.destination),
+						file.getPath(),
+					);
 
-				const linkedFile = this.resolveLinkedFile(
-					imagePath,
-					file.getPath(),
-				);
-
-				if (!linkedFile) {
+					if (linkedFile) {
+						assets.push(linkedFile.path);
+					}
 					continue;
 				}
 
-				assets.push(linkedFile.path);
+				// [[image.png]] or [[file.pdf]] (linked, not embedded)
+				if (
+					node.type === "wikilink" &&
+					!node.embed &&
+					hasExtension(node.linkpath, LINKED_ASSET_EXTENSIONS)
+				) {
+					const linkedFile = this.resolveLinkedFile(
+						getLinkpath(node.linkpath),
+						file.getPath(),
+					);
+
+					if (linkedFile) {
+						assets.push(linkedFile.path);
+					}
+				}
 			} catch {
 				continue;
 			}
@@ -1118,274 +1009,22 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		(file: PublishFile) =>
 		async (text: string): Promise<[string, Array<Asset>]> => {
 			const filePath = file.getPath();
-			const assets = [];
+			const assets: Array<Asset> = [];
 
-			// Split off the frontmatter block and only convert the body:
-			// property values like cover: "[[image.png]]" must reach the
-			// site untouched so the bases engine can resolve them.
-			const frontmatterBlock = text.match(
-				/^\s*?---[\r\n][\s\S]*?[\r\n]---/,
-			);
-			const frontmatter = frontmatterBlock ? frontmatterBlock[0] : "";
-			text = text.slice(frontmatter.length);
+			const readAsset = async (linkedFile: TFile): Promise<string> => {
+				const binary = await this.vault.readBinary(linkedFile);
+				const base64 = arrayBufferToBase64(binary);
+				const cmsPath = `/img/user/${linkedFile.path}`;
 
-			let imageText = text;
+				assets.push({
+					path: cmsPath,
+					content: base64,
+					localHash: generateBlobHashFromBase64(base64),
+				});
 
-			//![[image.png]]
-			const transcludedImageRegex =
-				/!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\\?\|(.*?)\]\]|!\[\[(.*?)(\.(png|jpg|jpeg|gif|webp))\]\]/g;
-			const transcludedImageMatches = text.match(transcludedImageRegex);
+				return cmsPath;
+			};
 
-			if (transcludedImageMatches) {
-				for (let i = 0; i < transcludedImageMatches.length; i++) {
-					try {
-						const imageMatch = transcludedImageMatches[i];
-
-						//Alt 1: [image.png|100]
-						//Alt 2: [image.png|meta1 meta2|100]
-						//Alt 3: [image.png|meta1 meta2]
-						const [imageName, ...metaDataAndSize] = imageMatch
-							.substring(
-								imageMatch.indexOf("[") + 2,
-								imageMatch.indexOf("]"),
-							)
-							.split(/\\?\|/);
-
-						const lastValue =
-							metaDataAndSize[metaDataAndSize.length - 1];
-
-						const hasSeveralValues = metaDataAndSize.length > 0;
-
-						const lastValueIsSize =
-							hasSeveralValues && !isNaN(parseInt(lastValue));
-
-						const lastValueIsMetaData =
-							!lastValueIsSize && hasSeveralValues;
-
-						const size = lastValueIsSize ? lastValue : null;
-
-						let metaData = "";
-
-						const metaDataIsMiddleValues =
-							metaDataAndSize.length > 1;
-
-						//Alt 2: [image.png|meta1 meta2|100]
-						if (metaDataIsMiddleValues) {
-							metaData = metaDataAndSize
-								.slice(0, metaDataAndSize.length - 1)
-								.join(" ");
-						}
-
-						//Alt 2: [image.png|meta1 meta2]
-						if (lastValueIsMetaData) {
-							metaData = `${lastValue}`;
-						}
-
-						const imagePath = getLinkpath(imageName);
-
-						const linkedFile = this.resolveLinkedFile(
-							imagePath,
-							filePath,
-						);
-
-						if (!linkedFile) {
-							continue;
-						}
-						const image = await this.vault.readBinary(linkedFile);
-						const imageBase64 = arrayBufferToBase64(image);
-
-						const cmsImgPath = `/img/user/${linkedFile.path}`;
-						let name = "";
-
-						if (metaData && size) {
-							name = `${imageName}\\|${metaData}\\|${size}`;
-						} else if (size) {
-							name = `${imageName}\\|${size}`;
-						} else if (metaData && metaData !== "") {
-							name = `${imageName}\\|${metaData}`;
-						} else {
-							name = imageName;
-						}
-
-						const imageMarkdown = `![${name}](${encodeURI(
-							cmsImgPath,
-						)})`;
-
-						assets.push({
-							path: cmsImgPath,
-							content: imageBase64,
-							localHash: generateBlobHashFromBase64(imageBase64),
-						});
-
-						imageText = imageText.replace(
-							imageMatch,
-							imageMarkdown,
-						);
-					} catch (e) {
-						continue;
-					}
-				}
-			}
-
-			// ![](youtubelink)
-			const youtubeRegex =
-				/!\[([^\]]*)\]\((https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)[^)]+)\)/g;
-			const youtubeMatches = text.match(youtubeRegex);
-
-			if (youtubeMatches) {
-				for (let i = 0; i < youtubeMatches.length; i++) {
-					const youtubeMatch = youtubeMatches[i];
-
-					const urlStart = youtubeMatch.lastIndexOf("(") + 1;
-					const urlEnd = youtubeMatch.lastIndexOf(")");
-					const url = youtubeMatch.substring(urlStart, urlEnd);
-
-					const youtubeId = this.extractYouTubeId(url);
-
-					if (youtubeId) {
-						const youtubeEmbed = `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-
-						imageText = imageText.replace(
-							youtubeMatch,
-							youtubeEmbed,
-						);
-					}
-				}
-			}
-
-			//![](image.png)
-			const imageRegex =
-				/!\[(.*?)\]\((.*?)(\.(png|jpg|jpeg|gif|webp))\)/g;
-			const imageMatches = text.match(imageRegex);
-
-			if (imageMatches) {
-				for (let i = 0; i < imageMatches.length; i++) {
-					try {
-						const imageMatch = imageMatches[i];
-
-						const nameStart = imageMatch.indexOf("[") + 1;
-						const nameEnd = imageMatch.indexOf("]");
-
-						const imageName = imageMatch.substring(
-							nameStart,
-							nameEnd,
-						);
-
-						const pathStart = imageMatch.lastIndexOf("(") + 1;
-						const pathEnd = imageMatch.lastIndexOf(")");
-
-						const imagePath = imageMatch.substring(
-							pathStart,
-							pathEnd,
-						);
-
-						if (imagePath.startsWith("http")) {
-							continue;
-						}
-
-						const decodedImagePath = decodeURI(imagePath);
-
-						const linkedFile = this.resolveLinkedFile(
-							decodedImagePath,
-							filePath,
-						);
-
-						if (!linkedFile) {
-							continue;
-						}
-						const image = await this.vault.readBinary(linkedFile);
-						const imageBase64 = arrayBufferToBase64(image);
-						const cmsImgPath = `/img/user/${linkedFile.path}`;
-
-						const imageMarkdown = `![${imageName}](${encodeURI(
-							cmsImgPath,
-						)})`;
-
-						assets.push({
-							path: cmsImgPath,
-							content: imageBase64,
-							localHash: generateBlobHashFromBase64(imageBase64),
-						});
-
-						imageText = imageText.replace(
-							imageMatch,
-							imageMarkdown,
-						);
-					} catch (e) {
-						Logger.warn("Error processing image link:", e);
-						continue;
-					}
-				}
-			}
-
-			// [[image.png]] or [[file.pdf]] (linked, not embedded)
-			const linkedImageRegex =
-				/\[\[(.*?)(\.(png|jpg|jpeg|gif|webp|svg|pdf))(.*?)\]\]/g;
-			const linkedImageMatches = text.matchAll(linkedImageRegex);
-
-			for (const match of linkedImageMatches) {
-				try {
-					const matchIndex = match.index ?? -1;
-
-					if (matchIndex > 0 && text[matchIndex - 1] === "!") {
-						continue;
-					}
-
-					const rawMatch = match[0];
-
-					const textInsideBrackets = rawMatch.substring(
-						rawMatch.indexOf("[[") + 2,
-						rawMatch.lastIndexOf("]]"),
-					);
-
-					const pipeIndex = textInsideBrackets.indexOf("|");
-
-					let linkedFileName =
-						pipeIndex === -1
-							? textInsideBrackets
-							: textInsideBrackets.substring(0, pipeIndex);
-
-					const linkDisplayName =
-						pipeIndex === -1
-							? linkedFileName
-							: textInsideBrackets.substring(pipeIndex + 1);
-
-					if (linkedFileName.endsWith("\\")) {
-						linkedFileName = linkedFileName.substring(
-							0,
-							linkedFileName.length - 1,
-						);
-					}
-
-					const fullLinkedFilePath = getLinkpath(linkedFileName);
-
-					if (fullLinkedFilePath === "") {
-						continue;
-					}
-
-					const linkedFile = this.resolveLinkedFile(
-						fullLinkedFilePath,
-						filePath,
-					);
-
-					if (!linkedFile) {
-						continue;
-					}
-
-					const cmsImgPath = `/img/user/${linkedFile.path}`;
-
-					const imageMarkdown = `[${linkDisplayName}](${encodeURI(
-						cmsImgPath,
-					)})`;
-
-					imageText = imageText.replace(rawMatch, imageMarkdown);
-				} catch (e) {
-					Logger.warn("Error processing linked image:", e);
-					continue;
-				}
-			}
-
-			// PDF LINKS
 			// Helper function to generate PDF iframe HTML
 			const generatePdfIframe = (src: string, title: string): string => {
 				return `<iframe src="${encodeURI(
@@ -1408,212 +1047,310 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				return `[[${name}${display}]]`;
 			};
 
+			// ![[image.png]] with optional |metadata|size suffixes
+			const convertEmbeddedImageWikilink = async (
+				node: WikilinkNode,
+			): Promise<string | undefined> => {
+				try {
+					const [imageName, ...metaDataAndSize] = node.parts;
+
+					const lastValue =
+						metaDataAndSize[metaDataAndSize.length - 1];
+
+					const hasSeveralValues = metaDataAndSize.length > 0;
+
+					const lastValueIsSize =
+						hasSeveralValues && !isNaN(parseInt(lastValue));
+
+					const lastValueIsMetaData =
+						!lastValueIsSize && hasSeveralValues;
+
+					const size = lastValueIsSize ? lastValue : null;
+
+					let metaData = "";
+
+					const metaDataIsMiddleValues = metaDataAndSize.length > 1;
+
+					//Alt 2: [image.png|meta1 meta2|100]
+					if (metaDataIsMiddleValues) {
+						metaData = metaDataAndSize
+							.slice(0, metaDataAndSize.length - 1)
+							.join(" ");
+					}
+
+					//Alt 2: [image.png|meta1 meta2]
+					if (lastValueIsMetaData) {
+						metaData = `${lastValue}`;
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						getLinkpath(imageName),
+						filePath,
+					);
+
+					if (!linkedFile) {
+						return;
+					}
+
+					const cmsImgPath = await readAsset(linkedFile);
+					let name = "";
+
+					if (metaData && size) {
+						name = `${imageName}\\|${metaData}\\|${size}`;
+					} else if (size) {
+						name = `${imageName}\\|${size}`;
+					} else if (metaData && metaData !== "") {
+						name = `${imageName}\\|${metaData}`;
+					} else {
+						name = imageName;
+					}
+
+					return `![${name}](${encodeURI(cmsImgPath)})`;
+				} catch (e) {
+					return;
+				}
+			};
+
 			// ![[mypdf.pdf]]
-			const transcludedPdfMatches = text.match(TRANSCLUDED_PDF_REGEX);
+			const convertEmbeddedPdfWikilink = async (
+				node: WikilinkNode,
+			): Promise<string | undefined> => {
+				const [pdfNameFromFile, ...metadataParts] = node.parts;
 
-			if (transcludedPdfMatches) {
-				for (const pdfMatch of transcludedPdfMatches) {
-					try {
-						const [pdfNameFromFile, ...metadataParts] = pdfMatch
-							.substring(
-								pdfMatch.indexOf("[") + 2,
-								pdfMatch.indexOf("]"),
-							)
-							.split("|");
+				try {
+					const altText = metadataParts.join("|") || pdfNameFromFile;
+					const pdfPath = getLinkpath(pdfNameFromFile);
 
-						const altText =
-							metadataParts.join("|") || pdfNameFromFile;
-						const pdfPath = getLinkpath(pdfNameFromFile);
-
-						if (pdfPath === "") {
-							imageText = imageText.replace(
-								pdfMatch,
-								buildWikilinkFallback(
-									pdfNameFromFile,
-									metadataParts,
-								),
-							);
-							continue;
-						}
-
-						const linkedFile =
-							this.metadataCache.getFirstLinkpathDest(
-								pdfPath,
-								filePath,
-							) as TFile;
-
-						if (!linkedFile || linkedFile.extension !== "pdf") {
-							imageText = imageText.replace(
-								pdfMatch,
-								buildWikilinkFallback(
-									pdfNameFromFile,
-									metadataParts,
-								),
-							);
-							continue;
-						}
-
-						if (linkedFile.stat.size > PDF_MAX_SIZE_BYTES) {
-							new Notice(
-								`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
-							);
-
-							imageText = imageText.replace(
-								pdfMatch,
-								buildWikilinkFallback(
-									pdfNameFromFile,
-									metadataParts,
-									"PDF too large to embed",
-								),
-							);
-							continue;
-						}
-
-						const pdfBinary =
-							await this.vault.readBinary(linkedFile);
-						const pdfBase64 = arrayBufferToBase64(pdfBinary);
-						const cmsPdfPath = `/img/user/${linkedFile.path}`;
-
-						assets.push({
-							path: cmsPdfPath,
-							content: pdfBase64,
-							localHash: generateBlobHashFromBase64(pdfBase64),
-						});
-
-						imageText = imageText.replace(
-							pdfMatch,
-							generatePdfIframe(cmsPdfPath, altText),
-						);
-					} catch (e) {
-						Logger.warn(
-							"Error processing transcluded PDF link:",
-							e,
-						);
-
-						const [pdfNameFromFile, ...metadataParts] = pdfMatch
-							.substring(
-								pdfMatch.indexOf("[") + 2,
-								pdfMatch.indexOf("]"),
-							)
-							.split("|");
-
-						imageText = imageText.replace(
-							pdfMatch,
-							buildWikilinkFallback(
-								pdfNameFromFile,
-								metadataParts,
-							),
+					if (pdfPath === "") {
+						return buildWikilinkFallback(
+							pdfNameFromFile,
+							metadataParts,
 						);
 					}
+
+					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+						pdfPath,
+						filePath,
+					) as TFile;
+
+					if (!linkedFile || linkedFile.extension !== "pdf") {
+						return buildWikilinkFallback(
+							pdfNameFromFile,
+							metadataParts,
+						);
+					}
+
+					if (linkedFile.stat.size > PDF_MAX_SIZE_BYTES) {
+						new Notice(
+							`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
+						);
+
+						return buildWikilinkFallback(
+							pdfNameFromFile,
+							metadataParts,
+							"PDF too large to embed",
+						);
+					}
+
+					const cmsPdfPath = await readAsset(linkedFile);
+
+					return generatePdfIframe(cmsPdfPath, altText);
+				} catch (e) {
+					Logger.warn("Error processing transcluded PDF link:", e);
+
+					return buildWikilinkFallback(
+						pdfNameFromFile,
+						metadataParts,
+					);
 				}
-			}
+			};
+
+			// ![](image.png)
+			const convertEmbeddedImageMarkdownLink = async (
+				node: MarkdownLinkNode,
+			): Promise<string | undefined> => {
+				try {
+					const imagePath = node.destination;
+
+					if (imagePath.startsWith("http")) {
+						return;
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						decodeURI(imagePath),
+						filePath,
+					);
+
+					if (!linkedFile) {
+						return;
+					}
+
+					const cmsImgPath = await readAsset(linkedFile);
+
+					return `![${node.label}](${encodeURI(cmsImgPath)})`;
+				} catch (e) {
+					Logger.warn("Error processing image link:", e);
+
+					return;
+				}
+			};
 
 			// ![](mypdf.pdf)
-			const pdfMatches = text.match(PDF_REGEX);
+			const convertEmbeddedPdfMarkdownLink = async (
+				node: MarkdownLinkNode,
+			): Promise<string | undefined> => {
+				const pdfName = node.label;
+				const pdfPath = node.destination;
 
-			if (pdfMatches) {
-				for (const pdfMatch of pdfMatches) {
-					try {
-						const nameStart = pdfMatch.indexOf("[") + 1;
-						const nameEnd = pdfMatch.indexOf("]");
-						const pdfName = pdfMatch.substring(nameStart, nameEnd);
-
-						const pathStart = pdfMatch.lastIndexOf("(") + 1;
-						const pathEnd = pdfMatch.lastIndexOf(")");
-						const pdfPath = pdfMatch.substring(pathStart, pathEnd);
-
-						// External PDF - embed directly
-						if (pdfPath.startsWith("http")) {
-							imageText = imageText.replace(
-								pdfMatch,
-								generatePdfIframe(
-									pdfPath,
-									pdfName || "External PDF",
-								),
-							);
-							continue;
-						}
-
-						const decodedPdfPath = decodeURI(pdfPath);
-
-						if (decodedPdfPath === "") {
-							imageText = imageText.replace(
-								pdfMatch,
-								`[${pdfName || "Invalid PDF Link"}](${encodeURI(
-									pdfPath,
-								)})`,
-							);
-							continue;
-						}
-
-						const linkedFile =
-							this.metadataCache.getFirstLinkpathDest(
-								decodedPdfPath,
-								filePath,
-							) as TFile;
-
-						if (!linkedFile || linkedFile.extension !== "pdf") {
-							imageText = imageText.replace(
-								pdfMatch,
-								`[${pdfName || decodedPdfPath}](${encodeURI(
-									pdfPath,
-								)})`,
-							);
-							continue;
-						}
-
-						if (linkedFile.stat.size > PDF_MAX_SIZE_BYTES) {
-							new Notice(
-								`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
-							);
-
-							imageText = imageText.replace(
-								pdfMatch,
-								`[${
-									pdfName || linkedFile.name
-								} (PDF too large to embed)](${encodeURI(
-									pdfPath,
-								)})`,
-							);
-							continue;
-						}
-
-						const pdfBinary =
-							await this.vault.readBinary(linkedFile);
-						const pdfBase64 = arrayBufferToBase64(pdfBinary);
-						const cmsPdfPath = `/img/user/${linkedFile.path}`;
-
-						assets.push({
-							path: cmsPdfPath,
-							content: pdfBase64,
-							localHash: generateBlobHashFromBase64(pdfBase64),
-						});
-
-						imageText = imageText.replace(
-							pdfMatch,
-							generatePdfIframe(
-								cmsPdfPath,
-								pdfName || linkedFile.basename,
-							),
-						);
-					} catch (e) {
-						Logger.warn("Error processing PDF link:", e);
-						const nameStart = pdfMatch.indexOf("[") + 1;
-						const nameEnd = pdfMatch.indexOf("]");
-						const pdfName = pdfMatch.substring(nameStart, nameEnd);
-						const pathStart = pdfMatch.lastIndexOf("(") + 1;
-						const pathEnd = pdfMatch.lastIndexOf(")");
-						const pdfPath = pdfMatch.substring(pathStart, pathEnd);
-
-						imageText = imageText.replace(
-							pdfMatch,
-							`[${pdfName || "PDF"}](${encodeURI(pdfPath)})`,
+				try {
+					// External PDF - embed directly
+					if (pdfPath.startsWith("http")) {
+						return generatePdfIframe(
+							pdfPath,
+							pdfName || "External PDF",
 						);
 					}
-				}
-			}
 
-			return [frontmatter + imageText, assets];
+					const decodedPdfPath = decodeURI(pdfPath);
+
+					if (decodedPdfPath === "") {
+						return `[${pdfName || "Invalid PDF Link"}](${encodeURI(
+							pdfPath,
+						)})`;
+					}
+
+					const linkedFile = this.metadataCache.getFirstLinkpathDest(
+						decodedPdfPath,
+						filePath,
+					) as TFile;
+
+					if (!linkedFile || linkedFile.extension !== "pdf") {
+						return `[${pdfName || decodedPdfPath}](${encodeURI(
+							pdfPath,
+						)})`;
+					}
+
+					if (linkedFile.stat.size > PDF_MAX_SIZE_BYTES) {
+						new Notice(
+							`PDF ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
+						);
+
+						return `[${
+							pdfName || linkedFile.name
+						} (PDF too large to embed)](${encodeURI(pdfPath)})`;
+					}
+
+					const cmsPdfPath = await readAsset(linkedFile);
+
+					return generatePdfIframe(
+						cmsPdfPath,
+						pdfName || linkedFile.basename,
+					);
+				} catch (e) {
+					Logger.warn("Error processing PDF link:", e);
+
+					return `[${pdfName || "PDF"}](${encodeURI(pdfPath)})`;
+				}
+			};
+
+			// [[image.png]] or [[file.pdf]] (linked, not embedded)
+			const convertLinkedAssetWikilink = (
+				node: WikilinkNode,
+			): string | undefined => {
+				try {
+					const pipeIndex = node.inner.indexOf("|");
+
+					let linkedFileName =
+						pipeIndex === -1
+							? node.inner
+							: node.inner.substring(0, pipeIndex);
+
+					const linkDisplayName =
+						pipeIndex === -1
+							? linkedFileName
+							: node.inner.substring(pipeIndex + 1);
+
+					if (linkedFileName.endsWith("\\")) {
+						linkedFileName = linkedFileName.substring(
+							0,
+							linkedFileName.length - 1,
+						);
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						getLinkpath(linkedFileName),
+						filePath,
+					);
+
+					if (!linkedFile) {
+						return;
+					}
+
+					const cmsImgPath = `/img/user/${linkedFile.path}`;
+
+					return `[${linkDisplayName}](${encodeURI(cmsImgPath)})`;
+				} catch (e) {
+					Logger.warn("Error processing linked image:", e);
+
+					return;
+				}
+			};
+
+			const convertedText = await transformMarkdown(
+				text,
+				async (node) => {
+					// Frontmatter is left untouched: property values like
+					// cover: "[[image.png]]" must reach the site as-is so
+					// the bases engine can resolve them.
+					if (node.type === "wikilink" && node.embed) {
+						if (
+							hasExtension(node.targetWithRef, IMAGE_EXTENSIONS)
+						) {
+							return convertEmbeddedImageWikilink(node);
+						}
+
+						if (node.targetWithRef.endsWith(".pdf")) {
+							return convertEmbeddedPdfWikilink(node);
+						}
+
+						return;
+					}
+
+					if (node.type === "mdlink" && node.embed) {
+						const youtubeId = YOUTUBE_URL_REGEX.test(
+							node.destination,
+						)
+							? this.extractYouTubeId(node.destination)
+							: null;
+
+						if (youtubeId) {
+							return `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+						}
+
+						if (hasExtension(node.destination, IMAGE_EXTENSIONS)) {
+							return convertEmbeddedImageMarkdownLink(node);
+						}
+
+						if (node.destination.endsWith(".pdf")) {
+							return convertEmbeddedPdfMarkdownLink(node);
+						}
+
+						return;
+					}
+
+					if (
+						node.type === "wikilink" &&
+						!node.embed &&
+						hasExtension(node.linkpath, LINKED_ASSET_EXTENSIONS)
+					) {
+						return convertLinkedAssetWikilink(node);
+					}
+
+					return;
+				},
+			);
+
+			return [convertedText, assets];
 		};
 
 	generateTransclusionHeader(
