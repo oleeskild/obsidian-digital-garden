@@ -40,6 +40,8 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
 import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { GardenPluginsModal } from "../GardenPluginSettings/GardenPluginsModal";
+import { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 
 interface IObsidianTheme {
 	name: string;
@@ -177,7 +179,12 @@ export default class SettingView {
 		this.initializeSlugifySetting();
 
 		this.settingsRootElement
-			.createEl("h3", { text: "Features" })
+			.createEl("h3", { text: "Plugins" })
+			.prepend(this.getIcon("blocks"));
+		this.initializeGardenPluginSettings();
+
+		this.settingsRootElement
+			.createEl("h3", { text: "Display" })
 			.prepend(this.getIcon("star"));
 		this.initializeDefaultNoteSettings();
 
@@ -527,35 +534,8 @@ export default class SettingView {
 				});
 			});
 
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable search (dg-enable-search)")
-			.setDesc(
-				"When turned on, users will be able to search through the content of your site.",
-			)
-			.addToggle((t) => {
-				toggles["dgEnableSearch"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgEnableSearch);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgEnableSearch = val;
-					markAsChanged();
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable link preview (dg-link-preview)")
-			.setDesc(
-				"When turned on, hovering over links to notes in your garden shows a scrollable preview.",
-			)
-			.addToggle((t) => {
-				toggles["dgLinkPreview"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgLinkPreview);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgLinkPreview = val;
-					markAsChanged();
-				});
-			});
+		// Search and link preview are garden plugins now — their toggles
+		// live in the Plugins section, next to the plugin they belong to.
 
 		new Setting(noteSettingsModal.contentEl)
 			.setName("Show Tags (dg-show-tags)")
@@ -2153,6 +2133,45 @@ export default class SettingView {
 						await this.saveSettings();
 					}),
 			);
+	}
+
+	private initializeGardenPluginSettings() {
+		new Setting(this.settingsRootElement)
+			.setName("Garden Plugins")
+			.setDesc(
+				"Install, configure and manage the plugins that power your garden's features. Read from your garden repository.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Manage plugins");
+
+				cb.onClick(async () => {
+					const connection =
+						await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+							this.settings,
+						);
+
+					const manager = new GardenPluginManager(
+						new RepositoryConnection(connection),
+						this.settings,
+					);
+
+					const modal = new GardenPluginsModal(
+						this.app,
+						manager,
+						this.settings,
+						this.saveSettings,
+						async () => {
+							await this.saveSiteSettingsAndUpdateEnv(
+								this.app.metadataCache,
+								this.settings,
+								this.saveSettings,
+							);
+						},
+					);
+
+					modal.open();
+				});
+			});
 	}
 
 	private async openNavigationOrderModal() {

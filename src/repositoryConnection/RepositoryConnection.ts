@@ -84,12 +84,18 @@ export class RepositoryConnection {
 		);
 
 		try {
+			// The cacheBust param defeats Electron's HTTP cache (GitHub serves
+			// max-age=60): a stale response here means a stale file sha, which
+			// makes the next updateFile fail as an edit conflict.
 			const response = await this.octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
+				`GET /repos/{owner}/{repo}/contents/{path}?cacheBust=${Date.now()}`,
 				{
 					...this.getBasePayload(),
 					path,
 					ref: branch,
+					headers: {
+						"If-None-Match": "",
+					},
 				},
 			);
 
@@ -104,6 +110,28 @@ export class RepositoryConnection {
 			throw new Error(
 				`Could not get file ${path} from repository ${this.getRepositoryName()}`,
 			);
+		}
+	}
+
+	/**
+	 * Get a blob's base64 content by sha (from a tree listing). Unlike the
+	 * contents API, this works for files larger than 1 MB.
+	 */
+	async getBlob(fileSha: string): Promise<string | undefined> {
+		try {
+			const response = await this.octokit.request(
+				"GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+				{
+					...this.getBasePayload(),
+					file_sha: fileSha,
+				},
+			);
+
+			if (response.status === 200) {
+				return response.data.content;
+			}
+		} catch (error) {
+			logger.error(error);
 		}
 	}
 
@@ -434,6 +462,98 @@ export class RepositoryConnection {
 				message: commitMessage,
 				tree: newTree.data.sha,
 				parents: [latestCommitSha],
+			},
+		);
+
+		const defaultBranch = (await repoDataPromise).data.default_branch;
+
+		await this.octokit.request(
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			{
+				...this.getBasePayload(),
+				branch: defaultBranch,
+				sha: newCommit.data.sha,
+			},
+		);
+	}
+
+	/**
+	 * Commit a set of raw file additions/updates and deletions as one atomic
+	 * commit on the default branch (blobs → tree → commit → ref, the same
+	 * flow as {@link updateFiles}). Used by the garden plugin installer so an
+	 * install, update, or uninstall is always a single commit. Paths are full
+	 * repo paths; addition content is base64. Throws on failure — callers
+	 * surface the error to the user.
+	 */
+	async commitChanges({
+		additions = [],
+		deletions = [],
+		message,
+	}: {
+		additions?: { path: string; content: string }[];
+		deletions?: string[];
+		message: string;
+	}) {
+		if (additions.length === 0 && deletions.length === 0) {
+			return;
+		}
+
+		const latestCommit = await this.getLatestCommit();
+
+		if (!latestCommit) {
+			throw new Error("Could not get latest commit");
+		}
+
+		const repoDataPromise = this.octokit.request(
+			"GET /repos/{owner}/{repo}",
+			{
+				...this.getBasePayload(),
+			},
+		);
+
+		const additionEntries = await Promise.all(
+			additions.map(async (file) => {
+				const blob = await this.octokit.request(
+					"POST /repos/{owner}/{repo}/git/blobs",
+					{
+						...this.getBasePayload(),
+						content: file.content,
+						encoding: "base64",
+					},
+				);
+
+				return {
+					path: file.path,
+					mode: "100644" as const,
+					type: "blob" as const,
+					sha: blob.data.sha,
+				};
+			}),
+		);
+
+		const deletionEntries = deletions.map((path) => ({
+			path,
+			mode: "100644" as const,
+			type: "blob" as const,
+			sha: null,
+		}));
+
+		const newTree = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/trees",
+			{
+				...this.getBasePayload(),
+				base_tree: latestCommit.commit.tree.sha,
+				tree: [...additionEntries, ...deletionEntries],
+			},
+		);
+
+		const newCommit = await this.octokit.request(
+			"POST /repos/{owner}/{repo}/git/commits",
+			{
+				...this.getBasePayload(),
+				message,
+				tree: newTree.data.sha,
+				parents: [latestCommit.sha],
 			},
 		);
 
