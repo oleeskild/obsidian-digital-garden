@@ -59,6 +59,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	siteName: "Digital Garden",
 	mainLanguage: "en",
 	slugifyEnabled: true,
+	excalidrawSvgExportEnabled: true,
 	// Note Icon Related Settings
 	noteIconKey: "dg-note-icon",
 	defaultNoteIcon: "",

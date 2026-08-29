@@ -19,7 +19,7 @@ import {
 	getRewriteRules,
 	sanitizePermalink,
 } from "../utils/utils";
-import { ExcalidrawCompiler } from "./ExcalidrawCompiler";
+import { ExcalidrawCompiler, isExcalidrawFile } from "./ExcalidrawCompiler";
 import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 import Logger from "js-logger";
@@ -157,7 +157,12 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.getFilesMarkedForPublishing = getFilesMarkedForPublishing;
-		this.excalidrawCompiler = new ExcalidrawCompiler(vault);
+
+		this.excalidrawCompiler = new ExcalidrawCompiler(
+			vault,
+			settings,
+			metadataCache,
+		);
 
 		this.canvasCompiler = new CanvasCompiler(
 			vault,
@@ -237,7 +242,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		const vaultFileText = await file.cachedRead();
 
-		if (file.file.name.endsWith(".excalidraw.md")) {
+		if (isExcalidrawFile(file.file, this.metadataCache)) {
 			return [
 				await this.excalidrawCompiler.compileMarkdown({
 					includeExcaliDrawJs: true,
@@ -603,7 +608,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					});
 					let sectionID = "";
 
-					if (linkedFile.name.endsWith(".excalidraw.md")) {
+					if (isExcalidrawFile(linkedFile, this.metadataCache)) {
 						numberOfExcaliDraws++;
 						const isFirstDrawing = numberOfExcaliDraws === 1;
 
@@ -613,6 +618,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							includeExcaliDrawJs: isFirstDrawing,
 							idAppendage: `${numberOfExcaliDraws}`,
 							includeFrontMatter: false,
+							size: node.parts[1],
 						})(publishLinkedFile)(fileText);
 					}
 
