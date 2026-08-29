@@ -285,6 +285,10 @@ export default class DigitalGarden extends Plugin {
 			return;
 		}
 
+		if (this.settings.disableTemplateUpdateNotice) {
+			return;
+		}
+
 		try {
 			const siteManager = new DigitalGardenSiteManager(
 				this.app.metadataCache,

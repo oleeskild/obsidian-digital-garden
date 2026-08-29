@@ -2332,6 +2332,20 @@ export default class SettingView {
 			.createEl("h3", { text: "Update site template" })
 			.prepend(getIcon("sync") ?? "");
 
+		new Setting(target)
+			.setName("Check for template updates on startup")
+			.setDesc(
+				"Show a notice on launch when a new site template version is available. Disable this if your template has diverged from the default and won't ever match. You can still check for updates manually below.",
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(!this.settings.disableTemplateUpdateNotice)
+					.onChange(async (value) => {
+						this.settings.disableTemplateUpdateNotice = !value;
+						await this.saveSettings();
+					});
+			});
+
 		// Show loading indicator while checking for updates
 		const loadingContainer = target.createDiv({
 			cls: "dg-update-loading",
