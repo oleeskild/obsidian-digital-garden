@@ -30,6 +30,11 @@ import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPl
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
+import ForestryApi from "src/forestry/ForestryApi";
+import {
+	SiteUpdateTracker,
+	type SiteUpdatePhase,
+} from "src/forestry/SiteUpdateTracker";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -140,6 +145,12 @@ export default class DigitalGarden extends Plugin {
 
 	isPublishing: boolean = false;
 
+	/** Tracks garden site updates; only set for Forestry.md-hosted gardens. */
+	siteUpdateTracker: SiteUpdateTracker | null = null;
+	private siteStatusBarItem: HTMLElement | null = null;
+	private siteStatusUnsubscribe: (() => void) | null = null;
+	private siteTrackerApiKey: string | null = null;
+
 	async onload() {
 		this.appVersion = this.manifest.version;
 
@@ -170,8 +181,103 @@ export default class DigitalGarden extends Plugin {
 			(leaf: WorkspaceLeaf) => new PublicationCenterView(leaf, this),
 		);
 
+		this.syncSiteUpdateTracker();
+
 		this.checkForTemplateUpdates();
 		this.registerDevAutoExport();
+	}
+
+	/**
+	 * Create or tear down the site-update tracker and its status bar item so
+	 * they match the current settings. Called on load and after every
+	 * settings save, so switching publish platform (or changing the API key)
+	 * takes effect immediately.
+	 */
+	syncSiteUpdateTracker() {
+		const apiKey = this.settings.forestrySettings.apiKey;
+
+		const enabled =
+			this.settings.publishPlatform === PublishPlatform.ForestryMd &&
+			!!apiKey;
+
+		if (
+			enabled &&
+			this.siteUpdateTracker &&
+			this.siteTrackerApiKey === apiKey
+		) {
+			return;
+		}
+
+		this.teardownSiteUpdateTracker();
+
+		if (enabled) {
+			this.createSiteUpdateTracker(apiKey);
+		}
+
+		// Open Publication Centers hold the old tracker (or none) as a prop;
+		// remount them so the publish-status strip appears/disappears.
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+			if (leaf.view instanceof PublicationCenterView) {
+				leaf.view.remountComponent();
+			}
+		}
+	}
+
+	private teardownSiteUpdateTracker() {
+		this.siteStatusUnsubscribe?.();
+		this.siteStatusUnsubscribe = null;
+		this.siteStatusBarItem?.remove();
+		this.siteStatusBarItem = null;
+		this.siteUpdateTracker?.dispose();
+		this.siteUpdateTracker = null;
+		this.siteTrackerApiKey = null;
+	}
+
+	/**
+	 * For Forestry.md gardens: start the plugin-wide site-update tracker and
+	 * mirror its state into a persistent status bar item, so publishes from
+	 * any command report whether the site actually went live.
+	 */
+	private createSiteUpdateTracker(apiKey: string) {
+		this.siteUpdateTracker = new SiteUpdateTracker(new ForestryApi(apiKey));
+		this.siteTrackerApiKey = apiKey;
+
+		const statusBarItem = this.addStatusBarItem();
+		statusBarItem.addClass("dg-site-status");
+
+		statusBarItem.setAttribute(
+			"aria-label",
+			"Forestry site — click for publish status",
+		);
+		statusBarItem.setAttribute("data-tooltip-position", "top");
+
+		statusBarItem.onClickEvent(() => {
+			this.activatePublicationCenter();
+		});
+
+		const phaseLabels: Record<SiteUpdatePhase, string> = {
+			idle: "",
+			queued: " Queued…",
+			updating: " Publishing…",
+			live: " Live",
+			failed: " Publish failed",
+		};
+
+		this.siteStatusUnsubscribe = this.siteUpdateTracker.store.subscribe(
+			(state) => {
+				statusBarItem.toggleClass(
+					"dg-site-status-updating",
+					state.phase === "queued" || state.phase === "updating",
+				);
+
+				statusBarItem.toggleClass(
+					"dg-site-status-failed",
+					state.phase === "failed",
+				);
+				statusBarItem.setText(`🌱${phaseLabels[state.phase]}`);
+			},
+		);
+		this.siteStatusBarItem = statusBarItem;
 	}
 
 	private async checkForTemplateUpdates() {
@@ -200,7 +306,9 @@ export default class DigitalGarden extends Plugin {
 		}
 	}
 
-	onunload() {}
+	onunload() {
+		this.teardownSiteUpdateTracker();
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -212,6 +320,7 @@ export default class DigitalGarden extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+		this.syncSiteUpdateTracker();
 	}
 
 	async addCommands() {
@@ -374,6 +483,7 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					statusBar.finish(8000);
+					this.siteUpdateTracker?.notifyPublished();
 
 					new Notice(
 						`Successfully published ${filesToPublish.length} notes to your garden.`,
@@ -611,6 +721,7 @@ export default class DigitalGarden extends Plugin {
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
+				this.siteUpdateTracker?.notifyPublished();
 			} else {
 				new Notice("Unable to publish note, something went wrong.");
 			}

@@ -18,6 +18,16 @@ interface IPutPayload {
 	message?: string;
 }
 
+/**
+ * Progress reporting for a batch publish: `done`/`total` count upload
+ * operations plus a final commit step, `message` names what just happened.
+ */
+export type PublishProgressCallback = (
+	done: number,
+	total: number,
+	message: string,
+) => void;
+
 export class RepositoryConnection {
 	private userName: string;
 	private pageName: string;
@@ -330,6 +340,7 @@ export class RepositoryConnection {
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
+		onProgress?: PublishProgressCallback,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -352,6 +363,17 @@ export class RepositoryConnection {
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
+		// Upload progress: one unit per blob upload plus one for the final
+		// commit. totalSteps is assigned below, after the unchanged-image
+		// filter, but before any awaited upload can resolve.
+		let totalSteps = 0;
+		let stepsDone = 0;
+
+		const reportUpload = (path: string) => {
+			stepsDone += 1;
+			onProgress?.(stepsDone, totalSteps, `Uploaded ${path}`);
+		};
+
 		const treePromises = files.map(async (file) => {
 			const [text, _] = file.compiledFile;
 
@@ -365,6 +387,8 @@ export class RepositoryConnection {
 					},
 				);
 
+				reportUpload(file.getPath());
+
 				return {
 					path: `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
 						file.getPath(),
@@ -376,6 +400,7 @@ export class RepositoryConnection {
 			} catch (error) {
 				throwIfLimitError(error);
 				logger.error(error);
+				reportUpload(file.getPath());
 			}
 		});
 
@@ -412,6 +437,8 @@ export class RepositoryConnection {
 					},
 				);
 
+				reportUpload(asset.path);
+
 				return {
 					path: `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
 						asset.path,
@@ -423,11 +450,17 @@ export class RepositoryConnection {
 			} catch (error) {
 				throwIfLimitError(error);
 				logger.error(error);
+				reportUpload(asset.path);
 			}
 		});
 		treePromises.push(...treeAssetPromises);
 
+		totalSteps = files.length + imagesToUpload.length + 1;
+		onProgress?.(0, totalSteps, "Uploading files…");
+
 		const treeList = await Promise.all(treePromises);
+
+		onProgress?.(totalSteps - 1, totalSteps, "Creating commit…");
 
 		//Filter away undefined values
 		const tree = treeList.filter((x) => x !== undefined) as {
@@ -475,6 +508,8 @@ export class RepositoryConnection {
 				sha: newCommit.data.sha,
 			},
 		);
+
+		onProgress?.(totalSteps, totalSteps, "Published");
 	}
 
 	/**

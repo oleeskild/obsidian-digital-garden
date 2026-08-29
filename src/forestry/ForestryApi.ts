@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import IPageInfoResponse from "src/models/PageInfo";
 import { IUserLimitsResponse } from "src/forestry/UserLimitsResponse";
+import { IDeployInfo, IDeploysResponse } from "src/forestry/DeployInfo";
 import Logger from "js-logger";
 
 // Default base URL to use as fallback
@@ -33,6 +34,27 @@ export default class ForestryApi {
 			}
 
 			return response.data;
+		} catch (e) {
+			Logger.error(e);
+
+			return null;
+		}
+	}
+
+	async getDeploys(
+		branch: "active" | "main" = "active",
+		limit = 10,
+	): Promise<IDeployInfo[] | null> {
+		try {
+			const response = (await this.client.get("pages/deploys", {
+				params: { branch, limit },
+			})) as AxiosResponse<IDeploysResponse>;
+
+			if (response.status !== 200) {
+				return null;
+			}
+
+			return response.data.value;
 		} catch (e) {
 			Logger.error(e);
 

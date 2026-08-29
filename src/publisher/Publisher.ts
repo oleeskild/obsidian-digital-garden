@@ -12,7 +12,10 @@ import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
-import { RepositoryConnection } from "../repositoryConnection/RepositoryConnection";
+import {
+	RepositoryConnection,
+	type PublishProgressCallback,
+} from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
@@ -257,7 +260,10 @@ export default class Publisher {
 		}
 	}
 
-	public async publishBatch(files: CompiledPublishFile[]): Promise<boolean> {
+	public async publishBatch(
+		files: CompiledPublishFile[],
+		onProgress?: PublishProgressCallback,
+	): Promise<boolean> {
 		const filesToPublish = files.filter((f) =>
 			isPublishFrontmatterValid(f.frontmatter),
 		);
@@ -278,6 +284,7 @@ export default class Publisher {
 			await userGardenConnection.updateFiles(
 				filesToPublish,
 				remoteImageHashes,
+				onProgress,
 			);
 
 			return true;
