@@ -4,12 +4,14 @@ import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import PublishStatusManager from "../../publisher/PublishStatusManager";
 import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
+import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
 import { VIEW_TYPE, VIEW_DISPLAY_TEXT, VIEW_ICON } from "./constants";
 import PublicationCenter from "./PublicationCenter.svelte";
 
 interface PublicationCenterViewPlugin {
 	app: App;
 	settings: DigitalGardenSettings;
+	siteUpdateTracker: SiteUpdateTracker | null;
 }
 
 export class PublicationCenterView extends ItemView {
@@ -35,7 +37,30 @@ export class PublicationCenterView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		this.remountComponent();
+
+		// Refresh quietly whenever this view becomes the active leaf, so it
+		// reflects edits made while it was in the background.
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", (leaf) => {
+				if (leaf === this.leaf) this.maybeRefresh();
+			}),
+		);
+	}
+
+	/**
+	 * (Re)mount the Svelte component from current plugin state. Called on
+	 * open and again when settings change something the view captures as
+	 * props (e.g. the publish platform's site-update tracker).
+	 */
+	remountComponent(): void {
 		const { app, settings } = this.plugin;
+
+		if (this.component) {
+			unmount(this.component);
+			this.component = undefined;
+			this.refreshApi = undefined;
+		}
 
 		const siteManager = new DigitalGardenSiteManager(
 			app.metadataCache,
@@ -55,20 +80,14 @@ export class PublicationCenterView extends ItemView {
 				siteManager,
 				publisher,
 				statusManager,
+				// Only set for gardens hosted on Forestry.md.
+				siteUpdateTracker: this.plugin.siteUpdateTracker,
 				openFile: (path: string) => this.openFile(path),
 				registerApi: (api: { maybeRefresh: () => void }) => {
 					this.refreshApi = api;
 				},
 			},
 		});
-
-		// Refresh quietly whenever this view becomes the active leaf, so it
-		// reflects edits made while it was in the background.
-		this.registerEvent(
-			this.app.workspace.on("active-leaf-change", (leaf) => {
-				if (leaf === this.leaf) this.maybeRefresh();
-			}),
-		);
 	}
 
 	async onClose(): Promise<void> {

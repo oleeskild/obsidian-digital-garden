@@ -577,3 +577,26 @@ h4 {
 	width: 16px;
 	height: 16px;
 }
+
+/* Forestry site-update status bar item */
+.dg-site-status {
+	cursor: pointer;
+}
+
+.dg-site-status.dg-site-status-updating {
+	animation: dg-site-status-pulse 1.5s ease-in-out infinite;
+}
+
+.dg-site-status.dg-site-status-failed {
+	color: var(--text-error);
+}
+
+@keyframes dg-site-status-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}

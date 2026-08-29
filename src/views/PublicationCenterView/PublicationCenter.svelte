@@ -22,12 +22,15 @@
 	import DiffPane from "./DiffPane.svelte";
 	import Notices from "./Notices.svelte";
 	import PublishBar from "./PublishBar.svelte";
+	import RecentBuilds from "./RecentBuilds.svelte";
 	import Tutorial from "./Tutorial.svelte";
+	import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
 
 	export let siteManager: DigitalGardenSiteManager;
 	export let publisher: Publisher;
 	export let statusManager: IPublishStatusManager;
 	export let openFile: (path: string) => void;
+	export let siteUpdateTracker: SiteUpdateTracker | null = null;
 	export let registerApi: (api: {
 		maybeRefresh: () => void;
 	}) => void = () => {};
@@ -137,6 +140,7 @@
 
 		if (Date.now() - lastRefreshAt < REFRESH_DEBOUNCE_MS) return;
 		loadStatus({ background: true });
+		siteUpdateTracker?.refresh();
 	}
 
 	// Keep the user's choices for files that still exist; default-select any
@@ -179,10 +183,12 @@
 	async function publishSelected() {
 		const plan = buildPublishPlan(selected, annotated);
 
-		progressTotal =
-			plan.notesToPublish.length +
-			plan.notesToDelete.length +
-			plan.imagesToDelete.length;
+		const deletesTotal =
+			plan.notesToDelete.length + plan.imagesToDelete.length;
+
+		// Provisional total; the batch publish reports its real step count
+		// (blob uploads incl. images + the commit) via onProgress below.
+		progressTotal = plan.notesToPublish.length + deletesTotal;
 
 		if (progressTotal === 0) return;
 
@@ -198,9 +204,20 @@
 		progressDone = 0;
 
 		try {
-			progressCurrent = "Publishing notes…";
-			const published = await publisher.publishBatch(plan.notesToPublish);
-			progressDone += plan.notesToPublish.length;
+			progressCurrent = "Preparing upload…";
+
+			let batchSteps = plan.notesToPublish.length;
+
+			const published = await publisher.publishBatch(
+				plan.notesToPublish,
+				(done, total, message) => {
+					batchSteps = total;
+					progressTotal = total + deletesTotal;
+					progressDone = done;
+					progressCurrent = message;
+				},
+			);
+			progressDone = batchSteps;
 
 			if (published) {
 				for (const note of plan.notesToPublish) {
@@ -241,6 +258,12 @@
 			// Reflect everything that succeeded, even if a later step threw.
 			applyOptimisticUpdate(publishedPaths, removedPaths);
 			publishing = false;
+
+			// Anything that reached the repo will trigger a site update;
+			// start tracking it (strip + status bar).
+			if (publishedPaths.size > 0 || removedPaths.size > 0) {
+				siteUpdateTracker?.notifyPublished();
+			}
 		}
 	}
 
@@ -425,6 +448,10 @@
 				/>
 			</div>
 		</div>
+
+		{#if siteUpdateTracker}
+			<RecentBuilds tracker={siteUpdateTracker} />
+		{/if}
 
 		<PublishBar
 			{selectedCount}
