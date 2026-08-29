@@ -177,6 +177,7 @@ export default class SettingView {
 			.prepend(this.getIcon("link"));
 		this.initializeGitHubBaseURLSetting();
 		this.initializeSlugifySetting();
+		this.initializeExcalidrawSetting();
 
 		this.settingsRootElement
 			.createEl("h3", { text: "Plugins" })
@@ -2134,6 +2135,22 @@ export default class SettingView {
 					.setValue(this.settings.slugifyEnabled)
 					.onChange(async (value) => {
 						this.settings.slugifyEnabled = value;
+						await this.saveSettings();
+					}),
+			);
+	}
+
+	private initializeExcalidrawSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Publish Excalidraw drawings as SVG")
+			.setDesc(
+				"Export drawings as static SVG images at publish time, with embedded images, notes and fonts included. Requires the Excalidraw plugin. When disabled, drawings are published as an interactive viewer loaded from a CDN, which cannot display embedded files.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.excalidrawSvgExportEnabled)
+					.onChange(async (value) => {
+						this.settings.excalidrawSvgExportEnabled = value;
 						await this.saveSettings();
 					}),
 			);

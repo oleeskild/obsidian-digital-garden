@@ -22,6 +22,7 @@ export default interface DigitalGardenSettings {
 	noteSettingsIsInitialized: boolean;
 
 	slugifyEnabled: boolean;
+	excalidrawSvgExportEnabled: boolean;
 
 	noteIconKey: string;
 	defaultNoteIcon: string;
