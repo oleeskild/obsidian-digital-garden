@@ -223,11 +223,24 @@ export class GardenPluginManager {
 		}, `Update settings for garden plugin ${id}`);
 	}
 
-	/** Fetch the community plugin list. Returns [] when unavailable. */
+	/**
+	 * Fetch the community plugin list. Returns [] when unavailable.
+	 *
+	 * raw.githubusercontent.com serves this from a CDN with a ~5 minute
+	 * cache, which would otherwise hide a newly listed plugin for that long.
+	 * The query string is part of the CDN cache key, so a throwaway param
+	 * gets us the current file every time. (A `Cache-Control` request header
+	 * would not - the edge decides, not the client.) This costs nothing
+	 * against the GitHub API rate limit: raw is not the REST API, and the
+	 * request is unauthenticated so the list works before a token is
+	 * configured. Only raw's own IP-based abuse limits apply, which a
+	 * user-triggered fetch like this comes nowhere near.
+	 */
 	async fetchCommunityPlugins(): Promise<CommunityGardenPlugin[]> {
 		try {
 			const response = await axios.get<CommunityGardenPlugin[]>(
 				COMMUNITY_PLUGINS_URL,
+				{ params: { cacheBust: Date.now() } },
 			);
 
 			if (!Array.isArray(response.data)) {
