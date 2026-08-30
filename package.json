@@ -26,7 +26,7 @@
 		"@types/diff": "^5.0.4",
 		"@types/jest": "^29.5.4",
 		"@types/luxon": "^3.3.2",
-		"@types/node": "^20.6.0",
+		"@types/node": "^24.0.0",
 		"@types/sortablejs": "^1.15.9",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
