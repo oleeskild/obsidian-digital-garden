@@ -1,4 +1,11 @@
-# 🏡 Obsidian Digital Garden
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="img/digital-garden-dark.svg">
+    <img src="img/digital-garden.svg" alt="Digital Garden logo" width="128" height="128">
+  </picture>
+</p>
+
+# Obsidian Digital Garden
 
 [![Downloads](https://img.shields.io/github/downloads/oleeskild/obsidian-digital-garden/total?color=blue)](https://github.com/oleeskild/obsidian-digital-garden/releases)
 [![Discord](https://img.shields.io/discord/1154324140313018429?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
