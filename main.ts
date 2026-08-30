@@ -59,6 +59,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	theme: JSON.stringify(defaultTheme),
 	faviconPath: "",
 	logoPath: "",
+	logoHeight: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
