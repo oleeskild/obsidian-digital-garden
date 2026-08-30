@@ -28,3 +28,7 @@ yarn.lock
 
 .env
 src/dg-testVault/.obsidian/workspace.json
+
+# Scratch vault at the repo root. The project's dev vault is src/dg-testVault;
+# leading slash keeps this from matching that one.
+/dg-testVault/
