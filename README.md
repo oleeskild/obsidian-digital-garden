@@ -6,7 +6,8 @@
 
 Turn your Obsidian vault into a beautiful website. Free, open-source, and entirely yours.
 
-![image](https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd)
+<img width="2467" height="1212" alt="image" src="https://github.com/user-attachments/assets/00a81e50-1166-4e16-a589-23b0374efd29" />
+
 
 
 ## 📚 Documentation
