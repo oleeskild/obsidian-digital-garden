@@ -295,6 +295,11 @@ export default class SettingView {
 		// Store toggle references for updating after fetch
 		const toggles: Record<string, ToggleComponent> = {};
 
+		// Env keys the user has actually changed in this modal session —
+		// only these are written on apply, so settings changed elsewhere
+		// (e.g. from another device) aren't overwritten.
+		const touchedEnvKeys = new Set<string>();
+
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
 		});
@@ -328,7 +333,8 @@ export default class SettingView {
 			});
 
 		// Helper to mark settings as changed
-		const markAsChanged = () => {
+		const markAsChanged = (envKey: string) => {
+			touchedEnvKeys.add(envKey);
 			hasUnsavedChanges = true;
 			updateApplyButton();
 		};
@@ -351,13 +357,18 @@ export default class SettingView {
 		applyButton.addEventListener("click", async () => {
 			if (!hasUnsavedChanges) return;
 
-			await this.saveSiteSettingsAndUpdateEnv(
+			const applied = await this.saveSiteSettingsAndUpdateEnv(
 				this.app.metadataCache,
 				this.settings,
 				this.saveSettings,
+				touchedEnvKeys,
 			);
-			hasUnsavedChanges = false;
-			updateApplyButton();
+
+			if (applied) {
+				touchedEnvKeys.clear();
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			}
 		});
 
 		const updateApplyButton = () => {
@@ -413,6 +424,9 @@ export default class SettingView {
 					}
 				}
 
+				// Setting toggle values above may fire their onChange
+				// handlers — remote-loaded values are not user edits.
+				touchedEnvKeys.clear();
 				hasUnsavedChanges = false;
 				updateApplyButton();
 			} catch (error) {
@@ -441,7 +455,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgHomeLink = val;
-					markAsChanged();
+					markAsChanged("dgHomeLink");
 				});
 			});
 
@@ -456,7 +470,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-					markAsChanged();
+					markAsChanged("dgShowLocalGraph");
 				});
 			});
 
@@ -473,7 +487,7 @@ export default class SettingView {
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowGraphDepthControl =
 						val;
-					markAsChanged();
+					markAsChanged("dgShowGraphDepthControl");
 				});
 			});
 
@@ -488,7 +502,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowBacklinks = val;
-					markAsChanged();
+					markAsChanged("dgShowBacklinks");
 				});
 			});
 
@@ -503,7 +517,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowToc = val;
-					markAsChanged();
+					markAsChanged("dgShowToc");
 				});
 			});
 
@@ -518,7 +532,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-					markAsChanged();
+					markAsChanged("dgShowInlineTitle");
 				});
 			});
 
@@ -531,7 +545,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowFileTree = val;
-					markAsChanged();
+					markAsChanged("dgShowFileTree");
 				});
 			});
 
@@ -549,7 +563,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowTags = val;
-					markAsChanged();
+					markAsChanged("dgShowTags");
 				});
 			});
 
@@ -564,7 +578,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-					markAsChanged();
+					markAsChanged("dgPassFrontmatter");
 				});
 			});
 	}
@@ -576,6 +590,11 @@ export default class SettingView {
 
 		// Store text control references for updating after fetch
 		const textControls: Record<string, TextComponent> = {};
+
+		// Env keys the user has actually changed in this modal session —
+		// only these are written on apply, so settings changed elsewhere
+		// (e.g. from another device) aren't overwritten.
+		const touchedEnvKeys = new Set<string>();
 
 		uiStringsModal.titleEl.createEl("h1", {
 			text: "UI Text Settings",
@@ -606,7 +625,8 @@ export default class SettingView {
 			});
 
 		// Helper to mark settings as changed
-		const markAsChanged = () => {
+		const markAsChanged = (envKey: string) => {
+			touchedEnvKeys.add(envKey);
 			hasUnsavedChanges = true;
 			updateApplyButton();
 		};
@@ -628,13 +648,18 @@ export default class SettingView {
 		applyButton.addEventListener("click", async () => {
 			if (!hasUnsavedChanges) return;
 
-			await this.saveSiteSettingsAndUpdateEnv(
+			const applied = await this.saveSiteSettingsAndUpdateEnv(
 				this.app.metadataCache,
 				this.settings,
 				this.saveSettings,
+				touchedEnvKeys,
 			);
-			hasUnsavedChanges = false;
-			updateApplyButton();
+
+			if (applied) {
+				touchedEnvKeys.clear();
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			}
 		});
 
 		const updateApplyButton = () => {
@@ -775,6 +800,9 @@ export default class SettingView {
 					}
 				}
 
+				// Setting control values above may fire their onChange
+				// handlers — remote-loaded values are not user edits.
+				touchedEnvKeys.clear();
 				hasUnsavedChanges = false;
 				updateApplyButton();
 			} catch (error) {
@@ -807,7 +835,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.backlinkHeader ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.backlinkHeader = val;
-						markAsChanged();
+						markAsChanged("UI_BACKLINK_HEADER");
 					});
 			});
 
@@ -821,7 +849,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.noBacklinksMessage ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.noBacklinksMessage = val;
-						markAsChanged();
+						markAsChanged("UI_NO_BACKLINKS_MESSAGE");
 					});
 			});
 
@@ -840,7 +868,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchButtonText ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchButtonText = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_BUTTON_TEXT");
 					});
 			});
 
@@ -854,7 +882,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchPlaceholder ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchPlaceholder = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_PLACEHOLDER");
 					});
 			});
 
@@ -868,7 +896,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchEnterHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchEnterHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_ENTER_HINT");
 					});
 			});
 
@@ -882,7 +910,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNavigateHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNavigateHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NAVIGATE_HINT");
 					});
 			});
 
@@ -896,7 +924,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchCloseHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchCloseHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_CLOSE_HINT");
 					});
 			});
 
@@ -910,7 +938,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNoResults ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNoResults = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NO_RESULTS");
 					});
 			});
 
@@ -926,7 +954,7 @@ export default class SettingView {
 					)
 					.onChange((val) => {
 						this.settings.uiStrings.searchPreviewPlaceholder = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_PREVIEW_PLACEHOLDER");
 					});
 			});
 
@@ -940,7 +968,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNotStarted ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNotStarted = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NOT_STARTED_TEXT");
 					});
 			});
 
@@ -954,7 +982,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchEnterHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchEnterHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_ENTER_HOTKEY");
 					});
 			});
 
@@ -970,7 +998,7 @@ export default class SettingView {
 					)
 					.onChange((val) => {
 						this.settings.uiStrings.searchNavigateHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NAVIGATE_HOTKEY");
 					});
 			});
 
@@ -984,7 +1012,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchCloseHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchCloseHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_CLOSE_HOTKEY");
 					});
 			});
 
@@ -1003,7 +1031,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasDragHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasDragHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_DRAG_HINT");
 					});
 			});
 
@@ -1017,7 +1045,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasZoomHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasZoomHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_ZOOM_HINT");
 					});
 			});
 
@@ -1031,7 +1059,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasResetHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasResetHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_RESET_HINT");
 					});
 			});
 	}
@@ -1047,6 +1075,7 @@ export default class SettingView {
 			siteName: TextComponent | null;
 			mainLanguage: TextComponent | null;
 			useFullResolutionImages: ToggleComponent | null;
+			logoHeight: TextComponent | null;
 			timestampFormat: TextComponent | null;
 			showCreatedTimestamp: ToggleComponent | null;
 			showUpdatedTimestamp: ToggleComponent | null;
@@ -1060,6 +1089,7 @@ export default class SettingView {
 			siteName: null,
 			mainLanguage: null,
 			useFullResolutionImages: null,
+			logoHeight: null,
 			timestampFormat: null,
 			showCreatedTimestamp: null,
 			showUpdatedTimestamp: null,
@@ -1069,6 +1099,12 @@ export default class SettingView {
 			showNoteIconOnInternalLink: null,
 			showNoteIconOnBackLink: null,
 		};
+
+		// Env keys the user has actually changed in this modal session.
+		// Only these keys are written to the site's .env on apply, so
+		// settings the user didn't touch are never overwritten with
+		// stale local values.
+		const touchedEnvKeys = new Set<string>();
 
 		// Status indicator for loading remote settings
 		const statusEl = themeModal.contentEl.createDiv({
@@ -1105,6 +1141,12 @@ export default class SettingView {
 				controlKey: "useFullResolutionImages",
 				settingsKey: "useFullResolutionImages",
 				isBoolean: true,
+			},
+			{
+				envKey: "LOGO_HEIGHT",
+				controlKey: "logoHeight",
+				settingsKey: "logoHeight",
+				isBoolean: false,
 			},
 			{
 				envKey: "TIMESTAMP_FORMAT",
@@ -1198,6 +1240,10 @@ export default class SettingView {
 						}
 					}
 
+					// Setting control values above may fire their onChange
+					// handlers — remote-loaded values are not user edits.
+					touchedEnvKeys.clear();
+
 					statusEl.setText("Settings loaded from site");
 
 					setTimeout(() => {
@@ -1225,7 +1271,13 @@ export default class SettingView {
 
 			cb.onClick(async (_ev) => {
 				new Notice("Applying settings to site...");
-				await this.saveSettingsAndUpdateEnv();
+
+				const applied =
+					await this.saveSettingsAndUpdateEnv(touchedEnvKeys);
+
+				if (applied) {
+					touchedEnvKeys.clear();
+				}
 
 				const connection =
 					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
@@ -1335,6 +1387,10 @@ export default class SettingView {
 								this.app.metadataCache,
 								this.settings,
 								this.saveSettings,
+								new Set([
+									"STYLE_SETTINGS_CSS",
+									"STYLE_SETTINGS_BODY_CLASSES",
+								]),
 							);
 							new Notice("Style Settings applied to site");
 						});
@@ -1350,6 +1406,10 @@ export default class SettingView {
 								this.app.metadataCache,
 								this.settings,
 								this.saveSettings,
+								new Set([
+									"STYLE_SETTINGS_CSS",
+									"STYLE_SETTINGS_BODY_CLASSES",
+								]),
 							);
 							new Notice("Style Settings removed from site");
 						});
@@ -1463,6 +1523,8 @@ export default class SettingView {
 
 			card.addEventListener("click", async () => {
 				this.settings.theme = themeValue;
+				touchedEnvKeys.add("THEME");
+				touchedEnvKeys.add("BASE_THEME");
 				await this.saveSettings();
 				updateCurrentThemeDisplay();
 
@@ -1518,6 +1580,7 @@ export default class SettingView {
 
 			dd.onChange(async (val: string) => {
 				this.settings.baseTheme = val;
+				touchedEnvKeys.add("BASE_THEME");
 				await this.saveSettings();
 			});
 		});
@@ -1533,6 +1596,7 @@ export default class SettingView {
 				text.setValue(this.settings.siteName).onChange(
 					async (value) => {
 						this.settings.siteName = value;
+						touchedEnvKeys.add("SITE_NAME_HEADER");
 						await this.saveSettings();
 					},
 				);
@@ -1555,6 +1619,23 @@ export default class SettingView {
 			});
 
 		new Setting(themeSection)
+			.setName("Logo size")
+			.setDesc(
+				"Height of the logo on your site. A number is treated as pixels (e.g. 40), or use any CSS size like 3rem. Leave blank for the default size.",
+			)
+			.addText((tc) => {
+				controls.logoHeight = tc;
+				tc.setPlaceholder("40");
+				tc.setValue(this.settings.logoHeight);
+
+				tc.onChange(async (val) => {
+					this.settings.logoHeight = val.trim();
+					touchedEnvKeys.add("LOGO_HEIGHT");
+					await this.saveSettings();
+				});
+			});
+
+		new Setting(themeSection)
 			.setName("Main language")
 			.setDesc(
 				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
@@ -1565,6 +1646,7 @@ export default class SettingView {
 				text.setValue(this.settings.mainLanguage).onChange(
 					async (value) => {
 						this.settings.mainLanguage = value;
+						touchedEnvKeys.add("SITE_MAIN_LANGUAGE");
 						await this.saveSettings();
 					},
 				);
@@ -1597,6 +1679,7 @@ export default class SettingView {
 
 				toggle.onChange(async (val) => {
 					this.settings.useFullResolutionImages = val;
+					touchedEnvKeys.add("USE_FULL_RESOLUTION_IMAGES");
 					await this.saveSettings();
 				});
 			});
@@ -1625,6 +1708,7 @@ export default class SettingView {
 				text.setValue(this.settings.timestampFormat).onChange(
 					async (value) => {
 						this.settings.timestampFormat = value;
+						touchedEnvKeys.add("TIMESTAMP_FORMAT");
 						await this.saveSettings();
 					},
 				);
@@ -1638,6 +1722,7 @@ export default class SettingView {
 				t.setValue(this.settings.showCreatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showCreatedTimestamp = value;
+						touchedEnvKeys.add("SHOW_CREATED_TIMESTAMP");
 						await this.saveSettings();
 					},
 				);
@@ -1665,6 +1750,7 @@ export default class SettingView {
 				t.setValue(this.settings.showUpdatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showUpdatedTimestamp = value;
+						touchedEnvKeys.add("SHOW_UPDATED_TIMESTAMP");
 						await this.saveSettings();
 					},
 				);
@@ -1752,6 +1838,7 @@ export default class SettingView {
 				text.setValue(this.settings.defaultNoteIcon).onChange(
 					async (value) => {
 						this.settings.defaultNoteIcon = value;
+						touchedEnvKeys.add("NOTE_ICON_DEFAULT");
 						await this.saveSettings();
 					},
 				);
@@ -1765,6 +1852,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnTitle).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnTitle = value;
+						touchedEnvKeys.add("NOTE_ICON_TITLE");
 						await this.saveSettings();
 					},
 				);
@@ -1778,6 +1866,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconInFileTree).onChange(
 					async (value) => {
 						this.settings.showNoteIconInFileTree = value;
+						touchedEnvKeys.add("NOTE_ICON_FILETREE");
 						await this.saveSettings();
 					},
 				);
@@ -1791,6 +1880,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnInternalLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnInternalLink = value;
+						touchedEnvKeys.add("NOTE_ICON_INTERNAL_LINKS");
 						await this.saveSettings();
 					},
 				);
@@ -1804,6 +1894,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnBackLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnBackLink = value;
+						touchedEnvKeys.add("NOTE_ICON_BACK_LINKS");
 						await this.saveSettings();
 					},
 				);
@@ -1814,7 +1905,9 @@ export default class SettingView {
 			.addButton(handleSaveSettingsButton);
 	}
 
-	private async saveSettingsAndUpdateEnv() {
+	private async saveSettingsAndUpdateEnv(
+		touchedEnvKeys?: Set<string>,
+	): Promise<boolean> {
 		const theme = JSON.parse(this.settings.theme);
 		const baseTheme = this.settings.baseTheme;
 
@@ -1823,22 +1916,25 @@ export default class SettingView {
 				`The ${theme.name} theme doesn't support ${baseTheme} mode.`,
 			);
 
-			return;
+			return false;
 		}
 
 		const gardenManager = new DigitalGardenSiteManager(
 			this.app.metadataCache,
 			this.settings,
 		);
-		await gardenManager.updateEnv();
+		await gardenManager.updateEnv(touchedEnvKeys);
 
 		new Notice("Successfully applied settings");
+
+		return true;
 	}
 
 	private async saveSiteSettingsAndUpdateEnv(
 		metadataCache: MetadataCache,
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
+		touchedEnvKeys?: Set<string>,
 	) {
 		new Notice("Updating settings...");
 		let updateFailed = false;
@@ -1848,7 +1944,7 @@ export default class SettingView {
 				metadataCache,
 				settings,
 			);
-			await gardenManager.updateEnv();
+			await gardenManager.updateEnv(touchedEnvKeys);
 		} catch {
 			new Notice(
 				"Failed to update settings. Make sure you have an internet connection.",
@@ -1860,6 +1956,8 @@ export default class SettingView {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
+
+		return !updateFailed;
 	}
 
 	private parseEnvSettings(envContent: string): Record<string, string> {

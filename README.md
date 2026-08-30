@@ -1,7 +1,8 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="img/digital-garden-dark.svg">
-    <img src="img/digital-garden.svg" alt="Digital Garden logo" width="128" height="128">
+    <!-- Logo size: change the width below (the SVG is square and scales automatically) -->
+    <img src="img/digital-garden.svg" alt="Digital Garden logo" width="128">
   </picture>
 </p>
 

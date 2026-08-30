@@ -14,6 +14,8 @@ export default interface DigitalGardenSettings {
 	baseTheme: string;
 	faviconPath: string;
 	logoPath: string;
+	/** CSS height for the site logo, e.g. "40" (px) or "3rem". Empty = template default. */
+	logoHeight: string;
 	mainLanguage: string;
 	useFullResolutionImages: boolean;
 
