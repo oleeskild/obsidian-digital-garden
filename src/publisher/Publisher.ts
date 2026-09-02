@@ -20,10 +20,17 @@ import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPl
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { describeError } from "../utils/debugLog";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
 	images: string[];
+}
+
+export interface PublishBatchResult {
+	success: boolean;
+	/** Human-readable description of what went wrong, safe to show in the UI. */
+	error?: string;
 }
 
 /**
@@ -263,13 +270,13 @@ export default class Publisher {
 	public async publishBatch(
 		files: CompiledPublishFile[],
 		onProgress?: PublishProgressCallback,
-	): Promise<boolean> {
+	): Promise<PublishBatchResult> {
 		const filesToPublish = files.filter((f) =>
 			isPublishFrontmatterValid(f.frontmatter),
 		);
 
 		if (filesToPublish.length === 0) {
-			return true;
+			return { success: true };
 		}
 
 		try {
@@ -287,14 +294,14 @@ export default class Publisher {
 				onProgress,
 			);
 
-			return true;
+			return { success: true };
 		} catch (error) {
 			if (error instanceof LimitReachedError) {
 				throw error;
 			}
-			console.error(error);
+			Logger.error("Batch publish failed", error);
 
-			return false;
+			return { success: false, error: describeError(error) };
 		}
 	}
 

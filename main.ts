@@ -32,6 +32,11 @@ import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
 import ForestryApi from "src/forestry/ForestryApi";
 import {
+	appendDebugLogLine,
+	getDebugLog,
+	setDebugLogContext,
+} from "src/utils/debugLog";
+import {
 	SiteUpdateTracker,
 	type SiteUpdatePhase,
 } from "src/forestry/SiteUpdateTracker";
@@ -140,6 +145,21 @@ Logger.useDefaults({
 		messages.unshift("DG: ");
 	},
 });
+
+// Mirror every log line into the copyable in-memory buffer (snapshot the
+// messages before the console formatter mutates them) while keeping the
+// normal console output.
+const consoleLogHandler = Logger.createDefaultHandler({
+	formatter: function (messages, _context) {
+		messages.unshift(new Date().toUTCString());
+		messages.unshift("DG: ");
+	},
+});
+
+Logger.setHandler((messages, context) => {
+	appendDebugLogLine(context.level.name, Array.from(messages));
+	consoleLogHandler(messages, context);
+});
 export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
@@ -154,6 +174,7 @@ export default class DigitalGarden extends Plugin {
 
 	async onload() {
 		this.appVersion = this.manifest.version;
+		setDebugLogContext(`v${this.appVersion}`);
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -371,6 +392,18 @@ export default class DigitalGarden extends Plugin {
 
 	async addCommands() {
 		this.addCommand({
+			id: "copy-debug-log",
+			name: "Copy debug log",
+			callback: async () => {
+				await navigator.clipboard.writeText(getDebugLog());
+
+				new Notice(
+					"Debug log copied to clipboard. Paste it in the Discord if you need help.",
+				);
+			},
+		});
+
+		this.addCommand({
 			id: "quick-publish-and-share-note",
 			name: "Quick Publish And Share Note",
 			callback: async () => {
@@ -515,7 +548,17 @@ export default class DigitalGarden extends Plugin {
 						8000,
 					);
 
-					await publisher.publishBatch(filesToPublish);
+					const batchResult =
+						await publisher.publishBatch(filesToPublish);
+
+					if (!batchResult.success) {
+						new Notice(
+							`Publishing failed: ${
+								batchResult.error ?? "unknown error"
+							}\n\nRun "Copy debug log" from the command palette to share details when asking for help.`,
+							0,
+						);
+					}
 					statusBar.incrementMultiple(filesToPublish.length);
 
 					for (const file of filesToDelete) {

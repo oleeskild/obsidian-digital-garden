@@ -22,6 +22,7 @@ import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import { envPath, sitePath } from "../../publisher/paths";
 import { arrayBufferToBase64 } from "../../utils/utils";
+import { getDebugLog } from "../../utils/debugLog";
 import {
 	ImageFileSuggest,
 	SvgFileSuggest,
@@ -245,6 +246,20 @@ export default class SettingView {
 						Logger.setLevel(value ? Logger.DEBUG : Logger.WARN);
 						await this.saveSettings();
 					});
+			});
+
+		new Setting(this.settingsRootElement)
+			.setName("Copy debug log")
+			.setDesc(
+				"Copy the plugin's recent log to the clipboard — paste it in the Discord when asking for help with a failed publish.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Copy debug log");
+
+				cb.onClick(async () => {
+					await navigator.clipboard.writeText(getDebugLog());
+					new Notice("Debug log copied to clipboard.");
+				});
 			});
 
 		this.settingsRootElement

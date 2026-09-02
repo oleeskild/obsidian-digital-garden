@@ -25,6 +25,8 @@
 	import RecentBuilds from "./RecentBuilds.svelte";
 	import Tutorial from "./Tutorial.svelte";
 	import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
+	import Logger from "js-logger";
+	import { describeError, getDebugLog } from "../../utils/debugLog";
 
 	export let siteManager: DigitalGardenSiteManager;
 	export let publisher: Publisher;
@@ -55,9 +57,24 @@
 
 	let problematicFiles: { path: string; issue: string }[] = [];
 	let publishing = false;
+	let publishError: string | null = null;
 	let progressTotal = 0;
 	let progressDone = 0;
 	let progressCurrent = "";
+
+	const copyPublishErrorDetails = async () => {
+		const details = [
+			"Digital Garden publish error",
+			"",
+			publishError ?? "(no error message)",
+			"",
+			"--- Recent plugin log ---",
+			getDebugLog(),
+		].join("\n");
+
+		await navigator.clipboard.writeText(details);
+		new Notice("Error details copied to clipboard.");
+	};
 
 	$: selectedCount = selected.size;
 
@@ -201,6 +218,7 @@
 		const removedPaths = new Set<string>();
 		let hadFailure = false;
 		publishing = true;
+		publishError = null;
 		progressDone = 0;
 
 		try {
@@ -208,7 +226,7 @@
 
 			let batchSteps = plan.notesToPublish.length;
 
-			const published = await publisher.publishBatch(
+			const batchResult = await publisher.publishBatch(
 				plan.notesToPublish,
 				(done, total, message) => {
 					batchSteps = total;
@@ -219,12 +237,13 @@
 			);
 			progressDone = batchSteps;
 
-			if (published) {
+			if (batchResult.success) {
 				for (const note of plan.notesToPublish) {
 					publishedPaths.add(note.getPath());
 				}
 			} else if (plan.notesToPublish.length > 0) {
 				hadFailure = true;
+				publishError = batchResult.error ?? "Unknown error";
 			}
 
 			for (const path of plan.notesToDelete) {
@@ -243,16 +262,19 @@
 
 			new Notice(
 				hadFailure
-					? "Some notes failed to publish. Check the console for details."
+					? "Publishing failed. See the details in the Publication Center."
 					: "Publication complete.",
 			);
 		} catch (e) {
 			if (e instanceof LimitReachedError) {
 				notifyLimitReached(e);
 			} else {
-				// eslint-disable-next-line no-undef
-				console.error("Publication Center: publish failed", e);
-				new Notice("Unable to publish, something went wrong.");
+				Logger.error("Publication Center: publish failed", e);
+				publishError = describeError(e);
+
+				new Notice(
+					"Publishing failed. See the details in the Publication Center.",
+				);
 			}
 		} finally {
 			// Reflect everything that succeeded, even if a later step threw.
@@ -420,6 +442,28 @@
 			</div>
 		{/if}
 
+		{#if publishError}
+			<div class="dg-pc-publish-error">
+				<div class="dg-pc-publish-error-header">
+					<strong>Publishing failed</strong>
+					<div class="dg-pc-publish-error-actions">
+						<button on:click={copyPublishErrorDetails}>
+							Copy details
+						</button>
+						<button on:click={() => (publishError = null)}>
+							Dismiss
+						</button>
+					</div>
+				</div>
+				<pre class="dg-pc-publish-error-message">{publishError}</pre>
+				<div class="dg-pc-publish-error-hint">
+					Nothing was lost — your notes are unchanged. Often
+					publishing again just works. If it keeps failing, click
+					"Copy details" and paste it in the Discord so we can help.
+				</div>
+			</div>
+		{/if}
+
 		<div class="dg-pc-layout">
 			<div class="dg-pc-tree-pane">
 				<StatusFilters
@@ -502,6 +546,44 @@
 	.dg-pc-error {
 		color: var(--text-error);
 		padding: 16px;
+	}
+
+	.dg-pc-publish-error {
+		margin: 8px 16px;
+		padding: 10px 12px;
+		border: 1px solid var(--background-modifier-error);
+		border-radius: 6px;
+		background-color: var(--background-modifier-error-hover, transparent);
+	}
+
+	.dg-pc-publish-error-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		color: var(--text-error);
+	}
+
+	.dg-pc-publish-error-actions {
+		display: flex;
+		gap: 6px;
+	}
+
+	.dg-pc-publish-error-message {
+		margin: 8px 0;
+		padding: 6px 8px;
+		max-height: 120px;
+		overflow: auto;
+		white-space: pre-wrap;
+		word-break: break-word;
+		font-size: var(--font-ui-smaller);
+		background-color: var(--background-primary);
+		border-radius: 4px;
+	}
+
+	.dg-pc-publish-error-hint {
+		color: var(--text-muted);
+		font-size: var(--font-ui-smaller);
 	}
 
 	.dg-pc-syncing {
