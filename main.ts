@@ -184,8 +184,49 @@ export default class DigitalGarden extends Plugin {
 
 		this.syncSiteUpdateTracker();
 
+		this.refreshForestryPageInfo();
 		this.checkForTemplateUpdates();
 		this.registerDevAutoExport();
+	}
+
+	/**
+	 * Re-fetch the garden's name and base URL from the Forestry API. Both are
+	 * stored at connect time and go stale when the garden is renamed on the
+	 * dashboard — the Garden Key keeps working, but copied note/garden URLs
+	 * would point at the dead old subdomain. Fire-and-forget on startup;
+	 * failures (offline, revoked key) leave the stored values untouched.
+	 */
+	private async refreshForestryPageInfo(): Promise<void> {
+		const forestrySettings = this.settings.forestrySettings;
+
+		if (
+			this.settings.publishPlatform !== PublishPlatform.ForestryMd ||
+			!forestrySettings.apiKey
+		) {
+			return;
+		}
+
+		const pageInfo = await new ForestryApi(
+			forestrySettings.apiKey,
+		).getPageInfo();
+
+		if (!pageInfo?.value?.pageName || !pageInfo.value.baseUrl) {
+			return;
+		}
+
+		if (
+			forestrySettings.forestryPageName === pageInfo.value.pageName &&
+			forestrySettings.baseUrl === pageInfo.value.baseUrl
+		) {
+			return;
+		}
+
+		Logger.info(
+			`Garden info changed (${forestrySettings.baseUrl} -> ${pageInfo.value.baseUrl}); updating stored settings`,
+		);
+		forestrySettings.forestryPageName = pageInfo.value.pageName;
+		forestrySettings.baseUrl = pageInfo.value.baseUrl;
+		await this.saveSettings();
 	}
 
 	/**
