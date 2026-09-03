@@ -669,6 +669,14 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
+			id: "dg-choose-home-page",
+			name: "Choose Garden Home Page",
+			callback: () => {
+				this.openHomePagePicker();
+			},
+		});
+
+		this.addCommand({
 			id: "dg-reorder-navigation",
 			name: "Reorder navigation",
 			callback: async () => {

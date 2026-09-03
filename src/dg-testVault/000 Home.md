@@ -1,6 +1,6 @@
 ---
-dg-home: true
 dg-publish: true
+dg-home: true
 ---
 ## Welcome
 
