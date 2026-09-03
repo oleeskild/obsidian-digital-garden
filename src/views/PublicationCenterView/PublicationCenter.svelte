@@ -246,18 +246,32 @@
 				publishError = batchResult.error ?? "Unknown error";
 			}
 
-			for (const path of plan.notesToDelete) {
-				progressCurrent = `Deleting ${path}`;
-				await publisher.deleteNote(path);
-				removedPaths.add(path);
-				progressDone += 1;
-			}
+			if (deletesTotal > 0) {
+				const deleteResult = await publisher.deleteBatch(
+					plan.notesToDelete,
+					plan.imagesToDelete,
+					(done, total, message) => {
+						progressTotal = batchSteps + total;
+						progressDone = batchSteps + done;
+						progressCurrent = message;
+					},
+				);
 
-			for (const path of plan.imagesToDelete) {
-				progressCurrent = `Deleting ${path}`;
-				await publisher.deleteImage(path);
-				removedPaths.add(path);
-				progressDone += 1;
+				if (deleteResult.success) {
+					for (const path of plan.notesToDelete) {
+						removedPaths.add(path);
+					}
+
+					for (const path of plan.imagesToDelete) {
+						removedPaths.add(path);
+					}
+				} else {
+					hadFailure = true;
+
+					publishError = [publishError, deleteResult.error]
+						.filter(Boolean)
+						.join("\n");
+				}
 			}
 
 			new Notice(

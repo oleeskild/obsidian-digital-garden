@@ -245,25 +245,44 @@ export default class Publisher {
 		}
 	}
 
-	public async deleteBatch(filePaths: string[]): Promise<boolean> {
-		if (filePaths.length === 0) {
-			return true;
+	/**
+	 * Delete notes (vault paths) and images (vault paths) in as few commits
+	 * as GitHub allows. Returns `success: false` with a description on error;
+	 * whatever was committed before the failure stays deleted.
+	 */
+	public async deleteBatch(
+		notePaths: string[],
+		imagePaths: string[],
+		onProgress?: PublishProgressCallback,
+	): Promise<PublishBatchResult> {
+		const repoPaths = [
+			...notePaths.map((path) => notePathBase(this.settings) + path),
+			...imagePaths.map((path) => imagePathBase(this.settings) + path),
+		];
+
+		if (repoPaths.length === 0) {
+			return { success: true };
 		}
 
 		try {
+			this.validateSettings();
+
 			const userGardenConnection = new RepositoryConnection(
 				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
 				),
 			);
 
-			await userGardenConnection.deleteFiles(filePaths);
+			await userGardenConnection.deleteFiles(repoPaths, onProgress);
 
-			return true;
+			return { success: true };
 		} catch (error) {
-			console.error(error);
+			if (error instanceof LimitReachedError) {
+				throw error;
+			}
+			Logger.error("Batch delete failed", error);
 
-			return false;
+			return { success: false, error: describeError(error) };
 		}
 	}
 
