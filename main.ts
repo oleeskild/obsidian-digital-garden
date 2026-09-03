@@ -1049,7 +1049,7 @@ export default class DigitalGarden extends Plugin {
 	 * dashboard:
 	 * - `connect=<code>`: one-click connect; the code is exchanged for the
 	 *   garden key server-side.
-	 * - `action=set-home`: open the home page picker.
+	 * - `open=home-picker`: open the home page picker.
 	 * Unknown parameters (e.g. the legacy `code`/`state` pair) are ignored.
 	 */
 	private registerDeepLinks() {
@@ -1060,7 +1060,9 @@ export default class DigitalGarden extends Plugin {
 				return;
 			}
 
-			if (params.action === "set-home") {
+			// Obsidian overwrites `action` with the handler name, so the
+			// dashboard's home page link uses `open=home-picker` instead.
+			if (params.open === "home-picker") {
 				this.openHomePagePicker();
 
 				return;
