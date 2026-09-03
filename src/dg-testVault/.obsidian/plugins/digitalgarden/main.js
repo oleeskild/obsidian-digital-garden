@@ -9513,14 +9513,14 @@ var require_lib = __commonJS({
           return { type: "function", value: val };
         else if (isHtml(val))
           return { type: "html", value: val };
-        else if (isObject2(val))
+        else if (isObject3(val))
           return { type: "object", value: val };
         else
           return void 0;
       }
       Values2.wrapValue = wrapValue;
       function mapLeaves(val, func) {
-        if (isObject2(val)) {
+        if (isObject3(val)) {
           let result = {};
           for (let [key2, value] of Object.entries(val))
             result[key2] = mapLeaves(value, func);
@@ -9722,10 +9722,10 @@ var require_lib = __commonJS({
         }
       }
       Values2.isHtml = isHtml;
-      function isObject2(val) {
+      function isObject3(val) {
         return typeof val == "object" && !isHtml(val) && !isWidget(val) && !isArray2(val) && !isDuration(val) && !isDate4(val) && !isLink(val) && val !== void 0 && !isNull(val);
       }
-      Values2.isObject = isObject2;
+      Values2.isObject = isObject3;
       function isFunction3(val) {
         return typeof val == "function";
       }
@@ -11586,8 +11586,25 @@ function getUserAgent() {
 // node_modules/@octokit/core/dist-web/index.js
 var import_before_after_hook = __toESM(require_before_after_hook());
 
+// node_modules/is-plain-object/dist/is-plain-object.mjs
+function isObject(o) {
+  return Object.prototype.toString.call(o) === "[object Object]";
+}
+function isPlainObject(o) {
+  var ctor, prot;
+  if (isObject(o) === false) return false;
+  ctor = o.constructor;
+  if (ctor === void 0) return true;
+  prot = ctor.prototype;
+  if (isObject(prot) === false) return false;
+  if (prot.hasOwnProperty("isPrototypeOf") === false) {
+    return false;
+  }
+  return true;
+}
+
 // node_modules/@octokit/endpoint/dist-web/index.js
-var VERSION2 = "9.0.6";
+var VERSION2 = "9.0.0";
 var userAgent = `octokit-endpoint.js/${VERSION2} ${getUserAgent()}`;
 var DEFAULTS = {
   method: "GET",
@@ -11608,17 +11625,6 @@ function lowercaseKeys(object) {
     newObj[key2.toLowerCase()] = object[key2];
     return newObj;
   }, {});
-}
-function isPlainObject(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  if (Object.prototype.toString.call(value) !== "[object Object]")
-    return false;
-  const proto = Object.getPrototypeOf(value);
-  if (proto === null)
-    return true;
-  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
-  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
 }
 function mergeDeep(defaults3, options) {
   const result = Object.assign({}, defaults3);
@@ -11677,9 +11683,9 @@ function addQueryParameters(url, parameters) {
     return `${name}=${encodeURIComponent(parameters[name])}`;
   }).join("&");
 }
-var urlVariableRegex = /\{[^{}}]+\}/g;
+var urlVariableRegex = /\{[^}]+\}/g;
 function removeNonChars(variableName) {
-  return variableName.replace(new RegExp("(?:^\\W+)|(?:(?<!\\W)\\W+$)", "g"), "").split(/,/);
+  return variableName.replace(/^\W+|\W+$/g, "").split(/,/);
 }
 function extractUrlVariableNames(url) {
   const matches2 = url.match(urlVariableRegex);
@@ -11689,13 +11695,10 @@ function extractUrlVariableNames(url) {
   return matches2.map(removeNonChars).reduce((a, b) => a.concat(b), []);
 }
 function omit(object, keysToOmit) {
-  const result = { __proto__: null };
-  for (const key2 of Object.keys(object)) {
-    if (keysToOmit.indexOf(key2) === -1) {
-      result[key2] = object[key2];
-    }
-  }
-  return result;
+  return Object.keys(object).filter((option2) => !keysToOmit.includes(option2)).reduce((obj, key2) => {
+    obj[key2] = object[key2];
+    return obj;
+  }, {});
 }
 function encodeReserved(str) {
   return str.split(/(%[0-9A-Fa-f]{2})/g).map(function(part) {
@@ -11791,7 +11794,7 @@ function parseUrl(template) {
 }
 function expand(template, context2) {
   var operators = ["+", "#", ".", "/", ";", "?", "&"];
-  template = template.replace(
+  return template.replace(
     /\{([^\{\}]+)\}|([^\{\}]+)/g,
     function(_, expression, literal) {
       if (expression) {
@@ -11821,11 +11824,6 @@ function expand(template, context2) {
       }
     }
   );
-  if (template === "/") {
-    return template;
-  } else {
-    return template.replace(/\/$/, "");
-  }
 }
 function parse(options) {
   var _a6;
@@ -11860,7 +11858,7 @@ function parse(options) {
     }
     if (url.endsWith("/graphql")) {
       if ((_a6 = options.mediaType.previews) == null ? void 0 : _a6.length) {
-        const previewsFromAcceptHeader = headers.accept.match(new RegExp("(?<![\\w-])[\\w-]+(?=-preview)", "g")) || [];
+        const previewsFromAcceptHeader = headers.accept.match(/[\w-]+(?=-preview)/g) || [];
         headers.accept = previewsFromAcceptHeader.concat(options.mediaType.previews).map((preview) => {
           const format = options.mediaType.format ? `.${options.mediaType.format}` : "+json";
           return `application/vnd.github.${preview}-preview${format}`;
@@ -11941,7 +11939,7 @@ var RequestError = class extends Error {
     if (options.request.headers.authorization) {
       requestCopy.headers = Object.assign({}, options.request.headers, {
         authorization: options.request.headers.authorization.replace(
-          new RegExp("(?<! ) .*$"),
+          / .*$/,
           " [REDACTED]"
         )
       });
@@ -11972,26 +11970,15 @@ var RequestError = class extends Error {
 };
 
 // node_modules/@octokit/request/dist-web/index.js
-var VERSION3 = "8.4.1";
-function isPlainObject2(value) {
-  if (typeof value !== "object" || value === null)
-    return false;
-  if (Object.prototype.toString.call(value) !== "[object Object]")
-    return false;
-  const proto = Object.getPrototypeOf(value);
-  if (proto === null)
-    return true;
-  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
-  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
-}
+var VERSION3 = "8.1.1";
 function getBufferResponse(response) {
   return response.arrayBuffer();
 }
 function fetchWrapper(requestOptions) {
-  var _a6, _b3, _c2, _d;
+  var _a6, _b3, _c2;
   const log = requestOptions.request && requestOptions.request.log ? requestOptions.request.log : console;
   const parseSuccessResponseBody = ((_a6 = requestOptions.request) == null ? void 0 : _a6.parseSuccessResponseBody) !== false;
-  if (isPlainObject2(requestOptions.body) || Array.isArray(requestOptions.body)) {
+  if (isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body)) {
     requestOptions.body = JSON.stringify(requestOptions.body);
   }
   let headers = {};
@@ -12009,9 +11996,8 @@ function fetchWrapper(requestOptions) {
   return fetch2(requestOptions.url, __spreadValues({
     method: requestOptions.method,
     body: requestOptions.body,
-    redirect: (_c2 = requestOptions.request) == null ? void 0 : _c2.redirect,
     headers: requestOptions.headers,
-    signal: (_d = requestOptions.request) == null ? void 0 : _d.signal
+    signal: (_c2 = requestOptions.request) == null ? void 0 : _c2.signal
   }, requestOptions.body && { duplex: "half" })).then((response) => __async(null, null, function* () {
     url = response.url;
     status = response.status;
@@ -12019,7 +12005,7 @@ function fetchWrapper(requestOptions) {
       headers[keyAndValue[0]] = keyAndValue[1];
     }
     if ("deprecation" in headers) {
-      const matches2 = headers.link && headers.link.match(/<([^<>]+)>; rel="deprecation"/);
+      const matches2 = headers.link && headers.link.match(/<([^>]+)>; rel="deprecation"/);
       const deprecationLink = matches2 && matches2.pop();
       log.warn(
         `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${headers.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
@@ -12079,15 +12065,7 @@ function fetchWrapper(requestOptions) {
       throw error;
     else if (error.name === "AbortError")
       throw error;
-    let message = error.message;
-    if (error.name === "TypeError" && "cause" in error) {
-      if (error.cause instanceof Error) {
-        message = error.cause.message;
-      } else if (typeof error.cause === "string") {
-        message = error.cause;
-      }
-    }
-    throw new RequestError(message, 500, {
+    throw new RequestError(error.message, 500, {
       request: requestOptions
     });
   });
@@ -12096,7 +12074,7 @@ function getResponseData(response) {
   return __async(this, null, function* () {
     const contentType = response.headers.get("content-type");
     if (/application\/json/.test(contentType)) {
-      return response.json().catch(() => response.text()).catch(() => "");
+      return response.json();
     }
     if (!contentType || /^text\/|charset=utf-8$/.test(contentType)) {
       return response.text();
@@ -12107,17 +12085,11 @@ function getResponseData(response) {
 function toErrorMessage(data) {
   if (typeof data === "string")
     return data;
-  let suffix;
-  if ("documentation_url" in data) {
-    suffix = ` - ${data.documentation_url}`;
-  } else {
-    suffix = "";
-  }
   if ("message" in data) {
     if (Array.isArray(data.errors)) {
-      return `${data.message}: ${data.errors.map(JSON.stringify).join(", ")}${suffix}`;
+      return `${data.message}: ${data.errors.map(JSON.stringify).join(", ")}`;
     }
-    return `${data.message}${suffix}`;
+    return data.message;
   }
   return `Unknown error: ${JSON.stringify(data)}`;
 }
@@ -21737,10 +21709,10 @@ function isArrayBufferView(val) {
 var isString2 = typeOfTest("string");
 var isFunction = typeOfTest("function");
 var isNumber2 = typeOfTest("number");
-var isObject = (thing) => thing !== null && typeof thing === "object";
+var isObject2 = (thing) => thing !== null && typeof thing === "object";
 var isBoolean = (thing) => thing === true || thing === false;
-var isPlainObject3 = (val) => {
-  if (!isObject(val)) {
+var isPlainObject2 = (val) => {
+  if (!isObject2(val)) {
     return false;
   }
   const prototype2 = getPrototypeOf(val);
@@ -21750,7 +21722,7 @@ var isPlainObject3 = (val) => {
   !hasOwnInPrototypeChain(val, toStringTag) && !hasOwnInPrototypeChain(val, iterator);
 };
 var isEmptyObject = (val) => {
-  if (!isObject(val) || isBuffer(val)) {
+  if (!isObject2(val) || isBuffer(val)) {
     return false;
   }
   try {
@@ -21767,7 +21739,7 @@ var isReactNativeBlob = (value) => {
 var isReactNative = (formData) => formData && typeof formData.getParts !== "undefined";
 var isBlob = kindOfTest("Blob");
 var isFileList = kindOfTest("FileList");
-var isStream = (val) => isObject(val) && isFunction(val.pipe);
+var isStream = (val) => isObject2(val) && isFunction(val.pipe);
 function getGlobal() {
   if (typeof globalThis !== "undefined") return globalThis;
   if (typeof self !== "undefined") return self;
@@ -21853,9 +21825,9 @@ function merge2(...objs) {
     }
     const targetKey = caseless && typeof key2 === "string" && findKey(result, key2) || key2;
     const existing = hasOwnProperty2(result, targetKey) ? result[targetKey] : void 0;
-    if (isPlainObject3(existing) && isPlainObject3(val)) {
+    if (isPlainObject2(existing) && isPlainObject2(val)) {
       result[targetKey] = merge2(existing, val);
-    } else if (isPlainObject3(val)) {
+    } else if (isPlainObject2(val)) {
       result[targetKey] = merge2({}, val);
     } else if (isArray(val)) {
       result[targetKey] = val.slice();
@@ -22053,7 +22025,7 @@ function isSpecCompliantForm(thing) {
 var toJSONObject = (obj) => {
   const visited = /* @__PURE__ */ new WeakSet();
   const visit = (source2) => {
-    if (isObject(source2)) {
+    if (isObject2(source2)) {
       if (visited.has(source2)) {
         return;
       }
@@ -22076,7 +22048,7 @@ var toJSONObject = (obj) => {
   return visit(obj);
 };
 var isAsyncFn = kindOfTest("AsyncFunction");
-var isThenable = (thing) => thing && (isObject(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch);
+var isThenable = (thing) => thing && (isObject2(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch);
 var _setImmediate = ((setImmediateSupported, postMessageSupported) => {
   if (setImmediateSupported) {
     return setImmediate;
@@ -22109,8 +22081,8 @@ var utils_default = {
   isString: isString2,
   isNumber: isNumber2,
   isBoolean,
-  isObject,
-  isPlainObject: isPlainObject3,
+  isObject: isObject2,
+  isPlainObject: isPlainObject2,
   isEmptyObject,
   isReadableStream,
   isRequest,
@@ -43635,6 +43607,7 @@ var import_obsidian28 = require("obsidian");
 var HomePagePickerModal = class extends import_obsidian28.FuzzySuggestModal {
   constructor(app, onChoose) {
     super(app);
+    this.currentHomePaths = /* @__PURE__ */ new Set();
     this.onChoose = onChoose;
     this.setPlaceholder("Choose your garden's home page");
     this.setInstructions([
@@ -43643,16 +43616,25 @@ var HomePagePickerModal = class extends import_obsidian28.FuzzySuggestModal {
       { command: "esc", purpose: "to skip for now" }
     ]);
   }
+  /**
+   * Notes already flagged dg-home come first, then the active note, then
+   * the rest of the vault, so the likely answer is one Enter away.
+   */
   getItems() {
     const files = this.app.vault.getMarkdownFiles();
+    const homePages = findHomePageFiles(this.app);
+    this.currentHomePaths = new Set(homePages.map((f) => f.path));
     const active = this.app.workspace.getActiveFile();
-    if (!active || active.extension !== "md") {
-      return files;
+    const ordered = [...homePages];
+    if (active && active.extension === "md" && !this.currentHomePaths.has(active.path)) {
+      ordered.push(active);
     }
-    return [active, ...files.filter((f) => f.path !== active.path)];
+    const listed = new Set(ordered.map((f) => f.path));
+    return [...ordered, ...files.filter((f) => !listed.has(f.path))];
   }
   getItemText(file) {
-    return file.path.endsWith(".md") ? file.path.slice(0, -3) : file.path;
+    const name = file.path.endsWith(".md") ? file.path.slice(0, -3) : file.path;
+    return this.currentHomePaths.has(file.path) ? `${name}  (current home page)` : name;
   }
   onChooseItem(file) {
     void this.onChoose(file);
@@ -44523,13 +44505,12 @@ Run "Copy debug log" from the command palette to share details when asking for h
   }
   /**
    * Called right after a garden is connected to Forestry.md (from the
-   * settings tab or a deep link). New gardens almost never have a home
-   * page yet, so offer to pick one straight away.
+   * settings tab or a deep link). The new garden has no home page yet
+   * whatever the vault holds, so always offer to pick one. A note that is
+   * already flagged dg-home (from an earlier garden) is listed first;
+   * choosing it just publishes it to the new garden.
    */
   afterForestryConnected() {
-    if (findHomePageFiles(this.app).length > 0) {
-      return;
-    }
     this.openHomePagePicker();
   }
   /**
@@ -44537,7 +44518,7 @@ Run "Copy debug log" from the command palette to share details when asking for h
    * dashboard:
    * - `connect=<code>`: one-click connect; the code is exchanged for the
    *   garden key server-side.
-   * - `action=set-home`: open the home page picker.
+   * - `open=home-picker`: open the home page picker.
    * Unknown parameters (e.g. the legacy `code`/`state` pair) are ignored.
    */
   registerDeepLinks() {
@@ -44546,7 +44527,7 @@ Run "Copy debug log" from the command palette to share details when asking for h
         void this.connectWithCode(params.connect);
         return;
       }
-      if (params.action === "set-home") {
+      if (params.open === "home-picker") {
         this.openHomePagePicker();
         return;
       }
@@ -44696,6 +44677,14 @@ js-logger/src/logger.js:
    * js-logger may be freely distributed under the MIT license.
    *)
 
+is-plain-object/dist/is-plain-object.mjs:
+  (*!
+   * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+   *
+   * Copyright (c) 2014-2017, Jon Schlinkert.
+   * Released under the MIT License.
+   *)
+
 sortablejs/modular/sortable.esm.js:
   (**!
    * Sortable 1.15.7
@@ -44704,5 +44693,3 @@ sortablejs/modular/sortable.esm.js:
    * @license MIT
    *)
 */
-
-/* nosourcemap */
