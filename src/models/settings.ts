@@ -90,6 +90,9 @@ export default interface DigitalGardenSettings {
 
 	navigationOrder?: Record<string, string[]>;
 
+	/** When true, publishing a note never asks whether to make it the home page. */
+	dontAskAboutHomePage?: boolean;
+
 	/** When true, the "switch to Forestry.md" nudge in the self-hosted setup is hidden. */
 	hideForestryUpgradeNotice?: boolean;
 

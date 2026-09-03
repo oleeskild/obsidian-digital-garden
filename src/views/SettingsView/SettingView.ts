@@ -64,6 +64,7 @@ export default class SettingView {
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
+	private afterForestryConnect: (() => void) | null;
 
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
@@ -76,12 +77,14 @@ export default class SettingView {
 		settingsRootElement: HTMLElement,
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
+		afterForestryConnect: (() => void) | null = null,
 	) {
 		this.app = app;
 		this.settingsRootElement = settingsRootElement;
 		this.settingsRootElement.classList.add("dg-settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
+		this.afterForestryConnect = afterForestryConnect;
 	}
 
 	getIcon(name: string): Node {
@@ -298,6 +301,7 @@ export default class SettingView {
 					onConnect: async () => {
 						this.reInitializeSettings();
 					},
+					afterConnect: this.afterForestryConnect,
 				},
 			});
 		}

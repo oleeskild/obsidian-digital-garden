@@ -20,6 +20,11 @@ export interface IDeployInfo {
 	durationSeconds?: number | null;
 	errorMessage?: string | null;
 	friendlyError?: IFriendlyBuildError | null;
+	/**
+	 * Whether the deployed site has a root page (a note with dg-home).
+	 * null/undefined for builds from before this was recorded.
+	 */
+	hasHomePage?: boolean | null;
 }
 
 export interface IDeploysResponse {

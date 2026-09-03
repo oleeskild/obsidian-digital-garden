@@ -40,6 +40,12 @@ const LIVE_PHASE_MS = 2 * 60 * 1000;
 export class SiteUpdateTracker {
 	readonly store: Writable<SiteUpdateState>;
 
+	/**
+	 * Set by the plugin. When the site goes live without a home page, the
+	 * "live" notice becomes clickable and calls this to open the picker.
+	 */
+	onChooseHomePage: (() => void) | null = null;
+
 	private api: ForestryApi;
 	private builds: IDeployInfo[] = [];
 	private knownRunIds = new Set<string>();
@@ -233,7 +239,22 @@ export class SiteUpdateTracker {
 
 	private announceResult(build: IDeployInfo) {
 		if (build.status === "completed") {
-			new Notice("Your site is live 🌱");
+			if (build.hasHomePage === false && this.onChooseHomePage) {
+				const chooseHomePage = this.onChooseHomePage;
+
+				const notice = new Notice(
+					"Your site is live, but has no home page yet. Click to choose one.",
+					15000,
+				);
+				notice.noticeEl.addClass("dg-notice-clickable");
+
+				notice.noticeEl.addEventListener("click", () => {
+					notice.hide();
+					chooseHomePage();
+				});
+			} else {
+				new Notice("Your site is live 🌱");
+			}
 			this.patch({ phase: "live" });
 
 			this.liveTimer = setTimeout(() => {

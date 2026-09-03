@@ -10,24 +10,45 @@
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
 	export let onConnect: () => Promise<void>;
+	/** Runs after a successful connect (e.g. to offer picking a home page). */
+	export let afterConnect: (() => void) | null = null;
 	let apiKey: string = settings.forestrySettings.apiKey;
 	let limits: IUserLimitsResponse | null = null;
 	let limitsLoading = false;
+	let connecting = false;
+	let connectError: string | null = null;
 
 	const connect = async () => {
-		let pageInfo = await getPageInfo();
+		const trimmedKey = apiKey.trim();
 
-		if (!pageInfo) {
-			new Notice("Invalid Garden Key");
+		if (!trimmedKey || connecting) return;
+		connecting = true;
+		connectError = null;
+
+		const result = await new ForestryApi(trimmedKey).getPageInfoResult();
+		connecting = false;
+
+		if (!result.ok) {
+			connectError =
+				result.kind === "unauthorized"
+					? "Invalid Garden Key. Copy it again from your garden's page on the Forestry.md dashboard."
+					: "Couldn't reach Forestry.md — check your connection and try again.";
+			new Notice(connectError);
 
 			return;
 		}
+		const pageInfo = result.value;
 		settings.forestrySettings.forestryPageName = pageInfo.value.pageName;
 		settings.forestrySettings.baseUrl = pageInfo.value.baseUrl;
-		settings.forestrySettings.apiKey = apiKey;
+		settings.forestrySettings.apiKey = trimmedKey;
 		await saveSettings();
 		unique = {};
-		onConnect();
+
+		new Notice(
+			`Connected to Forestry.md garden ${pageInfo.value.pageName} 🌱`,
+		);
+		await onConnect();
+		afterConnect?.();
 	};
 
 	const disconnect = async () => {
@@ -84,9 +105,22 @@
 						bind:value={apiKey}
 						placeholder="Enter your Garden Key"
 						style="margin-right: 8px; min-width: 250px;"
+						on:keydown={(e) => e.key === "Enter" && connect()}
 					/>
-					<button class="mod-cta" on:click={connect}>Connect</button>
+					<button
+						class="mod-cta"
+						on:click={connect}
+						disabled={connecting || !apiKey.trim()}
+						>{connecting ? "Connecting…" : "Connect"}</button
+					>
 				</div>
+			</div>
+			{#if connectError}
+				<div class="dg-forestry-connect-error">{connectError}</div>
+			{/if}
+			<div class="setting-item-description dg-forestry-connect-hint">
+				Tip: the "Connect Obsidian" button on your garden's dashboard
+				page fills this in for you.
 			</div>
 		{:else}
 			{#await getPageInfo()}

@@ -40,6 +40,10 @@ import {
 	SiteUpdateTracker,
 	type SiteUpdatePhase,
 } from "src/forestry/SiteUpdateTracker";
+import { ForestryApiError } from "src/forestry/ForestryApi";
+import { findHomePageFiles } from "src/publishFile/homePage";
+import { HomePagePickerModal } from "src/views/HomePage/HomePagePickerModal";
+import { promptForHomePage } from "src/views/HomePage/HomePagePromptModal";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -172,6 +176,9 @@ export default class DigitalGarden extends Plugin {
 	private siteStatusUnsubscribe: (() => void) | null = null;
 	private siteTrackerApiKey: string | null = null;
 
+	/** The home-page prompt is shown at most once per Obsidian session. */
+	private askedAboutHomePage = false;
+
 	async onload() {
 		this.appVersion = this.manifest.version;
 		setDebugLogContext(`v${this.appVersion}`);
@@ -204,6 +211,7 @@ export default class DigitalGarden extends Plugin {
 		);
 
 		this.syncSiteUpdateTracker();
+		this.registerDeepLinks();
 
 		this.refreshForestryPageInfo();
 		this.checkForTemplateUpdates();
@@ -303,6 +311,9 @@ export default class DigitalGarden extends Plugin {
 	 */
 	private createSiteUpdateTracker(apiKey: string) {
 		this.siteUpdateTracker = new SiteUpdateTracker(new ForestryApi(apiKey));
+
+		this.siteUpdateTracker.onChooseHomePage = () =>
+			this.openHomePagePicker();
 		this.siteTrackerApiKey = apiKey;
 
 		const statusBarItem = this.addStatusBarItem();
@@ -769,25 +780,94 @@ export default class DigitalGarden extends Plugin {
 
 	// TODO: move to publisher?
 	async publishSingleNote() {
+		const activeFile = this.getActiveFile(this.app.workspace);
+
+		if (!activeFile) {
+			return;
+		}
+
+		if (
+			activeFile.extension !== "md" &&
+			activeFile.extension !== "canvas"
+		) {
+			new Notice(
+				"The current file is not a markdown or canvas file. Please open a supported file and try again.",
+			);
+
+			return;
+		}
+
+		if (!(await this.maybeOfferAsHomePage(activeFile))) {
+			return false;
+		}
+
+		return this.publishNote(activeFile);
+	}
+
+	private isForestryGarden(): boolean {
+		return (
+			this.settings.publishPlatform === PublishPlatform.ForestryMd &&
+			!!this.settings.forestrySettings.apiKey
+		);
+	}
+
+	/**
+	 * Before publishing a single note to a Forestry garden that has no home
+	 * page, offer to make this note the home page. Resolves false when the
+	 * user backed out and nothing should be published.
+	 */
+	private async maybeOfferAsHomePage(file: TFile): Promise<boolean> {
+		if (
+			!this.isForestryGarden() ||
+			file.extension !== "md" ||
+			this.settings.dontAskAboutHomePage ||
+			this.askedAboutHomePage ||
+			findHomePageFiles(this.app).length > 0
+		) {
+			return true;
+		}
+
+		this.askedAboutHomePage = true;
+		const result = await promptForHomePage(this.app, file);
+
+		if (result.dontAskAgain) {
+			this.settings.dontAskAboutHomePage = true;
+			await this.saveSettings();
+		}
+
+		if (result.choice === "cancel") {
+			return false;
+		}
+
+		if (result.choice === "make-home") {
+			await this.setHomePage(file);
+			await this.waitForHomeFlag(file);
+		}
+
+		return true;
+	}
+
+	/**
+	 * processFrontMatter writes the file; the metadata cache (which the
+	 * compiler reads) catches up asynchronously. Wait briefly for dg-home to
+	 * show up so the note is published as the home page, not a plain note.
+	 */
+	private async waitForHomeFlag(file: TFile, timeoutMs = 3000) {
+		const deadline = Date.now() + timeoutMs;
+
+		while (Date.now() < deadline) {
+			const cache = this.app.metadataCache.getFileCache(file);
+
+			if (cache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
+				return;
+			}
+			await new Promise((r) => window.setTimeout(r, 100));
+		}
+	}
+
+	async publishNote(file: TFile) {
 		try {
-			const { vault, workspace, metadataCache } = this.app;
-
-			const activeFile = this.getActiveFile(workspace);
-
-			if (!activeFile) {
-				return;
-			}
-
-			if (
-				activeFile.extension !== "md" &&
-				activeFile.extension !== "canvas"
-			) {
-				new Notice(
-					"The current file is not a markdown or canvas file. Please open a supported file and try again.",
-				);
-
-				return;
-			}
+			const { vault, metadataCache } = this.app;
 
 			new Notice("Publishing note...");
 
@@ -799,7 +879,7 @@ export default class DigitalGarden extends Plugin {
 			publisher.validateSettings();
 
 			const publishFile = await new PublishFile({
-				file: activeFile,
+				file,
 				vault: vault,
 				compiler: publisher.compiler,
 				metadataCache: metadataCache,
@@ -866,31 +946,30 @@ export default class DigitalGarden extends Plugin {
 			return;
 		}
 
-		// Check if current file already has dg-home: true
-		const currentFileCache =
-			this.app.metadataCache.getFileCache(activeFile);
+		await this.setHomePage(activeFile);
+	}
+
+	/**
+	 * Flag `file` as the garden home page (dg-home + dg-publish). If another
+	 * note already is, ask before moving the flag. Resolves true when `file`
+	 * ended up as the home page.
+	 */
+	async setHomePage(file: TFile): Promise<boolean> {
+		const currentFileCache = this.app.metadataCache.getFileCache(file);
 
 		if (currentFileCache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
 			new Notice("This note is already set as the garden home page.");
 
-			return;
+			return true;
 		}
 
-		// Find existing home pages
-		const existingHomePages: TFile[] = [];
+		const existingHomePages = findHomePageFiles(this.app).filter(
+			(f) => f.path !== file.path,
+		);
 
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const cache = this.app.metadataCache.getFileCache(file);
-
-			if (cache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
-				existingHomePages.push(file);
-			}
-		}
-
-		if (existingHomePages.length === 0) {
-			// No existing home pages, just set this one
+		const markAsHome = async () => {
 			await this.app.fileManager.processFrontMatter(
-				activeFile as TFile,
+				file,
 				(frontmatter) => {
 					frontmatter[FRONTMATTER_KEYS.HOME] = true;
 					frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
@@ -898,39 +977,136 @@ export default class DigitalGarden extends Plugin {
 			);
 
 			new Notice(
-				`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
+				`${file.basename} is now your garden's home page and has been marked for publishing.`,
 			);
-		} else {
-			// Show confirmation modal
+		};
+
+		if (existingHomePages.length === 0) {
+			await markAsHome();
+
+			return true;
+		}
+
+		return new Promise<boolean>((resolve) => {
 			new HomePageConfirmationModal(
 				this.app,
-				activeFile,
+				file,
 				existingHomePages[0],
 				async (shouldUpdate) => {
-					if (shouldUpdate) {
-						// Remove dg-home from existing page
+					if (!shouldUpdate) {
+						resolve(false);
+
+						return;
+					}
+
+					for (const existing of existingHomePages) {
 						await this.app.fileManager.processFrontMatter(
-							existingHomePages[0],
+							existing,
 							(frontmatter) => {
 								delete frontmatter[FRONTMATTER_KEYS.HOME];
 							},
 						);
-
-						// Set dg-home on current page
-						await this.app.fileManager.processFrontMatter(
-							activeFile as TFile,
-							(frontmatter) => {
-								frontmatter[FRONTMATTER_KEYS.HOME] = true;
-								frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
-							},
-						);
-
-						new Notice(
-							`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
-						);
 					}
+
+					await markAsHome();
+					resolve(true);
 				},
 			).open();
+		});
+	}
+
+	/**
+	 * Let the user pick the garden's home page from the vault. On Forestry
+	 * gardens the chosen note is published right away so the site root
+	 * stops being empty.
+	 */
+	openHomePagePicker() {
+		new HomePagePickerModal(this.app, async (file) => {
+			const isHome = await this.setHomePage(file);
+
+			if (!isHome || !this.isForestryGarden()) {
+				return;
+			}
+
+			await this.waitForHomeFlag(file);
+			await this.publishNote(file);
+		}).open();
+	}
+
+	/**
+	 * Called right after a garden is connected to Forestry.md (from the
+	 * settings tab or a deep link). New gardens almost never have a home
+	 * page yet, so offer to pick one straight away.
+	 */
+	afterForestryConnected() {
+		if (findHomePageFiles(this.app).length > 0) {
+			return;
+		}
+
+		this.openHomePagePicker();
+	}
+
+	/**
+	 * `obsidian://digital-garden?...` deep links, used by the Forestry.md
+	 * dashboard:
+	 * - `connect=<code>`: one-click connect; the code is exchanged for the
+	 *   garden key server-side.
+	 * - `action=set-home`: open the home page picker.
+	 * Unknown parameters (e.g. the legacy `code`/`state` pair) are ignored.
+	 */
+	private registerDeepLinks() {
+		this.registerObsidianProtocolHandler("digital-garden", (params) => {
+			if (typeof params.connect === "string" && params.connect) {
+				void this.connectWithCode(params.connect);
+
+				return;
+			}
+
+			if (params.action === "set-home") {
+				this.openHomePagePicker();
+
+				return;
+			}
+
+			Logger.info("Ignoring digital-garden deep link", params);
+		});
+	}
+
+	private async connectWithCode(code: string) {
+		new Notice("Connecting to Forestry.md…");
+
+		try {
+			const connection = await ForestryApi.exchangeConnectCode(code);
+
+			this.settings.publishPlatform = PublishPlatform.ForestryMd;
+			this.settings.forestrySettings.apiKey = connection.apiKey;
+
+			this.settings.forestrySettings.forestryPageName =
+				connection.pageName;
+			this.settings.forestrySettings.baseUrl = connection.baseUrl;
+			// saveSettings also (re)creates the site update tracker for the new key.
+			await this.saveSettings();
+
+			new Notice(
+				`Connected to Forestry.md garden ${connection.pageName} 🌱`,
+			);
+			this.afterForestryConnected();
+		} catch (e) {
+			Logger.error("Connect via deep link failed", e);
+
+			if (e instanceof ForestryApiError && e.kind === "unauthorized") {
+				new Notice(
+					"This connect link is invalid or has expired. Open your garden in the Forestry.md dashboard and click Connect again.",
+					10000,
+				);
+
+				return;
+			}
+
+			new Notice(
+				"Couldn't reach Forestry.md to finish connecting. Check your connection and click Connect in the dashboard again.",
+				10000,
+			);
 		}
 	}
 

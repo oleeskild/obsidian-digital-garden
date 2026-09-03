@@ -33,6 +33,10 @@
 	export let statusManager: IPublishStatusManager;
 	export let openFile: (path: string) => void;
 	export let siteUpdateTracker: SiteUpdateTracker | null = null;
+	/** Null when the garden isn't on Forestry.md (no banner). */
+	export let homePageMissing: (() => boolean) | null = null;
+	export let onChooseHomePage: () => void = () => {};
+	let showHomePageBanner = false;
 	export let registerApi: (api: {
 		maybeRefresh: () => void;
 	}) => void = () => {};
@@ -182,6 +186,7 @@
 
 	function validate(s: PublishStatus) {
 		problematicFiles = [];
+		showHomePageBanner = homePageMissing?.() ?? false;
 
 		const homeFiles = [
 			...s.publishedNotes,
@@ -432,6 +437,21 @@
 		</div>
 	{:else}
 		<Tutorial />
+
+		{#if showHomePageBanner}
+			<div class="dg-pc-callout dg-pc-home-banner">
+				<div class="dg-pc-callout-header">
+					<div class="dg-pc-callout-title">🏡 No home page yet</div>
+					<button class="mod-cta" on:click={onChooseHomePage}>
+						Choose home page
+					</button>
+				</div>
+				<div>
+					Visitors see a plain list of notes at your site root until
+					you pick a note as the home page.
+				</div>
+			</div>
+		{/if}
 
 		<Notices {problematicFiles} />
 

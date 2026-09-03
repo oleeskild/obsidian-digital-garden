@@ -6,12 +6,14 @@ import PublishStatusManager from "../../publisher/PublishStatusManager";
 import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
 import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
 import { VIEW_TYPE, VIEW_DISPLAY_TEXT, VIEW_ICON } from "./constants";
+import { findHomePageFiles } from "../../publishFile/homePage";
 import PublicationCenter from "./PublicationCenter.svelte";
 
 interface PublicationCenterViewPlugin {
 	app: App;
 	settings: DigitalGardenSettings;
 	siteUpdateTracker: SiteUpdateTracker | null;
+	openHomePagePicker: () => void;
 }
 
 export class PublicationCenterView extends ItemView {
@@ -82,6 +84,12 @@ export class PublicationCenterView extends ItemView {
 				statusManager,
 				// Only set for gardens hosted on Forestry.md.
 				siteUpdateTracker: this.plugin.siteUpdateTracker,
+				// Only Forestry gardens get the "no home page" banner; the
+				// vault scan runs on each status refresh.
+				homePageMissing: this.plugin.siteUpdateTracker
+					? () => findHomePageFiles(app).length === 0
+					: null,
+				onChooseHomePage: () => this.plugin.openHomePagePicker(),
 				openFile: (path: string) => this.openFile(path),
 				registerApi: (api: { maybeRefresh: () => void }) => {
 					this.refreshApi = api;
