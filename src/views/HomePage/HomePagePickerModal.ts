@@ -1,4 +1,5 @@
 import { App, FuzzySuggestModal, TFile } from "obsidian";
+import { findHomePageFiles } from "src/publishFile/homePage";
 
 /**
  * Fuzzy picker over the vault's markdown notes used to choose the garden's
@@ -20,19 +21,41 @@ export class HomePagePickerModal extends FuzzySuggestModal<TFile> {
 		]);
 	}
 
+	private currentHomePaths = new Set<string>();
+
+	/**
+	 * Notes already flagged dg-home come first, then the active note, then
+	 * the rest of the vault, so the likely answer is one Enter away.
+	 */
 	getItems(): TFile[] {
 		const files = this.app.vault.getMarkdownFiles();
-		const active = this.app.workspace.getActiveFile();
+		const homePages = findHomePageFiles(this.app);
+		this.currentHomePaths = new Set(homePages.map((f) => f.path));
 
-		if (!active || active.extension !== "md") {
-			return files;
+		const active = this.app.workspace.getActiveFile();
+		const ordered: TFile[] = [...homePages];
+
+		if (
+			active &&
+			active.extension === "md" &&
+			!this.currentHomePaths.has(active.path)
+		) {
+			ordered.push(active);
 		}
 
-		return [active, ...files.filter((f) => f.path !== active.path)];
+		const listed = new Set(ordered.map((f) => f.path));
+
+		return [...ordered, ...files.filter((f) => !listed.has(f.path))];
 	}
 
 	getItemText(file: TFile): string {
-		return file.path.endsWith(".md") ? file.path.slice(0, -3) : file.path;
+		const name = file.path.endsWith(".md")
+			? file.path.slice(0, -3)
+			: file.path;
+
+		return this.currentHomePaths.has(file.path)
+			? `${name}  (current home page)`
+			: name;
 	}
 
 	onChooseItem(file: TFile): void {

@@ -1035,14 +1035,12 @@ export default class DigitalGarden extends Plugin {
 
 	/**
 	 * Called right after a garden is connected to Forestry.md (from the
-	 * settings tab or a deep link). New gardens almost never have a home
-	 * page yet, so offer to pick one straight away.
+	 * settings tab or a deep link). The new garden has no home page yet
+	 * whatever the vault holds, so always offer to pick one. A note that is
+	 * already flagged dg-home (from an earlier garden) is listed first;
+	 * choosing it just publishes it to the new garden.
 	 */
 	afterForestryConnected() {
-		if (findHomePageFiles(this.app).length > 0) {
-			return;
-		}
-
 		this.openHomePagePicker();
 	}
 
