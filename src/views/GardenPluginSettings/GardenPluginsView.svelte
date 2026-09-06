@@ -69,6 +69,37 @@
 		return new Set(installed.map((plugin) => plugin.manifest.id));
 	}
 
+	async function move(plugin: InstalledGardenPlugin, delta: -1 | 1) {
+		const ids = installed.map((p) => p.manifest.id);
+		const from = ids.indexOf(plugin.manifest.id);
+		const to = from + delta;
+		if (from < 0 || to < 0 || to >= ids.length) return;
+
+		ids.splice(from, 1);
+		ids.splice(to, 0, plugin.manifest.id);
+
+		busy = true;
+
+		try {
+			await manager.setOrder(ids);
+
+			new Notice(
+				`${plugin.manifest.name} moved ${
+					delta < 0 ? "up" : "down"
+				}. ${buildTriggeredNotice(settings)}`,
+			);
+			await refresh();
+		} catch (error) {
+			new Notice(
+				error instanceof Error
+					? error.message
+					: "Could not save the plugin order",
+			);
+		} finally {
+			busy = false;
+		}
+	}
+
 	async function toggleEnabled(plugin: InstalledGardenPlugin) {
 		busy = true;
 
@@ -373,7 +404,14 @@
 				</p>
 			{/if}
 
-			{#each installed as plugin (plugin.manifest.id)}
+			{#if installed.length > 1}
+				<p class="dg-plugin-order-hint">
+					The order here is the render order. Plugins that share a
+					place on the page, like the bottom-right corner, stack in
+					this order.
+				</p>
+			{/if}
+			{#each installed as plugin, index (plugin.manifest.id)}
 				<div class="dg-plugin-row" class:is-disabled={!plugin.enabled}>
 					<div class="dg-plugin-row-main">
 						<div class="dg-plugin-row-info">
@@ -420,6 +458,22 @@
 						</div>
 
 						<div class="dg-plugin-row-actions">
+							{#if installed.length > 1}
+								<button
+									aria-label="Render earlier"
+									title="Render earlier"
+									disabled={busy || index === 0}
+									on:click={() => move(plugin, -1)}>↑</button
+								>
+								<button
+									aria-label="Render later"
+									title="Render later"
+									disabled={busy ||
+										index === installed.length - 1}
+									on:click={() => move(plugin, 1)}>↓</button
+								>
+							{/if}
+
 							{#if (plugin.manifest.settings ?? []).length > 0 || noteSettingKeysFor(plugin).length > 0}
 								<button
 									disabled={busy}
@@ -969,6 +1023,12 @@
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
+	}
+
+	.dg-plugin-order-hint {
+		margin: 0 0 8px;
+		color: var(--text-muted);
+		font-size: var(--font-ui-smaller);
 	}
 
 	.dg-plugin-toggle {

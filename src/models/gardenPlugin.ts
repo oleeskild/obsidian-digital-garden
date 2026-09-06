@@ -45,6 +45,8 @@ export interface GardenPluginRegistryEntry {
 	settings?: Record<string, string | number | boolean>;
 	/** Exact repo paths written at install time, used for clean uninstall. */
 	files?: string[];
+	/** Render order among plugins sharing a slot (ascending, then id). */
+	order?: number;
 }
 
 /** The user-owned state file src/plugins/plugins.json. */

@@ -197,9 +197,27 @@ export class GardenPluginManager {
 			}
 		}
 
-		return plugins.sort((a, b) =>
-			a.manifest.id.localeCompare(b.manifest.id),
+		// Same order the template renders them in: registry "order", then id.
+		return plugins.sort(
+			(a, b) =>
+				(a.registryEntry?.order ?? 0) - (b.registryEntry?.order ?? 0) ||
+				a.manifest.id.localeCompare(b.manifest.id),
 		);
+	}
+
+	/**
+	 * Persist a render order: ids in the desired order, first renders first.
+	 * Plugins sharing a slot (e.g. the floating bottom-right stack) follow it.
+	 */
+	async setOrder(ids: string[]): Promise<void> {
+		await this.writeRegistry((registry) => {
+			ids.forEach((id, index) => {
+				registry.plugins[id] = {
+					...registry.plugins[id],
+					order: (index + 1) * 10,
+				};
+			});
+		}, "Reorder garden plugins");
 	}
 
 	async setEnabled(id: string, enabled: boolean): Promise<void> {

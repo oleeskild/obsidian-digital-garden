@@ -247,6 +247,31 @@ describe.each([{ base: "" }, { base: "Web/" }])(
 			});
 		});
 
+		describe("setOrder", () => {
+			it("numbers the given ids in order and keeps other entries", async () => {
+				const repo = makeFakeRepo({
+					[`${base}src/plugins/plugins.json`]: JSON.stringify({
+						version: 1,
+						plugins: { "dg-search": { enabled: false } },
+					}),
+				});
+
+				const manager = new GardenPluginManager(
+					makeUserConnection(repo),
+					settings,
+				);
+
+				await manager.setOrder(["theme-switcher", "dg-search"]);
+
+				const written = JSON.parse(
+					repo.files[`${base}src/plugins/plugins.json`],
+				);
+				expect(written.plugins["theme-switcher"].order).toBe(10);
+				expect(written.plugins["dg-search"].order).toBe(20);
+				expect(written.plugins["dg-search"].enabled).toBe(false);
+			});
+		});
+
 		describe("inspectRemotePlugin and install", () => {
 			const sourceFiles = {
 				"garden-plugin.json": JSON.stringify(COMMUNITY_MANIFEST),
