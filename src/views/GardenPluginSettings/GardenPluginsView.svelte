@@ -73,6 +73,7 @@
 		const ids = installed.map((p) => p.manifest.id);
 		const from = ids.indexOf(plugin.manifest.id);
 		const to = from + delta;
+
 		if (from < 0 || to < 0 || to >= ids.length) return;
 
 		ids.splice(from, 1);
