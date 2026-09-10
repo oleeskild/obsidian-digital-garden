@@ -72,4 +72,10 @@
 		background: var(--background-secondary);
 		font-size: 0.8rem;
 	}
+
+	@container (max-width: 640px) {
+		.dg-pc-uline {
+			grid-template-columns: 2.5em 2.5em 1em 1fr;
+		}
+	}
 </style>

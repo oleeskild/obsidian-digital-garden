@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { getIcon, Notice } from "obsidian";
+	import { getIcon, Notice, Platform } from "obsidian";
 	import Publisher from "../../publisher/Publisher";
 	import { LimitReachedError } from "../../forestry/LimitReachedError";
 	import { notifyLimitReached } from "../../forestry/limitNotice";
@@ -15,7 +15,7 @@
 		buildPublishPlan,
 	} from "./annotate";
 	import type { AnnotatedFile, FileStatus } from "./annotate";
-	import { buildFileTree, filterTree } from "./fileTree";
+	import { buildFileTree, collectFilePaths, filterTree } from "./fileTree";
 	import * as Diff from "diff";
 	import StatusFilters from "./StatusFilters.svelte";
 	import FileTree from "./FileTree.svelte";
@@ -82,7 +82,9 @@
 
 	$: selectedCount = selected.size;
 
-	let diffMode: "split" | "unified" = "split";
+	// Side-by-side is unreadable on a phone-sized screen, so mobile starts
+	// in unified mode. The user can still switch.
+	let diffMode: "split" | "unified" = Platform.isMobile ? "unified" : "split";
 	let diffCache = new Map<string, DiffData>();
 	let diffData: DiffData | null = null;
 	let diffLoading = false;
@@ -95,6 +97,29 @@
 		path: "",
 		isFolder: true,
 		children: [],
+	};
+
+	// "Select all" acts on the files currently shown (i.e. matching the
+	// active status filters), mirroring how a folder checkbox behaves.
+	$: visiblePaths = collectFilePaths(visibleTree);
+	$: visibleSelectedCount = visiblePaths.filter((p) =>
+		selected.has(p),
+	).length;
+	$: allVisibleSelected =
+		visiblePaths.length > 0 && visibleSelectedCount === visiblePaths.length;
+	$: someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+	const setIndeterminate = (
+		el: HTMLInputElement,
+		params: { indeterminate: boolean },
+	) => {
+		el.indeterminate = params.indeterminate;
+
+		return {
+			update(p: { indeterminate: boolean }) {
+				el.indeterminate = p.indeterminate;
+			},
+		};
 	};
 
 	async function loadStatus({ background = false } = {}) {
@@ -498,13 +523,33 @@
 			</div>
 		{/if}
 
-		<div class="dg-pc-layout">
+		<div class="dg-pc-layout" class:dg-pc-has-file={activePath !== null}>
 			<div class="dg-pc-tree-pane">
 				<StatusFilters
 					{counts}
 					active={activeFilters}
 					on:toggle={(e) => toggleFilter(e.detail.status)}
 				/>
+				{#if visiblePaths.length > 0}
+					<label class="dg-pc-select-all">
+						<input
+							type="checkbox"
+							checked={allVisibleSelected}
+							use:setIndeterminate={{
+								indeterminate: someVisibleSelected,
+							}}
+							on:click={() =>
+								toggleSelection(
+									visiblePaths,
+									!allVisibleSelected,
+								)}
+						/>
+						<span>Select all</span>
+						<span class="dg-pc-select-all-count">
+							{visibleSelectedCount} / {visiblePaths.length}
+						</span>
+					</label>
+				{/if}
 				<FileTree
 					node={visibleTree}
 					{selected}
@@ -545,6 +590,11 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		box-sizing: border-box;
+		/* Obsidian mobile overlays its navbar on the view; this variable is
+		   the navbar's height there and 0 on desktop. */
+		padding-bottom: var(--view-bottom-spacing, 0px);
+		container-type: inline-size;
 	}
 
 	.dg-pc-layout {
@@ -564,7 +614,29 @@
 	.dg-pc-diff-pane {
 		flex: 1;
 		overflow: auto;
-		padding: 8px;
+		/* No padding here: the sticky diff header can't cover a scroll
+		   container's padding, which left a strip of content visible above
+		   it. The header and body carry the padding instead. */
+		padding: 0;
+	}
+
+	.dg-pc-select-all {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 2px 6px;
+		margin-bottom: 4px;
+		border-bottom: 1px solid var(--background-modifier-border);
+		font-size: 0.9rem;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.dg-pc-select-all-count {
+		margin-left: auto;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.dg-pc-loading {
@@ -647,5 +719,33 @@
 	.dg-pc-progress-current {
 		color: var(--text-muted);
 		font-size: 0.8rem;
+	}
+
+	/* Narrow views (phones, slim side panes): stack the tree above the diff
+	   instead of squeezing both side by side. */
+	@container (max-width: 640px) {
+		.dg-pc-layout {
+			flex-direction: column;
+		}
+
+		.dg-pc-tree-pane {
+			flex: 1 1 auto;
+			max-width: none;
+			border-right: none;
+			border-bottom: 1px solid var(--background-modifier-border);
+		}
+
+		.dg-pc-diff-pane {
+			flex: 0 0 auto;
+		}
+
+		.dg-pc-layout.dg-pc-has-file .dg-pc-tree-pane {
+			flex: 0 1 auto;
+			max-height: 45%;
+		}
+
+		.dg-pc-layout.dg-pc-has-file .dg-pc-diff-pane {
+			flex: 1 1 0;
+		}
 	}
 </style>

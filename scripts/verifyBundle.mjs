@@ -6,6 +6,7 @@
 // one exists for each .svelte file that is imported somewhere in the source.
 import fs from "fs";
 import path from "path";
+import { builtinModules } from "module";
 
 const bundlePath = process.argv[2] ?? "main.js";
 const bundle = fs.readFileSync(bundlePath, "utf8");
@@ -61,6 +62,30 @@ if (missing.length > 0) {
 	process.exit(1);
 }
 
+// The plugin runs on mobile (isDesktopOnly: false), where Node builtins do
+// not exist and Obsidian logs "Attempting to load NodeJS package" for each
+// require at load time. Desktop-only code must load them lazily (e.g. via
+// dynamic import inside the function that needs them). In esbuild's
+// unminified cjs output, eager module-level requires sit at column 0, while
+// lazily initialised modules are indented inside an __esm wrapper.
+const builtins = new Set(
+	builtinModules.flatMap((m) => [m, `node:${m}`]),
+);
+
+const eagerNodeRequires = bundle
+	.split("\n")
+	.filter((line) => /^(var|const|let) \w+ = (__toESM\()?require\(/.test(line))
+	.map((line) => line.match(/require\("([^"]+)"\)/)?.[1])
+	.filter((spec) => spec && builtins.has(spec));
+
+if (eagerNodeRequires.length > 0) {
+	console.error(
+		`Bundle verification FAILED — Node builtins required at plugin load in ${bundlePath} (breaks mobile):`,
+	);
+	eagerNodeRequires.forEach((m) => console.error(`  - ${m}`));
+	process.exit(1);
+}
+
 console.log(
-	`Bundle verification OK — ${importedSveltePaths.size} Svelte components present in ${bundlePath}`,
+	`Bundle verification OK — ${importedSveltePaths.size} Svelte components present in ${bundlePath}, no eager Node builtins`,
 );
