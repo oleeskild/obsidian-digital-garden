@@ -1,5 +1,6 @@
 {
 	"root": true,
+	"env": { "browser": true },
 	"ignorePatterns": ["**.js"],
 	"parser": "@typescript-eslint/parser",
 	"plugins": ["@typescript-eslint", "prettier"],

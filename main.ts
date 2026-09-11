@@ -9,9 +9,7 @@ import {
 	App,
 } from "obsidian";
 import Publisher from "./src/publisher/Publisher";
-import DigitalGardenSettings, {
-	DEFAULT_SFTP_PRIVATE_KEY_PATH,
-} from "./src/models/settings";
+import DigitalGardenSettings from "./src/models/settings";
 import { PublishStatusBar } from "./src/views/PublishStatusBar";
 import { seedling } from "src/ui/suggest/constants";
 import PublishStatusManager from "src/publisher/PublishStatusManager";
@@ -20,25 +18,32 @@ import { DigitalGardenSettingTab } from "./src/views/DigitalGardenSettingTab";
 import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
+import { InstallPluginModal } from "./src/views/GardenPluginSettings/InstallPluginModal";
 import { PublishPlatform } from "src/models/PublishPlatform";
-import {
-	GitProvider,
-	PublicationProvider,
-	platformForProvider,
-	providerForPlatform,
-} from "src/models/PublicationProvider";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { notifyLimitReached } from "src/forestry/limitNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
+import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
 import { WorkspaceLeaf } from "obsidian";
-import { hasPublishFlag } from "src/publishFile/Validator";
-import { publicationManifestStore } from "src/publisher/PublicationManifestStore";
-import { compilationCacheStore } from "src/publisher/CompilationCacheStore";
+import ForestryApi from "src/forestry/ForestryApi";
+import {
+	appendDebugLogLine,
+	getDebugLog,
+	setDebugLogContext,
+} from "src/utils/debugLog";
+import {
+	SiteUpdateTracker,
+	type SiteUpdatePhase,
+} from "src/forestry/SiteUpdateTracker";
+import { ForestryApiError } from "src/forestry/ForestryApi";
+import { findHomePageFiles } from "src/publishFile/homePage";
+import { HomePagePickerModal } from "src/views/HomePage/HomePagePickerModal";
+import { promptForHomePage } from "src/views/HomePage/HomePagePromptModal";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -53,18 +58,9 @@ const defaultTheme = {
 };
 
 const DEFAULT_SETTINGS: DigitalGardenSettings = {
-	gitRepo: "",
-	gitToken: "",
-	gitUsername: "",
-	forgejoApiUrl: "",
-	sftpHost: "",
-	sftpPort: 22,
-	sftpUsername: "",
-	sftpPassword: "",
-	sftpPrivateKeyPath: DEFAULT_SFTP_PRIVATE_KEY_PATH,
-	sftpPrivateKeyPassphrase: "",
-	sftpRemoteRoot: "",
-	sftpHostKeyFingerprint: "",
+	githubRepo: "",
+	githubToken: "",
+	githubUserName: "",
 	gardenBaseUrl: "",
 	prHistory: [],
 	baseTheme: "dark",
@@ -72,11 +68,13 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	theme: JSON.stringify(defaultTheme),
 	faviconPath: "",
 	logoPath: "",
+	logoHeight: "",
 	useFullResolutionImages: false,
 	noteSettingsIsInitialized: false,
 	siteName: "Digital Garden",
 	mainLanguage: "en",
 	slugifyEnabled: true,
+	excalidrawSvgExportEnabled: true,
 	// Note Icon Related Settings
 	noteIconKey: "dg-note-icon",
 	defaultNoteIcon: "",
@@ -96,12 +94,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	styleSettingsBodyClasses: "",
 	pathRewriteRules: "",
 	customFilters: [],
-	publishPlatform: PublishPlatform.GitHub,
-	publicationProvider: PublicationProvider.Git,
-	gitProvider: GitProvider.GitHub,
-	publishByDefault: false,
+	publishPlatform: PublishPlatform.SelfHosted,
 	ignoredPaths: [],
-	linkFormat: "markdown",
 
 	contentClassesKey: "dg-content-classes",
 
@@ -146,10 +140,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 
 	logLevel: undefined,
 	localExportPath: "",
-	notesDirectory: "",
-	assetsDirectory: "",
-	siteDirectory: "",
-	settingsFilePath: "",
+	contentBaseDir: "",
 };
 
 Logger.useDefaults({
@@ -159,26 +150,39 @@ Logger.useDefaults({
 		messages.unshift("DG: ");
 	},
 });
+
+// Mirror every log line into the copyable in-memory buffer (snapshot the
+// messages before the console formatter mutates them) while keeping the
+// normal console output.
+const consoleLogHandler = Logger.createDefaultHandler({
+	formatter: function (messages, _context) {
+		messages.unshift(new Date().toUTCString());
+		messages.unshift("DG: ");
+	},
+});
+
+Logger.setHandler((messages, context) => {
+	appendDebugLogLine(context.level.name, Array.from(messages));
+	consoleLogHandler(messages, context);
+});
 export default class DigitalGarden extends Plugin {
 	settings!: DigitalGardenSettings;
 	appVersion!: string;
 
 	isPublishing: boolean = false;
 
+	/** Tracks garden site updates; only set for Forestry.md-hosted gardens. */
+	siteUpdateTracker: SiteUpdateTracker | null = null;
+	private siteStatusBarItem: HTMLElement | null = null;
+	private siteStatusUnsubscribe: (() => void) | null = null;
+	private siteTrackerApiKey: string | null = null;
+
+	/** The home-page prompt is shown at most once per Obsidian session. */
+	private askedAboutHomePage = false;
+
 	async onload() {
 		this.appVersion = this.manifest.version;
-
-		publicationManifestStore.configure(
-			this.app.vault.adapter,
-			this.manifest.dir ??
-				`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
-		);
-
-		compilationCacheStore.configure(
-			this.app.vault.adapter,
-			this.manifest.dir ??
-				`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
-		);
+		setDebugLogContext(`v${this.appVersion}`);
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
@@ -207,12 +211,156 @@ export default class DigitalGarden extends Plugin {
 			(leaf: WorkspaceLeaf) => new PublicationCenterView(leaf, this),
 		);
 
+		this.syncSiteUpdateTracker();
+		this.registerDeepLinks();
+
+		this.refreshForestryPageInfo();
 		this.checkForTemplateUpdates();
 		this.registerDevAutoExport();
 	}
 
+	/**
+	 * Re-fetch the garden's name and base URL from the Forestry API. Both are
+	 * stored at connect time and go stale when the garden is renamed on the
+	 * dashboard — the Garden Key keeps working, but copied note/garden URLs
+	 * would point at the dead old subdomain. Fire-and-forget on startup;
+	 * failures (offline, revoked key) leave the stored values untouched.
+	 */
+	private async refreshForestryPageInfo(): Promise<void> {
+		const forestrySettings = this.settings.forestrySettings;
+
+		if (
+			this.settings.publishPlatform !== PublishPlatform.ForestryMd ||
+			!forestrySettings.apiKey
+		) {
+			return;
+		}
+
+		const pageInfo = await new ForestryApi(
+			forestrySettings.apiKey,
+		).getPageInfo();
+
+		if (!pageInfo?.value?.pageName || !pageInfo.value.baseUrl) {
+			return;
+		}
+
+		if (
+			forestrySettings.forestryPageName === pageInfo.value.pageName &&
+			forestrySettings.baseUrl === pageInfo.value.baseUrl
+		) {
+			return;
+		}
+
+		Logger.info(
+			`Garden info changed (${forestrySettings.baseUrl} -> ${pageInfo.value.baseUrl}); updating stored settings`,
+		);
+		forestrySettings.forestryPageName = pageInfo.value.pageName;
+		forestrySettings.baseUrl = pageInfo.value.baseUrl;
+		await this.saveSettings();
+	}
+
+	/**
+	 * Create or tear down the site-update tracker and its status bar item so
+	 * they match the current settings. Called on load and after every
+	 * settings save, so switching publish platform (or changing the API key)
+	 * takes effect immediately.
+	 */
+	syncSiteUpdateTracker() {
+		const apiKey = this.settings.forestrySettings.apiKey;
+
+		const enabled =
+			this.settings.publishPlatform === PublishPlatform.ForestryMd &&
+			!!apiKey;
+
+		if (
+			enabled &&
+			this.siteUpdateTracker &&
+			this.siteTrackerApiKey === apiKey
+		) {
+			return;
+		}
+
+		this.teardownSiteUpdateTracker();
+
+		if (enabled) {
+			this.createSiteUpdateTracker(apiKey);
+		}
+
+		// Open Publication Centers hold the old tracker (or none) as a prop;
+		// remount them so the publish-status strip appears/disappears.
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+			if (leaf.view instanceof PublicationCenterView) {
+				leaf.view.remountComponent();
+			}
+		}
+	}
+
+	private teardownSiteUpdateTracker() {
+		this.siteStatusUnsubscribe?.();
+		this.siteStatusUnsubscribe = null;
+		this.siteStatusBarItem?.remove();
+		this.siteStatusBarItem = null;
+		this.siteUpdateTracker?.dispose();
+		this.siteUpdateTracker = null;
+		this.siteTrackerApiKey = null;
+	}
+
+	/**
+	 * For Forestry.md gardens: start the plugin-wide site-update tracker and
+	 * mirror its state into a persistent status bar item, so publishes from
+	 * any command report whether the site actually went live.
+	 */
+	private createSiteUpdateTracker(apiKey: string) {
+		this.siteUpdateTracker = new SiteUpdateTracker(new ForestryApi(apiKey));
+
+		this.siteUpdateTracker.onChooseHomePage = () =>
+			this.openHomePagePicker();
+		this.siteTrackerApiKey = apiKey;
+
+		const statusBarItem = this.addStatusBarItem();
+		statusBarItem.addClass("dg-site-status");
+
+		statusBarItem.setAttribute(
+			"aria-label",
+			"Forestry site — click for publish status",
+		);
+		statusBarItem.setAttribute("data-tooltip-position", "top");
+
+		statusBarItem.onClickEvent(() => {
+			this.activatePublicationCenter();
+		});
+
+		const phaseLabels: Record<SiteUpdatePhase, string> = {
+			idle: "",
+			queued: " Queued…",
+			updating: " Publishing…",
+			live: " Live",
+			failed: " Publish failed",
+		};
+
+		this.siteStatusUnsubscribe = this.siteUpdateTracker.store.subscribe(
+			(state) => {
+				statusBarItem.toggleClass(
+					"dg-site-status-updating",
+					state.phase === "queued" || state.phase === "updating",
+				);
+
+				statusBarItem.toggleClass(
+					"dg-site-status-failed",
+					state.phase === "failed",
+				);
+				statusBarItem.setText(`🌱${phaseLabels[state.phase]}`);
+			},
+		);
+		this.siteStatusBarItem = statusBarItem;
+	}
+
 	private async checkForTemplateUpdates() {
-		if (this.settings.publishPlatform !== PublishPlatform.GitHub) {
+		if (this.settings.publishPlatform !== PublishPlatform.SelfHosted) {
+			return;
+		}
+
+		if (this.settings.disableTemplateUpdateNotice) {
 			return;
 		}
 
@@ -237,36 +385,36 @@ export default class DigitalGarden extends Plugin {
 		}
 	}
 
-	onunload() {}
+	onunload() {
+		this.teardownSiteUpdateTracker();
+	}
 
 	async loadSettings() {
-		const saved = (await this.loadData()) ?? {};
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved);
-
-		if (saved.publicationProvider === undefined) {
-			this.settings.publicationProvider = providerForPlatform(
-				this.settings.publishPlatform,
-			);
-		}
-
-		if (saved.gitProvider === undefined) {
-			this.settings.gitProvider =
-				this.settings.publishPlatform === PublishPlatform.Forgejo
-					? GitProvider.Forgejo
-					: GitProvider.GitHub;
-		}
-
-		this.settings.publishPlatform = platformForProvider(
-			this.settings.publicationProvider,
-			this.settings.gitProvider,
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData(),
 		);
 	}
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+		this.syncSiteUpdateTracker();
 	}
 
 	async addCommands() {
+		this.addCommand({
+			id: "copy-debug-log",
+			name: "Copy debug log",
+			callback: async () => {
+				await navigator.clipboard.writeText(getDebugLog());
+
+				new Notice(
+					"Debug log copied to clipboard. Paste it in the Discord if you need help.",
+				);
+			},
+		});
+
 		this.addCommand({
 			id: "quick-publish-and-share-note",
 			name: "Quick Publish And Share Note",
@@ -302,6 +450,15 @@ export default class DigitalGarden extends Plugin {
 			name: "Publish Active Note",
 			callback: async () => {
 				await this.publishSingleNote();
+			},
+		});
+
+		this.addCommand({
+			id: "install-garden-plugin",
+			name: "Install garden plugin from URL",
+			callback: async () => {
+				const modal = new InstallPluginModal(this.app, this.settings);
+				await modal.open();
 			},
 		});
 
@@ -403,7 +560,17 @@ export default class DigitalGarden extends Plugin {
 						8000,
 					);
 
-					await publisher.publishBatch(filesToPublish);
+					const batchResult =
+						await publisher.publishBatch(filesToPublish);
+
+					if (!batchResult.success) {
+						new Notice(
+							`Publishing failed: ${
+								batchResult.error ?? "unknown error"
+							}\n\nRun "Copy debug log" from the command palette to share details when asking for help.`,
+							0,
+						);
+					}
 					statusBar.incrementMultiple(filesToPublish.length);
 
 					for (const file of filesToDelete) {
@@ -417,6 +584,7 @@ export default class DigitalGarden extends Plugin {
 					}
 
 					statusBar.finish(8000);
+					this.siteUpdateTracker?.notifyPublished();
 
 					new Notice(
 						`Successfully published ${filesToPublish.length} notes to your garden.`,
@@ -469,19 +637,6 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
-		for (const [provider, id, label] of [
-			[PublicationProvider.Git, "git", "Git"],
-			[PublicationProvider.Sftp, "sftp", "SFTP"],
-			[PublicationProvider.LocalFolder, "local-folder", "Local Folder"],
-			[PublicationProvider.Forest, "forest", "Forest"],
-		] as const) {
-			this.addCommand({
-				id: `publish-all-to-${id}`,
-				name: `Publish All Marked Notes to ${label}`,
-				callback: async () => this.publishToProvider(provider, label),
-			});
-		}
-
 		this.addCommand({
 			id: "dg-mark-note-for-publish",
 			name: "Add publish flag",
@@ -515,6 +670,14 @@ export default class DigitalGarden extends Plugin {
 		});
 
 		this.addCommand({
+			id: "dg-choose-home-page",
+			name: "Choose Garden Home Page",
+			callback: () => {
+				this.openHomePagePicker();
+			},
+		});
+
+		this.addCommand({
 			id: "dg-reorder-navigation",
 			name: "Reorder navigation",
 			callback: async () => {
@@ -527,7 +690,7 @@ export default class DigitalGarden extends Plugin {
 				id: "export-garden-to-local-folder",
 				name: "Export Garden to Local Folder",
 				callback: async () => {
-					await this.activatePublicationCenter();
+					await this.runLocalExport();
 				},
 			});
 		}
@@ -535,14 +698,6 @@ export default class DigitalGarden extends Plugin {
 
 	private async runLocalExport() {
 		try {
-			if (!Platform.isDesktop) {
-				new Notice(
-					"Local-folder publishing is only available on desktop.",
-				);
-
-				return;
-			}
-
 			new Notice("Exporting garden to local folder...");
 			const { vault, metadataCache } = this.app;
 
@@ -567,92 +722,9 @@ export default class DigitalGarden extends Plugin {
 					8000,
 				);
 			}
-
-			return result;
 		} catch (e) {
 			// Validation errors already show Notices
 			Logger.error("Local export failed", e);
-		}
-	}
-
-	private async publishToProvider(
-		provider: PublicationProvider,
-		label: string,
-	): Promise<void> {
-		if (this.isPublishing) {
-			new Notice("A publish operation is already in progress.");
-
-			return;
-		}
-
-		if (
-			(provider === PublicationProvider.LocalFolder ||
-				provider === PublicationProvider.Sftp) &&
-			!Platform.isDesktop
-		) {
-			new Notice(`${label} publishing is only available on desktop.`);
-
-			return;
-		}
-
-		this.isPublishing = true;
-
-		try {
-			const settings = {
-				...this.settings,
-				publishPlatform: platformForProvider(
-					provider,
-					this.settings.gitProvider,
-				),
-			};
-
-			const publisher = new Publisher(
-				this.app.vault,
-				this.app.metadataCache,
-				settings,
-			);
-			publisher.validateSettings();
-
-			const siteManager = new DigitalGardenSiteManager(
-				this.app.metadataCache,
-				settings,
-			);
-
-			const status = await new PublishStatusManager(
-				siteManager,
-				publisher,
-			).getPublishStatus();
-			const notes = status.changedNotes.concat(status.unpublishedNotes);
-
-			const total =
-				notes.length +
-				status.deletedNotePaths.length +
-				status.deletedImagePaths.length;
-
-			if (total === 0) {
-				new Notice(`${label} is already fully synced.`);
-
-				return;
-			}
-
-			if (!(await publisher.publishBatch(notes)))
-				throw new Error("Batch publish failed");
-			for (const file of status.deletedNotePaths)
-				await publisher.deleteNote(file.path, file.sha);
-			for (const image of status.deletedImagePaths)
-				await publisher.deleteImage(image.path, image.sha);
-			new Notice(`Published ${notes.length} notes to ${label}.`);
-		} catch (error) {
-			if (error instanceof LimitReachedError) this.showLimitNotice(error);
-			else {
-				Logger.error(`Unable to publish to ${label}`, error);
-
-				new Notice(
-					`Unable to publish to ${label}. Check its settings.`,
-				);
-			}
-		} finally {
-			this.isPublishing = false;
 		}
 	}
 
@@ -717,31 +789,94 @@ export default class DigitalGarden extends Plugin {
 
 	// TODO: move to publisher?
 	async publishSingleNote() {
+		const activeFile = this.getActiveFile(this.app.workspace);
+
+		if (!activeFile) {
+			return;
+		}
+
+		if (
+			activeFile.extension !== "md" &&
+			activeFile.extension !== "canvas"
+		) {
+			new Notice(
+				"The current file is not a markdown or canvas file. Please open a supported file and try again.",
+			);
+
+			return;
+		}
+
+		if (!(await this.maybeOfferAsHomePage(activeFile))) {
+			return false;
+		}
+
+		return this.publishNote(activeFile);
+	}
+
+	private isForestryGarden(): boolean {
+		return (
+			this.settings.publishPlatform === PublishPlatform.ForestryMd &&
+			!!this.settings.forestrySettings.apiKey
+		);
+	}
+
+	/**
+	 * Before publishing a single note to a Forestry garden that has no home
+	 * page, offer to make this note the home page. Resolves false when the
+	 * user backed out and nothing should be published.
+	 */
+	private async maybeOfferAsHomePage(file: TFile): Promise<boolean> {
+		if (
+			!this.isForestryGarden() ||
+			file.extension !== "md" ||
+			this.settings.dontAskAboutHomePage ||
+			this.askedAboutHomePage ||
+			findHomePageFiles(this.app).length > 0
+		) {
+			return true;
+		}
+
+		this.askedAboutHomePage = true;
+		const result = await promptForHomePage(this.app, file);
+
+		if (result.dontAskAgain) {
+			this.settings.dontAskAboutHomePage = true;
+			await this.saveSettings();
+		}
+
+		if (result.choice === "cancel") {
+			return false;
+		}
+
+		if (result.choice === "make-home") {
+			await this.setHomePage(file);
+			await this.waitForHomeFlag(file);
+		}
+
+		return true;
+	}
+
+	/**
+	 * processFrontMatter writes the file; the metadata cache (which the
+	 * compiler reads) catches up asynchronously. Wait briefly for dg-home to
+	 * show up so the note is published as the home page, not a plain note.
+	 */
+	private async waitForHomeFlag(file: TFile, timeoutMs = 3000) {
+		const deadline = Date.now() + timeoutMs;
+
+		while (Date.now() < deadline) {
+			const cache = this.app.metadataCache.getFileCache(file);
+
+			if (cache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
+				return;
+			}
+			await new Promise((r) => window.setTimeout(r, 100));
+		}
+	}
+
+	async publishNote(file: TFile) {
 		try {
-			if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
-				const result = await this.runLocalExport();
-
-				return result !== undefined && result.failed === 0;
-			}
-
-			const { vault, workspace, metadataCache } = this.app;
-
-			const activeFile = this.getActiveFile(workspace);
-
-			if (!activeFile) {
-				return;
-			}
-
-			if (
-				activeFile.extension !== "md" &&
-				activeFile.extension !== "canvas"
-			) {
-				new Notice(
-					"The current file is not a markdown or canvas file. Please open a supported file and try again.",
-				);
-
-				return;
-			}
+			const { vault, metadataCache } = this.app;
 
 			new Notice("Publishing note...");
 
@@ -753,7 +888,7 @@ export default class DigitalGarden extends Plugin {
 			publisher.validateSettings();
 
 			const publishFile = await new PublishFile({
-				file: activeFile,
+				file,
 				vault: vault,
 				compiler: publisher.compiler,
 				metadataCache: metadataCache,
@@ -764,6 +899,7 @@ export default class DigitalGarden extends Plugin {
 
 			if (publishSuccessful) {
 				new Notice(`Successfully published note to your garden.`);
+				this.siteUpdateTracker?.notifyPublished();
 			} else {
 				new Notice("Unable to publish note, something went wrong.");
 			}
@@ -806,10 +942,8 @@ export default class DigitalGarden extends Plugin {
 		await this.app.fileManager.processFrontMatter(
 			activeFile as TFile,
 			(frontmatter) => {
-				frontmatter[FRONTMATTER_KEYS.PUBLISH] = !hasPublishFlag(
-					frontmatter,
-					this.settings.publishByDefault,
-				);
+				frontmatter[FRONTMATTER_KEYS.PUBLISH] =
+					!frontmatter[FRONTMATTER_KEYS.PUBLISH];
 			},
 		);
 	}
@@ -821,31 +955,30 @@ export default class DigitalGarden extends Plugin {
 			return;
 		}
 
-		// Check if current file already has dg-home: true
-		const currentFileCache =
-			this.app.metadataCache.getFileCache(activeFile);
+		await this.setHomePage(activeFile);
+	}
+
+	/**
+	 * Flag `file` as the garden home page (dg-home + dg-publish). If another
+	 * note already is, ask before moving the flag. Resolves true when `file`
+	 * ended up as the home page.
+	 */
+	async setHomePage(file: TFile): Promise<boolean> {
+		const currentFileCache = this.app.metadataCache.getFileCache(file);
 
 		if (currentFileCache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
 			new Notice("This note is already set as the garden home page.");
 
-			return;
+			return true;
 		}
 
-		// Find existing home pages
-		const existingHomePages: TFile[] = [];
+		const existingHomePages = findHomePageFiles(this.app).filter(
+			(f) => f.path !== file.path,
+		);
 
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const cache = this.app.metadataCache.getFileCache(file);
-
-			if (cache?.frontmatter?.[FRONTMATTER_KEYS.HOME]) {
-				existingHomePages.push(file);
-			}
-		}
-
-		if (existingHomePages.length === 0) {
-			// No existing home pages, just set this one
+		const markAsHome = async () => {
 			await this.app.fileManager.processFrontMatter(
-				activeFile as TFile,
+				file,
 				(frontmatter) => {
 					frontmatter[FRONTMATTER_KEYS.HOME] = true;
 					frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
@@ -853,39 +986,136 @@ export default class DigitalGarden extends Plugin {
 			);
 
 			new Notice(
-				`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
+				`${file.basename} is now your garden's home page and has been marked for publishing.`,
 			);
-		} else {
-			// Show confirmation modal
+		};
+
+		if (existingHomePages.length === 0) {
+			await markAsHome();
+
+			return true;
+		}
+
+		return new Promise<boolean>((resolve) => {
 			new HomePageConfirmationModal(
 				this.app,
-				activeFile,
+				file,
 				existingHomePages[0],
 				async (shouldUpdate) => {
-					if (shouldUpdate) {
-						// Remove dg-home from existing page
+					if (!shouldUpdate) {
+						resolve(false);
+
+						return;
+					}
+
+					for (const existing of existingHomePages) {
 						await this.app.fileManager.processFrontMatter(
-							existingHomePages[0],
+							existing,
 							(frontmatter) => {
 								delete frontmatter[FRONTMATTER_KEYS.HOME];
 							},
 						);
-
-						// Set dg-home on current page
-						await this.app.fileManager.processFrontMatter(
-							activeFile as TFile,
-							(frontmatter) => {
-								frontmatter[FRONTMATTER_KEYS.HOME] = true;
-								frontmatter[FRONTMATTER_KEYS.PUBLISH] = true;
-							},
-						);
-
-						new Notice(
-							`${activeFile.basename} is now your garden's home page and has been marked for publishing.`,
-						);
 					}
+
+					await markAsHome();
+					resolve(true);
 				},
 			).open();
+		});
+	}
+
+	/**
+	 * Let the user pick the garden's home page from the vault. On Forestry
+	 * gardens the chosen note is published right away so the site root
+	 * stops being empty.
+	 */
+	openHomePagePicker() {
+		new HomePagePickerModal(this.app, async (file) => {
+			const isHome = await this.setHomePage(file);
+
+			if (!isHome || !this.isForestryGarden()) {
+				return;
+			}
+
+			await this.waitForHomeFlag(file);
+			await this.publishNote(file);
+		}).open();
+	}
+
+	/**
+	 * Called right after a garden is connected to Forestry.md (from the
+	 * settings tab or a deep link). The new garden has no home page yet
+	 * whatever the vault holds, so always offer to pick one. A note that is
+	 * already flagged dg-home (from an earlier garden) is listed first;
+	 * choosing it just publishes it to the new garden.
+	 */
+	afterForestryConnected() {
+		this.openHomePagePicker();
+	}
+
+	/**
+	 * `obsidian://digital-garden?...` deep links, used by the Forestry.md
+	 * dashboard:
+	 * - `connect=<code>`: one-click connect; the code is exchanged for the
+	 *   garden key server-side.
+	 * - `open=home-picker`: open the home page picker.
+	 * Unknown parameters (e.g. the legacy `code`/`state` pair) are ignored.
+	 */
+	private registerDeepLinks() {
+		this.registerObsidianProtocolHandler("digital-garden", (params) => {
+			if (typeof params.connect === "string" && params.connect) {
+				void this.connectWithCode(params.connect);
+
+				return;
+			}
+
+			// Obsidian overwrites `action` with the handler name, so the
+			// dashboard's home page link uses `open=home-picker` instead.
+			if (params.open === "home-picker") {
+				this.openHomePagePicker();
+
+				return;
+			}
+
+			Logger.info("Ignoring digital-garden deep link", params);
+		});
+	}
+
+	private async connectWithCode(code: string) {
+		new Notice("Connecting to Forestry.md…");
+
+		try {
+			const connection = await ForestryApi.exchangeConnectCode(code);
+
+			this.settings.publishPlatform = PublishPlatform.ForestryMd;
+			this.settings.forestrySettings.apiKey = connection.apiKey;
+
+			this.settings.forestrySettings.forestryPageName =
+				connection.pageName;
+			this.settings.forestrySettings.baseUrl = connection.baseUrl;
+			// saveSettings also (re)creates the site update tracker for the new key.
+			await this.saveSettings();
+
+			new Notice(
+				`Connected to Forestry.md garden ${connection.pageName} 🌱`,
+			);
+			this.afterForestryConnected();
+		} catch (e) {
+			Logger.error("Connect via deep link failed", e);
+
+			if (e instanceof ForestryApiError && e.kind === "unauthorized") {
+				new Notice(
+					"This connect link is invalid or has expired. Open your garden in the Forestry.md dashboard and click Connect again.",
+					10000,
+				);
+
+				return;
+			}
+
+			new Notice(
+				"Couldn't reach Forestry.md to finish connecting. Check your connection and click Connect in the dashboard again.",
+				10000,
+			);
 		}
 	}
 
@@ -894,19 +1124,11 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	async openNavigationOrderModal() {
-		if (this.settings.publishPlatform === PublishPlatform.LocalFolder) {
-			new Notice(
-				"Navigation ordering from the repository is not available for local-folder publishing.",
-			);
-
-			return;
-		}
-
 		const connection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
-		const repositoryConnection = connection;
+		const repositoryConnection = new RepositoryConnection(connection);
 
 		const publisher = new Publisher(
 			this.app.vault,

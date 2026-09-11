@@ -587,3 +587,74 @@ h4 {
 	width: 16px;
 	height: 16px;
 }
+
+/* Forestry site-update status bar item */
+.dg-site-status {
+	cursor: pointer;
+}
+
+.dg-site-status.dg-site-status-updating {
+	animation: dg-site-status-pulse 1.5s ease-in-out infinite;
+}
+
+.dg-site-status.dg-site-status-failed {
+	color: var(--text-error);
+}
+
+@keyframes dg-site-status-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+/* Home page onboarding */
+.dg-pc-home-banner {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 10px;
+	font-size: 0.85rem;
+	background: var(--background-secondary);
+}
+
+.dg-pc-home-banner .dg-pc-callout-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.dg-pc-home-banner .dg-pc-callout-title {
+	font-weight: bold;
+}
+
+.dg-home-prompt-hint {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.dg-home-prompt-buttons {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+	margin-top: 16px;
+}
+
+.dg-notice-clickable {
+	cursor: pointer;
+}
+
+.dg-forestry-connect-error {
+	color: var(--text-error);
+	font-size: 0.9em;
+	margin: 6px 0;
+}
+
+.dg-forestry-connect-hint {
+	margin-top: 6px;
+}

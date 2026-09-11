@@ -8,7 +8,7 @@ import {
 } from "../utils/utils";
 import { Base64 } from "js-base64";
 import {
-	IRepositoryConnection,
+	RepositoryConnection,
 	TRepositoryContent,
 } from "./RepositoryConnection";
 import Logger from "js-logger";
@@ -42,17 +42,20 @@ export default class DigitalGardenSiteManager {
 	settings: DigitalGardenSettings;
 	metadataCache: MetadataCache;
 	rewriteRules: PathRewriteRules;
-	baseGardenConnection: IRepositoryConnection;
+	baseGardenConnection: RepositoryConnection;
 
-	private userGardenConnection: IRepositoryConnection | null;
+	private userGardenConnection: RepositoryConnection | null;
 	private templateUpdater: TemplateUpdateChecker | null;
 	constructor(metadataCache: MetadataCache, settings: DigitalGardenSettings) {
 		this.settings = settings;
 		this.metadataCache = metadataCache;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
-		this.baseGardenConnection =
-			PublishPlatformConnectionFactory.createBaseGardenConnection();
+		this.baseGardenConnection = new RepositoryConnection(
+			PublishPlatformConnectionFactory.createBaseGardenConnection(
+				PublishPlatformConnectionFactory.githubTokenFor(settings),
+			),
+		);
 		this.userGardenConnection = null;
 		this.templateUpdater = null;
 	}
@@ -69,17 +72,36 @@ export default class DigitalGardenSiteManager {
 	}
 	async getUserGardenConnection() {
 		if (!this.userGardenConnection) {
-			this.userGardenConnection =
-				PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				);
+				),
+			);
 		}
 
 		return this.userGardenConnection;
 	}
 
-	async updateEnv() {
-		const keysToSet = generateEnvValues(this.settings);
+	/**
+	 * Writes plugin settings to the garden's .env file.
+	 *
+	 * @param touchedKeys When provided, only these env keys are written (or
+	 * removed, if the local settings no longer produce a value for them).
+	 * All other keys keep their current remote values, so applying a single
+	 * setting can't clobber settings changed elsewhere. When omitted, all
+	 * generated keys are synced (full-sync behavior, e.g. initial setup).
+	 */
+	async updateEnv(touchedKeys?: Iterable<string>) {
+		const generatedValues = generateEnvValues(this.settings);
+		const touched = touchedKeys ? new Set(touchedKeys) : null;
+
+		const keysToSet = touched
+			? Object.fromEntries(
+					Object.entries(generatedValues).filter(([key]) =>
+						touched.has(key),
+					),
+			  )
+			: generatedValues;
 
 		const currentFile = await (
 			await this.getUserGardenConnection()
@@ -103,10 +125,21 @@ export default class DigitalGardenSiteManager {
 			}
 		}
 
-		const mergedSettings = {
+		const mergedSettings: Record<string, string | boolean> = {
 			...existingSettings,
 			...keysToSet,
 		};
+
+		// A touched key with no generated value means the user cleared it
+		// (e.g. emptied a UI string or reverted to the default theme) —
+		// remove it from the remote file instead of leaving it stale.
+		if (touched) {
+			for (const key of touched) {
+				if (!(key in generatedValues)) {
+					delete mergedSettings[key];
+				}
+			}
+		}
 
 		const envSettings = serializeEnvValues(mergedSettings);
 
@@ -132,7 +165,7 @@ export default class DigitalGardenSiteManager {
 
 	getNoteUrl(file: TFile): string {
 		const savedBaseUrl =
-			this.settings.publishPlatform !== PublishPlatform.ForestryMd
+			this.settings.publishPlatform === PublishPlatform.SelfHosted
 				? this.settings.gardenBaseUrl
 				: this.settings.forestrySettings.baseUrl;
 

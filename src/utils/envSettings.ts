@@ -34,6 +34,10 @@ export function generateEnvValues(
 		NOTE_ICON_FILETREE: settings.showNoteIconInFileTree,
 		NOTE_ICON_INTERNAL_LINKS: settings.showNoteIconOnInternalLink,
 		NOTE_ICON_BACK_LINKS: settings.showNoteIconOnBackLink,
+		// Only include if set (empty = use template default size)
+		...(settings.logoHeight && {
+			LOGO_HEIGHT: settings.logoHeight,
+		}),
 		STYLE_SETTINGS_CSS: settings.styleSettingsCss,
 		STYLE_SETTINGS_BODY_CLASSES: settings.styleSettingsBodyClasses,
 		USE_FULL_RESOLUTION_IMAGES: settings.useFullResolutionImages,

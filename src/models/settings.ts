@@ -30,6 +30,8 @@ export default interface DigitalGardenSettings {
 	baseTheme: string;
 	faviconPath: string;
 	logoPath: string;
+	/** CSS height for the site logo, e.g. "40" (px) or "3rem". Empty = template default. */
+	logoHeight: string;
 	mainLanguage: string;
 	useFullResolutionImages: boolean;
 
@@ -38,6 +40,7 @@ export default interface DigitalGardenSettings {
 	noteSettingsIsInitialized: boolean;
 
 	slugifyEnabled: boolean;
+	excalidrawSvgExportEnabled: boolean;
 
 	noteIconKey: string;
 	defaultNoteIcon: string;
@@ -109,8 +112,14 @@ export default interface DigitalGardenSettings {
 
 	navigationOrder?: Record<string, string[]>;
 
+	/** When true, publishing a note never asks whether to make it the home page. */
+	dontAskAboutHomePage?: boolean;
+
 	/** When true, the "switch to Forestry.md" nudge in the self-hosted setup is hidden. */
 	hideForestryUpgradeNotice?: boolean;
+
+	/** When true, the automatic startup check for site template updates (and its Notice) is skipped. Manually checking/updating in settings still works. */
+	disableTemplateUpdateNotice?: boolean;
 
 	ENABLE_DEVELOPER_TOOLS?: boolean;
 	devPluginPath?: string;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { getIcon, Notice } from "obsidian";
+	import { getIcon, Notice, Platform } from "obsidian";
 	import Publisher from "../../publisher/Publisher";
 	import { LimitReachedError } from "../../forestry/LimitReachedError";
 	import { notifyLimitReached } from "../../forestry/limitNotice";
@@ -8,7 +8,6 @@
 	import type {
 		IPublishStatusManager,
 		PublishStatus,
-		PublishStatusProgress,
 	} from "../../publisher/PublishStatusManager";
 	import {
 		annotateFiles,
@@ -16,19 +15,28 @@
 		buildPublishPlan,
 	} from "./annotate";
 	import type { AnnotatedFile, FileStatus } from "./annotate";
-	import { buildFileTree, filterTree } from "./fileTree";
+	import { buildFileTree, collectFilePaths, filterTree } from "./fileTree";
 	import * as Diff from "diff";
 	import StatusFilters from "./StatusFilters.svelte";
 	import FileTree from "./FileTree.svelte";
 	import DiffPane from "./DiffPane.svelte";
 	import Notices from "./Notices.svelte";
 	import PublishBar from "./PublishBar.svelte";
+	import RecentBuilds from "./RecentBuilds.svelte";
 	import Tutorial from "./Tutorial.svelte";
+	import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
+	import Logger from "js-logger";
+	import { describeError, getDebugLog } from "../../utils/debugLog";
 
 	export let siteManager: DigitalGardenSiteManager;
 	export let publisher: Publisher;
 	export let statusManager: IPublishStatusManager;
 	export let openFile: (path: string) => void;
+	export let siteUpdateTracker: SiteUpdateTracker | null = null;
+	/** Null when the garden isn't on Forestry.md (no banner). */
+	export let homePageMissing: (() => boolean) | null = null;
+	export let onChooseHomePage: () => void = () => {};
+	let showHomePageBanner = false;
 	export let registerApi: (api: {
 		maybeRefresh: () => void;
 	}) => void = () => {};
@@ -36,10 +44,6 @@
 	let status: PublishStatus | null = null;
 	let error: string | null = null;
 	let refreshing = false;
-	let statusProgress: PublishStatusProgress = {
-		completed: 0,
-		message: "Preparing publication status…",
-	};
 	let lastRefreshAt = 0;
 	const REFRESH_DEBOUNCE_MS = 3000;
 	let annotated: AnnotatedFile[] = [];
@@ -52,19 +56,35 @@
 	type DiffData =
 		| { kind: "diff"; changes: Diff.Change[] }
 		| { kind: "nochange" }
-		| { kind: "assets"; paths: string[] }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
 
 	let problematicFiles: { path: string; issue: string }[] = [];
 	let publishing = false;
+	let publishError: string | null = null;
 	let progressTotal = 0;
 	let progressDone = 0;
 	let progressCurrent = "";
 
+	const copyPublishErrorDetails = async () => {
+		const details = [
+			"Digital Garden publish error",
+			"",
+			publishError ?? "(no error message)",
+			"",
+			"--- Recent plugin log ---",
+			getDebugLog(),
+		].join("\n");
+
+		await navigator.clipboard.writeText(details);
+		new Notice("Error details copied to clipboard.");
+	};
+
 	$: selectedCount = selected.size;
 
-	let diffMode: "split" | "unified" = "split";
+	// Side-by-side is unreadable on a phone-sized screen, so mobile starts
+	// in unified mode. The user can still switch.
+	let diffMode: "split" | "unified" = Platform.isMobile ? "unified" : "split";
 	let diffCache = new Map<string, DiffData>();
 	let diffData: DiffData | null = null;
 	let diffLoading = false;
@@ -79,14 +99,32 @@
 		children: [],
 	};
 
+	// "Select all" acts on the files currently shown (i.e. matching the
+	// active status filters), mirroring how a folder checkbox behaves.
+	$: visiblePaths = collectFilePaths(visibleTree);
+	$: visibleSelectedCount = visiblePaths.filter((p) =>
+		selected.has(p),
+	).length;
+	$: allVisibleSelected =
+		visiblePaths.length > 0 && visibleSelectedCount === visiblePaths.length;
+	$: someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+	const setIndeterminate = (
+		el: HTMLInputElement,
+		params: { indeterminate: boolean },
+	) => {
+		el.indeterminate = params.indeterminate;
+
+		return {
+			update(p: { indeterminate: boolean }) {
+				el.indeterminate = p.indeterminate;
+			},
+		};
+	};
+
 	async function loadStatus({ background = false } = {}) {
 		if (refreshing) return;
 		refreshing = true;
-
-		statusProgress = {
-			completed: 0,
-			message: "Preparing publication status…",
-		};
 
 		const prevAllPaths = new Set(annotated.map((f) => f.path));
 		const prevSelected = selected;
@@ -105,9 +143,7 @@
 		}
 
 		try {
-			const s = await statusManager.getPublishStatus((progress) => {
-				statusProgress = progress;
-			});
+			const s = await statusManager.getPublishStatus();
 			status = s;
 			annotated = annotateFiles(s);
 
@@ -143,50 +179,6 @@
 		return loadStatus({ background: false });
 	}
 
-	async function fullRefresh() {
-		if (refreshing || publishing) return;
-		refreshing = true;
-		status = null;
-		error = null;
-		diffCache = new Map();
-		diffData = null;
-		diffLoading = false;
-		activePath = null;
-
-		statusProgress = {
-			completed: 0,
-			message: "Rebuilding remote manifest…",
-		};
-
-		try {
-			await publisher.rebuildPublicationManifest((progress) => {
-				statusProgress = progress;
-			});
-
-			// Re-read publication status against the rebuilt manifest while keeping
-			// the full-screen progress view visible.
-			statusProgress = {
-				completed: 0,
-				message: "Refreshing publication status…",
-			};
-
-			const nextStatus = await statusManager.getPublishStatus(
-				(progress) => {
-					statusProgress = progress;
-				},
-			);
-			status = nextStatus;
-			annotated = annotateFiles(nextStatus);
-			selected = defaultSelection(annotated);
-			validate(nextStatus);
-			lastRefreshAt = Date.now();
-		} catch (e) {
-			error = String(e);
-		} finally {
-			refreshing = false;
-		}
-	}
-
 	// Quiet, debounced refresh that keeps the tree visible and preserves the
 	// user's current checkbox selection. Called when the view becomes active.
 	function maybeRefresh() {
@@ -194,6 +186,7 @@
 
 		if (Date.now() - lastRefreshAt < REFRESH_DEBOUNCE_MS) return;
 		loadStatus({ background: true });
+		siteUpdateTracker?.refresh();
 	}
 
 	// Keep the user's choices for files that still exist; default-select any
@@ -218,6 +211,7 @@
 
 	function validate(s: PublishStatus) {
 		problematicFiles = [];
+		showHomePageBanner = homePageMissing?.() ?? false;
 
 		const homeFiles = [
 			...s.publishedNotes,
@@ -236,10 +230,12 @@
 	async function publishSelected() {
 		const plan = buildPublishPlan(selected, annotated);
 
-		progressTotal =
-			plan.notesToPublish.length +
-			plan.notesToDelete.length +
-			plan.imagesToDelete.length;
+		const deletesTotal =
+			plan.notesToDelete.length + plan.imagesToDelete.length;
+
+		// Provisional total; the batch publish reports its real step count
+		// (blob uploads incl. images + the commit) via onProgress below.
+		progressTotal = plan.notesToPublish.length + deletesTotal;
 
 		if (progressTotal === 0) return;
 
@@ -252,59 +248,88 @@
 		const removedPaths = new Set<string>();
 		let hadFailure = false;
 		publishing = true;
+		publishError = null;
 		progressDone = 0;
 
 		try {
-			progressCurrent = "Publishing notes…";
+			progressCurrent = "Preparing upload…";
 
-			const published = await publisher.publishBatch(
+			let batchSteps = plan.notesToPublish.length;
+
+			const batchResult = await publisher.publishBatch(
 				plan.notesToPublish,
-				(completed, currentPath) => {
-					progressDone = completed;
-					progressCurrent = `Published ${currentPath}`;
+				(done, total, message) => {
+					batchSteps = total;
+					progressTotal = total + deletesTotal;
+					progressDone = done;
+					progressCurrent = message;
 				},
 			);
-			progressDone = plan.notesToPublish.length;
+			progressDone = batchSteps;
 
-			if (published) {
+			if (batchResult.success) {
 				for (const note of plan.notesToPublish) {
 					publishedPaths.add(note.getPath());
 				}
 			} else if (plan.notesToPublish.length > 0) {
 				hadFailure = true;
+				publishError = batchResult.error ?? "Unknown error";
 			}
 
-			for (const path of plan.notesToDelete) {
-				progressCurrent = `Deleting ${path}`;
-				await publisher.deleteNote(path);
-				removedPaths.add(path);
-				progressDone += 1;
-			}
+			if (deletesTotal > 0) {
+				const deleteResult = await publisher.deleteBatch(
+					plan.notesToDelete,
+					plan.imagesToDelete,
+					(done, total, message) => {
+						progressTotal = batchSteps + total;
+						progressDone = batchSteps + done;
+						progressCurrent = message;
+					},
+				);
 
-			for (const path of plan.imagesToDelete) {
-				progressCurrent = `Deleting ${path}`;
-				await publisher.deleteImage(path);
-				removedPaths.add(path);
-				progressDone += 1;
+				if (deleteResult.success) {
+					for (const path of plan.notesToDelete) {
+						removedPaths.add(path);
+					}
+
+					for (const path of plan.imagesToDelete) {
+						removedPaths.add(path);
+					}
+				} else {
+					hadFailure = true;
+
+					publishError = [publishError, deleteResult.error]
+						.filter(Boolean)
+						.join("\n");
+				}
 			}
 
 			new Notice(
 				hadFailure
-					? "Some notes failed to publish. Check the console for details."
+					? "Publishing failed. See the details in the Publication Center."
 					: "Publication complete.",
 			);
 		} catch (e) {
 			if (e instanceof LimitReachedError) {
 				notifyLimitReached(e);
 			} else {
-				// eslint-disable-next-line no-undef
-				console.error("Publication Center: publish failed", e);
-				new Notice("Unable to publish, something went wrong.");
+				Logger.error("Publication Center: publish failed", e);
+				publishError = describeError(e);
+
+				new Notice(
+					"Publishing failed. See the details in the Publication Center.",
+				);
 			}
 		} finally {
 			// Reflect everything that succeeded, even if a later step threw.
 			applyOptimisticUpdate(publishedPaths, removedPaths);
 			publishing = false;
+
+			// Anything that reached the repo will trigger a site update;
+			// start tracking it (strip + status bar).
+			if (publishedPaths.size > 0 || removedPaths.size > 0) {
+				siteUpdateTracker?.notifyPublished();
+			}
 		}
 	}
 
@@ -381,17 +406,6 @@
 			}
 		}
 
-		if (
-			remote === local &&
-			file.file &&
-			file.file.missingRemoteAssets.length > 0
-		) {
-			return {
-				kind: "assets",
-				paths: file.file.missingRemoteAssets,
-			};
-		}
-
 		if (file.status === "published" || remote === local) {
 			return { kind: "nochange" };
 		}
@@ -444,47 +458,30 @@
 	{:else if !status}
 		<div class="dg-pc-loading">
 			{@html bigRotatingCog()?.outerHTML ?? ""}
-			<div>{statusProgress.message}</div>
-			{#if statusProgress.total !== undefined}
-				<div class="dg-pc-status-count">
-					{statusProgress.completed} of {statusProgress.total}
-				</div>
-				<div class="dg-pc-progress-track dg-pc-status-progress">
-					<div
-						class="dg-pc-progress-fill"
-						style="width: {statusProgress.total
-							? (statusProgress.completed /
-									statusProgress.total) *
-							  100
-							: 100}%"
-					></div>
-				</div>
-			{/if}
+			<div>Calculating publication status…</div>
 		</div>
 	{:else}
 		<Tutorial />
 
+		{#if showHomePageBanner}
+			<div class="dg-pc-callout dg-pc-home-banner">
+				<div class="dg-pc-callout-header">
+					<div class="dg-pc-callout-title">🏡 No home page yet</div>
+					<button class="mod-cta" on:click={onChooseHomePage}>
+						Choose home page
+					</button>
+				</div>
+				<div>
+					Visitors see a plain list of notes at your site root until
+					you pick a note as the home page.
+				</div>
+			</div>
+		{/if}
+
 		<Notices {problematicFiles} />
 
 		{#if refreshing}
-			<div class="dg-pc-syncing">
-				<div>{statusProgress.message}</div>
-				{#if statusProgress.total !== undefined}
-					<div class="dg-pc-status-count">
-						{statusProgress.completed} of {statusProgress.total}
-					</div>
-					<div class="dg-pc-progress-track dg-pc-status-progress">
-						<div
-							class="dg-pc-progress-fill"
-							style="width: {statusProgress.total
-								? (statusProgress.completed /
-										statusProgress.total) *
-								  100
-								: 100}%"
-						></div>
-					</div>
-				{/if}
-			</div>
+			<div class="dg-pc-syncing">Updating…</div>
 		{/if}
 
 		{#if publishing}
@@ -504,13 +501,55 @@
 			</div>
 		{/if}
 
-		<div class="dg-pc-layout">
+		{#if publishError}
+			<div class="dg-pc-publish-error">
+				<div class="dg-pc-publish-error-header">
+					<strong>Publishing failed</strong>
+					<div class="dg-pc-publish-error-actions">
+						<button on:click={copyPublishErrorDetails}>
+							Copy details
+						</button>
+						<button on:click={() => (publishError = null)}>
+							Dismiss
+						</button>
+					</div>
+				</div>
+				<pre class="dg-pc-publish-error-message">{publishError}</pre>
+				<div class="dg-pc-publish-error-hint">
+					Nothing was lost — your notes are unchanged. Often
+					publishing again just works. If it keeps failing, click
+					"Copy details" and paste it in the Discord so we can help.
+				</div>
+			</div>
+		{/if}
+
+		<div class="dg-pc-layout" class:dg-pc-has-file={activePath !== null}>
 			<div class="dg-pc-tree-pane">
 				<StatusFilters
 					{counts}
 					active={activeFilters}
 					on:toggle={(e) => toggleFilter(e.detail.status)}
 				/>
+				{#if visiblePaths.length > 0}
+					<label class="dg-pc-select-all">
+						<input
+							type="checkbox"
+							checked={allVisibleSelected}
+							use:setIndeterminate={{
+								indeterminate: someVisibleSelected,
+							}}
+							on:click={() =>
+								toggleSelection(
+									visiblePaths,
+									!allVisibleSelected,
+								)}
+						/>
+						<span>Select all</span>
+						<span class="dg-pc-select-all-count">
+							{visibleSelectedCount} / {visiblePaths.length}
+						</span>
+					</label>
+				{/if}
 				<FileTree
 					node={visibleTree}
 					{selected}
@@ -533,14 +572,15 @@
 			</div>
 		</div>
 
+		{#if siteUpdateTracker}
+			<RecentBuilds tracker={siteUpdateTracker} />
+		{/if}
+
 		<PublishBar
 			{selectedCount}
 			{publishing}
-			{refreshing}
-			showFullRefresh={publisher.usesPublicationManifest()}
 			on:publish={publishSelected}
 			on:refresh={refresh}
-			on:fullrefresh={fullRefresh}
 		/>
 	{/if}
 </div>
@@ -550,6 +590,11 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		box-sizing: border-box;
+		/* Obsidian mobile overlays its navbar on the view; this variable is
+		   the navbar's height there and 0 on desktop. */
+		padding-bottom: var(--view-bottom-spacing, 0px);
+		container-type: inline-size;
 	}
 
 	.dg-pc-layout {
@@ -569,7 +614,29 @@
 	.dg-pc-diff-pane {
 		flex: 1;
 		overflow: auto;
-		padding: 8px;
+		/* No padding here: the sticky diff header can't cover a scroll
+		   container's padding, which left a strip of content visible above
+		   it. The header and body carry the padding instead. */
+		padding: 0;
+	}
+
+	.dg-pc-select-all {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 2px 6px;
+		margin-bottom: 4px;
+		border-bottom: 1px solid var(--background-modifier-border);
+		font-size: 0.9rem;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.dg-pc-select-all-count {
+		margin-left: auto;
+		color: var(--text-muted);
+		font-size: 0.8rem;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.dg-pc-loading {
@@ -587,13 +654,42 @@
 		padding: 16px;
 	}
 
-	.dg-pc-status-count {
-		color: var(--text-muted);
-		font-size: 0.8rem;
+	.dg-pc-publish-error {
+		margin: 8px 16px;
+		padding: 10px 12px;
+		border: 1px solid var(--background-modifier-error);
+		border-radius: 6px;
+		background-color: var(--background-modifier-error-hover, transparent);
 	}
 
-	.dg-pc-status-progress {
-		width: min(360px, 80%);
+	.dg-pc-publish-error-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		color: var(--text-error);
+	}
+
+	.dg-pc-publish-error-actions {
+		display: flex;
+		gap: 6px;
+	}
+
+	.dg-pc-publish-error-message {
+		margin: 8px 0;
+		padding: 6px 8px;
+		max-height: 120px;
+		overflow: auto;
+		white-space: pre-wrap;
+		word-break: break-word;
+		font-size: var(--font-ui-smaller);
+		background-color: var(--background-primary);
+		border-radius: 4px;
+	}
+
+	.dg-pc-publish-error-hint {
+		color: var(--text-muted);
+		font-size: var(--font-ui-smaller);
 	}
 
 	.dg-pc-syncing {
@@ -623,5 +719,33 @@
 	.dg-pc-progress-current {
 		color: var(--text-muted);
 		font-size: 0.8rem;
+	}
+
+	/* Narrow views (phones, slim side panes): stack the tree above the diff
+	   instead of squeezing both side by side. */
+	@container (max-width: 640px) {
+		.dg-pc-layout {
+			flex-direction: column;
+		}
+
+		.dg-pc-tree-pane {
+			flex: 1 1 auto;
+			max-width: none;
+			border-right: none;
+			border-bottom: 1px solid var(--background-modifier-border);
+		}
+
+		.dg-pc-diff-pane {
+			flex: 0 0 auto;
+		}
+
+		.dg-pc-layout.dg-pc-has-file .dg-pc-tree-pane {
+			flex: 0 1 auto;
+			max-height: 45%;
+		}
+
+		.dg-pc-layout.dg-pc-has-file .dg-pc-diff-pane {
+			flex: 1 1 0;
+		}
 	}
 </style>

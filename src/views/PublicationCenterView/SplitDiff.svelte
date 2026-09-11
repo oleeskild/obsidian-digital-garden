@@ -61,4 +61,14 @@
 		text-align: right;
 		user-select: none;
 	}
+
+	@container (max-width: 640px) {
+		.dg-pc-srow {
+			gap: 4px;
+		}
+
+		.dg-pc-scell {
+			grid-template-columns: 2.5em 1fr;
+		}
+	}
 </style>

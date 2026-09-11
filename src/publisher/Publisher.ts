@@ -1,6 +1,6 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { Base64 } from "js-base64";
-import { generateBlobHash, getRewriteRules } from "../utils/utils";
+import { getRewriteRules } from "../utils/utils";
 import {
 	hasPublishFlag,
 	isPublishFrontmatterValid,
@@ -12,15 +12,26 @@ import DigitalGardenSettings from "../models/settings";
 import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
+import {
+	RepositoryConnection,
+	type PublishProgressCallback,
+} from "../repositoryConnection/RepositoryConnection";
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
-import type { RepositoryProgress } from "src/repositoryConnection/RepositoryConnection";
+import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { describeError } from "../utils/debugLog";
 import { isPathIgnored } from "./ignoredPaths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
 	images: string[];
+}
+
+export interface PublishBatchResult {
+	success: boolean;
+	/** Human-readable description of what went wrong, safe to show in the UI. */
+	error?: string;
 }
 
 /**
@@ -32,19 +43,15 @@ export default class Publisher {
 	compiler: GardenPageCompiler;
 	settings: DigitalGardenSettings;
 	rewriteRules: PathRewriteRules;
-	private cachedRemoteImageHashes?: Record<string, string>;
-	private compilerVersion: string;
 
 	constructor(
 		vault: Vault,
 		metadataCache: MetadataCache,
 		settings: DigitalGardenSettings,
-		compilerVersion = "unknown",
 	) {
 		this.vault = vault;
 		this.metadataCache = metadataCache;
 		this.settings = settings;
-		this.compilerVersion = compilerVersion;
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 
 		this.compiler = new GardenPageCompiler(
@@ -55,23 +62,12 @@ export default class Publisher {
 		);
 	}
 
-	getCompilerFingerprint(): string {
-		// Credentials do not affect output, but hashing the complete settings object
-		// is deliberately conservative when new compiler settings are introduced.
-		return generateBlobHash(
-			JSON.stringify({
-				version: this.compilerVersion,
-				settings: this.settings,
-			}),
-		);
-	}
-
 	shouldPublish(file: TFile): boolean {
 		if (this.isPathIgnored(file.path)) return false;
 
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
-		return hasPublishFlag(frontMatter, this.settings.publishByDefault);
+		return hasPublishFlag(frontMatter);
 	}
 
 	/**
@@ -90,7 +86,7 @@ export default class Publisher {
 			const canvasData = JSON.parse(content);
 			const frontMatter = canvasData?.metadata?.frontmatter;
 
-			return hasPublishFlag(frontMatter, this.settings.publishByDefault);
+			return hasPublishFlag(frontMatter);
 		} catch {
 			return false;
 		}
@@ -209,36 +205,6 @@ export default class Publisher {
 		};
 	}
 
-	setRemoteImageHashes(hashes: Record<string, string>): void {
-		this.cachedRemoteImageHashes = hashes;
-	}
-
-	usesPublicationManifest(): boolean {
-		return PublishPlatformConnectionFactory.createPublishPlatformConnection(
-			this.settings,
-		).usesPublicationManifest();
-	}
-
-	async clearPublicationManifest(): Promise<void> {
-		await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-			this.settings,
-		).clearPublicationManifest();
-		this.cachedRemoteImageHashes = undefined;
-	}
-
-	async rebuildPublicationManifest(
-		onProgress?: (progress: RepositoryProgress) => void,
-	): Promise<void> {
-		const connection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			);
-
-		await connection.clearPublicationManifest();
-		this.cachedRemoteImageHashes = undefined;
-		await connection.getContent("HEAD", onProgress);
-	}
-
 	async deleteNote(vaultFilePath: string, sha?: string) {
 		const path = notePathBase(this.settings) + vaultFilePath;
 
@@ -254,10 +220,11 @@ export default class Publisher {
 	public async delete(path: string, sha?: string): Promise<boolean> {
 		this.validateSettings();
 
-		const userGardenConnection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			);
+			),
+		);
 
 		const deleted = await userGardenConnection.deleteFile(path, {
 			sha,
@@ -269,10 +236,7 @@ export default class Publisher {
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
 		if (
 			this.isPathIgnored(file.file.path) ||
-			!isPublishFrontmatterValid(
-				file.frontmatter,
-				this.settings.publishByDefault,
-			)
+			!isPublishFrontmatterValid(file.frontmatter)
 		) {
 			return false;
 		}
@@ -295,49 +259,67 @@ export default class Publisher {
 		}
 	}
 
-	public async deleteBatch(filePaths: string[]): Promise<boolean> {
-		if (filePaths.length === 0) {
-			return true;
+	/**
+	 * Delete notes (vault paths) and images (vault paths) in as few commits
+	 * as GitHub allows. Returns `success: false` with a description on error;
+	 * whatever was committed before the failure stays deleted.
+	 */
+	public async deleteBatch(
+		notePaths: string[],
+		imagePaths: string[],
+		onProgress?: PublishProgressCallback,
+	): Promise<PublishBatchResult> {
+		const repoPaths = [
+			...notePaths.map((path) => notePathBase(this.settings) + path),
+			...imagePaths.map((path) => imagePathBase(this.settings) + path),
+		];
+
+		if (repoPaths.length === 0) {
+			return { success: true };
 		}
 
 		try {
-			const userGardenConnection =
-				PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			this.validateSettings();
+
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				);
+				),
+			);
 
-			await userGardenConnection.deleteFiles(filePaths);
+			await userGardenConnection.deleteFiles(repoPaths, onProgress);
 
-			return true;
+			return { success: true };
 		} catch (error) {
-			console.error(error);
+			if (error instanceof LimitReachedError) {
+				throw error;
+			}
+			Logger.error("Batch delete failed", error);
 
-			return false;
+			return { success: false, error: describeError(error) };
 		}
 	}
 
 	public async publishBatch(
 		files: CompiledPublishFile[],
-		onProgress?: (completed: number, currentPath: string) => void,
-	): Promise<boolean> {
+		onProgress?: PublishProgressCallback,
+	): Promise<PublishBatchResult> {
 		const filesToPublish = files.filter(
 			(f) =>
 				!this.isPathIgnored(f.file.path) &&
-				isPublishFrontmatterValid(
-					f.frontmatter,
-					this.settings.publishByDefault,
-				),
+				isPublishFrontmatterValid(f.frontmatter),
 		);
 
 		if (filesToPublish.length === 0) {
-			return true;
+			return { success: true };
 		}
 
 		try {
-			const userGardenConnection =
-				PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 					this.settings,
-				);
+				),
+			);
 
 			const remoteImageHashes = await this.getRemoteImageHashes();
 
@@ -347,24 +329,23 @@ export default class Publisher {
 				onProgress,
 			);
 
-			return true;
+			return { success: true };
 		} catch (error) {
 			if (error instanceof LimitReachedError) {
 				throw error;
 			}
-			console.error(error);
+			Logger.error("Batch publish failed", error);
 
-			return false;
+			return { success: false, error: describeError(error) };
 		}
 	}
 
 	private async getRemoteImageHashes(): Promise<Record<string, string>> {
-		if (this.cachedRemoteImageHashes) return this.cachedRemoteImageHashes;
-
-		const userGardenConnection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			);
+			),
+		);
 
 		const contentTree = await userGardenConnection
 			.getContent("HEAD")
@@ -379,10 +360,7 @@ export default class Publisher {
 			this.settings,
 		);
 
-		const hashes = await siteManager.getImageHashes(contentTree);
-		this.cachedRemoteImageHashes = hashes;
-
-		return hashes;
+		return siteManager.getImageHashes(contentTree);
 	}
 
 	private async uploadToGithub(
@@ -393,10 +371,11 @@ export default class Publisher {
 		this.validateSettings();
 		let message = `Update content ${path}`;
 
-		const userGardenConnection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+		const userGardenConnection = new RepositoryConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
-			);
+			),
+		);
 
 		if (!remoteFileHash) {
 			const file = await userGardenConnection.getFile(path).catch(() => {
@@ -451,17 +430,36 @@ export default class Publisher {
 	}
 
 	validateSettings() {
-		try {
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			).validateSettings();
-		} catch (error) {
-			const message =
-				error instanceof Error
-					? error.message
-					: "Invalid publication settings";
-			new Notice(`Config error: ${message}`);
-			throw error;
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			// For forestry.md, validate forestry settings instead of GitHub
+			if (!this.settings.forestrySettings.apiKey) {
+				new Notice(
+					"Config error: You need to define a Forestry.md Garden Key in the plugin settings",
+				);
+				throw {};
+			}
+		} else {
+			// For SelfHosted, validate GitHub settings
+			if (!this.settings.githubRepo) {
+				new Notice(
+					"Config error: You need to define a GitHub repo in the plugin settings",
+				);
+				throw {};
+			}
+
+			if (!this.settings.githubUserName) {
+				new Notice(
+					"Config error: You need to define a GitHub Username in the plugin settings",
+				);
+				throw {};
+			}
+
+			if (!this.settings.githubToken) {
+				new Notice(
+					"Config error: You need to define a GitHub Token in the plugin settings",
+				);
+				throw {};
+			}
 		}
 	}
 }

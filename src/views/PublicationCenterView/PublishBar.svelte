@@ -57,4 +57,10 @@
 		opacity: 0.5;
 		cursor: default;
 	}
+
+	@container (max-width: 640px) {
+		.dg-pc-publish {
+			flex: 1 1 auto;
+		}
+	}
 </style>

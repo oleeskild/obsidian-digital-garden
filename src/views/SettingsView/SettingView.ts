@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/core";
 import axios from "axios";
 import { mount, unmount } from "svelte";
 import {
@@ -9,7 +10,6 @@ import {
 	MetadataCache,
 	Modal,
 	Notice,
-	Platform,
 	Setting,
 	TextComponent,
 	TFile,
@@ -22,13 +22,13 @@ import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
 import { envPath, sitePath } from "../../publisher/paths";
 import { arrayBufferToBase64 } from "../../utils/utils";
+import { getDebugLog } from "../../utils/debugLog";
 import {
 	ImageFileSuggest,
 	SvgFileSuggest,
 } from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
-import { GitSettings } from "./GitSettings";
-import { SftpSettings } from "./SftpSettings";
+import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import {
 	hasUpdates,
@@ -38,15 +38,11 @@ import {
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
-import {
-	GitProvider,
-	PublicationProvider,
-	platformForProvider,
-} from "src/models/PublicationProvider";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
-import { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
-import { initializeCustomPathSettings } from "./CustomPathSettings";
+import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { GardenPluginsModal } from "../GardenPluginSettings/GardenPluginsModal";
+import { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 
 interface IObsidianTheme {
 	name: string;
@@ -68,6 +64,7 @@ export default class SettingView {
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
+	private afterForestryConnect: (() => void) | null;
 
 	debouncedSaveAndUpdate = debounce(
 		this.saveSiteSettingsAndUpdateEnv,
@@ -80,12 +77,14 @@ export default class SettingView {
 		settingsRootElement: HTMLElement,
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
+		afterForestryConnect: (() => void) | null = null,
 	) {
 		this.app = app;
 		this.settingsRootElement = settingsRootElement;
 		this.settingsRootElement.classList.add("dg-settings");
 		this.settings = settings;
 		this.saveSettings = saveSettings;
+		this.afterForestryConnect = afterForestryConnect;
 	}
 
 	getIcon(name: string): Node {
@@ -136,39 +135,61 @@ export default class SettingView {
 		});
 
 		new Setting(this.settingsRootElement)
-			.setName("Default publication provider")
-			.setDesc("Used by publishing commands that do not name a provider.")
+			.setName("Publish Platform")
 			.addDropdown((dd) => {
-				dd.addOption(PublicationProvider.Git, "Git");
+				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
+				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
 
-				if (Platform.isDesktop)
-					dd.addOption(PublicationProvider.Sftp, "SFTP");
-				dd.addOption(PublicationProvider.LocalFolder, "Local folder");
-				dd.addOption(PublicationProvider.Forest, "Forest");
-				dd.setValue(this.settings.publicationProvider);
+				if (
+					this.settings.publishPlatform === PublishPlatform.SelfHosted
+				) {
+					dd.setValue(PublishPlatform.SelfHosted);
+				} else {
+					dd.setValue(PublishPlatform.ForestryMd);
+				}
 
 				dd.onChange(async (val) => {
-					this.settings.publicationProvider =
-						val as PublicationProvider;
-
-					this.settings.publishPlatform = platformForProvider(
-						this.settings.publicationProvider,
-						this.settings.gitProvider,
-					);
+					switch (val) {
+						case PublishPlatform.SelfHosted:
+							this.settings.publishPlatform =
+								PublishPlatform.SelfHosted;
+							break;
+						case PublishPlatform.ForestryMd:
+							this.settings.publishPlatform =
+								PublishPlatform.ForestryMd;
+							break;
+					}
 					await this.saveSettings();
+
+					this.initializePublishPlatformSettings(
+						publishPlatformSettings,
+					);
 				});
 			});
 
-		this.initializeProviderSettings();
+		const publishPlatformSettings = this.settingsRootElement.createEl(
+			"div",
+			{
+				cls: "publish-platform-settings",
+			},
+		);
+
+		this.initializePublishPlatformSettings(publishPlatformSettings);
 
 		this.settingsRootElement
 			.createEl("h3", { text: "URL" })
 			.prepend(this.getIcon("link"));
 		this.initializeGitHubBaseURLSetting();
 		this.initializeSlugifySetting();
+		this.initializeExcalidrawSetting();
 
 		this.settingsRootElement
-			.createEl("h3", { text: "Features" })
+			.createEl("h3", { text: "Plugins" })
+			.prepend(this.getIcon("blocks"));
+		this.initializeGardenPluginSettings();
+
+		this.settingsRootElement
+			.createEl("h3", { text: "Display" })
 			.prepend(this.getIcon("star"));
 		this.initializeDefaultNoteSettings();
 
@@ -214,6 +235,24 @@ export default class SettingView {
 		this.initializeCustomFilterSettings();
 
 		new Setting(this.settingsRootElement)
+			.setName("Ignored paths")
+			.setDesc(
+				"Vault-relative notes, assets, or folders to ignore completely. Enter one path per line. Folder descendants are also ignored. These paths will not be scanned, listed, published, or deleted remotely.",
+			)
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("Private\nArchive/Old note.md")
+					.setValue((this.settings.ignoredPaths ?? []).join("\n"))
+					.onChange(async (value) => {
+						this.settings.ignoredPaths = value
+							.split("\n")
+							.map((path) => path.trim())
+							.filter(Boolean);
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(this.settingsRootElement)
 			.setName("Enable debug logging")
 			.setDesc(
 				"Show detailed logs in the developer console. Useful for troubleshooting.",
@@ -230,70 +269,29 @@ export default class SettingView {
 					});
 			});
 
-		prModal.titleEl.createEl("h1", "Site template settings");
-	}
+		new Setting(this.settingsRootElement)
+			.setName("Copy debug log")
+			.setDesc(
+				"Copy the plugin's recent log to the clipboard — paste it in the Discord when asking for help with a failed publish.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Copy debug log");
 
-	private initializeProviderSettings() {
-		this.settingsRootElement.createEl("h2", { text: "Git" });
+				cb.onClick(async () => {
+					await navigator.clipboard.writeText(getDebugLog());
+					new Notice("Debug log copied to clipboard.");
+				});
+			});
 
-		const gitTarget = this.settingsRootElement.createDiv({
-			cls: "publish-provider-settings",
-		});
-		const gitSettingsRef: { current?: GitSettings } = {};
+		this.settingsRootElement
+			.createEl("h3", { text: "Local Export" })
+			.prepend(this.getIcon("folder-output"));
 
-		new Setting(gitTarget).setName("Git service").addDropdown((dd) =>
-			dd
-				.addOption(GitProvider.GitHub, "GitHub")
-				.addOption(GitProvider.Forgejo, "Forgejo")
-				.setValue(this.settings.gitProvider)
-				.onChange(async (value) => {
-					this.settings.gitProvider = value as GitProvider;
-
-					if (
-						this.settings.publicationProvider ===
-						PublicationProvider.Git
-					) {
-						this.settings.publishPlatform = platformForProvider(
-							PublicationProvider.Git,
-							this.settings.gitProvider,
-						);
-					}
-					await this.saveSettings();
-
-					gitSettingsRef.current?.setPlatform(
-						platformForProvider(
-							PublicationProvider.Git,
-							this.settings.gitProvider,
-						),
-					);
-				}),
-		);
-
-		gitSettingsRef.current = new GitSettings(
-			this,
-			gitTarget,
-			platformForProvider(
-				PublicationProvider.Git,
-				this.settings.gitProvider,
-			),
-		);
-
-		if (Platform.isDesktop)
-			new SftpSettings(
-				this.settingsRootElement,
-				this.settings,
-				this.saveSettings,
-			);
-
-		this.settingsRootElement.createEl("h2", { text: "Local Folder" });
-
-		const localTarget = this.settingsRootElement.createDiv({
-			cls: "publish-provider-settings",
-		});
-
-		new Setting(localTarget)
+		new Setting(this.settingsRootElement)
 			.setName("Local garden folder path")
-			.setDesc("Absolute path to the local site folder.")
+			.setDesc(
+				"Absolute path to your local digital garden folder. Used by the 'Export Garden to Local Folder' command.",
+			)
 			.addText((text) => {
 				text.setPlaceholder("/path/to/your/digitalgarden")
 					.setValue(this.settings.localExportPath ?? "")
@@ -304,85 +302,40 @@ export default class SettingView {
 				text.inputEl.style.width = "300px";
 			});
 
-		this.settingsRootElement.createEl("h2", { text: "Forest" });
+		prModal.titleEl.createEl("h1", "Site template settings");
+	}
 
-		const forestTarget = this.settingsRootElement.createDiv({
-			cls: "publish-provider-settings",
-		});
+	private initializePublishPlatformSettings(target: HTMLElement) {
+		target.empty();
 
-		mount(ForestrySettings, {
-			target: forestTarget,
-			props: {
-				settings: this.settings,
-				saveSettings: this.saveSettings,
-				onConnect: async () => {
-					this.reInitializeSettings();
+		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
+			new GithubSettings(this, target);
+		} else {
+			mount(ForestrySettings, {
+				target,
+				props: {
+					settings: this.settings,
+					saveSettings: this.saveSettings,
+					onConnect: async () => {
+						this.reInitializeSettings();
+					},
+					afterConnect: this.afterForestryConnect,
 				},
-			},
-		});
-
-		this.settingsRootElement.createEl("h2", {
-			text: "Git, SFTP, and Local Folder Output Paths",
-		});
-		initializeCustomPathSettings(this, this.settingsRootElement);
+			});
+		}
 	}
 
 	private async initializeDefaultNoteSettings() {
-		new Setting(this.settingsRootElement)
-			.setName("Internal link format")
-			.setDesc(
-				"Format used for internal note links in exported Markdown.",
-			)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("markdown", "Markdown links")
-					.addOption("wikilink", "Obsidian wikilinks")
-					.setValue(this.settings.linkFormat)
-					.onChange(async (value) => {
-						this.settings.linkFormat = value as
-							| "markdown"
-							| "wikilink";
-						await this.saveSettings();
-					}),
-			);
-
-		new Setting(this.settingsRootElement)
-			.setName("Publish notes by default")
-			.setDesc(
-				"Publish notes without a dg-publish property. Notes with dg-publish: false remain private.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.settings.publishByDefault)
-					.onChange(async (value) => {
-						this.settings.publishByDefault = value;
-						await this.saveSettings();
-					}),
-			);
-
-		new Setting(this.settingsRootElement)
-			.setName("Ignored paths")
-			.setDesc(
-				"Vault-relative notes, assets, or folders to ignore completely. Enter one path per line. Folder descendants are also ignored. These paths will not be scanned, listed, published, or deleted remotely.",
-			)
-			.addTextArea((text) =>
-				text
-					.setPlaceholder("Private\nArchive/Old note.md")
-					.setValue((this.settings.ignoredPaths ?? []).join("\n"))
-					.onChange(async (value) => {
-						this.settings.ignoredPaths = value
-							.split("\n")
-							.map((folder) => folder.trim())
-							.filter(Boolean);
-						await this.saveSettings();
-					}),
-			);
-
 		const noteSettingsModal = new Modal(this.app);
 		let hasUnsavedChanges = false;
 
 		// Store toggle references for updating after fetch
 		const toggles: Record<string, ToggleComponent> = {};
+
+		// Env keys the user has actually changed in this modal session —
+		// only these are written on apply, so settings changed elsewhere
+		// (e.g. from another device) aren't overwritten.
+		const touchedEnvKeys = new Set<string>();
 
 		noteSettingsModal.titleEl.createEl("h1", {
 			text: "Default Note Settings",
@@ -417,7 +370,8 @@ export default class SettingView {
 			});
 
 		// Helper to mark settings as changed
-		const markAsChanged = () => {
+		const markAsChanged = (envKey: string) => {
+			touchedEnvKeys.add(envKey);
 			hasUnsavedChanges = true;
 			updateApplyButton();
 		};
@@ -440,13 +394,18 @@ export default class SettingView {
 		applyButton.addEventListener("click", async () => {
 			if (!hasUnsavedChanges) return;
 
-			await this.saveSiteSettingsAndUpdateEnv(
+			const applied = await this.saveSiteSettingsAndUpdateEnv(
 				this.app.metadataCache,
 				this.settings,
 				this.saveSettings,
+				touchedEnvKeys,
 			);
-			hasUnsavedChanges = false;
-			updateApplyButton();
+
+			if (applied) {
+				touchedEnvKeys.clear();
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			}
 		});
 
 		const updateApplyButton = () => {
@@ -502,6 +461,9 @@ export default class SettingView {
 					}
 				}
 
+				// Setting toggle values above may fire their onChange
+				// handlers — remote-loaded values are not user edits.
+				touchedEnvKeys.clear();
 				hasUnsavedChanges = false;
 				updateApplyButton();
 			} catch (error) {
@@ -530,7 +492,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgHomeLink = val;
-					markAsChanged();
+					markAsChanged("dgHomeLink");
 				});
 			});
 
@@ -545,7 +507,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-					markAsChanged();
+					markAsChanged("dgShowLocalGraph");
 				});
 			});
 
@@ -562,7 +524,7 @@ export default class SettingView {
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowGraphDepthControl =
 						val;
-					markAsChanged();
+					markAsChanged("dgShowGraphDepthControl");
 				});
 			});
 
@@ -577,7 +539,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowBacklinks = val;
-					markAsChanged();
+					markAsChanged("dgShowBacklinks");
 				});
 			});
 
@@ -592,7 +554,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowToc = val;
-					markAsChanged();
+					markAsChanged("dgShowToc");
 				});
 			});
 
@@ -607,7 +569,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-					markAsChanged();
+					markAsChanged("dgShowInlineTitle");
 				});
 			});
 
@@ -620,39 +582,12 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowFileTree = val;
-					markAsChanged();
+					markAsChanged("dgShowFileTree");
 				});
 			});
 
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable search (dg-enable-search)")
-			.setDesc(
-				"When turned on, users will be able to search through the content of your site.",
-			)
-			.addToggle((t) => {
-				toggles["dgEnableSearch"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgEnableSearch);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgEnableSearch = val;
-					markAsChanged();
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Enable link preview (dg-link-preview)")
-			.setDesc(
-				"When turned on, hovering over links to notes in your garden shows a scrollable preview.",
-			)
-			.addToggle((t) => {
-				toggles["dgLinkPreview"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgLinkPreview);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgLinkPreview = val;
-					markAsChanged();
-				});
-			});
+		// Search and link preview are garden plugins now — their toggles
+		// live in the Plugins section, next to the plugin they belong to.
 
 		new Setting(noteSettingsModal.contentEl)
 			.setName("Show Tags (dg-show-tags)")
@@ -665,7 +600,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgShowTags = val;
-					markAsChanged();
+					markAsChanged("dgShowTags");
 				});
 			});
 
@@ -680,7 +615,7 @@ export default class SettingView {
 
 				t.onChange((val) => {
 					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-					markAsChanged();
+					markAsChanged("dgPassFrontmatter");
 				});
 			});
 	}
@@ -692,6 +627,11 @@ export default class SettingView {
 
 		// Store text control references for updating after fetch
 		const textControls: Record<string, TextComponent> = {};
+
+		// Env keys the user has actually changed in this modal session —
+		// only these are written on apply, so settings changed elsewhere
+		// (e.g. from another device) aren't overwritten.
+		const touchedEnvKeys = new Set<string>();
 
 		uiStringsModal.titleEl.createEl("h1", {
 			text: "UI Text Settings",
@@ -722,7 +662,8 @@ export default class SettingView {
 			});
 
 		// Helper to mark settings as changed
-		const markAsChanged = () => {
+		const markAsChanged = (envKey: string) => {
+			touchedEnvKeys.add(envKey);
 			hasUnsavedChanges = true;
 			updateApplyButton();
 		};
@@ -744,13 +685,18 @@ export default class SettingView {
 		applyButton.addEventListener("click", async () => {
 			if (!hasUnsavedChanges) return;
 
-			await this.saveSiteSettingsAndUpdateEnv(
+			const applied = await this.saveSiteSettingsAndUpdateEnv(
 				this.app.metadataCache,
 				this.settings,
 				this.saveSettings,
+				touchedEnvKeys,
 			);
-			hasUnsavedChanges = false;
-			updateApplyButton();
+
+			if (applied) {
+				touchedEnvKeys.clear();
+				hasUnsavedChanges = false;
+				updateApplyButton();
+			}
 		});
 
 		const updateApplyButton = () => {
@@ -891,6 +837,9 @@ export default class SettingView {
 					}
 				}
 
+				// Setting control values above may fire their onChange
+				// handlers — remote-loaded values are not user edits.
+				touchedEnvKeys.clear();
 				hasUnsavedChanges = false;
 				updateApplyButton();
 			} catch (error) {
@@ -923,7 +872,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.backlinkHeader ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.backlinkHeader = val;
-						markAsChanged();
+						markAsChanged("UI_BACKLINK_HEADER");
 					});
 			});
 
@@ -937,7 +886,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.noBacklinksMessage ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.noBacklinksMessage = val;
-						markAsChanged();
+						markAsChanged("UI_NO_BACKLINKS_MESSAGE");
 					});
 			});
 
@@ -956,7 +905,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchButtonText ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchButtonText = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_BUTTON_TEXT");
 					});
 			});
 
@@ -970,7 +919,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchPlaceholder ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchPlaceholder = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_PLACEHOLDER");
 					});
 			});
 
@@ -984,7 +933,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchEnterHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchEnterHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_ENTER_HINT");
 					});
 			});
 
@@ -998,7 +947,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNavigateHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNavigateHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NAVIGATE_HINT");
 					});
 			});
 
@@ -1012,7 +961,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchCloseHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchCloseHint = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_CLOSE_HINT");
 					});
 			});
 
@@ -1026,7 +975,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNoResults ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNoResults = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NO_RESULTS");
 					});
 			});
 
@@ -1042,7 +991,7 @@ export default class SettingView {
 					)
 					.onChange((val) => {
 						this.settings.uiStrings.searchPreviewPlaceholder = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_PREVIEW_PLACEHOLDER");
 					});
 			});
 
@@ -1056,7 +1005,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchNotStarted ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchNotStarted = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NOT_STARTED_TEXT");
 					});
 			});
 
@@ -1070,7 +1019,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchEnterHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchEnterHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_ENTER_HOTKEY");
 					});
 			});
 
@@ -1086,7 +1035,7 @@ export default class SettingView {
 					)
 					.onChange((val) => {
 						this.settings.uiStrings.searchNavigateHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_NAVIGATE_HOTKEY");
 					});
 			});
 
@@ -1100,7 +1049,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.searchCloseHotkey ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.searchCloseHotkey = val;
-						markAsChanged();
+						markAsChanged("UI_SEARCH_CLOSE_HOTKEY");
 					});
 			});
 
@@ -1119,7 +1068,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasDragHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasDragHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_DRAG_HINT");
 					});
 			});
 
@@ -1133,7 +1082,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasZoomHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasZoomHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_ZOOM_HINT");
 					});
 			});
 
@@ -1147,7 +1096,7 @@ export default class SettingView {
 					.setValue(this.settings.uiStrings?.canvasResetHint ?? "")
 					.onChange((val) => {
 						this.settings.uiStrings.canvasResetHint = val;
-						markAsChanged();
+						markAsChanged("UI_CANVAS_RESET_HINT");
 					});
 			});
 	}
@@ -1163,6 +1112,7 @@ export default class SettingView {
 			siteName: TextComponent | null;
 			mainLanguage: TextComponent | null;
 			useFullResolutionImages: ToggleComponent | null;
+			logoHeight: TextComponent | null;
 			timestampFormat: TextComponent | null;
 			showCreatedTimestamp: ToggleComponent | null;
 			showUpdatedTimestamp: ToggleComponent | null;
@@ -1176,6 +1126,7 @@ export default class SettingView {
 			siteName: null,
 			mainLanguage: null,
 			useFullResolutionImages: null,
+			logoHeight: null,
 			timestampFormat: null,
 			showCreatedTimestamp: null,
 			showUpdatedTimestamp: null,
@@ -1185,6 +1136,12 @@ export default class SettingView {
 			showNoteIconOnInternalLink: null,
 			showNoteIconOnBackLink: null,
 		};
+
+		// Env keys the user has actually changed in this modal session.
+		// Only these keys are written to the site's .env on apply, so
+		// settings the user didn't touch are never overwritten with
+		// stale local values.
+		const touchedEnvKeys = new Set<string>();
 
 		// Status indicator for loading remote settings
 		const statusEl = themeModal.contentEl.createDiv({
@@ -1221,6 +1178,12 @@ export default class SettingView {
 				controlKey: "useFullResolutionImages",
 				settingsKey: "useFullResolutionImages",
 				isBoolean: true,
+			},
+			{
+				envKey: "LOGO_HEIGHT",
+				controlKey: "logoHeight",
+				settingsKey: "logoHeight",
+				isBoolean: false,
 			},
 			{
 				envKey: "TIMESTAMP_FORMAT",
@@ -1314,6 +1277,10 @@ export default class SettingView {
 						}
 					}
 
+					// Setting control values above may fire their onChange
+					// handlers — remote-loaded values are not user edits.
+					touchedEnvKeys.clear();
+
 					statusEl.setText("Settings loaded from site");
 
 					setTimeout(() => {
@@ -1341,15 +1308,24 @@ export default class SettingView {
 
 			cb.onClick(async (_ev) => {
 				new Notice("Applying settings to site...");
-				await this.saveSettingsAndUpdateEnv();
+
+				const applied =
+					await this.saveSettingsAndUpdateEnv(touchedEnvKeys);
+
+				if (applied) {
+					touchedEnvKeys.clear();
+				}
 
 				const connection =
-					PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 						this.settings,
 					);
+				const octokit = connection.octoKit;
+				const owner = connection.userName;
+				const repo = connection.pageName;
 
 				try {
-					await this.addFavicon(connection);
+					await this.addFavicon(octokit, owner, repo);
 				} catch (error) {
 					Logger.error("Failed to update favicon", error);
 
@@ -1359,7 +1335,7 @@ export default class SettingView {
 				}
 
 				try {
-					await this.addLogo(connection);
+					await this.addLogo(octokit, owner, repo);
 				} catch (error) {
 					Logger.error("Failed to update logo", error);
 
@@ -1448,6 +1424,10 @@ export default class SettingView {
 								this.app.metadataCache,
 								this.settings,
 								this.saveSettings,
+								new Set([
+									"STYLE_SETTINGS_CSS",
+									"STYLE_SETTINGS_BODY_CLASSES",
+								]),
 							);
 							new Notice("Style Settings applied to site");
 						});
@@ -1463,6 +1443,10 @@ export default class SettingView {
 								this.app.metadataCache,
 								this.settings,
 								this.saveSettings,
+								new Set([
+									"STYLE_SETTINGS_CSS",
+									"STYLE_SETTINGS_BODY_CLASSES",
+								]),
 							);
 							new Notice("Style Settings removed from site");
 						});
@@ -1576,6 +1560,8 @@ export default class SettingView {
 
 			card.addEventListener("click", async () => {
 				this.settings.theme = themeValue;
+				touchedEnvKeys.add("THEME");
+				touchedEnvKeys.add("BASE_THEME");
 				await this.saveSettings();
 				updateCurrentThemeDisplay();
 
@@ -1631,6 +1617,7 @@ export default class SettingView {
 
 			dd.onChange(async (val: string) => {
 				this.settings.baseTheme = val;
+				touchedEnvKeys.add("BASE_THEME");
 				await this.saveSettings();
 			});
 		});
@@ -1646,6 +1633,7 @@ export default class SettingView {
 				text.setValue(this.settings.siteName).onChange(
 					async (value) => {
 						this.settings.siteName = value;
+						touchedEnvKeys.add("SITE_NAME_HEADER");
 						await this.saveSettings();
 					},
 				);
@@ -1668,6 +1656,23 @@ export default class SettingView {
 			});
 
 		new Setting(themeSection)
+			.setName("Logo size")
+			.setDesc(
+				"Height of the logo on your site. A number is treated as pixels (e.g. 40), or use any CSS size like 3rem. Leave blank for the default size.",
+			)
+			.addText((tc) => {
+				controls.logoHeight = tc;
+				tc.setPlaceholder("40");
+				tc.setValue(this.settings.logoHeight);
+
+				tc.onChange(async (val) => {
+					this.settings.logoHeight = val.trim();
+					touchedEnvKeys.add("LOGO_HEIGHT");
+					await this.saveSettings();
+				});
+			});
+
+		new Setting(themeSection)
 			.setName("Main language")
 			.setDesc(
 				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
@@ -1678,6 +1683,7 @@ export default class SettingView {
 				text.setValue(this.settings.mainLanguage).onChange(
 					async (value) => {
 						this.settings.mainLanguage = value;
+						touchedEnvKeys.add("SITE_MAIN_LANGUAGE");
 						await this.saveSettings();
 					},
 				);
@@ -1710,6 +1716,7 @@ export default class SettingView {
 
 				toggle.onChange(async (val) => {
 					this.settings.useFullResolutionImages = val;
+					touchedEnvKeys.add("USE_FULL_RESOLUTION_IMAGES");
 					await this.saveSettings();
 				});
 			});
@@ -1738,6 +1745,7 @@ export default class SettingView {
 				text.setValue(this.settings.timestampFormat).onChange(
 					async (value) => {
 						this.settings.timestampFormat = value;
+						touchedEnvKeys.add("TIMESTAMP_FORMAT");
 						await this.saveSettings();
 					},
 				);
@@ -1751,6 +1759,7 @@ export default class SettingView {
 				t.setValue(this.settings.showCreatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showCreatedTimestamp = value;
+						touchedEnvKeys.add("SHOW_CREATED_TIMESTAMP");
 						await this.saveSettings();
 					},
 				);
@@ -1778,6 +1787,7 @@ export default class SettingView {
 				t.setValue(this.settings.showUpdatedTimestamp).onChange(
 					async (value) => {
 						this.settings.showUpdatedTimestamp = value;
+						touchedEnvKeys.add("SHOW_UPDATED_TIMESTAMP");
 						await this.saveSettings();
 					},
 				);
@@ -1865,6 +1875,7 @@ export default class SettingView {
 				text.setValue(this.settings.defaultNoteIcon).onChange(
 					async (value) => {
 						this.settings.defaultNoteIcon = value;
+						touchedEnvKeys.add("NOTE_ICON_DEFAULT");
 						await this.saveSettings();
 					},
 				);
@@ -1878,6 +1889,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnTitle).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnTitle = value;
+						touchedEnvKeys.add("NOTE_ICON_TITLE");
 						await this.saveSettings();
 					},
 				);
@@ -1891,6 +1903,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconInFileTree).onChange(
 					async (value) => {
 						this.settings.showNoteIconInFileTree = value;
+						touchedEnvKeys.add("NOTE_ICON_FILETREE");
 						await this.saveSettings();
 					},
 				);
@@ -1904,6 +1917,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnInternalLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnInternalLink = value;
+						touchedEnvKeys.add("NOTE_ICON_INTERNAL_LINKS");
 						await this.saveSettings();
 					},
 				);
@@ -1917,6 +1931,7 @@ export default class SettingView {
 				t.setValue(this.settings.showNoteIconOnBackLink).onChange(
 					async (value) => {
 						this.settings.showNoteIconOnBackLink = value;
+						touchedEnvKeys.add("NOTE_ICON_BACK_LINKS");
 						await this.saveSettings();
 					},
 				);
@@ -1927,7 +1942,9 @@ export default class SettingView {
 			.addButton(handleSaveSettingsButton);
 	}
 
-	private async saveSettingsAndUpdateEnv() {
+	private async saveSettingsAndUpdateEnv(
+		touchedEnvKeys?: Set<string>,
+	): Promise<boolean> {
 		const theme = JSON.parse(this.settings.theme);
 		const baseTheme = this.settings.baseTheme;
 
@@ -1936,22 +1953,25 @@ export default class SettingView {
 				`The ${theme.name} theme doesn't support ${baseTheme} mode.`,
 			);
 
-			return;
+			return false;
 		}
 
 		const gardenManager = new DigitalGardenSiteManager(
 			this.app.metadataCache,
 			this.settings,
 		);
-		await gardenManager.updateEnv();
+		await gardenManager.updateEnv(touchedEnvKeys);
 
 		new Notice("Successfully applied settings");
+
+		return true;
 	}
 
 	private async saveSiteSettingsAndUpdateEnv(
 		metadataCache: MetadataCache,
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
+		touchedEnvKeys?: Set<string>,
 	) {
 		new Notice("Updating settings...");
 		let updateFailed = false;
@@ -1961,7 +1981,7 @@ export default class SettingView {
 				metadataCache,
 				settings,
 			);
-			await gardenManager.updateEnv();
+			await gardenManager.updateEnv(touchedEnvKeys);
 		} catch {
 			new Notice(
 				"Failed to update settings. Make sure you have an internet connection.",
@@ -1973,6 +1993,8 @@ export default class SettingView {
 			new Notice("Settings successfully updated!");
 			await saveSettings();
 		}
+
+		return !updateFailed;
 	}
 
 	private parseEnvSettings(envContent: string): Record<string, string> {
@@ -1993,7 +2015,7 @@ export default class SettingView {
 		return settings;
 	}
 
-	private async addFavicon(connection: IRepositoryConnection) {
+	private async addFavicon(octokit: Octokit, owner: string, repo: string) {
 		let base64SettingsFaviconContent = "";
 
 		if (this.settings.faviconPath) {
@@ -2010,12 +2032,22 @@ export default class SettingView {
 			base64SettingsFaviconContent = arrayBufferToBase64(faviconContent);
 		} else {
 			const baseConnection =
-				PublishPlatformConnectionFactory.createBaseGardenConnection();
+				PublishPlatformConnectionFactory.createBaseGardenConnection(
+					PublishPlatformConnectionFactory.githubTokenFor(
+						this.settings,
+					),
+				);
 
-			const defaultFavicon = await baseConnection.getFile(
-				"src/site/favicon.svg",
+			const defaultFavicon = await baseConnection.octoKit.request(
+				"GET /repos/{owner}/{repo}/contents/{path}",
+				{
+					owner: baseConnection.userName,
+					repo: baseConnection.pageName,
+					path: "src/site/favicon.svg",
+				},
 			);
-			base64SettingsFaviconContent = defaultFavicon?.content ?? "";
+			// @ts-expect-error TODO: abstract octokit response
+			base64SettingsFaviconContent = defaultFavicon.data.content;
 		}
 
 		let faviconExists = true;
@@ -2023,15 +2055,20 @@ export default class SettingView {
 		let currentFaviconOnSite = null;
 
 		try {
-			currentFaviconOnSite = await connection.getFile(
-				sitePath(this.settings, "/favicon.svg"),
+			currentFaviconOnSite = await octokit.request(
+				"GET /repos/{owner}/{repo}/contents/{path}",
+				{
+					owner,
+					repo,
+					path: sitePath(this.settings, "/favicon.svg"),
+				},
 			);
 
 			// GitHub API returns base64 with newlines, strip them for comparison
 			faviconsAreIdentical =
-				!!currentFaviconOnSite &&
-				currentFaviconOnSite.content.replace(/\n/g, "") ===
-					base64SettingsFaviconContent;
+				// @ts-expect-error TODO: abstract octokit response
+				currentFaviconOnSite.data.content.replace(/\n/g, "") ===
+				base64SettingsFaviconContent;
 
 			if (faviconsAreIdentical) {
 				Logger.info("Favicons are identical, skipping update");
@@ -2043,18 +2080,21 @@ export default class SettingView {
 		}
 
 		if (!faviconExists || !faviconsAreIdentical) {
-			await connection.updateFile({
+			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+				owner,
+				repo,
 				path: sitePath(this.settings, "/favicon.svg"),
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
-				sha: faviconExists ? currentFaviconOnSite?.sha : undefined,
+				// @ts-expect-error TODO: abstract octokit response
+				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
 			});
 		}
 	}
 
-	private async addLogo(connection: IRepositoryConnection) {
+	private async addLogo(octokit: Octokit, owner: string, repo: string) {
 		Logger.info(
-			`addLogo called, logoPath setting: "${this.settings.logoPath}"`,
+			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
 		);
 		const logoBasePath = sitePath(this.settings, "/logo");
 
@@ -2063,12 +2103,17 @@ export default class SettingView {
 
 		for (const ext of logoExtensions) {
 			try {
-				const existingLogo = await connection.getFile(
-					`${logoBasePath}.${ext}`,
+				const existingLogo = await octokit.request(
+					"GET /repos/{owner}/{repo}/contents/{path}",
+					{
+						owner,
+						repo,
+						path: `${logoBasePath}.${ext}`,
+					},
 				);
 
 				// Delete the existing logo if we're either clearing it or uploading a different format
-				if (existingLogo) {
+				if (existingLogo.data) {
 					const currentPath = this.settings.logoPath;
 
 					const currentExt = currentPath
@@ -2077,9 +2122,17 @@ export default class SettingView {
 
 					// Delete if no logo path set, or if the extension is different
 					if (!currentPath || currentExt !== ext) {
-						await connection.deleteFile(`${logoBasePath}.${ext}`, {
-							sha: existingLogo.sha,
-						});
+						await octokit.request(
+							"DELETE /repos/{owner}/{repo}/contents/{path}",
+							{
+								owner,
+								repo,
+								path: `${logoBasePath}.${ext}`,
+								message: `Remove logo.${ext}`,
+								// @ts-expect-error TODO: abstract octokit response
+								sha: existingLogo.data.sha,
+							},
+						);
 					}
 				}
 			} catch {
@@ -2116,13 +2169,20 @@ export default class SettingView {
 		let currentLogoOnSite = null;
 
 		try {
-			currentLogoOnSite = await connection.getFile(logoPath);
+			currentLogoOnSite = await octokit.request(
+				"GET /repos/{owner}/{repo}/contents/{path}",
+				{
+					owner,
+					repo,
+					path: logoPath,
+				},
+			);
 
 			// GitHub API returns base64 with newlines, strip them for comparison
 			logosAreIdentical =
-				!!currentLogoOnSite &&
-				currentLogoOnSite.content.replace(/\n/g, "") ===
-					base64LogoContent;
+				// @ts-expect-error TODO: abstract octokit response
+				currentLogoOnSite.data.content.replace(/\n/g, "") ===
+				base64LogoContent;
 
 			if (logosAreIdentical) {
 				Logger.info("Logos are identical, skipping update");
@@ -2136,13 +2196,19 @@ export default class SettingView {
 		if (!logoExists || !logosAreIdentical) {
 			try {
 				const requestPayload = {
+					owner,
+					repo,
 					path: logoPath,
 					message: `Update logo.${logoExtension}`,
 					content: base64LogoContent,
-					...(logoExists ? { sha: currentLogoOnSite?.sha } : {}),
+					// @ts-expect-error TODO: abstract octokit response
+					...(logoExists ? { sha: currentLogoOnSite.data.sha } : {}),
 				};
 
-				await connection.updateFile(requestPayload);
+				await octokit.request(
+					"PUT /repos/{owner}/{repo}/contents/{path}",
+					requestPayload,
+				);
 			} catch (error) {
 				Logger.error("Failed to upload logo", error);
 
@@ -2209,12 +2275,67 @@ export default class SettingView {
 			);
 	}
 
+	private initializeExcalidrawSetting() {
+		new Setting(this.settingsRootElement)
+			.setName("Publish Excalidraw drawings as SVG")
+			.setDesc(
+				"Export drawings as static SVG images at publish time, with embedded images, notes and fonts included. Requires the Excalidraw plugin. When disabled, drawings are published as an interactive viewer loaded from a CDN, which cannot display embedded files.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.settings.excalidrawSvgExportEnabled)
+					.onChange(async (value) => {
+						this.settings.excalidrawSvgExportEnabled = value;
+						await this.saveSettings();
+					}),
+			);
+	}
+
+	private initializeGardenPluginSettings() {
+		new Setting(this.settingsRootElement)
+			.setName("Garden Plugins")
+			.setDesc(
+				"Install, configure and manage the plugins that power your garden's features. Read from your garden repository.",
+			)
+			.addButton((cb) => {
+				cb.setButtonText("Manage plugins");
+
+				cb.onClick(async () => {
+					const connection =
+						await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+							this.settings,
+						);
+
+					const manager = new GardenPluginManager(
+						new RepositoryConnection(connection),
+						this.settings,
+					);
+
+					const modal = new GardenPluginsModal(
+						this.app,
+						manager,
+						this.settings,
+						this.saveSettings,
+						async () => {
+							await this.saveSiteSettingsAndUpdateEnv(
+								this.app.metadataCache,
+								this.settings,
+								this.saveSettings,
+							);
+						},
+					);
+
+					modal.open();
+				});
+			});
+	}
+
 	private async openNavigationOrderModal() {
 		const connection =
-			PublishPlatformConnectionFactory.createPublishPlatformConnection(
+			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
 			);
-		const repositoryConnection = connection;
+		const repositoryConnection = new RepositoryConnection(connection);
 
 		const publisher = new Publisher(
 			this.app.vault,
@@ -2345,6 +2466,20 @@ export default class SettingView {
 		target
 			.createEl("h3", { text: "Update site template" })
 			.prepend(getIcon("sync") ?? "");
+
+		new Setting(target)
+			.setName("Check for template updates on startup")
+			.setDesc(
+				"Show a notice on launch when a new site template version is available. Disable this if your template has diverged from the default and won't ever match. You can still check for updates manually below.",
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(!this.settings.disableTemplateUpdateNotice)
+					.onChange(async (value) => {
+						this.settings.disableTemplateUpdateNotice = !value;
+						await this.saveSettings();
+					});
+			});
 
 		// Show loading indicator while checking for updates
 		const loadingContainer = target.createDiv({

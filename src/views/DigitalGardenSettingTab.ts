@@ -37,7 +37,8 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 			this.app,
 			containerEl,
 			this.plugin.settings,
-			async () => await this.plugin.saveData(this.plugin.settings),
+			async () => await this.plugin.saveSettings(),
+			() => this.plugin.afterForestryConnected(),
 		);
 		const prModal = new UpdateGardenRepositoryModal(this.app);
 

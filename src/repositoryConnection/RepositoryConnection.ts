@@ -1,29 +1,53 @@
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
+import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
-import { normalizeRepoDirectory } from "src/publisher/paths";
-import DigitalGardenSettings from "src/models/settings";
-import { PublishPlatform } from "src/models/PublishPlatform";
+import { normalizeContentBaseDir } from "src/publisher/paths";
 
 const logger = Logger.get("repository-connection");
 
-const IMAGE_PATH_BASE = "src/site/img/user/";
+const IMAGE_PATH_BASE = "src/site/";
 const NOTE_PATH_BASE = "src/site/notes/";
-const DEFAULT_FORESTRY_BASE_URL = "https://api.forestry.md/app";
 
-type RepositoryConnectionSettings = Pick<
-	DigitalGardenSettings,
-	| "publishPlatform"
-	| "gitToken"
-	| "gitRepo"
-	| "gitUsername"
-	| "forestrySettings"
-	| "notesDirectory"
-	| "assetsDirectory"
->;
+/**
+ * Upper bound on changed files per commit in a batch publish. GitHub's
+ * create-tree endpoint returns HTTP 422 "your request timed out" when a
+ * single tree request carries too many entries (seen with ~600 notes), so
+ * larger publishes are split into consecutive commits of this size.
+ */
+export const MAX_TREE_ENTRIES_PER_COMMIT = 100;
 
-export interface IPutPayload {
+interface ITreeEntry {
+	path: string;
+	mode: "100644";
+	type: "blob";
+	/** `null` removes the path from the tree. */
+	sha: string | null;
+}
+
+/** Commit/tree shas the next chunked commit builds on; advanced per commit. */
+interface ICommitChainState {
+	parentCommitSha: string;
+	baseTreeSha: string;
+	defaultBranch: string;
+}
+
+/** `" (2/5)"` for multi-commit batches, `""` for a single commit. */
+const chunkLabel = (index: number, count: number) =>
+	count > 1 ? ` (${index + 1}/${count})` : "";
+
+const chunk = <T>(items: T[], size: number): T[][] => {
+	const result: T[][] = [];
+
+	for (let i = 0; i < items.length; i += size) {
+		result.push(items.slice(i, i + size));
+	}
+
+	return result;
+};
+
+interface IPutPayload {
 	path: string;
 	sha?: string;
 	content: string;
@@ -31,84 +55,38 @@ export interface IPutPayload {
 	message?: string;
 }
 
+/**
+ * Progress reporting for a batch publish: `done`/`total` count upload
+ * operations plus a final commit step, `message` names what just happened.
+ */
+export type PublishProgressCallback = (
+	done: number,
+	total: number,
+	message: string,
+) => void;
+
 export class RepositoryConnection {
-	private readonly userName: string;
-	private readonly pageName: string;
-	private readonly noteBase: string;
-	private readonly assetBase: string;
-	readonly octokit: Octokit;
-	private readonly settings: RepositoryConnectionSettings;
+	private userName: string;
+	private pageName: string;
+	private contentBase: string;
+	octokit: Octokit;
 
-	constructor(settings: RepositoryConnectionSettings) {
-		this.pageName = settings.gitRepo;
-		this.userName = settings.gitUsername;
-
-		this.noteBase =
-			normalizeRepoDirectory(settings.notesDirectory) || NOTE_PATH_BASE;
-
-		this.assetBase =
-			normalizeRepoDirectory(settings.assetsDirectory) || IMAGE_PATH_BASE;
-
-		if (settings.publishPlatform === PublishPlatform.ForestryMd) {
-			this.pageName = settings.forestrySettings.forestryPageName;
-			this.userName = "Forestry";
-			this.noteBase = NOTE_PATH_BASE;
-			this.assetBase = IMAGE_PATH_BASE;
-
-			this.octokit = new Octokit({
-				baseUrl: `${
-					process.env.FORESTRY_BASE_URL || DEFAULT_FORESTRY_BASE_URL
-				}/Garden`,
-				auth: settings.forestrySettings.apiKey,
-				log: Logger.get("octokit"),
-			});
-		} else {
-			this.octokit = new Octokit({
-				auth: settings.gitToken,
-				log: Logger.get("octokit"),
-			});
-		}
-
-		this.settings = settings;
+	constructor({
+		octoKit,
+		userName,
+		pageName,
+		contentBaseDir,
+	}: IPublishPlatformConnection) {
+		this.pageName = pageName;
+		this.userName = userName;
+		this.contentBase = normalizeContentBaseDir(contentBaseDir);
+		this.octokit = octoKit;
 	}
 
-	static createBaseGardenConnection(): RepositoryConnection {
-		return new RepositoryConnection({
-			publishPlatform: PublishPlatform.GitHub,
-			gitUsername: "oleeskild",
-			gitRepo: "digitalgarden",
-			gitToken: "",
-			forestrySettings: {
-				forestryPageName: "",
-				apiKey: "",
-				baseUrl: "",
-			},
-		});
+	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
+	get contentBaseDir(): string {
+		return this.contentBase;
 	}
-
-	validateSettings(): void {
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			if (!this.settings.forestrySettings.apiKey)
-				throw new Error(
-					"Define a Forestry.md Garden Key in plugin settings",
-				);
-
-			return;
-		}
-
-		if (!this.settings.gitRepo) throw new Error("Define a Git repository");
-
-		if (!this.settings.gitUsername)
-			throw new Error("Define a Git username");
-
-		if (!this.settings.gitToken) throw new Error("Define a Git token");
-	}
-
-	usesPublicationManifest(): boolean {
-		return false;
-	}
-
-	async clearPublicationManifest(): Promise<void> {}
 
 	getRepositoryName() {
 		return this.userName + "/" + this.pageName;
@@ -153,12 +131,18 @@ export class RepositoryConnection {
 		);
 
 		try {
+			// The cacheBust param defeats Electron's HTTP cache (GitHub serves
+			// max-age=60): a stale response here means a stale file sha, which
+			// makes the next updateFile fail as an edit conflict.
 			const response = await this.octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
+				`GET /repos/{owner}/{repo}/contents/{path}?cacheBust=${Date.now()}`,
 				{
 					...this.getBasePayload(),
 					path,
 					ref: branch,
+					headers: {
+						"If-None-Match": "",
+					},
 				},
 			);
 
@@ -173,6 +157,28 @@ export class RepositoryConnection {
 			throw new Error(
 				`Could not get file ${path} from repository ${this.getRepositoryName()}`,
 			);
+		}
+	}
+
+	/**
+	 * Get a blob's base64 content by sha (from a tree listing). Unlike the
+	 * contents API, this works for files larger than 1 MB.
+	 */
+	async getBlob(fileSha: string): Promise<string | undefined> {
+		try {
+			const response = await this.octokit.request(
+				"GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+				{
+					...this.getBasePayload(),
+					file_sha: fileSha,
+				},
+			);
+
+			if (response.status === 200) {
+				return response.data.content;
+			}
+		} catch (error) {
+			logger.error(error);
 		}
 	}
 
@@ -199,7 +205,7 @@ export class RepositoryConnection {
 				branch,
 			};
 
-			await this.octokit.request(
+			const result = await this.octokit.request(
 				"DELETE /repos/{owner}/{repo}/contents/{path}",
 				payload,
 			);
@@ -208,7 +214,7 @@ export class RepositoryConnection {
 				`Deleted file ${path} from repository ${this.getRepositoryName()}`,
 			);
 
-			return true;
+			return result;
 		} catch (error) {
 			throwIfLimitError(error);
 			logger.error(error);
@@ -274,100 +280,124 @@ export class RepositoryConnection {
 		}
 	}
 
-	// NB: Do not use this, it does not work for some reason.
-	//TODO: Fix this. For now use deleteNote and deleteImage instead
-	async deleteFiles(filePaths: string[]) {
-		const latestCommit = await this.getLatestCommit();
-
-		if (!latestCommit) {
-			logger.error("Could not get latest commit");
-
+	/**
+	 * Delete the given full repo paths from the default branch. Like
+	 * {@link updateFiles}, large deletions are split into consecutive commits
+	 * of at most {@link MAX_TREE_ENTRIES_PER_COMMIT} entries so GitHub's
+	 * create-tree endpoint does not time out, and the branch is advanced after
+	 * every commit so partial progress is kept. Throws on failure.
+	 */
+	async deleteFiles(
+		repoPaths: string[],
+		onProgress?: PublishProgressCallback,
+	) {
+		if (repoPaths.length === 0) {
 			return;
 		}
 
-		const normalizePath = (path: string) =>
-			path.startsWith("/") ? path.slice(1) : path;
+		const latestCommit = await this.getLatestCommit();
 
-		const filesToDelete = filePaths.map((path) => {
-			if (path.endsWith(".md")) {
-				return `${this.noteBase}${normalizePath(path)}`;
-			}
+		if (!latestCommit) {
+			throw new Error("Could not get latest commit");
+		}
 
-			return `${this.assetBase}${normalizePath(path)}`;
-		});
-
-		const repoDataPromise = this.octokit.request(
+		const repoData = await this.octokit.request(
 			"GET /repos/{owner}/{repo}",
 			{
 				...this.getBasePayload(),
 			},
 		);
 
-		const latestCommitSha = latestCommit.sha;
-		const baseTreeSha = latestCommit.commit.tree.sha;
+		const state: ICommitChainState = {
+			parentCommitSha: latestCommit.sha,
+			baseTreeSha: latestCommit.commit.tree.sha,
+			defaultBranch: repoData.data.default_branch,
+		};
 
-		const baseTree = await this.octokit.request(
-			"GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
-			{
-				...this.getBasePayload(),
-				tree_sha: baseTreeSha,
-			},
-		);
+		const chunks = chunk(repoPaths, MAX_TREE_ENTRIES_PER_COMMIT);
+		const totalSteps = repoPaths.length + chunks.length;
+		let stepsDone = 0;
 
-		const newTreeEntries = baseTree.data.tree
-			.filter(
-				(item: { path: string }) => !filesToDelete.includes(item.path),
-			) // Exclude files to delete
-			.map(
-				(item: {
-					path: string;
-					mode: string;
-					type: string;
-					sha: string;
-				}) => ({
-					path: item.path,
-					mode: item.mode,
-					type: item.type,
-					sha: item.sha,
-				}),
+		onProgress?.(0, totalSteps, "Deleting files…");
+
+		for (const [index, pathChunk] of chunks.entries()) {
+			const commitLabel = chunkLabel(index, chunks.length);
+
+			onProgress?.(
+				stepsDone,
+				totalSteps,
+				`Deleting ${pathChunk.length} files${commitLabel}…`,
 			);
 
+			await this.commitTreeEntries(
+				pathChunk.map((path) => ({
+					path,
+					mode: "100644" as const,
+					type: "blob" as const,
+					sha: null,
+				})),
+				`Deleted multiple files${commitLabel}`,
+				state,
+			);
+
+			stepsDone += pathChunk.length + 1;
+
+			onProgress?.(
+				stepsDone,
+				totalSteps,
+				`Deleted ${pathChunk.length} files`,
+			);
+		}
+
+		onProgress?.(totalSteps, totalSteps, "Deleted");
+	}
+
+	/**
+	 * Create a tree on top of `state.baseTreeSha` with the given entries,
+	 * commit it on top of `state.parentCommitSha`, advance the default branch
+	 * to it, and update `state` so the next call chains onto this commit.
+	 */
+	private async commitTreeEntries(
+		tree: ITreeEntry[],
+		message: string,
+		state: ICommitChainState,
+	) {
 		const newTree = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				tree: newTreeEntries,
+				base_tree: state.baseTreeSha,
+				tree,
 			},
 		);
-
-		const commitMessage = "Deleted multiple files";
 
 		const newCommit = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/commits",
 			{
 				...this.getBasePayload(),
-				message: commitMessage,
+				message,
 				tree: newTree.data.sha,
-				parents: [latestCommitSha],
+				parents: [state.parentCommitSha],
 			},
 		);
 
-		const defaultBranch = (await repoDataPromise).data.default_branch;
-
 		await this.octokit.request(
-			"PATCH /repos/{owner}/{repo}/git/refs/{ref}",
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				ref: `heads/${defaultBranch}`,
+				branch: state.defaultBranch,
 				sha: newCommit.data.sha,
 			},
 		);
+
+		state.parentCommitSha = newCommit.data.sha;
+		state.baseTreeSha = newTree.data.sha;
 	}
 
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
-		onProgress?: (completed: number, currentPath: string) => void,
+		onProgress?: PublishProgressCallback,
 	) {
 		const latestCommit = await this.getLatestCommit();
 
@@ -384,15 +414,15 @@ export class RepositoryConnection {
 			},
 		);
 
-		const latestCommitSha = latestCommit.sha;
-		const baseTreeSha = latestCommit.commit.tree.sha;
-
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
 
-		let completedNotes = 0;
-
-		const treePromises = files.map(async (file) => {
+		// One upload job per note and per changed image. Each uploads a blob
+		// and resolves to its tree entry (or undefined when the upload failed
+		// and was logged).
+		const uploadNote = async (
+			file: CompiledPublishFile,
+		): Promise<ITreeEntry | undefined> => {
 			const [text, _] = file.compiledFile;
 
 			try {
@@ -405,21 +435,19 @@ export class RepositoryConnection {
 					},
 				);
 
-				const entry = {
-					path: `${this.noteBase}${normalizePath(file.getPath())}`,
+				return {
+					path: `${this.contentBase}${NOTE_PATH_BASE}${normalizePath(
+						file.getPath(),
+					)}`,
 					mode: "100644",
 					type: "blob",
 					sha: blob.data.sha,
 				};
-				completedNotes++;
-				onProgress?.(completedNotes, file.getPath());
-
-				return entry;
 			} catch (error) {
 				throwIfLimitError(error);
 				logger.error(error);
 			}
-		});
+		};
 
 		// Filter out unchanged images before creating blobs
 		const allImages = files.flatMap((x) => x.compiledFile[1].images);
@@ -443,7 +471,9 @@ export class RepositoryConnection {
 			return true;
 		});
 
-		const treeAssetPromises = imagesToUpload.map(async (asset) => {
+		const uploadImage = async (
+			asset: (typeof imagesToUpload)[number],
+		): Promise<ITreeEntry | undefined> => {
 			try {
 				const blob = await this.octokit.request(
 					"POST /repos/{owner}/{repo}/git/blobs",
@@ -455,8 +485,8 @@ export class RepositoryConnection {
 				);
 
 				return {
-					path: `${this.assetBase}${normalizePath(
-						asset.path.replace(/^\/?img\/user\//, ""),
+					path: `${this.contentBase}${IMAGE_PATH_BASE}${normalizePath(
+						asset.path,
 					)}`,
 					mode: "100644",
 					type: "blob",
@@ -466,44 +496,158 @@ export class RepositoryConnection {
 				throwIfLimitError(error);
 				logger.error(error);
 			}
-		});
-		treePromises.push(...treeAssetPromises);
+		};
 
-		const treeList = await Promise.all(treePromises);
+		const jobs: {
+			path: string;
+			run: () => Promise<ITreeEntry | undefined>;
+		}[] = [
+			...files.map((file) => ({
+				path: file.getPath(),
+				run: () => uploadNote(file),
+			})),
+			...imagesToUpload.map((asset) => ({
+				path: asset.path,
+				run: () => uploadImage(asset),
+			})),
+		];
 
-		//Filter away undefined values
-		const tree = treeList.filter((x) => x !== undefined) as {
-			path?: string | undefined;
-			mode?:
-				| "100644"
-				| "100755"
-				| "040000"
-				| "160000"
-				| "120000"
-				| undefined;
-			type?: "tree" | "blob" | "commit" | undefined;
-			sha?: string | null | undefined;
-			content?: string | undefined;
-		}[];
+		// GitHub's create-tree endpoint times out on very large trees ("Sorry,
+		// your request timed out. It's likely that your input was too large to
+		// process"), so a big publish is split into several commits, each
+		// holding at most MAX_TREE_ENTRIES_PER_COMMIT changed files. Every
+		// commit builds on the previous one and the branch ref is advanced
+		// after each, so a failure part-way through keeps what was already
+		// published. Chunking also bounds how many blob uploads run at once.
+		const chunks = chunk(jobs, MAX_TREE_ENTRIES_PER_COMMIT);
+
+		// Upload progress: one unit per blob upload plus one per commit.
+		const totalSteps = jobs.length + chunks.length;
+		let stepsDone = 0;
+
+		onProgress?.(0, totalSteps, "Uploading files…");
+
+		const state: ICommitChainState = {
+			parentCommitSha: latestCommit.sha,
+			baseTreeSha: latestCommit.commit.tree.sha,
+			defaultBranch: (await repoDataPromise).data.default_branch,
+		};
+
+		for (const [index, jobChunk] of chunks.entries()) {
+			const treeList = await Promise.all(
+				jobChunk.map(async (job) => {
+					const entry = await job.run();
+					stepsDone += 1;
+					onProgress?.(stepsDone, totalSteps, `Uploaded ${job.path}`);
+
+					return entry;
+				}),
+			);
+
+			//Filter away undefined values
+			const tree = treeList.filter(
+				(x): x is ITreeEntry => x !== undefined,
+			);
+
+			const commitLabel = chunkLabel(index, chunks.length);
+
+			onProgress?.(
+				stepsDone,
+				totalSteps,
+				`Creating commit${commitLabel}…`,
+			);
+
+			if (tree.length > 0) {
+				await this.commitTreeEntries(
+					tree,
+					`Published multiple files${commitLabel}`,
+					state,
+				);
+			}
+
+			stepsDone += 1;
+		}
+
+		onProgress?.(totalSteps, totalSteps, "Published");
+	}
+
+	/**
+	 * Commit a set of raw file additions/updates and deletions as one atomic
+	 * commit on the default branch (blobs → tree → commit → ref, the same
+	 * flow as {@link updateFiles}). Used by the garden plugin installer so an
+	 * install, update, or uninstall is always a single commit. Paths are full
+	 * repo paths; addition content is base64. Throws on failure — callers
+	 * surface the error to the user.
+	 */
+	async commitChanges({
+		additions = [],
+		deletions = [],
+		message,
+	}: {
+		additions?: { path: string; content: string }[];
+		deletions?: string[];
+		message: string;
+	}) {
+		if (additions.length === 0 && deletions.length === 0) {
+			return;
+		}
+
+		const latestCommit = await this.getLatestCommit();
+
+		if (!latestCommit) {
+			throw new Error("Could not get latest commit");
+		}
+
+		const repoDataPromise = this.octokit.request(
+			"GET /repos/{owner}/{repo}",
+			{
+				...this.getBasePayload(),
+			},
+		);
+
+		const additionEntries = await Promise.all(
+			additions.map(async (file) => {
+				const blob = await this.octokit.request(
+					"POST /repos/{owner}/{repo}/git/blobs",
+					{
+						...this.getBasePayload(),
+						content: file.content,
+						encoding: "base64",
+					},
+				);
+
+				return {
+					path: file.path,
+					mode: "100644" as const,
+					type: "blob" as const,
+					sha: blob.data.sha,
+				};
+			}),
+		);
+
+		const deletionEntries = deletions.map((path) => ({
+			path,
+			mode: "100644" as const,
+			type: "blob" as const,
+			sha: null,
+		}));
 
 		const newTree = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				base_tree: baseTreeSha,
-				tree,
+				base_tree: latestCommit.commit.tree.sha,
+				tree: [...additionEntries, ...deletionEntries],
 			},
 		);
-
-		const commitMessage = "Published multiple files";
 
 		const newCommit = await this.octokit.request(
 			"POST /repos/{owner}/{repo}/git/commits",
 			{
 				...this.getBasePayload(),
-				message: commitMessage,
+				message,
 				tree: newTree.data.sha,
-				parents: [latestCommitSha],
+				parents: [latestCommit.sha],
 			},
 		);
 
@@ -544,105 +688,8 @@ export class RepositoryConnection {
 			sha,
 		});
 	}
-
-	async createPullRequest({
-		title,
-		head,
-		base,
-		body,
-	}: {
-		title: string;
-		head: string;
-		base: string;
-		body: string;
-	}) {
-		const response = await this.octokit.request(
-			"POST /repos/{owner}/{repo}/pulls",
-			{
-				...this.getBasePayload(),
-				title,
-				head,
-				base,
-				body,
-			},
-		);
-
-		return response.data.html_url;
-	}
 }
 
-export interface IRepositoryConnection {
-	validateSettings(): void;
-	usesPublicationManifest(): boolean;
-	clearPublicationManifest(): Promise<void>;
-	getRepositoryName(): string;
-	getContent(
-		branch: string,
-		onProgress?: (progress: RepositoryProgress) => void,
-	): Promise<IRepositoryTree | undefined>;
-	getFile(
-		path: string,
-		branch?: string,
-	): Promise<IRepositoryFile | undefined>;
-	deleteFile(
-		path: string,
-		options: { branch?: string; sha?: string },
-	): Promise<boolean>;
-	getLatestRelease(): Promise<{ tag_name?: string } | undefined>;
-	getLatestCommit(): Promise<
-		{ sha: string; commit: { tree: { sha: string } } } | undefined
-	>;
-	updateFile(payload: IPutPayload): Promise<unknown>;
-	deleteFiles(paths: string[]): Promise<void>;
-	updateFiles(
-		files: CompiledPublishFile[],
-		remoteImageHashes?: Record<string, string>,
-		onProgress?: (completed: number, currentPath: string) => void,
-	): Promise<void>;
-	getRepositoryInfo(): Promise<IRepositoryInfo | undefined>;
-	createBranch(branchName: string, sha: string): Promise<void>;
-	createPullRequest(input: {
-		title: string;
-		head: string;
-		base: string;
-		body: string;
-	}): Promise<string>;
-}
-
-export interface RepositoryProgress {
-	completed: number;
-	total?: number;
-	message: string;
-}
-
-export interface IRepositoryTreeItem {
-	path?: string;
-	mode?: string;
-	type?: string;
-	sha?: string;
-	size?: number;
-	url?: string;
-}
-
-export interface IRepositoryTree {
-	sha?: string;
-	url?: string;
-	truncated?: boolean;
-	tree: IRepositoryTreeItem[];
-}
-
-export interface IRepositoryFile {
-	type: "file";
-	content: string;
-	sha: string;
-	path?: string;
-	name?: string;
-	encoding?: string;
-}
-
-export interface IRepositoryInfo {
-	default_branch?: string;
-	permissions?: { admin?: boolean; push?: boolean };
-}
-
-export type TRepositoryContent = IRepositoryTree | undefined;
+export type TRepositoryContent = Awaited<
+	ReturnType<typeof RepositoryConnection.prototype.getContent>
+>;

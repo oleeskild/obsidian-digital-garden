@@ -1,76 +1,186 @@
 import DigitalGardenSettings from "../models/settings";
 import { PublishPlatform } from "../models/PublishPlatform";
 import {
-	IMAGE_PATH_BASE,
 	NOTE_PATH_BASE,
-	envPath,
-	imagePathBase,
-	normalizeRepoDirectory,
-	normalizeRepoPath,
+	IMAGE_PATH_BASE,
+	normalizeContentBaseDir,
+	contentBaseDir,
 	notePathBase,
+	imagePathBase,
 	sitePath,
+	envPath,
+	gardenPluginsPathBase,
+	gardenPluginsRegistryPath,
 } from "../publisher/paths";
 
-const settings = (overrides: Partial<DigitalGardenSettings> = {}) =>
-	({
-		publishPlatform: PublishPlatform.GitHub,
-		...overrides,
-	}) as DigitalGardenSettings;
+const withBase = (contentBase?: string) =>
+	({ contentBaseDir: contentBase }) as DigitalGardenSettings;
 
-describe("repository paths", () => {
-	it("retains the historical defaults", () => {
-		const value = settings();
-		expect(notePathBase(value)).toBe(NOTE_PATH_BASE);
-		expect(imagePathBase(value)).toBe(IMAGE_PATH_BASE);
-		expect(sitePath(value, "/favicon.svg")).toBe("src/site/favicon.svg");
-		expect(envPath(value)).toBe(".env");
+describe("paths", () => {
+	describe("normalizeContentBaseDir", () => {
+		const CASES: Array<{ input: string | undefined; expected: string }> = [
+			{ input: undefined, expected: "" },
+			{ input: "", expected: "" },
+			{ input: "   ", expected: "" },
+			{ input: "/", expected: "" },
+			{ input: "//", expected: "" },
+			{ input: "Web", expected: "Web/" },
+			{ input: "Web/", expected: "Web/" },
+			{ input: "/Web", expected: "Web/" },
+			{ input: "/Web/", expected: "Web/" },
+			{ input: "  Web  ", expected: "Web/" },
+			{ input: "a/b", expected: "a/b/" },
+			{ input: "/a/b/", expected: "a/b/" },
+			// Traversal or relative segments are invalid — fall back to the repo root.
+			{ input: "..", expected: "" },
+			{ input: "../escape", expected: "" },
+			{ input: "a/../b", expected: "" },
+			{ input: ".", expected: "" },
+			{ input: "a/./b", expected: "" },
+		];
+
+		it.each(CASES)(
+			"normalizes $input -> $expected",
+			({ input, expected }) => {
+				expect(normalizeContentBaseDir(input)).toBe(expected);
+			},
+		);
+
+		it("never emits a leading slash or a double slash", () => {
+			for (const { input } of CASES) {
+				const result = normalizeContentBaseDir(input);
+				expect(result.startsWith("/")).toBe(false);
+				expect(result.includes("//")).toBe(false);
+			}
+		});
 	});
 
-	it("uses independent repository-relative destinations", () => {
-		const value = settings({
-			notesDirectory: "/content/articles/",
-			assetsDirectory: "public\\uploads",
-			siteDirectory: "app/site",
-			settingsFilePath: "config/garden.env",
+	describe("path builders — backward compatibility (empty base)", () => {
+		const settings = withBase("");
+
+		it("contentBaseDir is empty", () => {
+			expect(contentBaseDir(settings)).toBe("");
 		});
 
-		expect(notePathBase(value)).toBe("content/articles/");
-		expect(imagePathBase(value)).toBe("public/uploads/");
-		expect(sitePath(value, "/logo.png")).toBe("app/site/logo.png");
-		expect(envPath(value)).toBe("config/garden.env");
-	});
-
-	it("rejects traversal and falls back to defaults", () => {
-		const value = settings({
-			notesDirectory: "../outside",
-			assetsDirectory: "public/../outside",
-			siteDirectory: ".",
-			settingsFilePath: "config/../secret",
+		it("notePathBase equals the historical literal", () => {
+			expect(notePathBase(settings)).toBe("src/site/notes/");
+			expect(notePathBase(settings)).toBe(NOTE_PATH_BASE);
 		});
 
-		expect(notePathBase(value)).toBe(NOTE_PATH_BASE);
-		expect(imagePathBase(value)).toBe(IMAGE_PATH_BASE);
-		expect(sitePath(value, "logo.png")).toBe("src/site/logo.png");
-		expect(envPath(value)).toBe(".env");
-	});
-
-	it("normalizes separators and surrounding slashes", () => {
-		expect(normalizeRepoDirectory(" /a//b\\c/ ")).toBe("a/b/c/");
-		expect(normalizeRepoPath("/config/site.env/")).toBe("config/site.env");
-	});
-
-	it("keeps the managed platform layout fixed", () => {
-		const value = settings({
-			publishPlatform: PublishPlatform.ForestryMd,
-			notesDirectory: "content",
-			assetsDirectory: "public",
-			siteDirectory: "site",
-			settingsFilePath: "config.env",
+		it("imagePathBase equals the historical literal", () => {
+			expect(imagePathBase(settings)).toBe("src/site/img/user/");
+			expect(imagePathBase(settings)).toBe(IMAGE_PATH_BASE);
 		});
 
-		expect(notePathBase(value)).toBe(NOTE_PATH_BASE);
-		expect(imagePathBase(value)).toBe(IMAGE_PATH_BASE);
-		expect(sitePath(value, "logo.png")).toBe("src/site/logo.png");
-		expect(envPath(value)).toBe(".env");
+		it("sitePath equals the historical literal", () => {
+			expect(sitePath(settings, "/favicon.svg")).toBe(
+				"src/site/favicon.svg",
+			);
+
+			expect(sitePath(settings, "/img/user/a.png")).toBe(
+				"src/site/img/user/a.png",
+			);
+		});
+
+		it("envPath equals the historical literal", () => {
+			expect(envPath(settings)).toBe(".env");
+		});
+
+		it("matches for undefined contentBaseDir too", () => {
+			const undefinedSettings = withBase(undefined);
+			expect(notePathBase(undefinedSettings)).toBe("src/site/notes/");
+			expect(imagePathBase(undefinedSettings)).toBe("src/site/img/user/");
+			expect(envPath(undefinedSettings)).toBe(".env");
+		});
+	});
+
+	describe("garden plugin paths", () => {
+		it("builds the plugins base and registry path without a base dir", () => {
+			expect(gardenPluginsPathBase(withBase(""))).toBe("src/plugins/");
+
+			expect(gardenPluginsRegistryPath(withBase(""))).toBe(
+				"src/plugins/plugins.json",
+			);
+		});
+
+		it("applies the content base dir", () => {
+			expect(gardenPluginsPathBase(withBase("Web"))).toBe(
+				"Web/src/plugins/",
+			);
+
+			expect(gardenPluginsRegistryPath(withBase("Web"))).toBe(
+				"Web/src/plugins/plugins.json",
+			);
+		});
+	});
+
+	describe("path builders — with a base directory", () => {
+		it.each(["Web", "Web/", "/Web/"])(
+			"prefixes every path with %s -> Web/",
+			(base) => {
+				const settings = withBase(base);
+				expect(notePathBase(settings)).toBe("Web/src/site/notes/");
+				expect(imagePathBase(settings)).toBe("Web/src/site/img/user/");
+
+				expect(sitePath(settings, "/favicon.svg")).toBe(
+					"Web/src/site/favicon.svg",
+				);
+				expect(envPath(settings)).toBe("Web/.env");
+			},
+		);
+
+		it("supports nested base directories", () => {
+			const settings = withBase("a/b");
+			expect(notePathBase(settings)).toBe("a/b/src/site/notes/");
+			expect(imagePathBase(settings)).toBe("a/b/src/site/img/user/");
+			expect(envPath(settings)).toBe("a/b/.env");
+		});
+
+		it("never produces a leading slash or a double slash", () => {
+			const settings = withBase("/Web/");
+
+			const produced = [
+				notePathBase(settings),
+				imagePathBase(settings),
+				sitePath(settings, "/logo.png"),
+				envPath(settings),
+			];
+
+			for (const p of produced) {
+				expect(p.startsWith("/")).toBe(false);
+				expect(p.includes("//")).toBe(false);
+			}
+		});
+	});
+
+	describe("path builders — publish platform gating", () => {
+		const withPlatform = (
+			contentBase: string,
+			publishPlatform: PublishPlatform,
+		) =>
+			({
+				contentBaseDir: contentBase,
+				publishPlatform,
+			}) as DigitalGardenSettings;
+
+		it("ignores contentBaseDir on the Forestry platform", () => {
+			const settings = withPlatform("Web", PublishPlatform.ForestryMd);
+
+			expect(contentBaseDir(settings)).toBe("");
+			expect(notePathBase(settings)).toBe("src/site/notes/");
+			expect(imagePathBase(settings)).toBe("src/site/img/user/");
+
+			expect(sitePath(settings, "/favicon.svg")).toBe(
+				"src/site/favicon.svg",
+			);
+			expect(envPath(settings)).toBe(".env");
+		});
+
+		it("applies contentBaseDir on the self-hosted (GitHub) platform", () => {
+			const settings = withPlatform("Web", PublishPlatform.SelfHosted);
+
+			expect(notePathBase(settings)).toBe("Web/src/site/notes/");
+			expect(envPath(settings)).toBe("Web/.env");
+		});
 	});
 });

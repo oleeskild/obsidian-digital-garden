@@ -4,6 +4,7 @@ import { PublishPlatform } from "../models/PublishPlatform";
 /** Backward-compatible destinations used when no custom path is configured. */
 export const NOTE_PATH_BASE = "src/site/notes/";
 export const IMAGE_PATH_BASE = "src/site/img/user/";
+export const GARDEN_PLUGINS_PATH_BASE = "src/plugins/";
 
 type RepositoryPathSettings = Pick<
 	DigitalGardenSettings,
@@ -83,4 +84,16 @@ export function envPath(settings: RepositoryPathSettings): string {
 	}
 
 	return ".env";
+}
+
+/** Repo path to the garden plugins directory, e.g. `src/plugins/` or `Web/src/plugins/`. */
+export function gardenPluginsPathBase(settings: ContentBaseSettings): string {
+	return `${contentBaseDir(settings)}${GARDEN_PLUGINS_PATH_BASE}`;
+}
+
+/** Repo path to the user-owned garden plugin registry (state) file. */
+export function gardenPluginsRegistryPath(
+	settings: ContentBaseSettings,
+): string {
+	return `${gardenPluginsPathBase(settings)}plugins.json`;
 }

@@ -1,219 +1,196 @@
 import { Component, Notice } from "obsidian";
 import { TCompilerStep } from "./GardenPageCompiler";
-import { escapeRegExp } from "../utils/utils";
 import { DataviewApi, getAPI } from "obsidian-dataview";
 import { PublishFile } from "src/publishFile/PublishFile";
 import Logger from "js-logger";
+import { CodeBlockNode, transformMarkdown } from "./ast";
 
 export class DataviewCompiler {
 	constructor() {}
 
 	compile: TCompilerStep = (file) => async (text) => {
-		let replacedText = text;
-		const dataViewRegex = /```\s*dataview\s(.+?)```/gms;
 		const dvApi = getAPI();
 
-		if (!dvApi) return replacedText;
-		const matches = text.matchAll(dataViewRegex);
+		if (!dvApi) return text;
 
-		const dataviewJsPrefix = dvApi.settings.dataviewJsKeyword;
-
-		const dataViewJsRegex = new RegExp(
-			"```\\s*" + escapeRegExp(dataviewJsPrefix) + "\\s(.+?)```",
-			"gsm",
-		);
-		const dataviewJsMatches = text.matchAll(dataViewJsRegex);
-
+		const dataviewJsKeyword = dvApi.settings.dataviewJsKeyword;
 		const inlineQueryPrefix = dvApi.settings.inlineQueryPrefix;
-
-		const inlineDataViewRegex = new RegExp(
-			"`" + escapeRegExp(inlineQueryPrefix) + "(.+?)`",
-			"gsm",
-		);
-		const inlineMatches = text.matchAll(inlineDataViewRegex);
-
 		const inlineJsQueryPrefix = dvApi.settings.inlineJsQueryPrefix;
 
-		const inlineJsDataViewRegex = new RegExp(
-			"`" + escapeRegExp(inlineJsQueryPrefix) + "(.+?)`",
-			"gsm",
-		);
-		const inlineJsMatches = text.matchAll(inlineJsDataViewRegex);
-
-		if (
-			!matches &&
-			!inlineMatches &&
-			!dataviewJsMatches &&
-			!inlineJsMatches
-		) {
-			return text;
-		}
-
-		//Code block queries
-		for (const queryBlock of matches) {
-			try {
-				const block = queryBlock[0];
-				const query = queryBlock[1];
-
-				const { isInsideCallout, finalQuery } =
-					this.sanitizeQuery(query);
-
-				let markdown = await dvApi.tryQueryMarkdown(
-					finalQuery,
-					file.getPath(),
-				);
-
-				if (isInsideCallout) {
-					markdown = this.surroundWithCalloutBlock(markdown);
+		return await transformMarkdown(text, async (node) => {
+			if (node.type === "codeblock") {
+				if (node.info === "dataview") {
+					return this.compileDataviewBlock(node, file, dvApi);
 				}
 
-				replacedText = replacedText.replace(
-					block,
-					`${markdown}\n{ .block-language-dataview}`,
-				);
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render dataview query. Please update the dataview plugin to the latest version.",
-				);
-
-				return queryBlock[0];
-			}
-		}
-
-		for (const queryBlock of dataviewJsMatches) {
-			try {
-				const block = queryBlock[0];
-				const query = queryBlock[1];
-
-				const div = createEl("div");
-				const component = new Component();
-				component.load();
-				await dvApi.executeJs(query, div, component, file.getPath());
-				let counter = 0;
-
-				while (!div.querySelector("[data-tag-name]") && counter < 100) {
-					await delay(5);
-					counter++;
+				if (dataviewJsKeyword && node.info === dataviewJsKeyword) {
+					return this.compileDataviewJsBlock(node, file, dvApi);
 				}
 
-				replacedText = replacedText.replace(block, div.innerHTML ?? "");
-			} catch (e) {
-				console.log(e);
-
-				new Notice(
-					"Unable to render dataviewjs query. Please update the dataview plugin to the latest version.",
-				);
-
-				return queryBlock[0];
+				return;
 			}
-		}
 
-		//Inline queries
-		for (const inlineQuery of inlineMatches) {
-			try {
-				const code = inlineQuery[0];
-				const query = inlineQuery[1];
-
-				const dataviewResult = dvApi.tryEvaluate(query.trim(), {
-					this: dvApi.page(file.getPath()) ?? {},
-				});
-
-				if (dataviewResult) {
-					replacedText = replacedText.replace(
-						code,
-						dataviewResult.toString() ?? "",
+			if (node.type === "inlinecode") {
+				if (
+					inlineQueryPrefix &&
+					node.body.startsWith(inlineQueryPrefix)
+				) {
+					return this.compileInlineQuery(
+						node.body.slice(inlineQueryPrefix.length),
+						file,
+						dvApi,
 					);
 				}
-			} catch (e) {
-				console.log(e);
 
-				new Notice(
-					"Unable to render inline dataview query. Please update the dataview plugin to the latest version.",
-				);
-
-				return inlineQuery[0];
-			}
-		}
-
-		for (const inlineJsQuery of inlineJsMatches) {
-			try {
-				const code = inlineJsQuery[0];
-				const query = inlineJsQuery[1];
-
-				let result: string | undefined | null = "";
-
-				result = tryDVEvaluate(query, file, dvApi);
-
-				if (!result) {
-					result = tryEval(query);
+				if (
+					inlineJsQueryPrefix &&
+					node.body.startsWith(inlineJsQueryPrefix)
+				) {
+					return this.compileInlineJsQuery(
+						node.body.slice(inlineJsQueryPrefix.length),
+						file,
+						dvApi,
+					);
 				}
-
-				if (!result) {
-					result = await tryExecuteJs(query, file, dvApi);
-				}
-
-				replacedText = replacedText.replace(
-					code,
-					result ?? "Unable to render query",
-				);
-			} catch (e) {
-				Logger.error(e);
-
-				new Notice(
-					"Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.",
-				);
-
-				return inlineJsQuery[0];
 			}
-		}
 
-		return replacedText;
+			return;
+		});
 	};
 
-	/**
-	 * Splits input in lines.
-	 * Prepends the callout/quote sign to each line,
-	 * returns all the lines as a single string
-	 *
-	 */
-	surroundWithCalloutBlock(input: string): string {
-		const tmp = input.split("\n");
+	private async compileDataviewBlock(
+		node: CodeBlockNode,
+		file: PublishFile,
+		dvApi: DataviewApi,
+	): Promise<string | undefined> {
+		try {
+			// The parser strips callout markers into cleanBody and records
+			// the callout prefix, so the query needs no re-parsing here.
+			let markdown = await dvApi.tryQueryMarkdown(
+				node.cleanBody,
+				file.getPath(),
+			);
 
-		return " " + tmp.join("\n> ");
+			if (node.linePrefix) {
+				markdown = this.surroundWithCalloutBlock(
+					markdown,
+					node.linePrefix,
+				);
+			}
+
+			return `${markdown}\n{ .block-language-dataview}`;
+		} catch (e) {
+			console.log(e);
+
+			new Notice(
+				"Unable to render dataview query. Please update the dataview plugin to the latest version.",
+			);
+
+			return undefined;
+		}
+	}
+
+	private async compileDataviewJsBlock(
+		node: CodeBlockNode,
+		file: PublishFile,
+		dvApi: DataviewApi,
+	): Promise<string | undefined> {
+		try {
+			const div = createEl("div");
+			const component = new Component();
+			component.load();
+
+			await dvApi.executeJs(
+				node.cleanBody,
+				div,
+				component,
+				file.getPath(),
+			);
+			let counter = 0;
+
+			while (!div.querySelector("[data-tag-name]") && counter < 100) {
+				await delay(5);
+				counter++;
+			}
+
+			return div.innerHTML ?? "";
+		} catch (e) {
+			console.log(e);
+
+			new Notice(
+				"Unable to render dataviewjs query. Please update the dataview plugin to the latest version.",
+			);
+
+			return undefined;
+		}
+	}
+
+	private compileInlineQuery(
+		query: string,
+		file: PublishFile,
+		dvApi: DataviewApi,
+	): string | undefined {
+		try {
+			const dataviewResult = dvApi.tryEvaluate(query.trim(), {
+				this: dvApi.page(file.getPath()) ?? {},
+			});
+
+			if (dataviewResult) {
+				return dataviewResult.toString() ?? "";
+			}
+
+			return undefined;
+		} catch (e) {
+			console.log(e);
+
+			new Notice(
+				"Unable to render inline dataview query. Please update the dataview plugin to the latest version.",
+			);
+
+			return undefined;
+		}
+	}
+
+	private async compileInlineJsQuery(
+		query: string,
+		file: PublishFile,
+		dvApi: DataviewApi,
+	): Promise<string | undefined> {
+		try {
+			let result: string | undefined | null = "";
+
+			result = tryDVEvaluate(query, file, dvApi);
+
+			if (!result) {
+				result = tryEval(query);
+			}
+
+			if (!result) {
+				result = await tryExecuteJs(query, file, dvApi);
+			}
+
+			// Evaluation can yield non-strings (e.g. a number); the
+			// transform only applies string replacements.
+			return String(result ?? "Unable to render query");
+		} catch (e) {
+			Logger.error(e);
+
+			new Notice(
+				"Unable to render inline dataviewjs query. Please update the dataview plugin to the latest version.",
+			);
+
+			return undefined;
+		}
 	}
 
 	/**
-	 * Checks if a query is inside a callout block.
-	 * Removes the callout symbols and re-join sanitized parts.
-	 * Also returns the boolean that indicates if the query was inside a callout.
-	 * @param query
-	 * @returns
+	 * Put rendered markdown back inside the callout the query came from:
+	 * every line after the first gets the callout's own prefix (which may
+	 * be nested, e.g. "> > "). The first line continues the "> " that
+	 * survives in front of the replaced code block.
 	 */
-	sanitizeQuery(query: string): {
-		isInsideCallout: boolean;
-		finalQuery: string;
-	} {
-		let isInsideCallout = false;
-		const parts = query.split("\n");
-		const sanitized = [];
-
-		for (const part of parts) {
-			if (part.startsWith(">")) {
-				isInsideCallout = true;
-				sanitized.push(part.substring(1).trim());
-			} else {
-				sanitized.push(part);
-			}
-		}
-		let finalQuery = query;
-
-		if (isInsideCallout) {
-			finalQuery = sanitized.join("\n");
-		}
-
-		return { isInsideCallout, finalQuery };
+	surroundWithCalloutBlock(input: string, linePrefix: string): string {
+		return " " + input.split("\n").join("\n" + linePrefix);
 	}
 }
 

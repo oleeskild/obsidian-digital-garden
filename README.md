@@ -1,4 +1,12 @@
-# 🏡 Obsidian Digital Garden
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="img/digital-garden-dark.svg">
+    <!-- Logo size: change the width below (the SVG is square and scales automatically) -->
+    <img src="img/digital-garden.svg" alt="Digital Garden logo" width="128">
+  </picture>
+</p>
+
+# Obsidian Digital Garden
 
 [![Downloads](https://img.shields.io/github/downloads/oleeskild/obsidian-digital-garden/total?color=blue)](https://github.com/oleeskild/obsidian-digital-garden/releases)
 [![Discord](https://img.shields.io/discord/1154324140313018429?color=7289da&label=discord)](https://discord.gg/UsPH74nEVS)
@@ -6,7 +14,8 @@
 
 Turn your Obsidian vault into a beautiful website. Free, open-source, and entirely yours.
 
-![image](https://github.com/user-attachments/assets/8343d716-cf30-48d0-b5a5-8eda980e25bd)
+<img width="2467" height="1212" alt="image" src="https://github.com/user-attachments/assets/00a81e50-1166-4e16-a589-23b0374efd29" />
+
 
 
 ## 📚 Documentation

@@ -1,0 +1,650 @@
+button:disabled {
+	pointer-events: none;
+	opacity: 0.4;
+}
+
+.digital-garden-publish-status-view ul {
+	list-style-type: none;
+	position: relative;
+	margin-left: 5px;
+	margin-top: 0;
+	max-height: 250px;
+	overflow: auto;
+}
+
+.digital-garden-publish-status-view h2 {
+	margin-top: 0;
+	margin-bottom: 5px;
+}
+
+.digital-garden-publish-status-view .collapsable {
+	cursor: pointer;
+	margin-left: 10px;
+}
+
+.dg-settings > h1,
+h2,
+h3,
+h4 {
+	margin-top: 40px;
+}
+
+.dg-settings .svg-icon {
+	margin-right: 10px;
+}
+
+@keyframes dg-rotate {
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+.dg-rotate {
+	animation: dg-rotate 4s linear infinite;
+}
+
+/* GitHub settings layout */
+#github-settings {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+
+#github-settings h3 {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	row-gap: 4px;
+}
+
+#github-settings h3 .connection-status {
+	flex-basis: 100%;
+	margin-left: -9px;
+}
+
+/* Connection status styles */
+.connection-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+	padding: 2px 8px;
+	border-radius: 4px;
+	vertical-align: middle;
+}
+
+.connection-status-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.connection-status-text {
+	white-space: nowrap;
+}
+
+.connection-status-loading {
+	color: var(--text-muted);
+}
+
+.connection-status-loading .connection-status-icon {
+	animation: dg-rotate 2s linear infinite;
+}
+
+.connection-status-connected {
+	color: var(--color-green);
+}
+
+.connection-status-error {
+	color: var(--color-red);
+}
+
+/* Apply settings container */
+.dg-apply-settings-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 16px;
+	margin-bottom: 16px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-apply-settings-container.has-changes {
+	border-color: var(--color-yellow);
+	background: var(--background-secondary-alt);
+}
+
+.dg-apply-settings-button {
+	padding: 8px 24px;
+	font-size: 1em;
+	font-weight: 600;
+}
+
+.dg-apply-settings-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dg-apply-settings-status {
+	color: var(--text-warning);
+	font-size: 0.9em;
+	min-height: 1.2em;
+}
+
+/* Apply button container for appearance settings */
+.dg-apply-button-container {
+	margin-top: 16px;
+	margin-bottom: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-apply-button-container .setting-item-control {
+	width: 100%;
+}
+
+.dg-apply-button-container .setting-item-info {
+	display: none;
+}
+
+.dg-apply-button-container button {
+	width: 100%;
+	margin-top: 8px;
+}
+
+/* Appearance status message */
+.dg-appearance-status {
+	margin-bottom: 10px;
+	color: var(--text-muted);
+}
+
+.dg-appearance-status.is-error {
+	color: var(--text-error);
+}
+
+/* Documentation link */
+.dg-docs-link {
+	margin-bottom: 10px;
+}
+
+/* Settings sections */
+.dg-settings-section {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 16px;
+	margin-bottom: 16px;
+}
+
+.dg-settings-section h3 {
+	margin-top: 0 !important;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dg-settings-section .dg-apply-button-container {
+	margin-bottom: 0;
+	background: transparent;
+	border: none;
+	padding: 12px 0 0 0;
+}
+
+/* Theme picker */
+.dg-current-theme {
+	margin-bottom: 12px;
+	padding: 8px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.dg-current-theme span {
+	color: var(--text-muted);
+}
+
+.dg-theme-search {
+	width: 100%;
+	padding: 8px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+.dg-theme-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 12px;
+	max-height: 300px;
+	overflow-y: auto;
+	padding: 4px;
+}
+
+.dg-theme-card {
+	cursor: pointer;
+	border-radius: 6px;
+	overflow: hidden;
+	border: 2px solid var(--background-modifier-border);
+	transition: border-color 0.15s ease;
+	background: var(--background-secondary);
+}
+
+.dg-theme-card.is-selected {
+	border-color: var(--interactive-accent);
+}
+
+.dg-theme-card:hover:not(.is-selected) {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.dg-theme-card-image {
+	width: 100%;
+	height: 80px;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+.dg-theme-card-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.dg-theme-card-placeholder {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	font-size: 11px;
+}
+
+.dg-theme-card-name {
+	padding: 6px 8px;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Update Modal Styles */
+.dg-update-modal .modal-content {
+	padding: 0;
+}
+
+.dg-modal-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dg-modal-title .svg-icon {
+	width: 20px;
+	height: 20px;
+}
+
+.dg-update-section {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.dg-update-info {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	margin-bottom: 16px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dg-update-info .svg-icon {
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.dg-update-info-text {
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.dg-update-button-container {
+	display: flex;
+	justify-content: center;
+}
+
+.dg-update-button-container button {
+	padding: 10px 24px;
+	font-size: 1em;
+}
+
+/* Update Progress States */
+.dg-update-progress {
+	margin-top: 16px;
+}
+
+.dg-update-loading,
+.dg-update-success,
+.dg-update-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: 24px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.dg-update-spinner {
+	margin-bottom: 16px;
+}
+
+.dg-update-spinner .svg-icon {
+	width: 32px;
+	height: 32px;
+	color: var(--interactive-accent);
+	animation: dg-rotate 1.5s linear infinite;
+}
+
+.dg-update-loading-text {
+	font-size: 1.1em;
+	font-weight: 500;
+	margin: 0 0 4px 0;
+}
+
+.dg-update-loading-subtext {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin: 0;
+}
+
+.dg-update-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+}
+
+.dg-update-icon .svg-icon {
+	width: 28px;
+	height: 28px;
+}
+
+.dg-update-icon-success {
+	background: rgba(var(--color-green-rgb), 0.15);
+}
+
+.dg-update-icon-success .svg-icon {
+	color: var(--color-green);
+}
+
+.dg-update-icon-error {
+	background: rgba(var(--color-red-rgb), 0.15);
+}
+
+.dg-update-icon-error .svg-icon {
+	color: var(--color-red);
+}
+
+.dg-update-title {
+	margin: 0 0 8px 0;
+	font-size: 1.2em;
+}
+
+.dg-update-message {
+	color: var(--text-muted);
+	margin: 0 0 16px 0;
+}
+
+.dg-update-link-container {
+	margin-top: 8px;
+}
+
+.dg-update-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-radius: 6px;
+	text-decoration: none;
+	font-weight: 500;
+	transition: opacity 0.15s ease;
+}
+
+.dg-update-link:hover {
+	opacity: 0.9;
+	text-decoration: none;
+	color: var(--text-on-accent);
+}
+
+.dg-update-link .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* PR History Styles */
+.dg-pr-history {
+	margin-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 16px;
+}
+
+.dg-pr-history-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	padding: 8px;
+	border-radius: 6px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	transition: background 0.15s ease;
+}
+
+.dg-pr-history-header:hover {
+	background: var(--background-secondary);
+}
+
+.dg-pr-history-header .svg-icon {
+	width: 16px;
+	height: 16px;
+	transition: transform 0.2s ease;
+}
+
+.dg-pr-history-header .svg-icon.is-expanded {
+	transform: rotate(90deg);
+}
+
+.dg-pr-history-list {
+	padding: 8px 0 0 24px;
+}
+
+.dg-pr-history-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border-radius: 4px;
+	margin-bottom: 4px;
+}
+
+.dg-pr-history-item:hover {
+	background: var(--background-secondary);
+}
+
+.dg-pr-history-item .svg-icon {
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+}
+
+.dg-pr-history-link {
+	color: var(--text-normal);
+	text-decoration: none;
+}
+
+.dg-pr-history-link:hover {
+	color: var(--interactive-accent);
+	text-decoration: underline;
+}
+
+/* Forestry.md upgrade nudge (shown in the self-hosted setup panel) */
+.dg-forestry-upgrade-notice {
+	position: relative;
+	margin: 4px 0 20px;
+	padding: 14px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--interactive-accent);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+
+.dg-forestry-upgrade-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	margin-bottom: 6px;
+	padding-right: 24px;
+}
+
+.dg-forestry-upgrade-heading .svg-icon {
+	width: 18px;
+	height: 18px;
+	color: var(--interactive-accent);
+}
+
+.dg-forestry-upgrade-text {
+	margin: 0 0 12px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.dg-forestry-upgrade-actions {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.dg-forestry-upgrade-link {
+	font-size: 0.9em;
+	color: var(--text-accent);
+}
+
+.dg-forestry-upgrade-dismiss {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.dg-forestry-upgrade-dismiss:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.dg-forestry-upgrade-dismiss .svg-icon {
+	width: 16px;
+	height: 16px;
+}
+
+/* Forestry site-update status bar item */
+.dg-site-status {
+	cursor: pointer;
+}
+
+.dg-site-status.dg-site-status-updating {
+	animation: dg-site-status-pulse 1.5s ease-in-out infinite;
+}
+
+.dg-site-status.dg-site-status-failed {
+	color: var(--text-error);
+}
+
+@keyframes dg-site-status-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+/* Home page onboarding */
+.dg-pc-home-banner {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 10px;
+	font-size: 0.85rem;
+	background: var(--background-secondary);
+}
+
+.dg-pc-home-banner .dg-pc-callout-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.dg-pc-home-banner .dg-pc-callout-title {
+	font-weight: bold;
+}
+
+.dg-home-prompt-hint {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.dg-home-prompt-buttons {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+	margin-top: 16px;
+}
+
+.dg-notice-clickable {
+	cursor: pointer;
+}
+
+.dg-forestry-connect-error {
+	color: var(--text-error);
+	font-size: 0.9em;
+	margin: 6px 0;
+}
+
+.dg-forestry-connect-hint {
+	margin-top: 6px;
+}

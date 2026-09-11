@@ -24,9 +24,7 @@
 </script>
 
 {#if !path}
-	<div class="dg-pc-diff-empty">
-		Select a file from the left to see what changed.
-	</div>
+	<div class="dg-pc-diff-empty">Select a file to see what changed.</div>
 {:else}
 	<div class="dg-pc-diff-header">
 		<span class="dg-pc-diff-path">
@@ -103,12 +101,16 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 8px;
-		padding-bottom: 8px;
+		padding: 8px;
 		margin-bottom: 8px;
 		border-bottom: 1px solid var(--background-modifier-border);
 		position: sticky;
 		top: 0;
 		background: var(--background-primary);
+	}
+
+	.dg-pc-diff-body {
+		padding: 0 8px 8px;
 	}
 
 	.dg-pc-diff-path {
@@ -147,5 +149,15 @@
 
 	.dg-pc-toggle button:last-child {
 		border-radius: 0 4px 4px 0;
+	}
+
+	@container (max-width: 640px) {
+		.dg-pc-diff-header {
+			flex-wrap: wrap;
+		}
+
+		.dg-pc-diff-path {
+			flex: 1 1 100%;
+		}
 	}
 </style>
