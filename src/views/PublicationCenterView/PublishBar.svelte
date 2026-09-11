@@ -4,6 +4,8 @@
 
 	export let selectedCount: number;
 	export let publishing: boolean;
+	export let refreshing: boolean;
+	export let showFullRefresh: boolean;
 
 	const dispatch = createEventDispatcher();
 </script>
@@ -12,10 +14,20 @@
 	<button
 		class="dg-pc-refresh"
 		on:click={() => dispatch("refresh")}
-		disabled={publishing}
+		disabled={publishing || refreshing}
 	>
 		Refresh
 	</button>
+	{#if showFullRefresh}
+		<button
+			class="dg-pc-full-refresh"
+			on:click={() => dispatch("fullrefresh")}
+			disabled={publishing || refreshing}
+			title="Rebuild the remote file manifest without recompiling notes"
+		>
+			Rebuild Cache
+		</button>
+	{/if}
 	<button
 		class="dg-pc-publish"
 		on:click={() => dispatch("publish")}

@@ -235,6 +235,24 @@ export default class SettingView {
 		this.initializeCustomFilterSettings();
 
 		new Setting(this.settingsRootElement)
+			.setName("Ignored paths")
+			.setDesc(
+				"Vault-relative notes, assets, or folders to ignore completely. Enter one path per line. Folder descendants are also ignored. These paths will not be scanned, listed, published, or deleted remotely.",
+			)
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("Private\nArchive/Old note.md")
+					.setValue((this.settings.ignoredPaths ?? []).join("\n"))
+					.onChange(async (value) => {
+						this.settings.ignoredPaths = value
+							.split("\n")
+							.map((path) => path.trim())
+							.filter(Boolean);
+						await this.saveSettings();
+					}),
+			);
+
+		new Setting(this.settingsRootElement)
 			.setName("Enable debug logging")
 			.setDesc(
 				"Show detailed logs in the developer console. Useful for troubleshooting.",

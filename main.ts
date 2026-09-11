@@ -95,6 +95,7 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	pathRewriteRules: "",
 	customFilters: [],
 	publishPlatform: PublishPlatform.SelfHosted,
+	ignoredPaths: [],
 
 	contentClassesKey: "dg-content-classes",
 

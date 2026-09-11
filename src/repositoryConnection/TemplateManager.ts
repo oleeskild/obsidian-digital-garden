@@ -1,7 +1,7 @@
 import Logger from "js-logger";
 import DigitalGardenPluginInfo from "../models/pluginInfo";
 import {
-	RepositoryConnection,
+	IRepositoryConnection,
 	TRepositoryContent,
 } from "./RepositoryConnection";
 
@@ -14,8 +14,8 @@ interface IUpdateFileInfo {
 }
 
 interface IUpdateCheckerProps {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 }
 
 interface IUpdateProps extends IUpdateCheckerProps {
@@ -31,8 +31,8 @@ interface IUpdateInfo {
 }
 
 export class TemplateUpdateChecker {
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 	defaultBranch?: string;
 	newestTemplateVersion?: string;
 
@@ -54,16 +54,6 @@ export class TemplateUpdateChecker {
 		return file;
 	}
 
-	/**
-	 * Template file paths (from plugin-info.json) are relative to the template root.
-	 * In the user's repo the template may live under a content base directory, so
-	 * lookups and writes there must be prefixed. IUpdateFileInfo paths stay
-	 * template-relative; the prefix is applied at the user-repo boundary only.
-	 */
-	private get userContentBase(): string {
-		return this.userGardenConnection.contentBaseDir;
-	}
-
 	private getFilesToDelete(
 		pluginInfo: DigitalGardenPluginInfo,
 		userFileList: NonNullable<TRepositoryContent>,
@@ -71,10 +61,7 @@ export class TemplateUpdateChecker {
 		const filesToDelete = [];
 
 		for (const file of pluginInfo.filesToDelete) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			if (currentFile) {
 				filesToDelete.push({ path: file, sha: currentFile.sha });
@@ -91,10 +78,7 @@ export class TemplateUpdateChecker {
 		const filesToUpdate = [];
 
 		for (const file of pluginInfo.filesToModify) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			const baseFile = this.getFileInfoFromContent(
 				baseGardenFileList,
@@ -116,10 +100,7 @@ export class TemplateUpdateChecker {
 		const filesToAdd = [];
 
 		for (const file of pluginInfo.filesToAdd) {
-			const currentFile = this.getFileInfoFromContent(
-				userFileList,
-				this.userContentBase + file,
-			);
+			const currentFile = this.getFileInfoFromContent(userFileList, file);
 
 			if (!currentFile) {
 				filesToAdd.push({ path: file });
@@ -219,7 +200,7 @@ export class TemplateUpdateChecker {
 		};
 	}
 
-	private async getPluginInfo(baseGardenConnection: RepositoryConnection) {
+	private async getPluginInfo(baseGardenConnection: IRepositoryConnection) {
 		logger.info("Getting plugin info");
 
 		const pluginInfoResponse =
@@ -249,8 +230,8 @@ export class TemplateUpdateChecker {
 export class TemplateUpdater {
 	filesToChange: IUpdateInfo;
 	defaultBranch: string;
-	baseGardenConnection: RepositoryConnection;
-	userGardenConnection: RepositoryConnection;
+	baseGardenConnection: IRepositoryConnection;
+	userGardenConnection: IRepositoryConnection;
 	newestTemplateVersion: string;
 
 	constructor({
@@ -287,18 +268,12 @@ export class TemplateUpdater {
 		await this.addOrUpdateFiles(filesToAdd, branchName);
 
 		try {
-			const pr = await this.userGardenConnection.octokit.request(
-				"POST /repos/{owner}/{repo}/pulls",
-				{
-					...this.userGardenConnection.getBasePayload(),
-					title: `Update template to version ${this.newestTemplateVersion}`,
-					head: branchName,
-					base: this.defaultBranch,
-					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
-				},
-			);
-
-			return pr?.data?.html_url;
+			return await this.userGardenConnection.createPullRequest({
+				title: `Update template to version ${this.newestTemplateVersion}`,
+				head: branchName,
+				base: this.defaultBranch,
+				body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
+			});
 		} catch (e) {
 			return "";
 		}
@@ -331,13 +306,10 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToDelete) {
-			await this.userGardenConnection.deleteFile(
-				this.userGardenConnection.contentBaseDir + file.path,
-				{
-					branch,
-					sha: file.sha,
-				},
-			);
+			await this.userGardenConnection.deleteFile(file.path, {
+				branch,
+				sha: file.sha,
+			});
 		}
 	}
 
@@ -346,8 +318,6 @@ export class TemplateUpdater {
 		branch: string,
 	) {
 		for (const file of filesToAdd) {
-			// Content comes from the base template repo (template-relative path),
-			// but lands in the user's repo under its content base directory.
 			const baseTemplateFile = await this.baseGardenConnection.getFile(
 				file.path,
 			);
@@ -358,7 +328,7 @@ export class TemplateUpdater {
 
 			await this.userGardenConnection.updateFile({
 				content: baseTemplateFile.content,
-				path: this.userGardenConnection.contentBaseDir + file.path,
+				path: file.path,
 				branch: branch,
 				sha: file.sha,
 				message: "Update files",
