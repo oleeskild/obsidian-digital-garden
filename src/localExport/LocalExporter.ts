@@ -180,7 +180,7 @@ export class LocalExporter {
 		/* eslint-disable @typescript-eslint/no-var-requires -- intentional lazy load */
 		this.fs = require("fs/promises") as typeof FsPromises;
 		this.path = require("path") as typeof Path;
-		/* eslint-enable @typescript-eslint/no-var-requires */
+		/* eslint-enable @typescript-eslint/no-var-requires -- end of intentional lazy load */
 	}
 
 	private async validateTargetPath(targetPath: string): Promise<void> {
