@@ -419,7 +419,7 @@ export class GithubSettings {
 			"Everything goes to this branch: notes, site settings, favicon and logo, navigation order, garden plugins, and template update pull requests.",
 			"The Publication Center and settings show what is on this branch, not what is on your live site.",
 			"Changes made directly to the default branch are not on this branch until you merge them into it.",
-			"If you squash or rebase when merging and keep the branch, later merges can conflict. Use merge commits, or delete the branch after merging.",
+			"If you squash or rebase when merging, delete this branch afterwards and create it again from the default branch. Otherwise the next merge can conflict.",
 			"The plugin never creates the branch. If it does not exist, for example because it was deleted after a merge, publishing fails until you create it on GitHub or change this setting.",
 		]) {
 			risks.createEl("li", { text: risk });
