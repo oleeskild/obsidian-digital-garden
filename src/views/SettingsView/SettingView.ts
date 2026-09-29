@@ -1306,8 +1306,24 @@ export default class SettingView {
 				const owner = connection.userName;
 				const repo = connection.pageName;
 
+				let branch: string | undefined;
+
 				try {
-					await this.addFavicon(octokit, owner, repo);
+					branch = await new RepositoryConnection(
+						connection,
+					).getPublishBranch();
+				} catch (error) {
+					Logger.error("Failed to resolve the publish branch", error);
+
+					new Notice(
+						"Failed to update favicon and logo: could not access the publish branch. Check the developer console for details.",
+					);
+
+					return;
+				}
+
+				try {
+					await this.addFavicon(octokit, owner, repo, branch);
 				} catch (error) {
 					Logger.error("Failed to update favicon", error);
 
@@ -1317,7 +1333,7 @@ export default class SettingView {
 				}
 
 				try {
-					await this.addLogo(octokit, owner, repo);
+					await this.addLogo(octokit, owner, repo, branch);
 				} catch (error) {
 					Logger.error("Failed to update logo", error);
 
@@ -1997,7 +2013,12 @@ export default class SettingView {
 		return settings;
 	}
 
-	private async addFavicon(octokit: Octokit, owner: string, repo: string) {
+	private async addFavicon(
+		octokit: Octokit,
+		owner: string,
+		repo: string,
+		branch: string | undefined,
+	) {
 		let base64SettingsFaviconContent = "";
 
 		if (this.settings.faviconPath) {
@@ -2043,6 +2064,7 @@ export default class SettingView {
 					owner,
 					repo,
 					path: sitePath(this.settings, "/favicon.svg"),
+					ref: branch,
 				},
 			);
 
@@ -2066,6 +2088,7 @@ export default class SettingView {
 				owner,
 				repo,
 				path: sitePath(this.settings, "/favicon.svg"),
+				branch,
 				message: `Update favicon.svg`,
 				content: base64SettingsFaviconContent,
 				// @ts-expect-error TODO: abstract octokit response
@@ -2074,7 +2097,12 @@ export default class SettingView {
 		}
 	}
 
-	private async addLogo(octokit: Octokit, owner: string, repo: string) {
+	private async addLogo(
+		octokit: Octokit,
+		owner: string,
+		repo: string,
+		branch: string | undefined,
+	) {
 		Logger.info(
 			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
 		);
@@ -2091,6 +2119,7 @@ export default class SettingView {
 						owner,
 						repo,
 						path: `${logoBasePath}.${ext}`,
+						ref: branch,
 					},
 				);
 
@@ -2110,6 +2139,7 @@ export default class SettingView {
 								owner,
 								repo,
 								path: `${logoBasePath}.${ext}`,
+								branch,
 								message: `Remove logo.${ext}`,
 								// @ts-expect-error TODO: abstract octokit response
 								sha: existingLogo.data.sha,
@@ -2157,6 +2187,7 @@ export default class SettingView {
 					owner,
 					repo,
 					path: logoPath,
+					ref: branch,
 				},
 			);
 
@@ -2181,6 +2212,7 @@ export default class SettingView {
 					owner,
 					repo,
 					path: logoPath,
+					branch,
 					message: `Update logo.${logoExtension}`,
 					content: base64LogoContent,
 					// @ts-expect-error TODO: abstract octokit response
