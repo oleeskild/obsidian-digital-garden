@@ -41,6 +41,8 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
 import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
 import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
+import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 import { GardenPluginsModal } from "../GardenPluginSettings/GardenPluginsModal";
 import { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 
@@ -1291,8 +1293,21 @@ export default class SettingView {
 			cb.onClick(async (_ev) => {
 				new Notice("Applying settings to site...");
 
-				const applied =
-					await this.saveSettingsAndUpdateEnv(touchedEnvKeys);
+				let applied: boolean;
+
+				try {
+					applied =
+						await this.saveSettingsAndUpdateEnv(touchedEnvKeys);
+				} catch (error) {
+					// Favicon and logo would fail the same way; stop here.
+					if (error instanceof PublishBranchMissingError) {
+						notifyPublishBranchMissing(error);
+
+						return;
+					}
+
+					throw error;
+				}
 
 				if (applied) {
 					touchedEnvKeys.clear();
@@ -1313,6 +1328,11 @@ export default class SettingView {
 						connection,
 					).getPublishBranch();
 				} catch (error) {
+					if (error instanceof PublishBranchMissingError) {
+						notifyPublishBranchMissing(error);
+
+						return;
+					}
 					Logger.error("Failed to resolve the publish branch", error);
 
 					new Notice(
@@ -1980,10 +2000,14 @@ export default class SettingView {
 				settings,
 			);
 			await gardenManager.updateEnv(touchedEnvKeys);
-		} catch {
-			new Notice(
-				"Failed to update settings. Make sure you have an internet connection.",
-			);
+		} catch (error) {
+			if (error instanceof PublishBranchMissingError) {
+				notifyPublishBranchMissing(error);
+			} else {
+				new Notice(
+					"Failed to update settings. Make sure you have an internet connection.",
+				);
+			}
 			updateFailed = true;
 		}
 
