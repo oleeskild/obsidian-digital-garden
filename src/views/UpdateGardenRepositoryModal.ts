@@ -107,7 +107,8 @@ export class UpdateGardenRepositoryModal extends Modal {
 		}
 	}
 
-	renderError() {
+	/** Show the failure; `message` replaces the default troubleshooting hint. */
+	renderError(message?: string) {
 		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
@@ -131,7 +132,9 @@ export class UpdateGardenRepositoryModal extends Modal {
 		});
 
 		errorContainer.createEl("p", {
-			text: 'Try deleting the "update-template" branch in your GitHub repository and try again.',
+			text:
+				message ??
+				'Try deleting the "update-template" branch in your GitHub repository and try again.',
 			cls: "dg-update-message",
 		});
 	}

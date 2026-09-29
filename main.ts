@@ -23,6 +23,8 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
 import { notifyLimitReached } from "src/forestry/limitNotice";
+import { PublishBranchMissingError } from "src/repositoryConnection/PublishBranchMissingError";
+import { notifyPublishBranchMissing } from "src/repositoryConnection/publishBranchNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
 import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
 import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
@@ -622,6 +624,12 @@ export default class DigitalGarden extends Plugin {
 
 						return;
 					}
+
+					if (e instanceof PublishBranchMissingError) {
+						notifyPublishBranchMissing(e);
+
+						return;
+					}
 					console.error(e);
 
 					new Notice(
@@ -918,6 +926,12 @@ export default class DigitalGarden extends Plugin {
 		} catch (e) {
 			if (e instanceof LimitReachedError) {
 				this.showLimitNotice(e);
+
+				return false;
+			}
+
+			if (e instanceof PublishBranchMissingError) {
+				notifyPublishBranchMissing(e);
 
 				return false;
 			}

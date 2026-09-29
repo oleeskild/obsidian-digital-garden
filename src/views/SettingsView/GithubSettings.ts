@@ -150,7 +150,21 @@ export class GithubSettings {
 				repoResponse.data.permissions,
 			);
 
-			if (hasWriteAccess) {
+			const { publishBranch } = this.settings.settings;
+
+			if (
+				publishBranch &&
+				!(await this.branchExists(
+					octokit,
+					githubUserName,
+					githubRepo,
+					publishBranch,
+				))
+			) {
+				this.setConnectionError(
+					`Publish branch "${publishBranch}" not found. Create it on GitHub or change the publish branch.`,
+				);
+			} else if (hasWriteAccess) {
 				this.setConnectionSuccess("Connected with full access");
 			} else {
 				await this.validateContentAccess(
@@ -171,6 +185,30 @@ export class GithubSettings {
 		permissions: { admin?: boolean; push?: boolean } | undefined,
 	): boolean {
 		return !!(permissions && (permissions.admin || permissions.push));
+	}
+
+	/** Used to flag a missing publish branch here, before a publish fails on it. */
+	private async branchExists(
+		octokit: Octokit,
+		owner: string,
+		repo: string,
+		branch: string,
+	): Promise<boolean> {
+		try {
+			await octokit.request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
+				owner,
+				repo,
+				ref: `heads/${branch}`,
+			});
+
+			return true;
+		} catch (error) {
+			if ((error as { status?: unknown }).status === 404) {
+				return false;
+			}
+
+			throw error;
+		}
 	}
 
 	private async validateContentAccess(
@@ -382,7 +420,7 @@ export class GithubSettings {
 			"The Publication Center and settings show what is on this branch, not what is on your live site.",
 			"Changes made directly to the default branch are not on this branch until you merge them into it.",
 			"If you squash or rebase when merging and keep the branch, later merges can conflict. Use merge commits, or delete the branch after merging.",
-			"If the branch does not exist, the plugin creates it from the default branch the next time it publishes.",
+			"The plugin never creates the branch. If it does not exist, for example because it was deleted after a merge, publishing fails until you create it on GitHub or change this setting.",
 		]) {
 			risks.createEl("li", { text: risk });
 		}
@@ -407,7 +445,8 @@ export class GithubSettings {
 						branch && branch !== this.defaultBranch
 							? branch
 							: undefined;
-					await this.settings.saveSettings();
+					// Re-runs the connection check, which flags a missing branch.
+					await this.checkConnectionAndSaveSettings();
 				});
 			});
 	}

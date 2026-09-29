@@ -3,6 +3,7 @@ import {
 	RepositoryConnection,
 } from "./RepositoryConnection";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
+import { PublishBranchMissingError } from "./PublishBranchMissingError";
 
 interface IRequest {
 	route: string;
@@ -382,15 +383,8 @@ describe("RepositoryConnection.deleteFiles", () => {
  * Fake GitHub where the default branch `main` is at commit-0 and the publish
  * branch `drafts` (when it exists) is at drafts-commit.
  */
-const makeBranchOctokit = ({
-	branchExists,
-	createConflict = false,
-}: {
-	branchExists: boolean;
-	createConflict?: boolean;
-}) => {
+const makeBranchOctokit = ({ branchExists }: { branchExists: boolean }) => {
 	const requests: IRequest[] = [];
-	let exists = branchExists;
 	let counter = 0;
 
 	const notFound = () =>
@@ -400,18 +394,7 @@ const makeBranchOctokit = ({
 		requests.push({ route, payload });
 
 		if (route === "GET /repos/{owner}/{repo}/git/ref/{ref}") {
-			if (!exists) throw notFound();
-
-			return { data: {} };
-		}
-
-		if (route === "POST /repos/{owner}/{repo}/git/refs") {
-			if (createConflict) {
-				throw Object.assign(new Error("Reference already exists"), {
-					status: 422,
-				});
-			}
-			exists = true;
+			if (!branchExists) throw notFound();
 
 			return { data: {} };
 		}
@@ -485,46 +468,38 @@ describe("RepositoryConnection with a publish branch", () => {
 		expect(tree.payload.base_tree).toBe("drafts-tree");
 		expect(commit.payload.parents).toEqual(["drafts-commit"]);
 		expect(refUpdates.map((r) => r.payload.branch)).toEqual(["drafts"]);
-
-		expect(
-			byRoute(octokit.requests, "POST /repos/{owner}/{repo}/git/refs"),
-		).toHaveLength(0);
 	});
 
-	it("creates a missing publish branch from the default branch before writing", async () => {
+	it("fails batch writes without creating a missing publish branch", async () => {
 		const octokit = makeBranchOctokit({ branchExists: false });
 
-		await makeBranchConnection(octokit).deleteFiles([
-			"src/site/notes/a.md",
-		]);
+		await expect(
+			makeBranchConnection(octokit).deleteFiles(["src/site/notes/a.md"]),
+		).rejects.toBeInstanceOf(PublishBranchMissingError);
 
-		const [createRef] = byRoute(
-			octokit.requests,
-			"POST /repos/{owner}/{repo}/git/refs",
+		const writes = octokit.requests.filter(
+			(r) => !r.route.startsWith("GET "),
 		);
 
-		expect(createRef.payload).toMatchObject({
-			ref: "refs/heads/drafts",
-			sha: "commit-0",
-		});
-
-		const refUpdates = byRoute(
-			octokit.requests,
-			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
-		);
-
-		expect(refUpdates.map((r) => r.payload.branch)).toEqual(["drafts"]);
+		expect(writes).toHaveLength(0);
 	});
 
-	it("tolerates the publish branch being created concurrently", async () => {
-		const octokit = makeBranchOctokit({
-			branchExists: false,
-			createConflict: true,
-		});
+	it("fails single-file writes instead of swallowing a missing publish branch", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
 
 		await expect(
-			makeBranchConnection(octokit).getWriteBranch(),
-		).resolves.toBe("drafts");
+			makeBranchConnection(octokit).updateFile({
+				path: "src/site/env",
+				content: "",
+			}),
+		).rejects.toThrow('The publish branch "drafts" does not exist');
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"PUT /repos/{owner}/{repo}/contents/{path}",
+			),
+		).toHaveLength(0);
 	});
 
 	it("reads from the publish branch when it exists", async () => {
@@ -539,7 +514,7 @@ describe("RepositoryConnection with a publish branch", () => {
 		expect(read.payload.ref).toBe("drafts");
 	});
 
-	it("reads from the default branch without creating a missing publish branch", async () => {
+	it("reads from the default branch when the publish branch is missing", async () => {
 		const octokit = makeBranchOctokit({ branchExists: false });
 		const connection = makeBranchConnection(octokit);
 
@@ -556,10 +531,6 @@ describe("RepositoryConnection with a publish branch", () => {
 
 		expect(read.payload.ref).toBeUndefined();
 		expect(commit.payload.ref).toBe("HEAD");
-
-		expect(
-			byRoute(octokit.requests, "POST /repos/{owner}/{repo}/git/refs"),
-		).toHaveLength(0);
 	});
 
 	it("sends single-file writes to the publish branch", async () => {

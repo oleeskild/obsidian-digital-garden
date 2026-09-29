@@ -6,6 +6,7 @@ import { UpdateGardenRepositoryModal } from "./UpdateGardenRepositoryModal";
 import Logger from "js-logger";
 import { TemplateUpdater } from "../repositoryConnection/TemplateManager";
 import { PublishPlatform } from "src/models/PublishPlatform";
+import { PublishBranchMissingError } from "src/repositoryConnection/PublishBranchMissingError";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
@@ -69,7 +70,11 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 				prModal.renderSuccess(prUrl);
 				button.setDisabled(false);
 			} catch (error) {
-				prModal.renderError();
+				prModal.renderError(
+					error instanceof PublishBranchMissingError
+						? error.message
+						: undefined,
+				);
 			}
 		};
 

@@ -3,6 +3,7 @@ import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
+import { PublishBranchMissingError } from "./PublishBranchMissingError";
 import { normalizeContentBaseDir } from "src/publisher/paths";
 
 const logger = Logger.get("repository-connection");
@@ -138,9 +139,9 @@ export class RepositoryConnection {
 
 	/**
 	 * The ref to read when a caller asks for `ref`. `HEAD` or no ref means
-	 * the garden's own branch: the publish branch once it exists. Until then
-	 * reads use the default branch, which the publish branch will be created
-	 * from, so both show the same content.
+	 * the garden's own branch: the publish branch when it exists. When it is
+	 * missing, reads use the default branch so screens still load; writes
+	 * fail instead (see {@link getWriteBranch}).
 	 */
 	private async resolveReadRef<T extends string | undefined>(
 		ref: T,
@@ -155,9 +156,10 @@ export class RepositoryConnection {
 	}
 
 	/**
-	 * Name of the branch writes go to: the publish branch, created from the
-	 * head of the default branch if it does not exist yet, or the default
-	 * branch when no publish branch is set. Throws on failure.
+	 * Name of the branch writes go to: the publish branch, or the default
+	 * branch when no publish branch is set. Throws
+	 * {@link PublishBranchMissingError} when the publish branch does not
+	 * exist; the plugin never creates it.
 	 */
 	async getWriteBranch(): Promise<string> {
 		if (!this.publishBranch) {
@@ -165,40 +167,17 @@ export class RepositoryConnection {
 		}
 
 		if (!(await this.publishBranchExists())) {
-			const defaultHead = await this.octokit.request(
-				`GET /repos/{owner}/{repo}/commits/{ref}?cacheBust=${Date.now()}`,
-				{
-					...this.getBasePayload(),
-					ref: "HEAD",
-				},
-			);
-
-			logger.info(
-				`Creating publish branch ${
-					this.publishBranch
-				} in ${this.getRepositoryName()}`,
-			);
-
-			try {
-				await this.createBranch(
-					this.publishBranch,
-					defaultHead.data.sha,
-				);
-			} catch (error) {
-				// Another write created it in the meantime.
-				if (statusOf(error) !== 422) {
-					throw error;
-				}
-			}
+			throw new PublishBranchMissingError(this.publishBranch);
 		}
 
 		return this.publishBranch;
 	}
 
 	/**
-	 * The publish branch, created if missing, for passing as an explicit
-	 * `branch`/`ref`. Undefined when none is set, so requests stay exactly as
-	 * they were and the API uses the default branch.
+	 * The publish branch, for passing as an explicit `branch`/`ref`. Throws
+	 * like {@link getWriteBranch} when it is missing. Undefined when none is
+	 * set, so requests stay exactly as they were and the API uses the
+	 * default branch.
 	 */
 	async getPublishBranch(): Promise<string | undefined> {
 		return this.publishBranch ? this.getWriteBranch() : undefined;
@@ -323,6 +302,10 @@ export class RepositoryConnection {
 			return result;
 		} catch (error) {
 			throwIfLimitError(error);
+
+			if (error instanceof PublishBranchMissingError) {
+				throw error;
+			}
 			logger.error(error);
 
 			return false;
@@ -386,6 +369,10 @@ export class RepositoryConnection {
 			);
 		} catch (error) {
 			throwIfLimitError(error);
+
+			if (error instanceof PublishBranchMissingError) {
+				throw error;
+			}
 			logger.error(error);
 		}
 	}
@@ -405,7 +392,7 @@ export class RepositoryConnection {
 			return;
 		}
 
-		// Ensure the publish branch exists first, so HEAD resolves to it.
+		// Resolve (and check) the branch first, so HEAD resolves to it.
 		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
@@ -510,7 +497,7 @@ export class RepositoryConnection {
 		remoteImageHashes: Record<string, string> = {},
 		onProgress?: PublishProgressCallback,
 	): Promise<string[]> {
-		// Ensure the publish branch exists first, so HEAD resolves to it.
+		// Resolve (and check) the branch first, so HEAD resolves to it.
 		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
@@ -706,7 +693,7 @@ export class RepositoryConnection {
 			return;
 		}
 
-		// Ensure the publish branch exists first, so HEAD resolves to it.
+		// Resolve (and check) the branch first, so HEAD resolves to it.
 		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
