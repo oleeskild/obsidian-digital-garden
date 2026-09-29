@@ -20,7 +20,6 @@ interface IUpdateCheckerProps {
 
 interface IUpdateProps extends IUpdateCheckerProps {
 	filesToChange: IUpdateInfo;
-	defaultBranch: string;
 	newestTemplateVersion: string;
 }
 
@@ -33,7 +32,6 @@ interface IUpdateInfo {
 export class TemplateUpdateChecker {
 	baseGardenConnection: RepositoryConnection;
 	userGardenConnection: RepositoryConnection;
-	defaultBranch?: string;
 	newestTemplateVersion?: string;
 
 	constructor({
@@ -164,7 +162,6 @@ export class TemplateUpdateChecker {
 			baseGardenConnection: this.baseGardenConnection,
 			userGardenConnection: this.userGardenConnection,
 			filesToChange: updateInfo,
-			defaultBranch: this.defaultBranch as string,
 			newestTemplateVersion: templateVersion,
 		});
 	}
@@ -178,17 +175,7 @@ export class TemplateUpdateChecker {
 			throw new Error("Unable to get base garden file list");
 		}
 
-		const repoInfo = await this.baseGardenConnection.getRepositoryInfo();
-
-		const defaultBranch = repoInfo?.default_branch;
-
-		if (!defaultBranch) {
-			throw new Error("Unable to get default branch");
-		}
-		this.defaultBranch = defaultBranch;
-
-		const userFileList =
-			await this.userGardenConnection.getContent(defaultBranch);
+		const userFileList = await this.userGardenConnection.getContent("HEAD");
 
 		if (!userFileList) {
 			throw new Error("Unable to get user file list");
@@ -248,7 +235,6 @@ export class TemplateUpdateChecker {
 
 export class TemplateUpdater {
 	filesToChange: IUpdateInfo;
-	defaultBranch: string;
 	baseGardenConnection: RepositoryConnection;
 	userGardenConnection: RepositoryConnection;
 	newestTemplateVersion: string;
@@ -257,11 +243,9 @@ export class TemplateUpdater {
 		baseGardenConnection,
 		userGardenConnection,
 		filesToChange,
-		defaultBranch,
 		newestTemplateVersion,
 	}: IUpdateProps) {
 		this.filesToChange = filesToChange;
-		this.defaultBranch = defaultBranch;
 		this.baseGardenConnection = baseGardenConnection;
 		this.userGardenConnection = userGardenConnection;
 		this.newestTemplateVersion = newestTemplateVersion;
@@ -270,7 +254,10 @@ export class TemplateUpdater {
 	async updateTemplate() {
 		const { filesToDelete, filesToUpdate, filesToAdd } = this.filesToChange;
 
-		const { branchName } = await this.createNewBranch();
+		// The update is a pull request into the garden's own branch: the
+		// publish branch when one is set, otherwise the default branch.
+		const baseBranch = await this.userGardenConnection.getWriteBranch();
+		const { branchName } = await this.createNewBranch(baseBranch);
 
 		logger.info("Deleting files");
 		await this.deleteFiles(filesToDelete, branchName);
@@ -293,7 +280,7 @@ export class TemplateUpdater {
 					...this.userGardenConnection.getBasePayload(),
 					title: `Update template to version ${this.newestTemplateVersion}`,
 					head: branchName,
-					base: this.defaultBranch,
+					base: baseBranch,
 					body: `Update to latest template version.\n [Release Notes](https://github.com/oleeskild/digitalgarden/releases/tag/${this.newestTemplateVersion})`,
 				},
 			);
@@ -304,7 +291,7 @@ export class TemplateUpdater {
 		}
 	}
 
-	private async createNewBranch(): Promise<{
+	private async createNewBranch(baseBranch: string): Promise<{
 		branchName: string;
 	}> {
 		const uuid = crypto.randomUUID();
@@ -312,7 +299,8 @@ export class TemplateUpdater {
 		const branchName =
 			"update-template-to-v" + this.newestTemplateVersion + "-" + uuid;
 
-		const latestCommit = await this.userGardenConnection.getLatestCommit();
+		const latestCommit =
+			await this.userGardenConnection.getLatestCommit(baseBranch);
 
 		if (!latestCommit) {
 			throw new Error("Unable to get latest commit");

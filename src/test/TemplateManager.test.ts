@@ -39,7 +39,6 @@ const makeBaseConnection = (getFileCalls: string[] = []) =>
 			return { content: Base64.encode("template file content") };
 		},
 		getContent: async () => BASE_TREE,
-		getRepositoryInfo: async () => ({ default_branch: "main" }),
 	}) as unknown as RepositoryConnection;
 
 const makeUserConnection = (contentBaseDir: string, tree: ITreeItem[]) =>
@@ -129,6 +128,7 @@ describe("TemplateUpdater with a content base directory", () => {
 
 		const userGardenConnection = {
 			contentBaseDir: "Web/",
+			getWriteBranch: async () => "main",
 			getLatestCommit: async () => ({ sha: "commit-sha" }),
 			createBranch: async () => undefined,
 			deleteFile: async (path: string) => {
@@ -148,7 +148,6 @@ describe("TemplateUpdater with a content base directory", () => {
 		const updater = new TemplateUpdater({
 			baseGardenConnection: makeBaseConnection(baseGetFileCalls),
 			userGardenConnection,
-			defaultBranch: "main",
 			newestTemplateVersion: "1.0.0",
 			filesToChange: {
 				filesToDelete: [{ path: "old.js", sha: "old-sha" }],

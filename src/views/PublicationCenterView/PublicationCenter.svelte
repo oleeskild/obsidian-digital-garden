@@ -4,6 +4,8 @@
 	import Publisher from "../../publisher/Publisher";
 	import { LimitReachedError } from "../../forestry/LimitReachedError";
 	import { notifyLimitReached } from "../../forestry/limitNotice";
+	import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
+	import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 	import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
 	import type {
 		IPublishStatusManager,
@@ -312,6 +314,9 @@
 		} catch (e) {
 			if (e instanceof LimitReachedError) {
 				notifyLimitReached(e);
+			} else if (e instanceof PublishBranchMissingError) {
+				publishError = e.message;
+				notifyPublishBranchMissing(e);
 			} else {
 				Logger.error("Publication Center: publish failed", e);
 				publishError = describeError(e);

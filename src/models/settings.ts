@@ -96,6 +96,12 @@ export default interface DigitalGardenSettings {
 	/** When true, the "switch to Forestry.md" nudge in the self-hosted setup is hidden. */
 	hideForestryUpgradeNotice?: boolean;
 
+	/**
+	 * Self-hosted only: branch the plugin reads from and commits to instead
+	 * of the repository's default branch. Unset = the default branch.
+	 */
+	publishBranch?: string;
+
 	/** When true, the automatic startup check for site template updates (and its Notice) is skipped. Manually checking/updating in settings still works. */
 	disableTemplateUpdateNotice?: boolean;
 

@@ -1,4 +1,4 @@
-import { Setting, debounce, getIcon } from "obsidian";
+import { Setting, TextComponent, debounce, getIcon } from "obsidian";
 import SettingView from "./SettingView";
 import { Octokit } from "@octokit/core";
 import { PublishPlatform } from "src/models/PublishPlatform";
@@ -9,6 +9,9 @@ export class GithubSettings {
 	connectionStatusMessage: string = "";
 	private settingsRootElement: HTMLElement;
 	connectionStatusElement: HTMLElement;
+	/** The repository's default branch, once the connection check has fetched it. */
+	private defaultBranch?: string;
+	private publishBranchInput?: TextComponent;
 
 	constructor(settings: SettingView, settingsRootElement: HTMLElement) {
 		this.settings = settings;
@@ -26,6 +29,7 @@ export class GithubSettings {
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
 		this.initializeContentBaseDirSetting();
+		this.initializePublishBranchSetting();
 		// Rendered last with prepend() so the nudge sits above the header.
 		this.initializeForestryUpgradeNotice();
 	}
@@ -140,11 +144,27 @@ export class GithubSettings {
 				{ owner: githubUserName, repo: githubRepo },
 			);
 
+			this.showDefaultBranch(repoResponse.data.default_branch);
+
 			const hasWriteAccess = this.checkWritePermissions(
 				repoResponse.data.permissions,
 			);
 
-			if (hasWriteAccess) {
+			const { publishBranch } = this.settings.settings;
+
+			if (
+				publishBranch &&
+				!(await this.branchExists(
+					octokit,
+					githubUserName,
+					githubRepo,
+					publishBranch,
+				))
+			) {
+				this.setConnectionError(
+					`Publish branch "${publishBranch}" not found. Create it on GitHub or change the publish branch.`,
+				);
+			} else if (hasWriteAccess) {
 				this.setConnectionSuccess("Connected with full access");
 			} else {
 				await this.validateContentAccess(
@@ -165,6 +185,30 @@ export class GithubSettings {
 		permissions: { admin?: boolean; push?: boolean } | undefined,
 	): boolean {
 		return !!(permissions && (permissions.admin || permissions.push));
+	}
+
+	/** Used to flag a missing publish branch here, before a publish fails on it. */
+	private async branchExists(
+		octokit: Octokit,
+		owner: string,
+		repo: string,
+		branch: string,
+	): Promise<boolean> {
+		try {
+			await octokit.request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
+				owner,
+				repo,
+				ref: `heads/${branch}`,
+			});
+
+			return true;
+		} catch (error) {
+			if ((error as { status?: unknown }).status === 404) {
+				return false;
+			}
+
+			throw error;
+		}
 	}
 
 	private async validateContentAccess(
@@ -340,5 +384,70 @@ export class GithubSettings {
 						await this.checkConnectionAndSaveSettings();
 					}),
 			);
+	}
+
+	/**
+	 * Show the default branch in the publish branch field while no other
+	 * branch is set, so the field names the branch actually used.
+	 */
+	private showDefaultBranch(defaultBranch: string) {
+		this.defaultBranch = defaultBranch;
+		const input = this.publishBranchInput;
+
+		if (
+			input &&
+			!this.settings.settings.publishBranch &&
+			document.activeElement !== input.inputEl
+		) {
+			input.setValue(defaultBranch);
+		}
+	}
+
+	private initializePublishBranchSetting() {
+		const desc = document.createDocumentFragment();
+
+		desc.createDiv({
+			text: "The branch the plugin publishes to and reads from. Leave it as your repository's default branch unless you want to review changes and merge them yourself.",
+		});
+
+		desc.createDiv({ text: "If you use another branch:" });
+
+		const risks = desc.createEl("ul");
+
+		for (const risk of [
+			"Nothing goes live until you merge this branch into the default branch. The plugin never merges or opens pull requests for you.",
+			"Everything goes to this branch: notes, site settings, favicon and logo, navigation order, garden plugins, and template update pull requests.",
+			"The Publication Center and settings show what is on this branch, not what is on your live site.",
+			"Changes made directly to the default branch are not on this branch until you merge them into it.",
+			"If you squash or rebase when merging the publish branch into the default branch, you 'll need to delete the publish branch then re-create it again from the default branch. Otherwise the next publish branch -> default branch merge could conflict",
+			"The plugin never creates the branch. If it does not exist, for example because it was deleted after a merge, publishing fails until you create it on GitHub or change this setting.",
+		]) {
+			risks.createEl("li", { text: risk });
+		}
+
+		new Setting(this.settingsRootElement)
+			.setName("Publish branch (advanced)")
+			.setDesc(desc)
+			.addText((text) => {
+				this.publishBranchInput = text;
+				text.setPlaceholder("main");
+
+				text.setValue(
+					this.settings.settings.publishBranch ??
+						this.defaultBranch ??
+						"",
+				).onChange(async (value) => {
+					const branch = value.trim();
+
+					// The default branch is stored as unset, so it keeps
+					// following the repository if its default changes.
+					this.settings.settings.publishBranch =
+						branch && branch !== this.defaultBranch
+							? branch
+							: undefined;
+					// Re-runs the connection check, which flags a missing branch.
+					await this.checkConnectionAndSaveSettings();
+				});
+			});
 	}
 }

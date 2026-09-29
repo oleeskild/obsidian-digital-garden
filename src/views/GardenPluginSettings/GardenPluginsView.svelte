@@ -17,6 +17,8 @@
 		regionsOf,
 	} from "../../gardenPlugins/regions";
 	import { buildTriggeredNotice } from "../../gardenPlugins/notices";
+	import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
+	import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 
 	export let manager: GardenPluginManager;
 	export let settings: DigitalGardenSettings;
@@ -289,8 +291,12 @@
 			);
 			confirmUninstallId = null;
 			await refresh();
-		} catch {
-			new Notice(`Could not uninstall ${plugin.manifest.name}`);
+		} catch (error) {
+			if (error instanceof PublishBranchMissingError) {
+				notifyPublishBranchMissing(error);
+			} else {
+				new Notice(`Could not uninstall ${plugin.manifest.name}`);
+			}
 		}
 
 		busy = false;

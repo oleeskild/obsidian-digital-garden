@@ -19,6 +19,7 @@ import {
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
+import { PublishBranchMissingError } from "../repositoryConnection/PublishBranchMissingError";
 import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
 import { describeError } from "../utils/debugLog";
 
@@ -236,7 +237,10 @@ export default class Publisher {
 
 			return true;
 		} catch (error) {
-			if (error instanceof LimitReachedError) {
+			if (
+				error instanceof LimitReachedError ||
+				error instanceof PublishBranchMissingError
+			) {
 				throw error;
 			}
 			console.error(error);
@@ -277,7 +281,10 @@ export default class Publisher {
 
 			return { success: true };
 		} catch (error) {
-			if (error instanceof LimitReachedError) {
+			if (
+				error instanceof LimitReachedError ||
+				error instanceof PublishBranchMissingError
+			) {
 				throw error;
 			}
 			Logger.error("Batch delete failed", error);
@@ -315,7 +322,10 @@ export default class Publisher {
 
 			return { success: true };
 		} catch (error) {
-			if (error instanceof LimitReachedError) {
+			if (
+				error instanceof LimitReachedError ||
+				error instanceof PublishBranchMissingError
+			) {
 				throw error;
 			}
 			Logger.error("Batch publish failed", error);

@@ -67,6 +67,7 @@ export default class PublishPlatformConnectionFactory {
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
 				contentBaseDir: settings.contentBaseDir,
+				branch: settings.publishBranch,
 			};
 		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
 			const userName = "Forestry";

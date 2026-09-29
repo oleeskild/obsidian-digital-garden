@@ -3,6 +3,7 @@ import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
+import { PublishBranchMissingError } from "./PublishBranchMissingError";
 import { normalizeContentBaseDir } from "src/publisher/paths";
 
 const logger = Logger.get("repository-connection");
@@ -30,8 +31,12 @@ interface ITreeEntry {
 interface ICommitChainState {
 	parentCommitSha: string;
 	baseTreeSha: string;
-	defaultBranch: string;
+	/** Branch whose ref is advanced after each commit. */
+	branch: string;
 }
+
+const statusOf = (error: unknown) =>
+	(error as { status?: unknown } | null)?.status;
 
 /** `" (2/5)"` for multi-commit batches, `""` for a single commit. */
 const chunkLabel = (index: number, count: number) =>
@@ -69,6 +74,8 @@ export class RepositoryConnection {
 	private userName: string;
 	private pageName: string;
 	private contentBase: string;
+	/** Branch the garden is read from and written to; unset = the default branch. */
+	private publishBranch?: string;
 	octokit: Octokit;
 
 	constructor({
@@ -76,10 +83,12 @@ export class RepositoryConnection {
 		userName,
 		pageName,
 		contentBaseDir,
+		branch,
 	}: IPublishPlatformConnection) {
 		this.pageName = pageName;
 		this.userName = userName;
 		this.contentBase = normalizeContentBaseDir(contentBaseDir);
+		this.publishBranch = branch?.trim() || undefined;
 		this.octokit = octoKit;
 	}
 
@@ -99,6 +108,81 @@ export class RepositoryConnection {
 		};
 	}
 
+	/**
+	 * Whether the publish branch exists. Checked on every call rather than
+	 * cached: a connection can outlive the branch (deleted after a merge) or
+	 * miss it being created through another connection.
+	 */
+	private async publishBranchExists(): Promise<boolean> {
+		if (!this.publishBranch) {
+			return false;
+		}
+
+		try {
+			await this.octokit.request(
+				"GET /repos/{owner}/{repo}/git/ref/{ref}",
+				{
+					...this.getBasePayload(),
+					ref: `heads/${this.publishBranch}`,
+				},
+			);
+
+			return true;
+		} catch (error) {
+			if (statusOf(error) === 404) {
+				return false;
+			}
+
+			throw error;
+		}
+	}
+
+	/**
+	 * The ref to read when a caller asks for `ref`. `HEAD` or no ref means
+	 * the garden's own branch: the publish branch when it exists. When it is
+	 * missing, reads use the default branch so screens still load; writes
+	 * fail instead (see {@link getWriteBranch}).
+	 */
+	private async resolveReadRef<T extends string | undefined>(
+		ref: T,
+	): Promise<string | T> {
+		if (ref !== undefined && ref !== "HEAD") {
+			return ref;
+		}
+
+		return (await this.publishBranchExists())
+			? (this.publishBranch as string)
+			: ref;
+	}
+
+	/**
+	 * Name of the branch writes go to: the publish branch, or the default
+	 * branch when no publish branch is set. Throws
+	 * {@link PublishBranchMissingError} when the publish branch does not
+	 * exist; the plugin never creates it.
+	 */
+	async getWriteBranch(): Promise<string> {
+		if (!this.publishBranch) {
+			return this.getDefaultBranch();
+		}
+
+		if (!(await this.publishBranchExists())) {
+			throw new PublishBranchMissingError(this.publishBranch);
+		}
+
+		return this.publishBranch;
+	}
+
+	/**
+	 * The publish branch, for passing as an explicit `branch`/`ref`. Throws
+	 * like {@link getWriteBranch} when it is missing. Undefined when none is
+	 * set, so requests stay exactly as they were and the API uses the
+	 * default branch.
+	 */
+	async getPublishBranch(): Promise<string | undefined> {
+		return this.publishBranch ? this.getWriteBranch() : undefined;
+	}
+
 	/** Get filetree with path and sha of each file from repository */
 	async getContent(branch: string) {
 		try {
@@ -106,7 +190,7 @@ export class RepositoryConnection {
 				`GET /repos/{owner}/{repo}/git/trees/{tree_sha}`,
 				{
 					...this.getBasePayload(),
-					tree_sha: branch,
+					tree_sha: await this.resolveReadRef(branch),
 					recursive: "true",
 					// invalidate cache
 					headers: {
@@ -139,7 +223,7 @@ export class RepositoryConnection {
 				{
 					...this.getBasePayload(),
 					path,
-					ref: branch,
+					ref: await this.resolveReadRef(branch),
 					headers: {
 						"If-None-Match": "",
 					},
@@ -187,6 +271,7 @@ export class RepositoryConnection {
 		{ branch, sha }: { branch?: string; sha?: string },
 	) {
 		try {
+			branch ??= await this.getPublishBranch();
 			sha ??= await this.getFile(path, branch).then((file) => file?.sha);
 
 			if (!sha) {
@@ -217,6 +302,10 @@ export class RepositoryConnection {
 			return result;
 		} catch (error) {
 			throwIfLimitError(error);
+
+			if (error instanceof PublishBranchMissingError) {
+				throw error;
+			}
 			logger.error(error);
 
 			return false;
@@ -240,13 +329,17 @@ export class RepositoryConnection {
 		}
 	}
 
-	async getLatestCommit(): Promise<
-		{ sha: string; commit: { tree: { sha: string } } } | undefined
-	> {
+	/** Latest commit on `ref`; `HEAD` means the garden's branch (see {@link resolveReadRef}). */
+	async getLatestCommit(
+		ref = "HEAD",
+	): Promise<{ sha: string; commit: { tree: { sha: string } } } | undefined> {
 		try {
 			const latestCommit = await this.octokit.request(
-				`GET /repos/{owner}/{repo}/commits/HEAD?cacheBust=${Date.now()}`,
-				this.getBasePayload(),
+				`GET /repos/{owner}/{repo}/commits/{ref}?cacheBust=${Date.now()}`,
+				{
+					...this.getBasePayload(),
+					ref: await this.resolveReadRef(ref),
+				},
 			);
 
 			if (!latestCommit || !latestCommit.data) {
@@ -260,28 +353,32 @@ export class RepositoryConnection {
 	}
 
 	async updateFile({ path, sha, content, branch, message }: IPutPayload) {
-		const payload = {
-			...this.getBasePayload(),
-			path,
-			message: message ?? `Update file ${path}`,
-			content,
-			sha,
-			branch,
-		};
-
 		try {
+			const payload = {
+				...this.getBasePayload(),
+				path,
+				message: message ?? `Update file ${path}`,
+				content,
+				sha,
+				branch: branch ?? (await this.getPublishBranch()),
+			};
+
 			return await this.octokit.request(
 				"PUT /repos/{owner}/{repo}/contents/{path}",
 				payload,
 			);
 		} catch (error) {
 			throwIfLimitError(error);
+
+			if (error instanceof PublishBranchMissingError) {
+				throw error;
+			}
 			logger.error(error);
 		}
 	}
 
 	/**
-	 * Delete the given full repo paths from the default branch. Like
+	 * Delete the given full repo paths from the write branch. Like
 	 * {@link updateFiles}, large deletions are split into consecutive commits
 	 * of at most {@link MAX_TREE_ENTRIES_PER_COMMIT} entries so GitHub's
 	 * create-tree endpoint does not time out, and the branch is advanced after
@@ -295,23 +392,18 @@ export class RepositoryConnection {
 			return;
 		}
 
+		// Resolve (and check) the branch first, so HEAD resolves to it.
+		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
 		if (!latestCommit) {
 			throw new Error("Could not get latest commit");
 		}
 
-		const repoData = await this.octokit.request(
-			"GET /repos/{owner}/{repo}",
-			{
-				...this.getBasePayload(),
-			},
-		);
-
 		const state: ICommitChainState = {
 			parentCommitSha: latestCommit.sha,
 			baseTreeSha: latestCommit.commit.tree.sha,
-			defaultBranch: repoData.data.default_branch,
+			branch,
 		};
 
 		const chunks = chunk(repoPaths, MAX_TREE_ENTRIES_PER_COMMIT);
@@ -354,8 +446,8 @@ export class RepositoryConnection {
 
 	/**
 	 * Create a tree on top of `state.baseTreeSha` with the given entries,
-	 * commit it on top of `state.parentCommitSha`, advance the default branch
-	 * to it, and update `state` so the next call chains onto this commit.
+	 * commit it on top of `state.parentCommitSha`, advance `state.branch` to
+	 * it, and update `state` so the next call chains onto this commit.
 	 */
 	private async commitTreeEntries(
 		tree: ITreeEntry[],
@@ -385,7 +477,7 @@ export class RepositoryConnection {
 			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				branch: state.defaultBranch,
+				branch: state.branch,
 				sha: newCommit.data.sha,
 			},
 		);
@@ -399,6 +491,8 @@ export class RepositoryConnection {
 		remoteImageHashes: Record<string, string> = {},
 		onProgress?: PublishProgressCallback,
 	) {
+		// Resolve (and check) the branch first, so HEAD resolves to it.
+		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
 		if (!latestCommit) {
@@ -406,13 +500,6 @@ export class RepositoryConnection {
 
 			return;
 		}
-
-		const repoDataPromise = this.octokit.request(
-			"GET /repos/{owner}/{repo}",
-			{
-				...this.getBasePayload(),
-			},
-		);
 
 		const normalizePath = (path: string) =>
 			path.startsWith("/") ? path.slice(1) : path;
@@ -530,7 +617,7 @@ export class RepositoryConnection {
 		const state: ICommitChainState = {
 			parentCommitSha: latestCommit.sha,
 			baseTreeSha: latestCommit.commit.tree.sha,
-			defaultBranch: (await repoDataPromise).data.default_branch,
+			branch,
 		};
 
 		for (const [index, jobChunk] of chunks.entries()) {
@@ -573,7 +660,7 @@ export class RepositoryConnection {
 
 	/**
 	 * Commit a set of raw file additions/updates and deletions as one atomic
-	 * commit on the default branch (blobs → tree → commit → ref, the same
+	 * commit on the write branch (blobs → tree → commit → ref, the same
 	 * flow as {@link updateFiles}). Used by the garden plugin installer so an
 	 * install, update, or uninstall is always a single commit. Paths are full
 	 * repo paths; addition content is base64. Throws on failure — callers
@@ -592,18 +679,13 @@ export class RepositoryConnection {
 			return;
 		}
 
+		// Resolve (and check) the branch first, so HEAD resolves to it.
+		const branch = await this.getWriteBranch();
 		const latestCommit = await this.getLatestCommit();
 
 		if (!latestCommit) {
 			throw new Error("Could not get latest commit");
 		}
-
-		const repoDataPromise = this.octokit.request(
-			"GET /repos/{owner}/{repo}",
-			{
-				...this.getBasePayload(),
-			},
-		);
 
 		const additionEntries = await Promise.all(
 			additions.map(async (file) => {
@@ -651,13 +733,11 @@ export class RepositoryConnection {
 			},
 		);
 
-		const defaultBranch = (await repoDataPromise).data.default_branch;
-
 		await this.octokit.request(
 			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
 			{
 				...this.getBasePayload(),
-				branch: defaultBranch,
+				branch,
 				sha: newCommit.data.sha,
 			},
 		);
@@ -679,6 +759,18 @@ export class RepositoryConnection {
 			});
 
 		return repoInfo?.data;
+	}
+
+	/** Name of the repository's default branch. Throws on failure. */
+	async getDefaultBranch(): Promise<string> {
+		const repoData = await this.octokit.request(
+			"GET /repos/{owner}/{repo}",
+			{
+				...this.getBasePayload(),
+			},
+		);
+
+		return repoData.data.default_branch;
 	}
 
 	async createBranch(branchName: string, sha: string) {
