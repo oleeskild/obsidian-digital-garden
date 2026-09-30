@@ -394,17 +394,23 @@ export class RepositoryConnection {
 		state.baseTreeSha = newTree.data.sha;
 	}
 
+	/**
+	 * Publish notes and their changed images as one commit (or a few chained
+	 * commits for very large batches). Returns the paths whose upload failed
+	 * and were logged and left out of the commit, so callers can tell a
+	 * partial publish from a full one.
+	 */
 	async updateFiles(
 		files: CompiledPublishFile[],
 		remoteImageHashes: Record<string, string> = {},
 		onProgress?: PublishProgressCallback,
-	) {
+	): Promise<string[]> {
 		const latestCommit = await this.getLatestCommit();
 
 		if (!latestCommit) {
 			logger.error("Could not get latest commit");
 
-			return;
+			return files.map((file) => file.getPath());
 		}
 
 		const repoDataPromise = this.octokit.request(
@@ -533,12 +539,18 @@ export class RepositoryConnection {
 			defaultBranch: (await repoDataPromise).data.default_branch,
 		};
 
+		const failedPaths: string[] = [];
+
 		for (const [index, jobChunk] of chunks.entries()) {
 			const treeList = await Promise.all(
 				jobChunk.map(async (job) => {
 					const entry = await job.run();
 					stepsDone += 1;
 					onProgress?.(stepsDone, totalSteps, `Uploaded ${job.path}`);
+
+					if (!entry) {
+						failedPaths.push(job.path);
+					}
 
 					return entry;
 				}),
@@ -569,6 +581,8 @@ export class RepositoryConnection {
 		}
 
 		onProgress?.(totalSteps, totalSteps, "Published");
+
+		return failedPaths;
 	}
 
 	/**
