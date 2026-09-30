@@ -170,6 +170,89 @@ describe("RepositoryConnection.updateFiles", () => {
 		expect(done).toBe(total);
 		expect(total).toBe(fileCount + 3);
 	});
+
+	it("publishes a note with its images as one commit and one ref update", async () => {
+		// A single-note publish used to PUT the note and each image through
+		// the contents API: one commit, one build and one Forestry publish
+		// per file.
+		const octokit = makeFakeOctokit();
+
+		const note = {
+			getPath: () => "/note.md",
+			compiledFile: [
+				"content",
+				{
+					images: [
+						{ path: "/img/user/a.png", content: "YQ==" },
+						{ path: "/img/user/b.png", content: "Yg==" },
+					],
+				},
+			],
+		} as unknown as CompiledPublishFile;
+
+		const failed = await makeConnection(octokit).updateFiles([note]);
+
+		expect(failed).toEqual([]);
+
+		expect(
+			octokit.requests.filter((r) => r.route.includes("/contents/")),
+		).toHaveLength(0);
+
+		const trees = byRoute(
+			octokit.requests,
+			"POST /repos/{owner}/{repo}/git/trees",
+		);
+
+		expect(trees).toHaveLength(1);
+
+		expect(
+			(trees[0].payload.tree as { path: string }[]).map((e) => e.path),
+		).toEqual([
+			"src/site/notes/note.md",
+			"src/site/img/user/a.png",
+			"src/site/img/user/b.png",
+		]);
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			),
+		).toHaveLength(1);
+	});
+
+	it("reports uploads that failed and commits the rest", async () => {
+		const octokit = makeFakeOctokit();
+		const request = octokit.request;
+		let blobs = 0;
+
+		octokit.request = async (route, payload) => {
+			if (route === "POST /repos/{owner}/{repo}/git/blobs") {
+				blobs += 1;
+
+				if (blobs === 2) {
+					throw new Error("upload failed");
+				}
+			}
+
+			return request(route, payload);
+		};
+
+		const failed = await makeConnection(octokit).updateFiles([
+			makeFile(1),
+			makeFile(2),
+		]);
+
+		expect(failed).toEqual(["/note-2.md"]);
+
+		const trees = byRoute(
+			octokit.requests,
+			"POST /repos/{owner}/{repo}/git/trees",
+		);
+
+		expect(trees).toHaveLength(1);
+		expect(trees[0].payload.tree).toHaveLength(1);
+	});
 });
 
 describe("RepositoryConnection.deleteFiles", () => {

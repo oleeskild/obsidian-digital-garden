@@ -572,15 +572,26 @@ export default class DigitalGarden extends Plugin {
 					}
 					statusBar.incrementMultiple(filesToPublish.length);
 
-					for (const file of filesToDelete) {
-						await publisher.deleteNote(file.path);
-						statusBar.increment();
+					// One commit for all deletions rather than one per file:
+					// each commit triggers a site build and, on Forestry,
+					// costs a publish.
+					const deleteResult = await publisher.deleteBatch(
+						filesToDelete.map((file) => file.path),
+						imagesToDelete.map((image) => image.path),
+					);
+
+					if (!deleteResult.success) {
+						new Notice(
+							`Deleting failed: ${
+								deleteResult.error ?? "unknown error"
+							}\n\nRun "Copy debug log" from the command palette to share details when asking for help.`,
+							0,
+						);
 					}
 
-					for (const image of imagesToDelete) {
-						await publisher.deleteImage(image.path);
-						statusBar.increment();
-					}
+					statusBar.incrementMultiple(
+						filesToDelete.length + imagesToDelete.length,
+					);
 
 					statusBar.finish(8000);
 					this.siteUpdateTracker?.notifyPublished();
