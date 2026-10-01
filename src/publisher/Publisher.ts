@@ -1,12 +1,11 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
-import { Base64 } from "js-base64";
 import { getRewriteRules } from "../utils/utils";
 import { hasPublishFlag } from "../publishFile/Validator";
 import DigitalGardenSiteManager, {
 	PathRewriteRules,
 } from "../repositoryConnection/DigitalGardenSiteManager";
 import DigitalGardenSettings from "../models/settings";
-import { Assets, GardenPageCompiler } from "../compiler/GardenPageCompiler";
+import { GardenPageCompiler } from "../compiler/GardenPageCompiler";
 import { CompiledPublishFile, PublishFile } from "../publishFile/PublishFile";
 import Logger from "js-logger";
 import {
@@ -16,7 +15,7 @@ import {
 import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
-import { imageHashKey, imagePathBase, notePathBase, sitePath } from "./paths";
+import { imagePathBase, notePathBase } from "./paths";
 import { describeError } from "../utils/debugLog";
 import { isPathIgnored } from "./ignoredPaths";
 
@@ -203,47 +202,32 @@ export default class Publisher {
 		};
 	}
 
-	async deleteNote(vaultFilePath: string, sha?: string) {
-		const path = notePathBase(this.settings) + vaultFilePath;
-
-		return await this.delete(path, sha);
-	}
-
-	async deleteImage(vaultFilePath: string, sha?: string) {
-		const path = imagePathBase(this.settings) + vaultFilePath;
-
-		return await this.delete(path, sha);
-	}
-	/** If provided with sha, garden connection does not need to get it seperately! */
-	public async delete(path: string, sha?: string): Promise<boolean> {
-		this.validateSettings();
-
-		const userGardenConnection = new RepositoryConnection(
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			),
-		);
-
-		const deleted = await userGardenConnection.deleteFile(path, {
-			sha,
-		});
-
-		return !!deleted;
-	}
-
+	/**
+	 * Publish one note and its changed images as a single commit, so it costs
+	 * one build (and one Forestry publish) however many images it carries.
+	 */
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
 		if (this.isPathIgnored(file.file.path)) {
 			return false;
 		}
 
 		try {
-			const [text, assets] = file.compiledFile;
+			this.validateSettings();
+
+			const userGardenConnection = new RepositoryConnection(
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				),
+			);
+
 			const remoteImageHashes = await this.getRemoteImageHashes();
 
-			await this.uploadText(file.getPath(), text, file?.remoteHash);
-			await this.uploadAssets(assets, remoteImageHashes);
+			const failedPaths = await userGardenConnection.updateFiles(
+				[file],
+				remoteImageHashes,
+			);
 
-			return true;
+			return failedPaths.length === 0;
 		} catch (error) {
 			if (error instanceof LimitReachedError) {
 				throw error;
@@ -367,72 +351,6 @@ export default class Publisher {
 
 	getCompilerFingerprint(): string {
 		return "publisher-v1";
-	}
-
-	private async uploadToGithub(
-		path: string,
-		content: string,
-		remoteFileHash?: string,
-	) {
-		this.validateSettings();
-		let message = `Update content ${path}`;
-
-		const userGardenConnection = new RepositoryConnection(
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			),
-		);
-
-		if (!remoteFileHash) {
-			const file = await userGardenConnection.getFile(path).catch(() => {
-				// file does not exist
-				Logger.info(`File ${path} does not exist, adding`);
-			});
-			remoteFileHash = file?.sha;
-
-			if (!remoteFileHash) {
-				message = `Add content ${path}`;
-			}
-		}
-
-		return await userGardenConnection.updateFile({
-			content,
-			path,
-			message,
-			sha: remoteFileHash,
-		});
-	}
-
-	private async uploadText(filePath: string, content: string, sha?: string) {
-		content = Base64.encode(content);
-		const path = notePathBase(this.settings) + filePath;
-		await this.uploadToGithub(path, content, sha);
-	}
-
-	private async uploadImage(filePath: string, content: string, sha?: string) {
-		const path = sitePath(this.settings, filePath);
-		await this.uploadToGithub(path, content, sha);
-	}
-
-	private async uploadAssets(
-		assets: Assets,
-		remoteImageHashes: Record<string, string> = {},
-	) {
-		for (const image of assets.images) {
-			const remoteHash = remoteImageHashes[imageHashKey(image.path)];
-
-			// Skip if unchanged (local hash matches remote hash)
-			if (
-				remoteHash &&
-				image.localHash &&
-				remoteHash === image.localHash
-			) {
-				Logger.debug(`Skipping unchanged image: ${image.path}`);
-				continue;
-			}
-
-			await this.uploadImage(image.path, image.content, remoteHash);
-		}
 	}
 
 	validateSettings() {
