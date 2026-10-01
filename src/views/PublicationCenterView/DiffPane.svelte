@@ -10,6 +10,7 @@
 	type DiffData =
 		| { kind: "diff"; changes: Diff.Change[] }
 		| { kind: "nochange" }
+		| { kind: "assets"; paths: string[] }
 		| { kind: "image" }
 		| { kind: "error"; message: string };
 
@@ -23,7 +24,9 @@
 </script>
 
 {#if !path}
-	<div class="dg-pc-diff-empty">Select a file to see what changed.</div>
+	<div class="dg-pc-diff-empty">
+		Select a file from the left to see what changed.
+	</div>
 {:else}
 	<div class="dg-pc-diff-header">
 		<span class="dg-pc-diff-path">
@@ -70,6 +73,16 @@
 			<div class="dg-pc-diff-msg">
 				No changes — local and published versions match.
 			</div>
+		{:else if data.kind === "assets"}
+			<div class="dg-pc-diff-msg">
+				The note text is unchanged, but these referenced assets are
+				missing from the published garden:
+				<ul>
+					{#each data.paths as assetPath}
+						<li>{assetPath}</li>
+					{/each}
+				</ul>
+			</div>
 		{:else if mode === "split"}
 			<SplitDiff changes={data.changes} />
 		{:else}
@@ -90,16 +103,12 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 8px;
-		padding: 8px;
+		padding-bottom: 8px;
 		margin-bottom: 8px;
 		border-bottom: 1px solid var(--background-modifier-border);
 		position: sticky;
 		top: 0;
 		background: var(--background-primary);
-	}
-
-	.dg-pc-diff-body {
-		padding: 0 8px 8px;
 	}
 
 	.dg-pc-diff-path {
@@ -138,15 +147,5 @@
 
 	.dg-pc-toggle button:last-child {
 		border-radius: 0 4px 4px 0;
-	}
-
-	@container (max-width: 640px) {
-		.dg-pc-diff-header {
-			flex-wrap: wrap;
-		}
-
-		.dg-pc-diff-path {
-			flex: 1 1 100%;
-		}
 	}
 </style>

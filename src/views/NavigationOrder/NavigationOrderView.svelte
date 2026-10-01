@@ -2,14 +2,14 @@
 	import { onMount } from "svelte";
 	import { Notice } from "obsidian";
 	import { Base64 } from "js-base64";
-	import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+	import type { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 	import type Publisher from "../../publisher/Publisher";
 	import type DigitalGardenSettings from "../../models/settings";
 	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
 	import { sitePath } from "../../publisher/paths";
 	import SortableTree from "./SortableTree.svelte";
 
-	export let repositoryConnection: RepositoryConnection;
+	export let repositoryConnection: IRepositoryConnection;
 	export let publisher: Publisher;
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;

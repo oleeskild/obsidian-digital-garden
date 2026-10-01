@@ -323,7 +323,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 	};
 
 	convertFrontMatter: TCompilerStep = (file) => (text) => {
-		const compiledFrontmatter = file.getCompiledFrontmatter();
+		const compiledFrontmatter = file.getCompiledFrontmatter?.();
 
 		return transformMarkdownSync(text, (node) =>
 			node.type === "frontmatter" ? compiledFrontmatter : undefined,
@@ -346,6 +346,20 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			// transclusion depth cap, or unresolvable) get their inner
 			// link converted too; the ! prefix is kept.
 			const embedPrefix = node.embed ? "!" : "";
+
+			const formatLink = (
+				path: string,
+				display: string,
+				fragment: string,
+			) =>
+				this.settings.linkFormat === "wikilink"
+					? `${embedPrefix}[[${path.replace(
+							/\.md$/,
+							"",
+					  )}${fragment}\\|${display}]]`
+					: `${embedPrefix}[${display}](${path}${encodeURI(
+							fragment,
+					  )})`;
 
 			try {
 				let linkedFileName = node.targetWithRef;
@@ -374,12 +388,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				if (linkedFileName === "" && headerPath !== "") {
 					const currentFilePath = file.getPath();
 
-					const currentExtensionlessPath = currentFilePath.substring(
-						0,
-						currentFilePath.lastIndexOf("."),
+					return formatLink(
+						currentFilePath,
+						linkDisplayName,
+						headerPath,
 					);
-
-					return `${embedPrefix}[[${currentExtensionlessPath}${headerPath}\\|${linkDisplayName}]]`;
 				}
 
 				const fullLinkedFilePath = getLinkpath(linkedFileName);
@@ -394,7 +407,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				);
 
 				if (!linkedFile) {
-					return `${embedPrefix}[[${linkedFileName}${headerPath}\\|${linkDisplayName}]]`;
+					return formatLink(
+						`${linkedFileName}.md`,
+						linkDisplayName,
+						headerPath,
+					);
 				}
 
 				if (
@@ -412,7 +429,13 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							? `${extensionlessPath}.canvas`
 							: extensionlessPath;
 
-					return `${embedPrefix}[[${linkPath}${headerPath}\\|${linkDisplayName}]]`;
+					return formatLink(
+						this.settings.linkFormat === "wikilink"
+							? linkPath
+							: linkedFile.path,
+						linkDisplayName,
+						headerPath,
+					);
 				}
 
 				return;
@@ -540,7 +563,16 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						extensionlessPath.lastIndexOf("/") + 1,
 					);
 
-				return `[[${linkPath}${headerPath}\\|${linkDisplayName}]]`;
+				const formattedPath =
+					this.settings.linkFormat === "wikilink"
+						? linkPath
+						: linkedFile.path;
+
+				return this.settings.linkFormat === "wikilink"
+					? `[[${formattedPath}${headerPath}\\|${linkDisplayName}]]`
+					: `[${linkDisplayName}](${encodeURI(
+							formattedPath,
+					  )}${encodeURI(headerPath)})`;
 			} catch (e) {
 				console.log(e);
 

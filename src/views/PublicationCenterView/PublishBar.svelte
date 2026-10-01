@@ -4,6 +4,8 @@
 
 	export let selectedCount: number;
 	export let publishing: boolean;
+	export let refreshing: boolean;
+	export let showFullRefresh: boolean;
 
 	const dispatch = createEventDispatcher();
 </script>
@@ -12,10 +14,20 @@
 	<button
 		class="dg-pc-refresh"
 		on:click={() => dispatch("refresh")}
-		disabled={publishing}
+		disabled={publishing || refreshing}
 	>
 		Refresh
 	</button>
+	{#if showFullRefresh}
+		<button
+			class="dg-pc-full-refresh"
+			on:click={() => dispatch("fullrefresh")}
+			disabled={publishing || refreshing}
+			title="Clear the cached remote manifest and rescan the remote files"
+		>
+			Refresh remote
+		</button>
+	{/if}
 	<button
 		class="dg-pc-publish"
 		on:click={() => dispatch("publish")}
@@ -44,11 +56,5 @@
 	.dg-pc-publish:disabled {
 		opacity: 0.5;
 		cursor: default;
-	}
-
-	@container (max-width: 640px) {
-		.dg-pc-publish {
-			flex: 1 1 auto;
-		}
 	}
 </style>

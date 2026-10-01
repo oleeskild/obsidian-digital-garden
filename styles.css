@@ -66,6 +66,16 @@ h4 {
 	margin-left: -9px;
 }
 
+#github-settings .setting-item.is-disabled {
+	opacity: 0.5;
+}
+
+#github-settings .setting-item.is-disabled input:disabled {
+	cursor: not-allowed;
+	background-color: var(--background-modifier-form-field);
+	color: var(--text-faint);
+}
+
 /* Connection status styles */
 .connection-status {
 	display: inline-flex;
@@ -289,6 +299,27 @@ h4 {
 .dg-modal-title .svg-icon {
 	width: 20px;
 	height: 20px;
+}
+
+.dg-publication-center-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.dg-publication-center-view .dg-pc-provider-content {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.dg-template-settings {
+	margin-bottom: 24px;
 }
 
 .dg-update-section {

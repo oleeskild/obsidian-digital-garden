@@ -1,9 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { throwIfLimitError } from "src/forestry/LimitReachedError";
-import { normalizeContentBaseDir } from "src/publisher/paths";
+import {
+	normalizeContentBaseDir,
+	normalizeRepoDirectory,
+} from "src/publisher/paths";
+import { PublishPlatform } from "src/models/PublishPlatform";
 
 const logger = Logger.get("repository-connection");
 
@@ -47,12 +52,48 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 	return result;
 };
 
-interface IPutPayload {
+export interface IPutPayload {
 	path: string;
 	sha?: string;
 	content: string;
 	branch?: string;
 	message?: string;
+}
+
+export type RepositoryProgress = {
+	completed: number;
+	total?: number;
+	message?: string;
+	currentPath?: string;
+};
+
+export interface IRepositoryFile {
+	path: string;
+	sha: any;
+	content?: any;
+	[key: string]: any;
+}
+
+export interface IRepositoryTree {
+	tree: Array<IRepositoryFile & { type?: string }>;
+	[key: string]: unknown;
+}
+
+export type IRepositoryInfo = any;
+
+/** Compatibility contract used by the Forgejo, SFTP, and local providers. */
+export interface IRepositoryConnection {
+	getContent: (...args: any[]) => Promise<any>;
+	getFile: (...args: any[]) => Promise<any>;
+	updateFile: (...args: any[]) => Promise<any>;
+	deleteFile: (...args: any[]) => Promise<any>;
+	deleteFiles: (...args: any[]) => Promise<any>;
+	updateFiles: (...args: any[]) => Promise<any>;
+	getLatestRelease: (...args: any[]) => Promise<any>;
+	getLatestCommit: (...args: any[]) => Promise<any>;
+	getRepositoryInfo: (...args: any[]) => Promise<any>;
+	createBranch: (...args: any[]) => Promise<any>;
+	createPullRequest: (...args: any[]) => Promise<any>;
 }
 
 /**
@@ -66,21 +107,64 @@ export type PublishProgressCallback = (
 ) => void;
 
 export class RepositoryConnection {
-	private userName: string;
-	private pageName: string;
-	private contentBase: string;
-	octokit: Octokit;
+	static createBaseGardenConnection(): RepositoryConnection {
+		return new RepositoryConnection({
+			octoKit: new Octokit({ auth: "" }),
+			userName: "oleeskild",
+			pageName: "digitalgarden",
+		});
+	}
+	private userName!: string;
+	private pageName!: string;
+	private contentBase!: string;
+	private legacyNoteBase?: string;
+	private legacyAssetBase?: string;
+	private legacyPlatform?: PublishPlatform;
+	octokit!: Octokit;
 
-	constructor({
-		octoKit,
-		userName,
-		pageName,
-		contentBaseDir,
-	}: IPublishPlatformConnection) {
-		this.pageName = pageName;
-		this.userName = userName;
-		this.contentBase = normalizeContentBaseDir(contentBaseDir);
-		this.octokit = octoKit;
+	constructor(
+		connection: IPublishPlatformConnection | IRepositoryConnection,
+	) {
+		if ("getContent" in connection)
+			return connection as RepositoryConnection;
+
+		const { octoKit, userName, pageName, contentBaseDir, ...legacy } =
+			connection;
+
+		const platform = legacy.publishPlatform as PublishPlatform | undefined;
+		const isForestry = platform === PublishPlatform.ForestryMd;
+
+		const legacyToken = isForestry
+			? legacy.forestrySettings?.apiKey
+			: legacy.githubToken ?? legacy.gitToken;
+
+		const legacyUser = isForestry
+			? "Forestry"
+			: legacy.githubUserName ?? legacy.gitUsername;
+
+		const legacyRepo = isForestry
+			? legacy.forestrySettings?.forestryPageName
+			: legacy.githubRepo ?? legacy.gitRepo;
+
+		this.pageName = pageName ?? "";
+		this.userName = userName ?? legacyUser ?? "";
+		this.pageName = pageName ?? legacyRepo ?? "";
+
+		this.contentBase = normalizeContentBaseDir(
+			contentBaseDir ?? legacy.contentBaseDir,
+		);
+		this.legacyNoteBase = legacy.notesDirectory;
+		this.legacyAssetBase = legacy.assetsDirectory;
+		this.legacyPlatform = platform;
+
+		this.octokit =
+			octoKit ??
+			new Octokit({
+				auth: legacyToken,
+				...(isForestry
+					? { baseUrl: "https://api.forestry.md/app/Garden" }
+					: {}),
+			});
 	}
 
 	/** Normalized content base prefix (`""` or e.g. `"Web/"`) this connection publishes under. */
@@ -92,6 +176,28 @@ export class RepositoryConnection {
 		return this.userName + "/" + this.pageName;
 	}
 
+	get noteBase(): string {
+		const base =
+			this.legacyPlatform === PublishPlatform.ForestryMd
+				? ""
+				: normalizeRepoDirectory(this.legacyNoteBase);
+
+		return `${this.contentBase}${base || "src/site/notes/"}`;
+	}
+
+	get assetBase(): string {
+		const base =
+			this.legacyPlatform === PublishPlatform.ForestryMd
+				? ""
+				: normalizeRepoDirectory(this.legacyAssetBase);
+
+		return `${this.contentBase}${base || "src/site/img/user/"}`;
+	}
+
+	async createPullRequest(_input: unknown): Promise<string> {
+		return "";
+	}
+
 	getBasePayload() {
 		return {
 			owner: this.userName,
@@ -100,7 +206,10 @@ export class RepositoryConnection {
 	}
 
 	/** Get filetree with path and sha of each file from repository */
-	async getContent(branch: string) {
+	async getContent(
+		branch: string,
+		_onProgress?: (progress: RepositoryProgress) => void,
+	) {
 		try {
 			const response = await this.octokit.request(
 				`GET /repos/{owner}/{repo}/git/trees/{tree_sha}`,

@@ -1,9 +1,6 @@
 import { MetadataCache, Notice, TFile, Vault } from "obsidian";
 import { getRewriteRules } from "../utils/utils";
-import {
-	hasPublishFlag,
-	isPublishFrontmatterValid,
-} from "../publishFile/Validator";
+import { hasPublishFlag } from "../publishFile/Validator";
 import DigitalGardenSiteManager, {
 	PathRewriteRules,
 } from "../repositoryConnection/DigitalGardenSiteManager";
@@ -20,6 +17,7 @@ import { PublishPlatform } from "../models/PublishPlatform";
 import { LimitReachedError } from "../forestry/LimitReachedError";
 import { imagePathBase, notePathBase } from "./paths";
 import { describeError } from "../utils/debugLog";
+import { isPathIgnored } from "./ignoredPaths";
 
 export interface MarkedForPublishing {
 	notes: PublishFile[];
@@ -36,6 +34,7 @@ export interface PublishBatchResult {
  * Prepares files to be published and publishes them to Github
  */
 export default class Publisher {
+	private cachedRemoteImageHashes: Record<string, string> | undefined;
 	vault: Vault;
 	metadataCache: MetadataCache;
 	compiler: GardenPageCompiler;
@@ -61,9 +60,11 @@ export default class Publisher {
 	}
 
 	shouldPublish(file: TFile): boolean {
+		if (this.isPathIgnored(file.path)) return false;
+
 		const frontMatter = this.metadataCache.getCache(file.path)?.frontmatter;
 
-		return hasPublishFlag(frontMatter);
+		return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 	}
 
 	/**
@@ -71,6 +72,8 @@ export default class Publisher {
 	 * Canvas files store frontmatter in the metadata.frontmatter field.
 	 */
 	async shouldPublishCanvas(file: TFile): Promise<boolean> {
+		if (this.isPathIgnored(file.path)) return false;
+
 		if (file.extension !== "canvas") {
 			return this.shouldPublish(file);
 		}
@@ -80,10 +83,14 @@ export default class Publisher {
 			const canvasData = JSON.parse(content);
 			const frontMatter = canvasData?.metadata?.frontmatter;
 
-			return hasPublishFlag(frontMatter);
+			return hasPublishFlag(frontMatter, this.settings.publishByDefault);
 		} catch {
 			return false;
 		}
+	}
+
+	isPathIgnored(path: string): boolean {
+		return isPathIgnored(path, this.settings.ignoredPaths);
 	}
 
 	/**
@@ -189,7 +196,9 @@ export default class Publisher {
 
 		return {
 			notes: notesToPublish.sort((a, b) => a.compare(b)),
-			images: Array.from(imagesToPublish),
+			images: Array.from(imagesToPublish).filter(
+				(path) => !this.isPathIgnored(path),
+			),
 		};
 	}
 
@@ -198,7 +207,7 @@ export default class Publisher {
 	 * one build (and one Forestry publish) however many images it carries.
 	 */
 	public async publish(file: CompiledPublishFile): Promise<boolean> {
-		if (!isPublishFrontmatterValid(file.frontmatter)) {
+		if (this.isPathIgnored(file.file.path)) {
 			return false;
 		}
 
@@ -274,8 +283,8 @@ export default class Publisher {
 		files: CompiledPublishFile[],
 		onProgress?: PublishProgressCallback,
 	): Promise<PublishBatchResult> {
-		const filesToPublish = files.filter((f) =>
-			isPublishFrontmatterValid(f.frontmatter),
+		const filesToPublish = files.filter(
+			(f) => !this.isPathIgnored(f.file.path),
 		);
 
 		if (filesToPublish.length === 0) {
@@ -309,6 +318,8 @@ export default class Publisher {
 	}
 
 	private async getRemoteImageHashes(): Promise<Record<string, string>> {
+		if (this.cachedRemoteImageHashes) return this.cachedRemoteImageHashes;
+
 		const userGardenConnection = new RepositoryConnection(
 			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
 				this.settings,
@@ -328,7 +339,18 @@ export default class Publisher {
 			this.settings,
 		);
 
-		return siteManager.getImageHashes(contentTree);
+		const hashes = await siteManager.getImageHashes(contentTree);
+		this.cachedRemoteImageHashes = hashes;
+
+		return hashes;
+	}
+
+	setRemoteImageHashes(hashes: Record<string, string>): void {
+		this.cachedRemoteImageHashes = hashes;
+	}
+
+	getCompilerFingerprint(): string {
+		return "publisher-v1";
 	}
 
 	validateSettings() {

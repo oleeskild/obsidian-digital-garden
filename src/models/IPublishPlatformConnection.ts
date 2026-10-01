@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from "@octokit/core";
 
 export interface IPublishPlatformConnection {
-	octoKit: Octokit;
-	userName: string;
-	pageName: string;
+	[key: string]: any;
+	octoKit?: Octokit;
+	userName?: string;
+	pageName?: string;
 	contentBaseDir?: string;
 }
