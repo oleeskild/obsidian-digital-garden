@@ -24,6 +24,7 @@ import slugify from "@sindresorhus/slugify";
 import { fixMarkdownHeaderSyntax } from "../utils/markdown";
 import Logger from "js-logger";
 import { DataviewCompiler } from "./DataviewCompiler";
+import { FastTextColorCompiler } from "./FastTextColorCompiler";
 import { CanvasCompiler, ITextNodeProcessor } from "./CanvasCompiler";
 import {
 	MarkdownLinkNode,
@@ -189,6 +190,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			this.createBlockIDs,
 			this.createTranscludedText(0),
 			this.convertDataViews,
+			this.convertFastTextColor,
 			this.convertLinksToFullPath,
 			this.convertMarkdownLinksToFullPath,
 			this.removeObsidianComments,
@@ -267,6 +269,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			this.createBlockIDs,
 			this.createTranscludedText(0),
 			this.convertDataViews,
+			this.convertFastTextColor,
 			this.convertLinksToFullPath,
 			this.convertMarkdownLinksToFullPath,
 			this.removeObsidianComments,
@@ -334,6 +337,12 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 		const dataviewCompiler = new DataviewCompiler();
 
 		return await dataviewCompiler.compile(file)(text);
+	};
+
+	convertFastTextColor: TCompilerStep = (file) => async (text) => {
+		const fastTextColorCompiler = new FastTextColorCompiler(this.vault);
+
+		return await fastTextColorCompiler.compile(file)(text);
 	};
 
 	convertLinksToFullPath: TCompilerStep = (file) => async (text) => {
