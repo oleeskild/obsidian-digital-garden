@@ -71,6 +71,8 @@
 		]
 	},
 	"overrides": {
-		"svelte": "$svelte"
+		"svelte": "$svelte",
+		"@codemirror/language": "^6.12.4",
+		"obsidian": "$obsidian"
 	}
 }
