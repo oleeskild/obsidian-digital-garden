@@ -1,24 +1,53 @@
-//https://github.com/liamcain/obsidian-periodic-notes/blob/main/src/ui/file-suggest.ts
-import { TAbstractFile, TFile, TFolder } from "obsidian";
-import { TextInputSuggest } from "./suggest";
+import {
+	AbstractInputSuggest,
+	type App,
+	type TAbstractFile,
+	TFile,
+} from "obsidian";
 
-export class SvgFileSuggest extends TextInputSuggest<TFile> {
-	getSuggestions(inputStr: string): TFile[] {
-		const abstractFiles = this.app.vault.getAllLoadedFiles();
-		const files: TFile[] = [];
-		const lowerCaseInputStr = inputStr.toLowerCase();
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
 
-		abstractFiles.forEach((file: TAbstractFile) => {
-			if (
-				file instanceof TFile &&
-				file.extension === "svg" &&
-				file.path.toLowerCase().contains(lowerCaseInputStr)
-			) {
-				files.push(file);
-			}
-		});
+/**
+ * Returns the files whose extension is in `extensions` and whose path
+ * contains `query` (case-insensitive).
+ */
+export const filterFilesByExtension = (
+	files: TAbstractFile[],
+	extensions: string[],
+	query: string,
+): TFile[] => {
+	const lowerCaseQuery = query.toLowerCase();
 
-		return files;
+	return files.filter(
+		(file): file is TFile =>
+			file instanceof TFile &&
+			extensions.includes(file.extension.toLowerCase()) &&
+			file.path.toLowerCase().includes(lowerCaseQuery),
+	);
+};
+
+/**
+ * Suggests vault files with the given extensions for a text input.
+ *
+ * Built on Obsidian's AbstractInputSuggest so the dropdown is rendered in the
+ * same window as the input (e.g. when settings open in a popout window).
+ */
+abstract class FileExtensionSuggest extends AbstractInputSuggest<TFile> {
+	protected abstract readonly extensions: string[];
+
+	constructor(
+		app: App,
+		private inputEl: HTMLInputElement,
+	) {
+		super(app, inputEl);
+	}
+
+	protected getSuggestions(query: string): TFile[] {
+		return filterFilesByExtension(
+			this.app.vault.getAllLoadedFiles(),
+			this.extensions,
+			query,
+		);
 	}
 
 	renderSuggestion(file: TFile, el: HTMLElement): void {
@@ -26,98 +55,17 @@ export class SvgFileSuggest extends TextInputSuggest<TFile> {
 	}
 
 	selectSuggestion(file: TFile): void {
-		this.inputEl.value = file.path;
+		this.setValue(file.path);
+		// Notify TextComponent.onChange listeners, which listen for "input".
 		this.inputEl.trigger("input");
 		this.close();
 	}
 }
 
-export class MdFileSuggest extends TextInputSuggest<TFile> {
-	getSuggestions(inputStr: string): TFile[] {
-		const abstractFiles = this.app.vault.getAllLoadedFiles();
-		const files: TFile[] = [];
-		const lowerCaseInputStr = inputStr.toLowerCase();
-
-		abstractFiles.forEach((file: TAbstractFile) => {
-			if (
-				file instanceof TFile &&
-				file.extension === "svg" &&
-				file.path.toLowerCase().contains(lowerCaseInputStr)
-			) {
-				files.push(file);
-			}
-		});
-
-		return files;
-	}
-
-	renderSuggestion(file: TFile, el: HTMLElement): void {
-		el.setText(file.path);
-	}
-
-	selectSuggestion(file: TFile): void {
-		this.inputEl.value = file.path;
-		this.inputEl.trigger("input");
-		this.close();
-	}
+export class SvgFileSuggest extends FileExtensionSuggest {
+	protected readonly extensions = ["svg"];
 }
 
-export class ImageFileSuggest extends TextInputSuggest<TFile> {
-	getSuggestions(inputStr: string): TFile[] {
-		const abstractFiles = this.app.vault.getAllLoadedFiles();
-		const files: TFile[] = [];
-		const lowerCaseInputStr = inputStr.toLowerCase();
-		const imageExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
-
-		abstractFiles.forEach((file: TAbstractFile) => {
-			if (
-				file instanceof TFile &&
-				imageExtensions.includes(file.extension.toLowerCase()) &&
-				file.path.toLowerCase().contains(lowerCaseInputStr)
-			) {
-				files.push(file);
-			}
-		});
-
-		return files;
-	}
-
-	renderSuggestion(file: TFile, el: HTMLElement): void {
-		el.setText(file.path);
-	}
-
-	selectSuggestion(file: TFile): void {
-		this.inputEl.value = file.path;
-		this.inputEl.trigger("input");
-		this.close();
-	}
-}
-
-export class FolderSuggest extends TextInputSuggest<TFolder> {
-	getSuggestions(inputStr: string): TFolder[] {
-		const abstractFiles = this.app.vault.getAllLoadedFiles();
-		const folders: TFolder[] = [];
-		const lowerCaseInputStr = inputStr.toLowerCase();
-
-		abstractFiles.forEach((folder: TAbstractFile) => {
-			if (
-				folder instanceof TFolder &&
-				folder.path.toLowerCase().contains(lowerCaseInputStr)
-			) {
-				folders.push(folder);
-			}
-		});
-
-		return folders;
-	}
-
-	renderSuggestion(file: TFolder, el: HTMLElement): void {
-		el.setText(file.path);
-	}
-
-	selectSuggestion(file: TFolder): void {
-		this.inputEl.value = file.path;
-		this.inputEl.trigger("input");
-		this.close();
-	}
+export class ImageFileSuggest extends FileExtensionSuggest {
+	protected readonly extensions = IMAGE_EXTENSIONS;
 }

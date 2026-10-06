@@ -52,7 +52,6 @@
 	},
 	"dependencies": {
 		"@octokit/core": "^5.0.0",
-		"@popperjs/core": "^2.11.8",
 		"@sindresorhus/slugify": "^1.1.2",
 		"axios": "^1.18.1",
 		"crypto-js": "^4.2.0",
