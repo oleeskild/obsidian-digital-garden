@@ -3,7 +3,6 @@ import {
 	generateBlobHashFromBase64,
 	getGardenPathForNote,
 	getRewriteRules,
-	wrapAround,
 } from "../utils/utils";
 import { PathRewriteRules } from "../repositoryConnection/DigitalGardenSiteManager";
 
@@ -110,12 +109,6 @@ describe("utils", () => {
 				);
 			});
 		}
-	});
-
-	describe("wrapAround", () => {
-		it("wraps around a positive number", () => {
-			assert.strictEqual(wrapAround(5, 2), 1);
-		});
 	});
 
 	describe("generateBlobHashFromBase64", () => {

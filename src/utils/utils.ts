@@ -86,10 +86,6 @@ function kebabize(str: string) {
 		.join("");
 }
 
-const wrapAround = (value: number, size: number): number => {
-	return ((value % size) + size) % size;
-};
-
 function getRewriteRules(pathRewriteRules: string): PathRewriteRules {
 	return pathRewriteRules
 		.split("\n")
@@ -155,7 +151,6 @@ export {
 	generateBlobHash,
 	generateBlobHashFromBase64,
 	kebabize,
-	wrapAround,
 	getRewriteRules,
 	getGardenPathForNote,
 	fixSvgForXmlSerializer,
