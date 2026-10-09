@@ -20,7 +20,12 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 				this.app.metadataCache,
 				this.plugin.settings,
 			);
-			siteManager.updateEnv();
+
+			// Not awaited, so catch here: a missing publish branch now
+			// rejects instead of being logged and swallowed.
+			siteManager.updateEnv().catch((error) => {
+				Logger.error("Initial settings sync failed", error);
+			});
 			this.plugin.settings.noteSettingsIsInitialized = true;
 			this.plugin.saveData(this.plugin.settings);
 		}

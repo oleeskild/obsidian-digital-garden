@@ -470,6 +470,37 @@ describe("RepositoryConnection with a publish branch", () => {
 		expect(refUpdates.map((r) => r.payload.branch)).toEqual(["drafts"]);
 	});
 
+	it("checks the publish branch once per batch write and builds on its tip by name", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+		const connection = makeBranchConnection(octokit);
+
+		await connection.updateFiles([makeFile(1)]);
+		await connection.deleteFiles(["src/site/notes/a.md"]);
+
+		await connection.commitChanges({
+			additions: [{ path: "src/plugins/x/a.js", content: "YQ==" }],
+			deletions: [],
+			message: "Install x",
+		});
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"GET /repos/{owner}/{repo}/git/ref/{ref}",
+			),
+		).toHaveLength(3);
+
+		const commitReads = octokit.requests.filter((r) =>
+			r.route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}"),
+		);
+
+		expect(commitReads.map((r) => r.payload.ref)).toEqual([
+			"drafts",
+			"drafts",
+			"drafts",
+		]);
+	});
+
 	it("fails batch writes without creating a missing publish branch", async () => {
 		const octokit = makeBranchOctokit({ branchExists: false });
 
@@ -531,6 +562,45 @@ describe("RepositoryConnection with a publish branch", () => {
 
 		expect(read.payload.ref).toBeUndefined();
 		expect(commit.payload.ref).toBe("HEAD");
+	});
+
+	it("reports an existing publish branch without looking up the default", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		await expect(
+			makeBranchConnection(octokit).getPublishBranchStatus(),
+		).resolves.toEqual({ branch: "drafts", exists: true });
+
+		expect(
+			byRoute(octokit.requests, "GET /repos/{owner}/{repo}"),
+		).toHaveLength(0);
+	});
+
+	it("reports a missing publish branch with the branch reads fall back to", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
+
+		await expect(
+			makeBranchConnection(octokit).getPublishBranchStatus(),
+		).resolves.toEqual({
+			branch: "drafts",
+			exists: false,
+			defaultBranch: "main",
+		});
+	});
+
+	it("reports no publish branch status, without requests, when none is set", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		const connection = new RepositoryConnection({
+			octoKit: octokit as never,
+			userName: "user",
+			pageName: "garden",
+		});
+
+		await expect(
+			connection.getPublishBranchStatus(),
+		).resolves.toBeUndefined();
+		expect(octokit.requests).toHaveLength(0);
 	});
 
 	it("sends single-file writes to the publish branch", async () => {

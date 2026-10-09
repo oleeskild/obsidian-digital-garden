@@ -70,6 +70,14 @@ export type PublishProgressCallback = (
 	message: string,
 ) => void;
 
+/**
+ * Where garden reads come from when a publish branch is set: the publish
+ * branch itself, or the default branch when it is missing.
+ */
+export type PublishBranchStatus =
+	| { branch: string; exists: true }
+	| { branch: string; exists: false; defaultBranch: string };
+
 export class RepositoryConnection {
 	private userName: string;
 	private pageName: string;
@@ -181,6 +189,29 @@ export class RepositoryConnection {
 	 */
 	async getPublishBranch(): Promise<string | undefined> {
 		return this.publishBranch ? this.getWriteBranch() : undefined;
+	}
+
+	/**
+	 * Whether the publish branch exists and, when it does not, which branch
+	 * reads fall back to. Undefined when no publish branch is set. For
+	 * screens that show what is in the repository, so they can say they are
+	 * showing the default branch instead of presenting it as the publish
+	 * branch.
+	 */
+	async getPublishBranchStatus(): Promise<PublishBranchStatus | undefined> {
+		if (!this.publishBranch) {
+			return undefined;
+		}
+
+		if (await this.publishBranchExists()) {
+			return { branch: this.publishBranch, exists: true };
+		}
+
+		return {
+			branch: this.publishBranch,
+			exists: false,
+			defaultBranch: await this.getDefaultBranch(),
+		};
 	}
 
 	/** Get filetree with path and sha of each file from repository */
@@ -392,9 +423,12 @@ export class RepositoryConnection {
 			return;
 		}
 
-		// Resolve (and check) the branch first, so HEAD resolves to it.
+		// Resolve (and check) the branch once, then build on that branch's
+		// tip by name: re-resolving HEAD would repeat the existence check and
+		// could fall back to the default branch if the publish branch
+		// disappeared in between.
 		const branch = await this.getWriteBranch();
-		const latestCommit = await this.getLatestCommit();
+		const latestCommit = await this.getLatestCommit(branch);
 
 		if (!latestCommit) {
 			throw new Error("Could not get latest commit");
@@ -497,9 +531,12 @@ export class RepositoryConnection {
 		remoteImageHashes: Record<string, string> = {},
 		onProgress?: PublishProgressCallback,
 	): Promise<string[]> {
-		// Resolve (and check) the branch first, so HEAD resolves to it.
+		// Resolve (and check) the branch once, then build on that branch's
+		// tip by name: re-resolving HEAD would repeat the existence check and
+		// could fall back to the default branch if the publish branch
+		// disappeared in between.
 		const branch = await this.getWriteBranch();
-		const latestCommit = await this.getLatestCommit();
+		const latestCommit = await this.getLatestCommit(branch);
 
 		if (!latestCommit) {
 			logger.error("Could not get latest commit");
@@ -693,9 +730,12 @@ export class RepositoryConnection {
 			return;
 		}
 
-		// Resolve (and check) the branch first, so HEAD resolves to it.
+		// Resolve (and check) the branch once, then build on that branch's
+		// tip by name: re-resolving HEAD would repeat the existence check and
+		// could fall back to the default branch if the publish branch
+		// disappeared in between.
 		const branch = await this.getWriteBranch();
-		const latestCommit = await this.getLatestCommit();
+		const latestCommit = await this.getLatestCommit(branch);
 
 		if (!latestCommit) {
 			throw new Error("Could not get latest commit");

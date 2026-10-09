@@ -522,6 +522,19 @@ export default class DigitalGarden extends Plugin {
 						this.settings,
 					);
 
+					// Stop before compiling every note: the publish would
+					// fail on the missing branch anyway. The catch below
+					// cleans up and shows the notice.
+					const branchStatus = await (
+						await siteManager.getUserGardenConnection()
+					).getPublishBranchStatus();
+
+					if (branchStatus && !branchStatus.exists) {
+						throw new PublishBranchMissingError(
+							branchStatus.branch,
+						);
+					}
+
 					const publishStatusManager = new PublishStatusManager(
 						siteManager,
 						publisher,

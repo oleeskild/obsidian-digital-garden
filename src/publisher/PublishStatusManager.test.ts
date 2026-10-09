@@ -3,6 +3,7 @@ import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteM
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
+import { PublishBranchStatus } from "../repositoryConnection/RepositoryConnection";
 
 const NOTE_PATH = "06 Assets/Lyrics/Bright Flight.md";
 const NOTE_CONTENT = "compiled note content";
@@ -40,10 +41,17 @@ const makeManager = (options: {
 	remoteImageHashes: Record<string, string>;
 	notes: unknown[];
 	images?: string[];
+	branchStatus?: PublishBranchStatus;
+	contentRefs?: string[];
 }) => {
 	const siteManager = {
 		getUserGardenConnection: async () => ({
-			getContent: async () => ({ tree: [] }),
+			getPublishBranchStatus: async () => options.branchStatus,
+			getContent: async (ref: string) => {
+				options.contentRefs?.push(ref);
+
+				return { tree: [] };
+			},
 		}),
 		getNoteHashes: async () => options.remoteNoteHashes,
 		getImageHashes: async () => options.remoteImageHashes,
@@ -117,5 +125,53 @@ describe("getPublishStatus", () => {
 		expect(status.changedNotes.map((f) => f.getPath())).toEqual([
 			NOTE_PATH,
 		]);
+	});
+});
+
+describe("getPublishStatus with a publish branch", () => {
+	const statusFor = async (branchStatus?: PublishBranchStatus) => {
+		const contentRefs: string[] = [];
+
+		const status = await makeManager({
+			remoteNoteHashes: {},
+			remoteImageHashes: {},
+			notes: [],
+			branchStatus,
+			contentRefs,
+		}).getPublishStatus();
+
+		return { status, contentRefs };
+	};
+
+	it("reads HEAD and reports nothing when no publish branch is set", async () => {
+		const { status, contentRefs } = await statusFor(undefined);
+
+		expect(contentRefs).toEqual(["HEAD"]);
+		expect(status.missingPublishBranch).toBeUndefined();
+	});
+
+	it("reads the publish branch when it exists", async () => {
+		const { status, contentRefs } = await statusFor({
+			branch: "drafts",
+			exists: true,
+		});
+
+		expect(contentRefs).toEqual(["drafts"]);
+		expect(status.missingPublishBranch).toBeUndefined();
+	});
+
+	it("reads the default branch and says so when the publish branch is missing", async () => {
+		const { status, contentRefs } = await statusFor({
+			branch: "drafts",
+			exists: false,
+			defaultBranch: "main",
+		});
+
+		expect(contentRefs).toEqual(["main"]);
+
+		expect(status.missingPublishBranch).toEqual({
+			branch: "drafts",
+			defaultBranch: "main",
+		});
 	});
 });

@@ -163,8 +163,14 @@
 			);
 			expandedSettingsId = null;
 			await refresh();
-		} catch {
-			new Notice(`Could not save settings for ${plugin.manifest.name}`);
+		} catch (error) {
+			if (error instanceof PublishBranchMissingError) {
+				notifyPublishBranchMissing(error);
+			} else {
+				new Notice(
+					`Could not save settings for ${plugin.manifest.name}`,
+				);
+			}
 		}
 
 		busy = false;
