@@ -3,6 +3,7 @@ import {
 	RepositoryConnection,
 } from "./RepositoryConnection";
 import { CompiledPublishFile } from "src/publishFile/PublishFile";
+import { PublishBranchMissingError } from "./PublishBranchMissingError";
 
 interface IRequest {
 	route: string;
@@ -18,7 +19,7 @@ const makeFakeOctokit = () => {
 	const request = async (route: string, payload: Record<string, unknown>) => {
 		requests.push({ route, payload });
 
-		if (route.startsWith("GET /repos/{owner}/{repo}/commits/HEAD")) {
+		if (route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}")) {
 			return {
 				data: { sha: "commit-0", commit: { tree: { sha: "tree-0" } } },
 			};
@@ -253,6 +254,26 @@ describe("RepositoryConnection.updateFiles", () => {
 		expect(trees).toHaveLength(1);
 		expect(trees[0].payload.tree).toHaveLength(1);
 	});
+
+	it("advances the default branch when no publish branch is set", async () => {
+		const octokit = makeFakeOctokit();
+
+		await makeConnection(octokit).updateFiles([makeFile(1)]);
+
+		const refUpdates = byRoute(
+			octokit.requests,
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+		);
+
+		expect(refUpdates.map((r) => r.payload.branch)).toEqual(["main"]);
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"GET /repos/{owner}/{repo}/git/ref/{ref}",
+			),
+		).toHaveLength(0);
+	});
 });
 
 describe("RepositoryConnection.deleteFiles", () => {
@@ -355,5 +376,246 @@ describe("RepositoryConnection.deleteFiles", () => {
 		await makeConnection(octokit).deleteFiles([]);
 
 		expect(octokit.requests).toHaveLength(0);
+	});
+});
+
+/**
+ * Fake GitHub where the default branch `main` is at commit-0 and the publish
+ * branch `drafts` (when it exists) is at drafts-commit.
+ */
+const makeBranchOctokit = ({ branchExists }: { branchExists: boolean }) => {
+	const requests: IRequest[] = [];
+	let counter = 0;
+
+	const notFound = () =>
+		Object.assign(new Error("Not Found"), { status: 404 });
+
+	const request = async (route: string, payload: Record<string, unknown>) => {
+		requests.push({ route, payload });
+
+		if (route === "GET /repos/{owner}/{repo}/git/ref/{ref}") {
+			if (!branchExists) throw notFound();
+
+			return { data: {} };
+		}
+
+		if (route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}")) {
+			const onBranch = payload.ref === "drafts";
+
+			return {
+				data: {
+					sha: onBranch ? "drafts-commit" : "commit-0",
+					commit: {
+						tree: { sha: onBranch ? "drafts-tree" : "tree-0" },
+					},
+				},
+			};
+		}
+
+		if (route.startsWith("GET /repos/{owner}/{repo}/contents/{path}")) {
+			return { data: { type: "file", sha: "file-sha", content: "" } };
+		}
+
+		if (route === "GET /repos/{owner}/{repo}") {
+			return { data: { default_branch: "main" } };
+		}
+
+		if (
+			route === "PUT /repos/{owner}/{repo}/contents/{path}" ||
+			route === "PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}"
+		) {
+			return { data: {} };
+		}
+
+		counter += 1;
+
+		return { data: { sha: `new-${counter}` } };
+	};
+
+	return { request, requests };
+};
+
+const makeBranchConnection = (octokit: ReturnType<typeof makeBranchOctokit>) =>
+	new RepositoryConnection({
+		octoKit: octokit as never,
+		userName: "user",
+		pageName: "garden",
+		contentBaseDir: "",
+		branch: "drafts",
+	});
+
+describe("RepositoryConnection with a publish branch", () => {
+	it("commits onto the publish branch when it exists", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		await makeBranchConnection(octokit).updateFiles([makeFile(1)]);
+
+		const [tree] = byRoute(
+			octokit.requests,
+			"POST /repos/{owner}/{repo}/git/trees",
+		);
+
+		const [commit] = byRoute(
+			octokit.requests,
+			"POST /repos/{owner}/{repo}/git/commits",
+		);
+
+		const refUpdates = byRoute(
+			octokit.requests,
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+		);
+
+		expect(tree.payload.base_tree).toBe("drafts-tree");
+		expect(commit.payload.parents).toEqual(["drafts-commit"]);
+		expect(refUpdates.map((r) => r.payload.branch)).toEqual(["drafts"]);
+	});
+
+	it("checks the publish branch once per batch write and builds on its tip by name", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+		const connection = makeBranchConnection(octokit);
+
+		await connection.updateFiles([makeFile(1)]);
+		await connection.deleteFiles(["src/site/notes/a.md"]);
+
+		await connection.commitChanges({
+			additions: [{ path: "src/plugins/x/a.js", content: "YQ==" }],
+			deletions: [],
+			message: "Install x",
+		});
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"GET /repos/{owner}/{repo}/git/ref/{ref}",
+			),
+		).toHaveLength(3);
+
+		const commitReads = octokit.requests.filter((r) =>
+			r.route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}"),
+		);
+
+		expect(commitReads.map((r) => r.payload.ref)).toEqual([
+			"drafts",
+			"drafts",
+			"drafts",
+		]);
+	});
+
+	it("fails batch writes without creating a missing publish branch", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
+
+		await expect(
+			makeBranchConnection(octokit).deleteFiles(["src/site/notes/a.md"]),
+		).rejects.toBeInstanceOf(PublishBranchMissingError);
+
+		const writes = octokit.requests.filter(
+			(r) => !r.route.startsWith("GET "),
+		);
+
+		expect(writes).toHaveLength(0);
+	});
+
+	it("fails single-file writes instead of swallowing a missing publish branch", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
+
+		await expect(
+			makeBranchConnection(octokit).updateFile({
+				path: "src/site/env",
+				content: "",
+			}),
+		).rejects.toThrow('The publish branch "drafts" does not exist');
+
+		expect(
+			byRoute(
+				octokit.requests,
+				"PUT /repos/{owner}/{repo}/contents/{path}",
+			),
+		).toHaveLength(0);
+	});
+
+	it("reads from the publish branch when it exists", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		await makeBranchConnection(octokit).getFile("src/site/env");
+
+		const [read] = octokit.requests.filter((r) =>
+			r.route.startsWith("GET /repos/{owner}/{repo}/contents/{path}"),
+		);
+
+		expect(read.payload.ref).toBe("drafts");
+	});
+
+	it("reads from the default branch when the publish branch is missing", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
+		const connection = makeBranchConnection(octokit);
+
+		await connection.getFile("src/site/env");
+		await connection.getLatestCommit();
+
+		const [read] = octokit.requests.filter((r) =>
+			r.route.startsWith("GET /repos/{owner}/{repo}/contents/{path}"),
+		);
+
+		const [commit] = octokit.requests.filter((r) =>
+			r.route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}"),
+		);
+
+		expect(read.payload.ref).toBeUndefined();
+		expect(commit.payload.ref).toBe("HEAD");
+	});
+
+	it("reports an existing publish branch without looking up the default", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		await expect(
+			makeBranchConnection(octokit).getPublishBranchStatus(),
+		).resolves.toEqual({ branch: "drafts", exists: true });
+
+		expect(
+			byRoute(octokit.requests, "GET /repos/{owner}/{repo}"),
+		).toHaveLength(0);
+	});
+
+	it("reports a missing publish branch with the branch reads fall back to", async () => {
+		const octokit = makeBranchOctokit({ branchExists: false });
+
+		await expect(
+			makeBranchConnection(octokit).getPublishBranchStatus(),
+		).resolves.toEqual({
+			branch: "drafts",
+			exists: false,
+			defaultBranch: "main",
+		});
+	});
+
+	it("reports no publish branch status, without requests, when none is set", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		const connection = new RepositoryConnection({
+			octoKit: octokit as never,
+			userName: "user",
+			pageName: "garden",
+		});
+
+		await expect(
+			connection.getPublishBranchStatus(),
+		).resolves.toBeUndefined();
+		expect(octokit.requests).toHaveLength(0);
+	});
+
+	it("sends single-file writes to the publish branch", async () => {
+		const octokit = makeBranchOctokit({ branchExists: true });
+
+		await makeBranchConnection(octokit).updateFile({
+			path: "src/site/env",
+			content: "",
+		});
+
+		const [put] = byRoute(
+			octokit.requests,
+			"PUT /repos/{owner}/{repo}/contents/{path}",
+		);
+
+		expect(put.payload.branch).toBe("drafts");
 	});
 });

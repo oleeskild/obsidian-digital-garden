@@ -4,6 +4,8 @@
 
 	export let selectedCount: number;
 	export let publishing: boolean;
+	/** Publishing can't succeed right now (e.g. the publish branch is missing). */
+	export let blocked = false;
 
 	const dispatch = createEventDispatcher();
 </script>
@@ -19,7 +21,7 @@
 	<button
 		class="dg-pc-publish"
 		on:click={() => dispatch("publish")}
-		disabled={publishing || selectedCount === 0}
+		disabled={publishing || blocked || selectedCount === 0}
 	>
 		{publishing ? "Publishing…" : `Publish ${selectedCount} selected`}
 	</button>

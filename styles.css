@@ -601,8 +601,9 @@ h4 {
 	}
 }
 
-/* Home page onboarding */
-.dg-pc-home-banner {
+/* Home page onboarding and missing publish branch banners */
+.dg-pc-home-banner,
+.dg-pc-branch-banner {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	padding: 10px;
@@ -611,7 +612,8 @@ h4 {
 	background: var(--background-secondary);
 }
 
-.dg-pc-home-banner .dg-pc-callout-header {
+.dg-pc-home-banner .dg-pc-callout-header,
+.dg-pc-branch-banner .dg-pc-callout-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -619,8 +621,13 @@ h4 {
 	margin-bottom: 6px;
 }
 
-.dg-pc-home-banner .dg-pc-callout-title {
+.dg-pc-home-banner .dg-pc-callout-title,
+.dg-pc-branch-banner .dg-pc-callout-title {
 	font-weight: bold;
+}
+
+.dg-pc-branch-banner {
+	border-left: 3px solid var(--text-warning);
 }
 
 .dg-home-prompt-hint {

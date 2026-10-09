@@ -48,9 +48,18 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const publishedNotes: Array<CompiledPublishFile> = [];
 		const changedNotes: Array<CompiledPublishFile> = [];
 
-		const contentTree = await (
-			await this.siteManager.getUserGardenConnection()
-		).getContent("HEAD");
+		const connection = await this.siteManager.getUserGardenConnection();
+		const branchStatus = await connection.getPublishBranchStatus();
+
+		// Read the tree from the branch the status names, so what is listed
+		// always matches what the Publication Center says it is showing.
+		const ref = !branchStatus
+			? "HEAD"
+			: branchStatus.exists
+			? branchStatus.branch
+			: branchStatus.defaultBranch;
+
+		const contentTree = await connection.getContent(ref);
 
 		if (!contentTree) {
 			throw new Error("Could not get content tree from base garden");
@@ -110,6 +119,13 @@ export default class PublishStatusManager implements IPublishStatusManager {
 			changedNotes,
 			deletedNotePaths,
 			deletedImagePaths,
+			missingPublishBranch:
+				branchStatus && !branchStatus.exists
+					? {
+							branch: branchStatus.branch,
+							defaultBranch: branchStatus.defaultBranch,
+					  }
+					: undefined,
 		};
 	}
 }
@@ -125,6 +141,12 @@ export interface PublishStatus {
 	changedNotes: Array<CompiledPublishFile>;
 	deletedNotePaths: Array<PathToRemove>;
 	deletedImagePaths: Array<PathToRemove>;
+	/**
+	 * Set when the configured publish branch does not exist: the status was
+	 * computed against `defaultBranch` instead, and publishing will fail
+	 * until the branch is created or the setting is changed.
+	 */
+	missingPublishBranch?: { branch: string; defaultBranch: string };
 }
 
 export interface IPublishStatusManager {

@@ -39,7 +39,6 @@ const makeBaseConnection = (getFileCalls: string[] = []) =>
 			return { content: Base64.encode("template file content") };
 		},
 		getContent: async () => BASE_TREE,
-		getRepositoryInfo: async () => ({ default_branch: "main" }),
 	}) as unknown as RepositoryConnection;
 
 const makeUserConnection = (contentBaseDir: string, tree: ITreeItem[]) =>
@@ -129,6 +128,7 @@ describe("TemplateUpdater with a content base directory", () => {
 
 		const userGardenConnection = {
 			contentBaseDir: "Web/",
+			getWriteBranch: async () => "main",
 			getLatestCommit: async () => ({ sha: "commit-sha" }),
 			createBranch: async () => undefined,
 			deleteFile: async (path: string) => {
@@ -148,7 +148,6 @@ describe("TemplateUpdater with a content base directory", () => {
 		const updater = new TemplateUpdater({
 			baseGardenConnection: makeBaseConnection(baseGetFileCalls),
 			userGardenConnection,
-			defaultBranch: "main",
 			newestTemplateVersion: "1.0.0",
 			filesToChange: {
 				filesToDelete: [{ path: "old.js", sha: "old-sha" }],
@@ -166,5 +165,134 @@ describe("TemplateUpdater with a content base directory", () => {
 		expect(baseGetFileCalls).toContain("package.json");
 		expect(baseGetFileCalls).toContain("src/site/new.njk");
 		expect(baseGetFileCalls).not.toContain("Web/package.json");
+	});
+});
+
+/**
+ * Fake garden repo whose default branch is `master` (the template repo's is
+ * `main`) and which may have a publish branch `drafts`.
+ */
+const makeGardenOctokit = (branches: string[]) => {
+	const requests: { route: string; payload: Record<string, unknown> }[] = [];
+
+	const request = async (route: string, payload: Record<string, unknown>) => {
+		requests.push({ route, payload });
+
+		if (route === "GET /repos/{owner}/{repo}") {
+			return { data: { default_branch: "master" } };
+		}
+
+		if (route === "GET /repos/{owner}/{repo}/git/ref/{ref}") {
+			if (!branches.includes(String(payload.ref).slice(6))) {
+				throw Object.assign(new Error("Not Found"), { status: 404 });
+			}
+
+			return { data: {} };
+		}
+
+		if (route.startsWith("GET /repos/{owner}/{repo}/git/trees/")) {
+			return { status: 200, data: { tree: [] } };
+		}
+
+		if (route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}")) {
+			return { data: { sha: `${payload.ref}-tip` } };
+		}
+
+		if (route === "POST /repos/{owner}/{repo}/pulls") {
+			return { data: { html_url: "pr-url" } };
+		}
+
+		return { data: {} };
+	};
+
+	return { request, requests };
+};
+
+const makeGardenConnection = (
+	octokit: ReturnType<typeof makeGardenOctokit>,
+	branch?: string,
+) =>
+	new RepositoryConnection({
+		octoKit: octokit as unknown as Octokit,
+		userName: "user",
+		pageName: "garden",
+		branch,
+	});
+
+const route = (octokit: ReturnType<typeof makeGardenOctokit>, prefix: string) =>
+	octokit.requests.filter((r) => r.route.startsWith(prefix));
+
+describe("Template updates target the garden's own branch", () => {
+	const runUpdate = async (
+		octokit: ReturnType<typeof makeGardenOctokit>,
+		branch?: string,
+	) => {
+		const checker = new TemplateUpdateChecker({
+			baseGardenConnection: makeBaseConnection(),
+			userGardenConnection: makeGardenConnection(octokit, branch),
+		});
+
+		await checker.getFilesToUpdate();
+
+		await new TemplateUpdater({
+			baseGardenConnection: makeBaseConnection(),
+			userGardenConnection: makeGardenConnection(octokit, branch),
+			newestTemplateVersion: "1.0.0",
+			filesToChange: {
+				filesToDelete: [],
+				filesToUpdate: [],
+				filesToAdd: [{ path: "src/site/new.njk" }],
+			},
+		}).updateTemplate();
+	};
+
+	it("uses the garden's default branch, not the template repo's", async () => {
+		const octokit = makeGardenOctokit([]);
+
+		await runUpdate(octokit);
+
+		// The comparison reads the garden's HEAD rather than a branch name
+		// borrowed from the template repo.
+		const [treeRead] = route(
+			octokit,
+			"GET /repos/{owner}/{repo}/git/trees/",
+		);
+		expect(treeRead.payload.tree_sha).toBe("HEAD");
+
+		const [newRef] = route(octokit, "POST /repos/{owner}/{repo}/git/refs");
+		expect(newRef.payload.sha).toBe("master-tip");
+
+		const [pr] = route(octokit, "POST /repos/{owner}/{repo}/pulls");
+		expect(pr.payload.base).toBe("master");
+	});
+
+	it("compares against, branches from and targets the publish branch", async () => {
+		const octokit = makeGardenOctokit(["drafts"]);
+
+		await runUpdate(octokit, "drafts");
+
+		const [treeRead] = route(
+			octokit,
+			"GET /repos/{owner}/{repo}/git/trees/",
+		);
+		expect(treeRead.payload.tree_sha).toBe("drafts");
+
+		const [newRef] = route(octokit, "POST /repos/{owner}/{repo}/git/refs");
+		expect(newRef.payload.sha).toBe("drafts-tip");
+
+		const [pr] = route(octokit, "POST /repos/{owner}/{repo}/pulls");
+		expect(pr.payload.base).toBe("drafts");
+	});
+
+	it("fails before creating a branch when the publish branch is missing", async () => {
+		const octokit = makeGardenOctokit([]);
+
+		await expect(runUpdate(octokit, "drafts")).rejects.toThrow(
+			'The publish branch "drafts" does not exist',
+		);
+
+		expect(
+			octokit.requests.filter((r) => !r.route.startsWith("GET ")),
+		).toHaveLength(0);
 	});
 });

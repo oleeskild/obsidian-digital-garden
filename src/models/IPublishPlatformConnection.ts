@@ -5,4 +5,6 @@ export interface IPublishPlatformConnection {
 	userName: string;
 	pageName: string;
 	contentBaseDir?: string;
+	/** Branch to read from and write to instead of the default branch. */
+	branch?: string;
 }

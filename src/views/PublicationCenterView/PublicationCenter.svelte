@@ -4,6 +4,8 @@
 	import Publisher from "../../publisher/Publisher";
 	import { LimitReachedError } from "../../forestry/LimitReachedError";
 	import { notifyLimitReached } from "../../forestry/limitNotice";
+	import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
+	import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 	import DigitalGardenSiteManager from "../../repositoryConnection/DigitalGardenSiteManager";
 	import type {
 		IPublishStatusManager,
@@ -81,6 +83,10 @@
 	};
 
 	$: selectedCount = selected.size;
+
+	// Reads fell back to the default branch; publishing would fail on the
+	// missing branch, so it is blocked until a refresh finds the branch.
+	$: missingBranch = status?.missingPublishBranch ?? null;
 
 	// Side-by-side is unreadable on a phone-sized screen, so mobile starts
 	// in unified mode. The user can still switch.
@@ -228,6 +234,8 @@
 	}
 
 	async function publishSelected() {
+		if (missingBranch) return;
+
 		const plan = buildPublishPlan(selected, annotated);
 
 		const deletesTotal =
@@ -312,6 +320,9 @@
 		} catch (e) {
 			if (e instanceof LimitReachedError) {
 				notifyLimitReached(e);
+			} else if (e instanceof PublishBranchMissingError) {
+				publishError = e.message;
+				notifyPublishBranchMissing(e);
 			} else {
 				Logger.error("Publication Center: publish failed", e);
 				publishError = describeError(e);
@@ -478,6 +489,25 @@
 			</div>
 		{/if}
 
+		{#if missingBranch}
+			<div class="dg-pc-callout dg-pc-branch-banner">
+				<div class="dg-pc-callout-header">
+					<div class="dg-pc-callout-title">
+						Publish branch "{missingBranch.branch}" not found
+					</div>
+					<button on:click={refresh} disabled={refreshing}>
+						Refresh
+					</button>
+				</div>
+				<div>
+					Showing what is on the default branch, "{missingBranch.defaultBranch}",
+					instead. Publishing is off until the branch exists: create
+					it on GitHub, or change the publish branch in the plugin
+					settings, then refresh.
+				</div>
+			</div>
+		{/if}
+
 		<Notices {problematicFiles} />
 
 		{#if refreshing}
@@ -579,6 +609,7 @@
 		<PublishBar
 			{selectedCount}
 			{publishing}
+			blocked={missingBranch !== null}
 			on:publish={publishSelected}
 			on:refresh={refresh}
 		/>
