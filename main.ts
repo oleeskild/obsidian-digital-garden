@@ -44,6 +44,8 @@ import { ForestryApiError } from "src/forestry/ForestryApi";
 import { findHomePageFiles } from "src/publishFile/homePage";
 import { HomePagePickerModal } from "src/views/HomePage/HomePagePickerModal";
 import { promptForHomePage } from "src/views/HomePage/HomePagePromptModal";
+import { compilationCacheStore } from "src/publisher/CompilationCacheStore";
+import { publicationManifestStore } from "src/publisher/PublicationManifestStore";
 
 // Process environment variables are provided through esbuild's define feature
 // See esbuild.config.mjs
@@ -95,6 +97,8 @@ const DEFAULT_SETTINGS: DigitalGardenSettings = {
 	pathRewriteRules: "",
 	customFilters: [],
 	publishPlatform: PublishPlatform.SelfHosted,
+	ignoredPaths: [],
+	frontmatterFormat: "json",
 
 	contentClassesKey: "dg-content-classes",
 
@@ -185,6 +189,18 @@ export default class DigitalGarden extends Plugin {
 
 		console.log("Initializing DigitalGarden plugin v" + this.appVersion);
 		await this.loadSettings();
+
+		// Persist publication indexes and compilation results across Obsidian
+		// reloads. Without this, SFTP/local providers rebuild their remote file
+		// manifest in memory on every app start.
+		const cacheDirectory =
+			this.manifest.dir ?? ".obsidian/plugins/digitalgarden";
+		compilationCacheStore.configure(this.app.vault.adapter, cacheDirectory);
+
+		publicationManifestStore.configure(
+			this.app.vault.adapter,
+			cacheDirectory,
+		);
 
 		this.settings.logLevel && Logger.setLevel(this.settings.logLevel);
 

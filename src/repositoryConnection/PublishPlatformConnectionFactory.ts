@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from "@octokit/core";
 import Logger from "js-logger";
 import { IPublishPlatformConnection } from "src/models/IPublishPlatformConnection";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import DigitalGardenSettings from "src/models/settings";
+import { RepositoryConnection } from "./RepositoryConnection";
+import { ForgejoRepositoryConnection } from "./ForgejoRepositoryConnection";
 
 const oktokitLogger = Logger.get("octokit");
 
@@ -55,11 +58,37 @@ export default class PublishPlatformConnectionFactory {
 
 		return settings.githubToken || undefined;
 	}
-	static async createPublishPlatformConnection(
+	static createPublishPlatformConnection(
 		settings: DigitalGardenSettings,
-	): Promise<IPublishPlatformConnection> {
+	): any {
+		if (settings.publishPlatform === PublishPlatform.Forgejo) {
+			return new ForgejoRepositoryConnection(settings);
+		}
+
+		if (settings.publishPlatform === PublishPlatform.LocalFolder) {
+			// These providers use Node builtins and are desktop-only. Keep them
+			// out of the plugin-load path so Obsidian mobile can start safely.
+			/* eslint-disable @typescript-eslint/no-var-requires -- intentional lazy load */
+			const {
+				LocalFolderRepositoryConnection,
+			} = require("./LocalFolderRepositoryConnection");
+
+			/* eslint-enable @typescript-eslint/no-var-requires */
+			return new LocalFolderRepositoryConnection(settings);
+		}
+
+		if (settings.publishPlatform === PublishPlatform.Sftp) {
+			/* eslint-disable @typescript-eslint/no-var-requires -- intentional lazy load */
+			const {
+				SftpRepositoryConnection,
+			} = require("./SftpRepositoryConnection");
+
+			/* eslint-enable @typescript-eslint/no-var-requires */
+			return new SftpRepositoryConnection(settings);
+		}
+
 		if (settings.publishPlatform === PublishPlatform.SelfHosted) {
-			return {
+			return new RepositoryConnection({
 				octoKit: new Octokit({
 					auth: settings.githubToken,
 					log: oktokitLogger,
@@ -67,7 +96,7 @@ export default class PublishPlatformConnectionFactory {
 				userName: settings.githubUserName,
 				pageName: settings.githubRepo,
 				contentBaseDir: settings.contentBaseDir,
-			};
+			});
 		} else if (settings.publishPlatform === PublishPlatform.ForestryMd) {
 			const userName = "Forestry";
 			const token = settings.forestrySettings.apiKey;
@@ -84,11 +113,11 @@ export default class PublishPlatformConnectionFactory {
 
 			const pageName = settings.forestrySettings.forestryPageName;
 
-			return {
+			return new RepositoryConnection({
 				userName,
 				pageName,
 				octoKit,
-			};
+			});
 		} else {
 			throw new Error("Publish platform not supported");
 		}

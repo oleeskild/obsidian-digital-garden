@@ -3,6 +3,7 @@ import DigitalGardenSiteManager from "../repositoryConnection/DigitalGardenSiteM
 import Publisher from "./Publisher";
 import { generateBlobHash } from "../utils/utils";
 import { CompiledPublishFile } from "../publishFile/PublishFile";
+import { CompilationCacheStore } from "./CompilationCacheStore";
 
 const NOTE_PATH = "06 Assets/Lyrics/Bright Flight.md";
 const NOTE_CONTENT = "compiled note content";
@@ -32,7 +33,20 @@ const makeCompiledNote = (
 			},
 		],
 		setRemoteHash: () => {},
+		missingRemoteAssets: [] as string[],
+		setMissingRemoteAssets(
+			this: { missingRemoteAssets: string[] },
+			paths: string[],
+		) {
+			this.missingRemoteAssets = paths;
+		},
 		compare: () => 0,
+		withCompiledFile: function (compiledFile: unknown) {
+			return {
+				...this,
+				getCompiledFile: () => compiledFile,
+			};
+		},
 	}) as unknown as CompiledPublishFile & { compile: () => unknown };
 
 const makeManager = (options: {
@@ -50,6 +64,7 @@ const makeManager = (options: {
 	} as unknown as DigitalGardenSiteManager;
 
 	const publisher = {
+		setRemoteImageHashes: jest.fn(),
 		getFilesMarkedForPublishing: async () => ({
 			notes: options.notes,
 			images: options.images ?? [],
@@ -60,6 +75,42 @@ const makeManager = (options: {
 };
 
 describe("getPublishStatus", () => {
+	it("reports each note before compiling it", async () => {
+		const compileOrder: string[] = [];
+
+		const notes = ["first.md", "second.md"].map((path) => ({
+			...makeCompiledNote(path, NOTE_CONTENT, []),
+			compile: async function () {
+				compileOrder.push(path);
+
+				return this;
+			},
+		}));
+
+		const manager = makeManager({
+			remoteNoteHashes: {},
+			remoteImageHashes: {},
+			notes,
+		});
+		const progress: string[] = [];
+
+		await manager.getPublishStatus((update) => {
+			if (update.message.startsWith("Compiling note:")) {
+				progress.push(`${update.completed}/${update.total}`);
+				compileOrder.push(update.message);
+			}
+		});
+
+		expect(progress).toEqual(["0/2", "1/2"]);
+
+		expect(compileOrder).toEqual([
+			"Compiling note: first.md",
+			"first.md",
+			"Compiling note: second.md",
+			"second.md",
+		]);
+	});
+
 	it("treats an unchanged note with all images on the remote as published", async () => {
 		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, [
 			COVER_ASSET_PATH,
@@ -100,6 +151,10 @@ describe("getPublishStatus", () => {
 		expect(status.changedNotes.map((f) => f.getPath())).toEqual([
 			NOTE_PATH,
 		]);
+
+		expect(status.changedNotes[0].missingRemoteAssets).toEqual([
+			COVER_ASSET_PATH,
+		]);
 		expect(status.publishedNotes).toEqual([]);
 	});
 
@@ -115,6 +170,61 @@ describe("getPublishStatus", () => {
 		const status = await manager.getPublishStatus();
 
 		expect(status.changedNotes.map((f) => f.getPath())).toEqual([
+			NOTE_PATH,
+		]);
+	});
+
+	it("reuses a persisted compilation when its inputs and remote hash match", async () => {
+		const note = makeCompiledNote(NOTE_PATH, NOTE_CONTENT, []);
+
+		const file = {
+			path: NOTE_PATH,
+			name: "Bright Flight.md",
+			extension: "md",
+			stat: { mtime: 123, size: 42 },
+		};
+		Object.assign(note, { file });
+		const compile = jest.spyOn(note, "compile");
+
+		const remoteNoteHashes = {
+			[NOTE_PATH]: generateBlobHash(NOTE_CONTENT),
+		};
+
+		const siteManager = {
+			getUserGardenConnection: async () => ({
+				getContent: async () => ({ tree: [] }),
+			}),
+			getNoteHashes: async () => remoteNoteHashes,
+			getImageHashes: async () => ({}),
+		} as unknown as DigitalGardenSiteManager;
+
+		const publisher = {
+			vault: { cachedRead: async () => "source" },
+			metadataCache: {
+				getCache: () => undefined,
+				getFirstLinkpathDest: () => null,
+			},
+			setRemoteImageHashes: jest.fn(),
+			getCompilerFingerprint: () => "compiler-v1",
+			getFilesMarkedForPublishing: async () => ({
+				notes: [note],
+				images: [],
+			}),
+		} as unknown as Publisher;
+		const cacheStore = new CompilationCacheStore();
+
+		const manager = new PublishStatusManager(
+			siteManager,
+			publisher,
+			cacheStore,
+		);
+
+		await manager.getPublishStatus();
+		const second = await manager.getPublishStatus();
+
+		expect(compile).toHaveBeenCalledTimes(1);
+
+		expect(second.publishedNotes.map((item) => item.getPath())).toEqual([
 			NOTE_PATH,
 		]);
 	});

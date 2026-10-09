@@ -1,18 +1,12 @@
-import { FrontMatterCache, Notice } from "obsidian";
+import { FrontMatterCache } from "obsidian";
 
-export const hasPublishFlag = (frontMatter?: FrontMatterCache): boolean =>
-	!!frontMatter?.["dg-publish"] && frontMatter?.["dg-publish"] !== "false";
-
-export function isPublishFrontmatterValid(
+export const hasPublishFlag = (
 	frontMatter?: FrontMatterCache,
-): boolean {
-	if (!hasPublishFlag(frontMatter)) {
-		new Notice(
-			"Note does not have the dg-publish: true set. Please add this and try again.",
-		);
+	publishByDefault = false,
+): boolean => {
+	const value = frontMatter?.["dg-publish"];
 
-		return false;
-	}
+	if (value === undefined) return publishByDefault;
 
-	return true;
-}
+	return !!value && value !== "false";
+};

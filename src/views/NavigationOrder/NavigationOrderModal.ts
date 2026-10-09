@@ -1,7 +1,7 @@
 import { App, Modal } from "obsidian";
 import { mount, unmount } from "svelte";
 import NavigationOrderView from "./NavigationOrderView.svelte";
-import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
+import { IRepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 import Publisher from "../../publisher/Publisher";
 import DigitalGardenSettings from "../../models/settings";
 
@@ -11,7 +11,7 @@ export class NavigationOrderModal {
 
 	constructor(
 		app: App,
-		private repositoryConnection: RepositoryConnection,
+		private repositoryConnection: IRepositoryConnection,
 		private publisher: Publisher,
 		private settings: DigitalGardenSettings,
 		private saveSettings: () => Promise<void>,

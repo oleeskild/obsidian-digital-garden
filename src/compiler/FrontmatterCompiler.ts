@@ -1,8 +1,7 @@
-import { FrontMatterCache } from "obsidian";
+import { FrontMatterCache, stringifyYaml } from "obsidian";
 import {
 	getGardenPathForNote,
 	sanitizePermalink,
-	generateUrlPath,
 	kebabize,
 	getRewriteRules,
 } from "../utils/utils";
@@ -14,6 +13,7 @@ import { resolveFrontmatterValue } from "./frontmatterLinks";
 export type TFrontmatter = Record<string, unknown> & {
 	"dg-path"?: string;
 	"dg-permalink"?: string;
+	permalink?: string;
 	"dg-home"?: boolean;
 	"dg-hide-in-graph"?: boolean;
 	"dg-hide"?: boolean;
@@ -46,9 +46,15 @@ export class FrontmatterCompiler {
 		const fileFrontMatter = { ...frontmatter };
 		delete fileFrontMatter["position"];
 
-		let publishedFrontMatter: TPublishedFrontMatter = {
-			"dg-publish": true,
-		};
+		let publishedFrontMatter: TPublishedFrontMatter = {};
+
+		// Keep the source marker when it exists, but do not add dg-publish to
+		// notes that are published through the global default setting.
+		if (
+			Object.prototype.hasOwnProperty.call(fileFrontMatter, "dg-publish")
+		) {
+			publishedFrontMatter["dg-publish"] = fileFrontMatter["dg-publish"];
+		}
 
 		publishedFrontMatter = this.addPermalink(
 			fileFrontMatter,
@@ -94,14 +100,13 @@ export class FrontmatterCompiler {
 		);
 
 		const fullFrontMatter = publishedFrontMatter?.dgPassFrontmatter
-			? {
-					...fileFrontMatter,
-					...publishedFrontMatter,
-					"dg-note-properties": userProperties,
-			  }
-			: { ...publishedFrontMatter, "dg-note-properties": userProperties };
+			? { ...fileFrontMatter, ...publishedFrontMatter }
+			: { ...userProperties, ...publishedFrontMatter };
 
-		const frontMatterString = JSON.stringify(fullFrontMatter);
+		const frontMatterString =
+			this.settings.frontmatterFormat === "yaml"
+				? stringifyYaml(fullFrontMatter).trimEnd()
+				: JSON.stringify(fullFrontMatter);
 
 		return `---\n${frontMatterString}\n---\n`;
 	}
@@ -129,9 +134,8 @@ export class FrontmatterCompiler {
 			publishedFrontMatter["permalink"] = sanitizePermalink(
 				baseFrontMatter["dg-permalink"],
 			);
-		} else {
-			publishedFrontMatter["permalink"] =
-				"/" + generateUrlPath(gardenPath, this.settings.slugifyEnabled);
+		} else if (baseFrontMatter?.permalink) {
+			publishedFrontMatter["permalink"] = baseFrontMatter.permalink;
 		}
 
 		return publishedFrontMatter;
