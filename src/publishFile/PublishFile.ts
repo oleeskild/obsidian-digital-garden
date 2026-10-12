@@ -131,7 +131,9 @@ export class PublishFile {
 		const metadata =
 			this.metadataCache.getCache(this.file.path)?.frontmatter ?? {};
 
-		return frontmatterCompiler.compile(this, metadata);
+		return frontmatterCompiler.compile(this, metadata, {
+			includeFileTimestamps: this.compiler?.includeFileTimestamps,
+		});
 	}
 }
 

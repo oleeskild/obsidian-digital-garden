@@ -44,6 +44,16 @@ export class FileMetadataManager {
 		return DateTime.fromMillis(this.file.stat.ctime).toISO() as string;
 	}
 
+	/** The vault file's own creation time, ignoring custom timestamp keys */
+	getFileCreatedAt(): string {
+		return DateTime.fromMillis(this.file.stat.ctime).toISO() as string;
+	}
+
+	/** The vault file's own modification time, ignoring custom timestamp keys */
+	getFileUpdatedAt(): string {
+		return DateTime.fromMillis(this.file.stat.mtime).toISO() as string;
+	}
+
 	getUpdatedAt(): string {
 		const updatedKey = this.settings.updatedTimestampKey;
 

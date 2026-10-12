@@ -41,6 +41,7 @@ const PDF_IFRAME_STYLE = "border:1px solid #ccc;";
 import { PublishFile } from "../publishFile/PublishFile";
 import { replaceBlockIDs } from "./replaceBlockIDs";
 import { getFrontmatterImageLinkpath } from "./frontmatterImageLinks";
+import { publishedBasesUseFileTimestamps } from "./basesFileTimestamps";
 
 export { getFrontmatterImageLinkpath };
 
@@ -148,6 +149,11 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 	private rewriteRules: PathRewriteRule[];
 
+	// Whether published notes should carry ctime/mtime for bases. Resolved
+	// once per publish run, before any frontmatter is compiled.
+	includeFileTimestamps = false;
+	private fileTimestampScan?: Promise<boolean>;
+
 	constructor(
 		vault: Vault,
 		settings: DigitalGardenSettings,
@@ -239,8 +245,26 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			);
 		};
 
+	/**
+	 * Forget the cached bases scan so the next compile re-checks the vault.
+	 * Call at the start of each publish-status run.
+	 */
+	resetFileTimestampScan() {
+		this.fileTimestampScan = undefined;
+	}
+
+	private async resolveIncludeFileTimestamps() {
+		this.fileTimestampScan ??= publishedBasesUseFileTimestamps(
+			this.vault,
+			this.metadataCache,
+		);
+		this.includeFileTimestamps = await this.fileTimestampScan;
+	}
+
 	async generateMarkdown(file: PublishFile): Promise<TCompiledFile> {
 		const assets: Assets = { images: [] };
+
+		await this.resolveIncludeFileTimestamps();
 
 		const vaultFileText = await file.cachedRead();
 

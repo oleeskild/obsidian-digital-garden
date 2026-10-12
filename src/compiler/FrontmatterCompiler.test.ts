@@ -224,3 +224,36 @@ describe("FrontmatterCompiler note link resolution", () => {
 		);
 	});
 });
+
+describe("FrontmatterCompiler file timestamps for bases", () => {
+	const fileWithTimes = () =>
+		({
+			getPath: () => "test.md",
+			meta: {
+				getUpdatedAt: () => undefined,
+				getCreatedAt: () => undefined,
+				getFileCreatedAt: () => "2026-03-25T11:34:41.346-05:00",
+				getFileUpdatedAt: () => "2026-08-15T16:47:40.133-05:00",
+			},
+		}) as unknown as PublishFile;
+
+	it("publishes ctime and mtime when a base uses them", () => {
+		const published = parsePublished(
+			getCompiler().compile(fileWithTimes(), {} as FrontMatterCache, {
+				includeFileTimestamps: true,
+			}),
+		);
+
+		expect(published.ctime).toBe("2026-03-25T11:34:41.346-05:00");
+		expect(published.mtime).toBe("2026-08-15T16:47:40.133-05:00");
+	});
+
+	it("leaves them out otherwise, so file touches don't mark notes changed", () => {
+		const published = parsePublished(
+			getCompiler().compile(fileWithTimes(), {} as FrontMatterCache),
+		);
+
+		expect(published).not.toHaveProperty("ctime");
+		expect(published).not.toHaveProperty("mtime");
+	});
+});

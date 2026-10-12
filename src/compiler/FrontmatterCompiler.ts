@@ -42,7 +42,13 @@ export class FrontmatterCompiler {
 		this.rewriteRules = getRewriteRules(settings.pathRewriteRules);
 	}
 
-	compile(file: PublishFile, frontmatter: FrontMatterCache): string {
+	compile(
+		file: PublishFile,
+		frontmatter: FrontMatterCache,
+		{
+			includeFileTimestamps = false,
+		}: { includeFileTimestamps?: boolean } = {},
+	): string {
 		const fileFrontMatter = { ...frontmatter };
 		delete fileFrontMatter["position"];
 
@@ -83,6 +89,13 @@ export class FrontmatterCompiler {
 
 		publishedFrontMatter =
 			this.addTimestampsFrontmatter(file)(publishedFrontMatter);
+
+		if (includeFileTimestamps) {
+			publishedFrontMatter = this.addFileTimestamps(
+				file,
+				publishedFrontMatter,
+			);
+		}
 
 		// Always include all user frontmatter properties, safely nested
 		// under "dg-note-properties" to avoid clashing with 11ty reserved
@@ -247,6 +260,22 @@ export class FrontmatterCompiler {
 
 			return newFrontMatter;
 		};
+
+	/**
+	 * The file's own timestamps for bases' file.ctime / file.mtime. Kept
+	 * apart from created/updated, which follow the display settings and may
+	 * hold a custom frontmatter date instead.
+	 */
+	private addFileTimestamps(
+		file: PublishFile,
+		newFrontMatter: TPublishedFrontMatter,
+	): TPublishedFrontMatter {
+		return {
+			...newFrontMatter,
+			ctime: file.meta.getFileCreatedAt(),
+			mtime: file.meta.getFileUpdatedAt(),
+		};
+	}
 
 	private addNoteIconFrontMatter(
 		baseFrontMatter: TFrontmatter,

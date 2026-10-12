@@ -71,6 +71,7 @@ export default class PublishStatusManager implements IPublishStatusManager {
 		const remoteImageHashes =
 			await this.siteManager.getImageHashes(contentTree);
 
+		this.publisher.compiler?.resetFileTimestampScan();
 		const marked = await this.publisher.getFilesMarkedForPublishing();
 
 		for (const file of marked.notes) {
