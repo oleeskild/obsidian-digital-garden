@@ -6,7 +6,6 @@
       "name": "obsidian-garden",
       "dependencies": {
         "@octokit/core": "^5.0.0",
-        "@popperjs/core": "^2.11.8",
         "@sindresorhus/slugify": "^1.1.2",
         "axios": "^1.18.1",
         "crypto-js": "^4.2.0",
@@ -281,8 +280,6 @@
     "@octokit/types": ["@octokit/types@11.1.0", "", { "dependencies": { "@octokit/openapi-types": "^18.0.0" } }, "sha512-Fz0+7GyLm/bHt8fwEqgvRBWwIV1S6wRRyq+V6exRKLVWaKGsuy6H9QFYeBVDV7rK6fO3XwHgQOPxv+cLj2zpXQ=="],
 
     "@pkgr/utils": ["@pkgr/utils@2.4.2", "", { "dependencies": { "cross-spawn": "^7.0.3", "fast-glob": "^3.3.0", "is-glob": "^4.0.3", "open": "^9.1.0", "picocolors": "^1.0.0", "tslib": "^2.6.0" } }, "sha512-POgTXhjrTfbTV63DiFXav4lBHiICLKKwDeaKn9Nphwj7WH6m0hMMCaJkMyRWjgtPFyRKRVoMXXjczsTQRDEhYw=="],
-
-    "@popperjs/core": ["@popperjs/core@2.11.8", "", {}, "sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.27.8", "", {}, "sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA=="],
 
