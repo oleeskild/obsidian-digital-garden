@@ -23,6 +23,7 @@ import {
 	shouldSkipRepoFile,
 	validateGardenPluginManifest,
 } from "./manifest";
+import { absolutizeReadmeLinks, readmeUrls } from "./readme";
 
 const logger = Logger.get("garden-plugin-manager");
 
@@ -273,6 +274,31 @@ export class GardenPluginManager {
 
 			return [];
 		}
+	}
+
+	/**
+	 * Fetch a community plugin's README (owner/name), with repo-relative
+	 * links and images made absolute. Uses raw.githubusercontent.com like
+	 * {@link fetchCommunityPlugins}, so it costs no API rate limit.
+	 * Returns undefined when the repo has no README.
+	 */
+	async fetchReadme(repo: string): Promise<string | undefined> {
+		for (const url of readmeUrls(repo)) {
+			try {
+				const response = await axios.get<string>(url, {
+					responseType: "text",
+					transformResponse: (data) => data,
+				});
+
+				if (typeof response.data === "string") {
+					return absolutizeReadmeLinks(response.data, repo);
+				}
+			} catch {
+				// Try the next casing; a 404 is expected for all but one.
+			}
+		}
+
+		return undefined;
 	}
 
 	/**

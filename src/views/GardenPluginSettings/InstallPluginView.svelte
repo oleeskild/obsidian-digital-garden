@@ -1,83 +1,48 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { Notice } from "obsidian";
-	import type {
-		GardenPluginManager,
-		RemoteGardenPlugin,
-	} from "../../gardenPlugins/GardenPluginManager";
-	import type {
-		GardenPluginRegistryEntry,
-		InstalledGardenPlugin,
-	} from "../../models/gardenPlugin";
+	import type { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 	import type DigitalGardenSettings from "../../models/settings";
-	import { getRegionConflicts, regionsOf } from "../../gardenPlugins/regions";
-	import { buildTriggeredNotice } from "../../gardenPlugins/notices";
+	import {
+		installFromRepo,
+		installNotice,
+	} from "../../gardenPlugins/installPlugin";
+	import CommunityPluginsGate from "./CommunityPluginsGate.svelte";
 
 	export let manager: GardenPluginManager;
 	export let settings: DigitalGardenSettings;
+	export let saveSettings: () => Promise<void>;
 	export let close: () => void;
 
+	let communityEnabled = settings.gardenCommunityPluginsEnabled === true;
 	let input = "";
 	let inputEl: HTMLInputElement;
-	let inspecting = false;
 	let installing = false;
 	let error: string | null = null;
-	let pending: RemoteGardenPlugin | null = null;
-	let existingEntry: GardenPluginRegistryEntry | undefined;
-	let conflicts: InstalledGardenPlugin[] = [];
-	let disableConflicts = true;
 
 	onMount(() => {
 		inputEl?.focus();
 	});
 
-	async function inspect() {
+	async function onEnabled() {
+		communityEnabled = true;
+		await tick();
+		inputEl?.focus();
+	}
+
+	async function install() {
 		if (!input.trim()) {
 			return;
 		}
 
-		inspecting = true;
-		error = null;
-		pending = null;
-		disableConflicts = true;
-
-		try {
-			const remote = await manager.inspectRemotePlugin(input);
-			const installed = await manager.listInstalled();
-
-			existingEntry = installed.find(
-				(plugin) => plugin.manifest.id === remote.manifest.id,
-			)?.registryEntry;
-			conflicts = getRegionConflicts(remote.manifest, installed);
-			pending = remote;
-		} catch (err) {
-			error = err instanceof Error ? err.message : "Unknown error";
-		}
-
-		inspecting = false;
-	}
-
-	async function confirmInstall() {
-		if (!pending) {
-			return;
-		}
-
 		installing = true;
-
-		const disableIds = disableConflicts
-			? conflicts.map((conflict) => conflict.manifest.id)
-			: [];
+		error = null;
 
 		try {
-			await manager.install(pending, existingEntry, disableIds);
+			const installed = await manager.listInstalled();
+			const result = await installFromRepo(manager, input, installed);
 
-			new Notice(
-				`${existingEntry ? "Updated" : "Installed"} ${
-					pending.manifest.name
-				} ${pending.manifest.version}. ${buildTriggeredNotice(
-					settings,
-				)}`,
-			);
+			new Notice(installNotice(result, settings));
 			close();
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Install failed";
@@ -86,99 +51,42 @@
 	}
 </script>
 
-<div class="dg-install-plugin">
-	<p class="dg-install-intro">
-		Paste the GitHub URL of a garden plugin. It will be reviewed before
-		anything is written to your garden repository.
-	</p>
+{#if !communityEnabled}
+	<CommunityPluginsGate {settings} {saveSettings} {onEnabled} />
+{:else}
+	<div class="dg-install-plugin">
+		<p class="dg-install-intro">
+			Paste the GitHub URL of a garden plugin to install it, or to update
+			it if it is already installed.
+		</p>
 
-	<form class="dg-install-row" on:submit|preventDefault={inspect}>
-		<input
-			type="text"
-			placeholder="https://github.com/user/garden-plugin-example"
-			bind:value={input}
-			bind:this={inputEl}
-			disabled={inspecting || installing}
-		/>
+		<form class="dg-install-row" on:submit|preventDefault={install}>
+			<input
+				type="text"
+				placeholder="https://github.com/user/garden-plugin-example"
+				bind:value={input}
+				bind:this={inputEl}
+				disabled={installing}
+			/>
 
-		<button
-			type="submit"
-			class="mod-cta"
-			disabled={inspecting || installing || !input.trim()}
-		>
-			{#if inspecting}
-				<span class="dg-spinner" aria-hidden="true"></span> Checking…
-			{:else}
-				Check plugin
-			{/if}
-		</button>
-	</form>
+			<button
+				type="submit"
+				class="mod-cta"
+				disabled={installing || !input.trim()}
+			>
+				{#if installing}
+					<span class="dg-spinner" aria-hidden="true"></span> Installing…
+				{:else}
+					Install
+				{/if}
+			</button>
+		</form>
 
-	{#if error}
-		<p class="dg-install-error">{error}</p>
-	{/if}
-
-	{#if pending}
-		<div class="dg-install-confirm">
-			<p class="dg-install-confirm-title">
-				{existingEntry ? "Update" : "Install"}
-				<strong>{pending.manifest.name}</strong>
-				v{pending.manifest.version} by {pending.manifest.author}?
-			</p>
-
-			<p>{pending.manifest.description}</p>
-
-			<p class="dg-install-warning">
-				⚠️ Plugins run their own code in your site's build and in your
-				visitors' browsers. Only install plugins from authors you trust
-				— review the code at
-				<a href={`https://github.com/${pending.owner}/${pending.repo}`}
-					>{pending.owner}/{pending.repo}</a
-				>
-				({pending.files.length} files, ref
-				<code>{pending.ref}</code>).
-			</p>
-
-			{#if conflicts.length > 0}
-				<label class="dg-install-conflict-choice">
-					<input type="checkbox" bind:checked={disableConflicts} />
-					<span>
-						{pending.manifest.name} replaces
-						<strong
-							>{conflicts
-								.map((c) => c.manifest.name)
-								.join(", ")}</strong
-						>
-						({regionsOf(pending.manifest).join(", ")}). Disable {conflicts.length ===
-						1
-							? "it"
-							: "them"} so {pending.manifest.name} takes over right
-						away.
-					</span>
-				</label>
-			{/if}
-
-			<div class="dg-install-actions">
-				<button
-					class="mod-cta"
-					disabled={installing}
-					on:click={confirmInstall}
-				>
-					{#if installing}
-						<span class="dg-spinner" aria-hidden="true"></span>
-						Installing…
-					{:else}
-						{existingEntry ? "Update plugin" : "Install plugin"}
-					{/if}
-				</button>
-
-				<button disabled={installing} on:click={() => (pending = null)}
-					>Cancel</button
-				>
-			</div>
-		</div>
-	{/if}
-</div>
+		{#if error}
+			<p class="dg-install-error">{error}</p>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	.dg-install-plugin {
@@ -212,44 +120,6 @@
 	.dg-install-error {
 		color: var(--text-error);
 		margin: 0;
-	}
-
-	.dg-install-confirm {
-		border: 1px solid var(--background-modifier-border);
-		border-left: 3px solid var(--interactive-accent);
-		border-radius: 8px;
-		padding: 10px 14px;
-	}
-
-	.dg-install-confirm-title {
-		margin-top: 0;
-	}
-
-	.dg-install-warning {
-		color: var(--text-warning, var(--text-muted));
-	}
-
-	.dg-install-conflict-choice {
-		display: flex;
-		align-items: flex-start;
-		gap: 8px;
-		margin: 0 0 10px;
-		font-size: 0.92em;
-	}
-
-	.dg-install-conflict-choice input {
-		margin-top: 3px;
-	}
-
-	.dg-install-actions {
-		display: flex;
-		gap: 8px;
-	}
-
-	.dg-install-actions button {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
 	}
 
 	.dg-spinner {

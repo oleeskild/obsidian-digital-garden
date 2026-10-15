@@ -1,25 +1,25 @@
 <script lang="ts">
-	import { onMount, tick } from "svelte";
-	import { Notice } from "obsidian";
-	import type {
-		GardenPluginManager,
-		RemoteGardenPlugin,
-	} from "../../gardenPlugins/GardenPluginManager";
+	import { onMount } from "svelte";
+	import { App, Notice } from "obsidian";
+	import type { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 	import type {
 		CommunityGardenPlugin,
 		GardenPluginSettingEntry,
 		InstalledGardenPlugin,
 	} from "../../models/gardenPlugin";
 	import type DigitalGardenSettings from "../../models/settings";
-	import {
-		getRegionConflicts,
-		getRegionProviders,
-		regionsOf,
-	} from "../../gardenPlugins/regions";
+	import { getRegionProviders, regionsOf } from "../../gardenPlugins/regions";
 	import { buildTriggeredNotice } from "../../gardenPlugins/notices";
+	import {
+		installFromRepo,
+		installNotice,
+	} from "../../gardenPlugins/installPlugin";
+	import CommunityPluginsGate from "./CommunityPluginsGate.svelte";
+	import PluginReadme from "./PluginReadme.svelte";
 	import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
 	import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 
+	export let app: App;
 	export let manager: GardenPluginManager;
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
@@ -33,14 +33,12 @@
 	let communityLoading = true;
 	let busy = false;
 
+	let communityEnabled = settings.gardenCommunityPluginsEnabled === true;
 	let installInput = "";
-	let inspecting = false;
 	let installError: string | null = null;
-	let pendingInstall: RemoteGardenPlugin | null = null;
-	let pendingIsUpdate = false;
-
-	let installConfirmEl: HTMLElement | undefined;
-	let installErrorEl: HTMLElement | undefined;
+	/** Repo (owner/name or URL) currently being installed or updated. */
+	let installingRepo: string | null = null;
+	let selected: CommunityGardenPlugin | null = null;
 	let expandedSettingsId: string | null = null;
 	let settingsDraft: Record<string, string | number | boolean> = {};
 	let activeTab: "installed" | "browse" = "installed";
@@ -48,6 +46,7 @@
 	onMount(async () => {
 		await refresh();
 		community = await manager.fetchCommunityPlugins();
+		selected = community[0] ?? null;
 		communityLoading = false;
 	});
 
@@ -193,93 +192,68 @@
 		installed = installed;
 	}
 
-	async function inspect(repoInput: string, isUpdate = false) {
-		inspecting = true;
+	/**
+	 * Install or update straight away — the third-party code warning was
+	 * accepted once when community plugins were turned on.
+	 */
+	async function install(repoInput: string): Promise<boolean> {
+		busy = true;
+		installingRepo = repoInput;
 		installError = null;
-		pendingInstall = null;
-		disableConflicts = true;
 
 		try {
-			const remote = await manager.inspectRemotePlugin(repoInput);
+			const result = await installFromRepo(manager, repoInput, installed);
 
-			if (!isUpdate && installedIds().has(remote.manifest.id)) {
-				pendingIsUpdate = true;
+			new Notice(installNotice(result, settings));
+			await refresh();
+
+			return true;
+		} catch (error) {
+			if (error instanceof PublishBranchMissingError) {
+				notifyPublishBranchMissing(error);
 			} else {
-				pendingIsUpdate = isUpdate;
+				installError =
+					error instanceof Error ? error.message : "Install failed";
+				new Notice(installError);
 			}
 
-			pendingInstall = remote;
-		} catch (error) {
-			installError =
-				error instanceof Error ? error.message : "Unknown error";
+			return false;
+		} finally {
+			busy = false;
+			installingRepo = null;
 		}
-
-		inspecting = false;
-
-		// The confirmation (or error) renders near the top of the tab —
-		// possibly far from the gallery card that was clicked.
-		await tick();
-
-		const target = installConfirmEl ?? installErrorEl;
-
-		target?.scrollIntoView({
-			behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-				.matches
-				? "auto"
-				: "smooth",
-			block: "center",
-		});
 	}
 
-	async function confirmInstall() {
-		if (!pendingInstall) {
-			return;
-		}
-
-		busy = true;
-		const remote = pendingInstall;
-
-		const existingEntry = installed.find(
-			(plugin) => plugin.manifest.id === remote.manifest.id,
-		)?.registryEntry;
-
-		const disableIds = disableConflicts
-			? pendingConflicts.map((conflict) => conflict.manifest.id)
-			: [];
-
-		try {
-			await manager.install(remote, existingEntry, disableIds);
-
-			new Notice(
-				`${pendingIsUpdate ? "Updated" : "Installed"} ${
-					remote.manifest.name
-				} ${remote.manifest.version}. ${buildTriggeredNotice(
-					settings,
-				)}`,
-			);
-			pendingInstall = null;
+	async function installFromUrl() {
+		if (await install(installInput)) {
 			installInput = "";
-			await refresh();
-		} catch (error) {
-			installError =
-				error instanceof Error ? error.message : "Install failed";
 		}
-
-		busy = false;
 	}
 
 	async function updatePlugin(plugin: InstalledGardenPlugin) {
 		const repo = plugin.registryEntry?.repo;
 
 		if (!repo) {
-			installError = `${plugin.manifest.name} has no recorded source repository. Reinstall it from a GitHub URL to enable updates.`;
+			new Notice(
+				`${plugin.manifest.name} has no recorded source repository. Reinstall it from a GitHub URL to enable updates.`,
+			);
 
 			return;
 		}
 
-		// The confirmation panel lives in the browse tab
-		activeTab = "browse";
-		await inspect(repo, true);
+		if (!communityEnabled) {
+			activeTab = "browse";
+
+			return;
+		}
+
+		await install(repo);
+	}
+
+	async function turnOffCommunityPlugins() {
+		settings.gardenCommunityPluginsEnabled = false;
+		await saveSettings();
+		communityEnabled = false;
 	}
 
 	let confirmUninstallId: string | null = null;
@@ -309,12 +283,6 @@
 	}
 
 	$: regionProviders = getRegionProviders(installed);
-
-	$: pendingConflicts = pendingInstall
-		? getRegionConflicts(pendingInstall.manifest, installed)
-		: [];
-
-	let disableConflicts = true;
 
 	function pluginName(id: string): string {
 		return (
@@ -377,12 +345,6 @@
 	</div>
 
 	{#if activeTab === "installed"}
-		<p class="dg-plugins-intro">
-			Plugins extend your garden with new features. They are stored in
-			your garden repository under <code>src/plugins/</code> — this list is
-			read directly from it.
-		</p>
-
 		{#if loading}
 			<div
 				class="dg-plugins-loading"
@@ -499,7 +461,11 @@
 								<button
 									disabled={busy}
 									on:click={() => updatePlugin(plugin)}
-									>Update</button
+									>{installingRepo &&
+									installingRepo ===
+										plugin.registryEntry?.repo
+										? "Updating…"
+										: "Update"}</button
 								>
 
 								{#if confirmUninstallId === plugin.manifest.id}
@@ -635,106 +601,16 @@
 				</div>
 			{/each}
 		{/if}
+	{:else if !communityEnabled}
+		<CommunityPluginsGate
+			{settings}
+			{saveSettings}
+			onEnabled={() => (communityEnabled = true)}
+		/>
 	{:else}
-		<h3>Install from GitHub</h3>
-
-		<p class="dg-plugins-intro">
-			Paste the URL of a plugin repository, e.g.
-			<code>https://github.com/user/garden-plugin-example</code>.
-		</p>
-
-		<div class="dg-plugin-install-row">
-			<input
-				type="text"
-				placeholder="https://github.com/user/repo"
-				bind:value={installInput}
-				disabled={inspecting || busy}
-			/>
-
-			<button
-				class="mod-cta"
-				disabled={inspecting || busy || !installInput.trim()}
-				on:click={() => inspect(installInput)}
-				>{inspecting ? "Checking…" : "Install"}</button
-			>
-		</div>
-
-		{#if installError}
-			<p class="dg-plugins-error" bind:this={installErrorEl}>
-				{installError}
-			</p>
-		{/if}
-
-		{#if pendingInstall}
-			<div class="dg-plugin-confirm" bind:this={installConfirmEl}>
-				<p class="dg-plugin-confirm-title">
-					{pendingIsUpdate ? "Update" : "Install"}
-					<strong>{pendingInstall.manifest.name}</strong>
-					v{pendingInstall.manifest.version} by {pendingInstall
-						.manifest.author}?
-				</p>
-
-				<p>{pendingInstall.manifest.description}</p>
-
-				<p class="dg-plugin-confirm-warning">
-					⚠️ Plugins run their own code in your site's build and in
-					your visitors' browsers. Only install plugins from authors
-					you trust — review the code at
-					<a
-						href={`https://github.com/${pendingInstall.owner}/${pendingInstall.repo}`}
-						>{pendingInstall.owner}/{pendingInstall.repo}</a
-					>
-					({pendingInstall.files.length} files, ref
-					<code>{pendingInstall.ref}</code>).
-				</p>
-
-				{#if pendingConflicts.length > 0}
-					<label class="dg-plugin-conflict-choice">
-						<input
-							type="checkbox"
-							bind:checked={disableConflicts}
-						/>
-						<span>
-							{pendingInstall.manifest.name} replaces
-							<strong
-								>{pendingConflicts
-									.map((c) => c.manifest.name)
-									.join(", ")}</strong
-							>
-							({regionsOf(pendingInstall.manifest).join(", ")}).
-							Disable {pendingConflicts.length === 1
-								? "it"
-								: "them"} so {pendingInstall.manifest.name} takes
-							over right away.
-						</span>
-					</label>
-				{/if}
-
-				<div class="dg-plugin-confirm-actions">
-					<button
-						class="mod-cta"
-						disabled={busy}
-						on:click={confirmInstall}
-						>{busy
-							? "Working…"
-							: pendingIsUpdate
-							? "Update plugin"
-							: "Install plugin"}</button
-					>
-
-					<button
-						disabled={busy}
-						on:click={() => (pendingInstall = null)}>Cancel</button
-					>
-				</div>
-			</div>
-		{/if}
-
-		<h3>Browse community plugins</h3>
-
 		{#if communityLoading}
 			<div
-				class="dg-plugin-grid"
+				class="dg-plugin-list"
 				role="status"
 				aria-label="Loading community plugins"
 			>
@@ -745,61 +621,136 @@
 					>
 						<span class="dg-skeleton dg-skeleton-title"></span>
 						<span class="dg-skeleton dg-skeleton-text"></span>
-						<span class="dg-skeleton dg-skeleton-text short"></span>
 					</div>
 				{/each}
 			</div>
 		{:else if community.length === 0}
 			<p>
 				The community plugin directory is not available right now. You
-				can still install any plugin from its GitHub URL above.
+				can still install any plugin from its GitHub URL below.
 			</p>
 		{:else}
-			<input
-				class="dg-plugin-search"
-				type="text"
-				placeholder="Search community plugins…"
-				bind:value={communityFilter}
-			/>
+			<div class="dg-plugin-browser">
+				<div class="dg-plugin-browser-list">
+					<input
+						class="dg-plugin-search"
+						type="text"
+						placeholder="Search community plugins…"
+						bind:value={communityFilter}
+					/>
 
-			<div class="dg-plugin-grid">
-				{#each filteredCommunity as entry (entry.id)}
-					<div class="dg-plugin-card">
-						{#if entry.screenshot}
-							<img
-								class="dg-plugin-card-image"
-								loading="lazy"
-								alt={entry.name}
-								src={`https://raw.githubusercontent.com/${entry.repo}/HEAD/${entry.screenshot}`}
-							/>
-						{/if}
-
-						<div class="dg-plugin-card-body">
-							<span class="dg-plugin-name">{entry.name}</span>
-
-							<span class="dg-plugin-description"
-								>{entry.description}</span
+					<div class="dg-plugin-list">
+						{#each filteredCommunity as entry (entry.id)}
+							<button
+								class="dg-plugin-item"
+								class:is-selected={selected?.id === entry.id}
+								aria-pressed={selected?.id === entry.id}
+								on:click={() => (selected = entry)}
 							>
+								<span class="dg-plugin-name"
+									>{entry.name}
+									{#if installedIds().has(entry.id)}
+										<span class="dg-plugin-badge"
+											>Installed</span
+										>
+									{/if}
+								</span>
+								<span class="dg-plugin-author"
+									>by {entry.author}</span
+								>
+								<span class="dg-plugin-description"
+									>{entry.description}</span
+								>
+							</button>
+						{:else}
+							<p class="dg-plugins-intro">No plugins match.</p>
+						{/each}
+					</div>
+				</div>
 
-							<span class="dg-plugin-author"
-								>by {entry.author}</span
-							>
+				<div class="dg-plugin-detail">
+					{#if selected}
+						{@const entry = selected}
+						<div class="dg-plugin-detail-header">
+							<div class="dg-plugin-row-info">
+								<span class="dg-plugin-detail-name"
+									>{entry.name}</span
+								>
+								<span class="dg-plugin-author"
+									>by {entry.author} ·
+									<a href={`https://github.com/${entry.repo}`}
+										>{entry.repo}</a
+									></span
+								>
+								<span class="dg-plugin-description"
+									>{entry.description}</span
+								>
+							</div>
 
 							{#if installedIds().has(entry.id)}
 								<button disabled>Installed</button>
 							{:else}
 								<button
 									class="mod-cta"
-									disabled={inspecting || busy}
-									on:click={() => inspect(entry.repo)}
-									>Install</button
+									disabled={busy}
+									on:click={() => install(entry.repo)}
+									>{installingRepo === entry.repo
+										? "Installing…"
+										: "Install"}</button
 								>
 							{/if}
 						</div>
-					</div>
-				{/each}
+
+						{#key entry.repo}
+							<PluginReadme {app} {manager} repo={entry.repo} />
+						{/key}
+					{:else}
+						<p class="dg-plugins-intro">
+							Select a plugin to see its details.
+						</p>
+					{/if}
+				</div>
 			</div>
 		{/if}
+
+		<h3>Install from GitHub</h3>
+
+		<p class="dg-plugins-intro">
+			Paste the URL of a plugin repository, e.g.
+			<code>https://github.com/user/garden-plugin-example</code>.
+		</p>
+
+		<form
+			class="dg-plugin-install-row"
+			on:submit|preventDefault={installFromUrl}
+		>
+			<input
+				type="text"
+				placeholder="https://github.com/user/repo"
+				bind:value={installInput}
+				disabled={busy}
+			/>
+
+			<button
+				type="submit"
+				class="mod-cta"
+				disabled={busy || !installInput.trim()}
+				>{installingRepo === installInput && installInput
+					? "Installing…"
+					: "Install"}</button
+			>
+		</form>
+
+		{#if installError}
+			<p class="dg-plugins-error">{installError}</p>
+		{/if}
+
+		<p class="dg-community-off">
+			Community plugins are on.
+			<button class="dg-link-button" on:click={turnOffCommunityPlugins}
+				>Turn off</button
+			>
+		</p>
 	{/if}
 </div>
 
@@ -900,10 +851,6 @@
 	.dg-skeleton-text {
 		height: 0.7rem;
 		width: 75%;
-	}
-
-	.dg-skeleton-text.short {
-		width: 45%;
 	}
 
 	.dg-skeleton-pill {
@@ -1015,18 +962,6 @@
 		margin-top: 4px;
 	}
 
-	.dg-plugin-conflict-choice {
-		display: flex;
-		align-items: flex-start;
-		gap: 8px;
-		margin: 0 0 10px;
-		font-size: 0.92em;
-	}
-
-	.dg-plugin-conflict-choice input {
-		margin-top: 3px;
-	}
-
 	.dg-plugin-description {
 		font-size: 0.9em;
 	}
@@ -1090,54 +1025,119 @@
 		flex: 1;
 	}
 
-	.dg-plugin-confirm {
-		border: 1px solid var(--background-modifier-border);
-		border-left: 3px solid var(--interactive-accent);
-		border-radius: 8px;
-		padding: 10px 14px;
-	}
-
-	.dg-plugin-confirm-title {
-		margin-top: 0;
-	}
-
-	.dg-plugin-confirm-warning {
-		color: var(--text-warning, var(--text-muted));
-	}
-
-	.dg-plugin-confirm-actions {
-		display: flex;
-		gap: 8px;
-	}
-
 	.dg-plugin-search {
 		width: 100%;
 	}
 
-	.dg-plugin-grid {
+	.dg-plugin-browser {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 12px;
+		grid-template-columns: minmax(220px, 2fr) 3fr;
+		gap: 16px;
+		height: min(60vh, 560px);
+		margin-top: 8px;
 	}
 
-	.dg-plugin-card {
+	.dg-plugin-browser-list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-height: 0;
+	}
+
+	.dg-plugin-browser-list .dg-plugin-list {
+		overflow-y: auto;
+		flex: 1;
+		padding-right: 4px;
+	}
+
+	.dg-plugin-list {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.dg-plugin-item {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		flex-shrink: 0;
+		gap: 2px;
+		height: auto;
+		width: 100%;
+		padding: 10px 12px;
+		text-align: left;
+		white-space: normal;
+		background: none;
 		border: 1px solid var(--background-modifier-border);
 		border-radius: 8px;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
+		box-shadow: none;
+		cursor: pointer;
 	}
 
-	.dg-plugin-card-image {
-		width: 100%;
-		height: 90px;
-		object-fit: cover;
+	.dg-plugin-item:hover {
+		background: var(--background-modifier-hover);
 	}
 
-	.dg-plugin-card-body {
+	.dg-plugin-item.is-selected {
+		background: var(--background-modifier-active-hover);
+		border-color: var(--interactive-accent);
+	}
+
+	.dg-plugin-detail {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		padding: 8px 10px;
+		gap: 12px;
+		min-height: 0;
+		overflow-y: auto;
+		padding-left: 16px;
+		border-left: 1px solid var(--background-modifier-border);
+	}
+
+	.dg-plugin-detail-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 12px;
+		padding-bottom: 12px;
+		border-bottom: 1px solid var(--background-modifier-border);
+	}
+
+	.dg-plugin-detail-name {
+		font-size: 1.3em;
+		font-weight: 600;
+	}
+
+	@media (max-width: 640px) {
+		.dg-plugin-browser {
+			grid-template-columns: 1fr;
+			height: auto;
+		}
+
+		.dg-plugin-browser-list .dg-plugin-list {
+			max-height: 40vh;
+		}
+
+		.dg-plugin-detail {
+			padding-left: 0;
+			border-left: none;
+		}
+	}
+
+	.dg-community-off {
+		margin: 16px 0 0;
+		color: var(--text-muted);
+		font-size: var(--font-ui-smaller);
+	}
+
+	.dg-link-button {
+		background: none;
+		border: none;
+		box-shadow: none;
+		padding: 0;
+		height: auto;
+		color: var(--text-accent);
+		text-decoration: underline;
+		cursor: pointer;
+		font-size: inherit;
 	}
 </style>

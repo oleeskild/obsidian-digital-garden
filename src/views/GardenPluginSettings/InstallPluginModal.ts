@@ -18,6 +18,7 @@ export class InstallPluginModal {
 	constructor(
 		private app: App,
 		private settings: DigitalGardenSettings,
+		private saveSettings: () => Promise<void>,
 	) {
 		this.modal = new Modal(app);
 		this.modal.titleEl.innerText = "Install Garden Plugin";
@@ -50,6 +51,7 @@ export class InstallPluginModal {
 				props: {
 					manager,
 					settings: this.settings,
+					saveSettings: this.saveSettings,
 					close: () => this.modal.close(),
 				},
 			});
