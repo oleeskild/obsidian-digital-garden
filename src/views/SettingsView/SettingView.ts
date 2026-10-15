@@ -31,6 +31,7 @@ import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
 import {
+	canApplyTemplate,
 	hasUpdates,
 	TemplateUpdater,
 	TemplateUpdateChecker,
@@ -2563,22 +2564,37 @@ export default class SettingView {
 		loadingContainer.empty();
 
 		const updateAvailable = hasUpdates(updater);
+		const applier = canApplyTemplate(updater) ? updater : null;
+		const latestVersion = updater.newestTemplateVersion ?? "latest";
+
+		const fileCountText = (count: number) =>
+			`${count} template file${count === 1 ? "" : "s"}`;
+
+		let description: string;
+
+		if (updateAvailable) {
+			description = `${
+				updater.installedVersion
+					? `Version ${latestVersion} is available (you have ${updater.installedVersion}). `
+					: ""
+			}Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.`;
+		} else if (applier) {
+			description = `Your site template is up to date (${latestVersion}). ${fileCountText(
+				applier.changedFileCount,
+			)} differ from the default template, likely your own customizations. Re-applying creates a pull request that overwrites them.`;
+		} else {
+			description = `Your site template is up to date! (${latestVersion})`;
+		}
 
 		new Setting(loadingContainer)
 			.setName("Site Template")
-			.setDesc(
-				updateAvailable
-					? "Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features."
-					: `Your site template is up to date! (${
-							updater.newestTemplateVersion ?? "latest"
-					  })`,
-			)
+			.setDesc(description)
 			.addButton(async (button) => {
 				if (updateAvailable) {
-					button.setButtonText(
-						`Update to ${updater.newestTemplateVersion}`,
-					);
+					button.setButtonText(`Update to ${latestVersion}`);
 					button.setCta();
+				} else if (applier) {
+					button.setButtonText("Re-apply template");
 				} else {
 					button.setButtonText("Already up to date!");
 					button.setDisabled(true);
@@ -2588,6 +2604,44 @@ export default class SettingView {
 					modal.open();
 				});
 			});
+
+		// Gardens from before the template version file can't tell an update
+		// from their own customizations; let the user record the version.
+		if (updateAvailable && applier && !applier.installedVersion) {
+			new Setting(loadingContainer)
+				.setName("Already up to date?")
+				.setDesc(
+					`If you have already updated your template and the differing files are your own customizations, record ${latestVersion} as your template version. Future update notices will then only appear for new template releases.`,
+				)
+				.addButton((button) => {
+					button.setButtonText("Mark as up to date");
+
+					button.onClick(async () => {
+						button.setDisabled(true);
+						button.setButtonText("Saving...");
+
+						try {
+							await applier.markAsUpToDate();
+
+							new Notice(
+								`Site template marked as version ${latestVersion}.`,
+							);
+							button.setButtonText("Marked as up to date");
+						} catch (error) {
+							Logger.error(
+								"Failed to mark template as up to date",
+								error,
+							);
+
+							new Notice(
+								"Could not save the template version. Please try again.",
+							);
+							button.setButtonText("Mark as up to date");
+							button.setDisabled(false);
+						}
+					});
+				});
+		}
 
 		// Modal title
 		modal.titleEl.empty();

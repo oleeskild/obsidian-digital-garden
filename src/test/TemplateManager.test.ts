@@ -1,5 +1,9 @@
 import { Base64 } from "js-base64";
 import {
+	canApplyTemplate,
+	compareTemplateVersions,
+	hasUpdates,
+	TEMPLATE_VERSION_FILE,
 	TemplateUpdateChecker,
 	TemplateUpdater,
 } from "../repositoryConnection/TemplateManager";
@@ -39,6 +43,7 @@ const makeBaseConnection = (getFileCalls: string[] = []) =>
 			return { content: Base64.encode("template file content") };
 		},
 		getContent: async () => BASE_TREE,
+		getLatestRelease: async () => ({ tag_name: "1.93.0" }),
 	}) as unknown as RepositoryConnection;
 
 const makeUserConnection = (contentBaseDir: string, tree: ITreeItem[]) =>
@@ -123,22 +128,25 @@ describe("TemplateUpdateChecker with a content base directory", () => {
 describe("TemplateUpdater with a content base directory", () => {
 	it("reads from the template root but writes to the prefixed path", async () => {
 		const baseGetFileCalls: string[] = [];
-		const deletedPaths: string[] = [];
-		const updatedPaths: string[] = [];
+
+		const commits: {
+			additions: { path: string; content: string }[];
+			deletions: string[];
+		}[] = [];
 
 		const userGardenConnection = {
 			contentBaseDir: "Web/",
 			getWriteBranch: async () => "main",
-			getLatestCommit: async () => ({ sha: "commit-sha" }),
-			createBranch: async () => undefined,
-			deleteFile: async (path: string) => {
-				deletedPaths.push(path);
+			getLatestCommit: async () => ({
+				sha: "commit-sha",
+				commit: { tree: { sha: "tree-sha" } },
+			}),
+			createCommit: async (commit: (typeof commits)[number]) => {
+				commits.push(commit);
 
-				return true;
+				return "new-commit-sha";
 			},
-			updateFile: async ({ path }: { path: string }) => {
-				updatedPaths.push(path);
-			},
+			createBranch: async () => undefined,
 			getBasePayload: () => ({ owner: "user", repo: "repo" }),
 			octokit: {
 				request: async () => ({ data: { html_url: "pr-url" } }),
@@ -158,9 +166,14 @@ describe("TemplateUpdater with a content base directory", () => {
 
 		await updater.updateTemplate();
 
-		expect(deletedPaths).toEqual(["Web/old.js"]);
-		expect(updatedPaths).toContain("Web/package.json");
-		expect(updatedPaths).toContain("Web/src/site/new.njk");
+		expect(commits).toHaveLength(1);
+		expect(commits[0].deletions).toEqual(["Web/old.js"]);
+
+		expect(commits[0].additions.map((a) => a.path)).toEqual([
+			"Web/package.json",
+			"Web/src/site/new.njk",
+			`Web/${TEMPLATE_VERSION_FILE}`,
+		]);
 		// Content is always fetched from the base template repo at the template-relative path.
 		expect(baseGetFileCalls).toContain("package.json");
 		expect(baseGetFileCalls).toContain("src/site/new.njk");
@@ -195,7 +208,24 @@ const makeGardenOctokit = (branches: string[]) => {
 		}
 
 		if (route.startsWith("GET /repos/{owner}/{repo}/commits/{ref}")) {
-			return { data: { sha: `${payload.ref}-tip` } };
+			return {
+				data: {
+					sha: `${payload.ref}-tip`,
+					commit: { tree: { sha: `${payload.ref}-tree` } },
+				},
+			};
+		}
+
+		if (route === "POST /repos/{owner}/{repo}/git/blobs") {
+			return { data: { sha: "blob-sha" } };
+		}
+
+		if (route === "POST /repos/{owner}/{repo}/git/trees") {
+			return { data: { sha: "new-tree-sha" } };
+		}
+
+		if (route === "POST /repos/{owner}/{repo}/git/commits") {
+			return { data: { sha: "new-commit-sha" } };
 		}
 
 		if (route === "POST /repos/{owner}/{repo}/pulls") {
@@ -226,6 +256,7 @@ describe("Template updates target the garden's own branch", () => {
 	const runUpdate = async (
 		octokit: ReturnType<typeof makeGardenOctokit>,
 		branch?: string,
+		baseGardenConnection = makeBaseConnection(),
 	) => {
 		const checker = new TemplateUpdateChecker({
 			baseGardenConnection: makeBaseConnection(),
@@ -235,7 +266,7 @@ describe("Template updates target the garden's own branch", () => {
 		await checker.getFilesToUpdate();
 
 		await new TemplateUpdater({
-			baseGardenConnection: makeBaseConnection(),
+			baseGardenConnection,
 			userGardenConnection: makeGardenConnection(octokit, branch),
 			newestTemplateVersion: "1.0.0",
 			filesToChange: {
@@ -259,8 +290,17 @@ describe("Template updates target the garden's own branch", () => {
 		);
 		expect(treeRead.payload.tree_sha).toBe("HEAD");
 
+		const [commit] = route(
+			octokit,
+			"POST /repos/{owner}/{repo}/git/commits",
+		);
+		expect(commit.payload.parents).toEqual(["master-tip"]);
+
+		const [tree] = route(octokit, "POST /repos/{owner}/{repo}/git/trees");
+		expect(tree.payload.base_tree).toBe("master-tree");
+
 		const [newRef] = route(octokit, "POST /repos/{owner}/{repo}/git/refs");
-		expect(newRef.payload.sha).toBe("master-tip");
+		expect(newRef.payload.sha).toBe("new-commit-sha");
 
 		const [pr] = route(octokit, "POST /repos/{owner}/{repo}/pulls");
 		expect(pr.payload.base).toBe("master");
@@ -277,8 +317,11 @@ describe("Template updates target the garden's own branch", () => {
 		);
 		expect(treeRead.payload.tree_sha).toBe("drafts");
 
-		const [newRef] = route(octokit, "POST /repos/{owner}/{repo}/git/refs");
-		expect(newRef.payload.sha).toBe("drafts-tip");
+		const [commit] = route(
+			octokit,
+			"POST /repos/{owner}/{repo}/git/commits",
+		);
+		expect(commit.payload.parents).toEqual(["drafts-tip"]);
 
 		const [pr] = route(octokit, "POST /repos/{owner}/{repo}/pulls");
 		expect(pr.payload.base).toBe("drafts");
@@ -294,5 +337,228 @@ describe("Template updates target the garden's own branch", () => {
 		expect(
 			octokit.requests.filter((r) => !r.route.startsWith("GET ")),
 		).toHaveLength(0);
+	});
+
+	it("applies the whole update as a single commit", async () => {
+		const octokit = makeGardenOctokit([]);
+
+		await runUpdate(octokit);
+
+		expect(
+			route(octokit, "POST /repos/{owner}/{repo}/git/commits"),
+		).toHaveLength(1);
+		// No per-file Contents API commits.
+		expect(route(octokit, "PUT ")).toHaveLength(0);
+		expect(route(octokit, "DELETE ")).toHaveLength(0);
+
+		// The branch is only created once the commit exists, and never moved.
+		expect(
+			route(octokit, "POST /repos/{owner}/{repo}/git/refs"),
+		).toHaveLength(1);
+		expect(route(octokit, "PATCH ")).toHaveLength(0);
+	});
+
+	it("writes nothing when a template file cannot be fetched", async () => {
+		const octokit = makeGardenOctokit([]);
+
+		const failingBase = {
+			getFile: async () => {
+				throw new Error("API rate limit exceeded");
+			},
+		} as unknown as RepositoryConnection;
+
+		await expect(
+			runUpdate(octokit, undefined, failingBase),
+		).rejects.toThrow("API rate limit exceeded");
+
+		expect(
+			octokit.requests.filter((r) => !r.route.startsWith("GET ")),
+		).toHaveLength(0);
+	});
+});
+
+describe("compareTemplateVersions", () => {
+	it.each([
+		["1.93.0", "1.92.1", 1],
+		["1.92.1", "1.93.0", -1],
+		["1.93.0", "1.93.0", 0],
+		["v1.93.0", "1.93.0", 0],
+		["1.10.0", "1.9.0", 1],
+		["1.93", "1.93.0", 0],
+		["next", "1.93.0", 1],
+		["next", "next", 0],
+	])("%s vs %s", (a, b, sign) => {
+		expect(Math.sign(compareTemplateVersions(a, b))).toBe(sign);
+	});
+});
+
+describe("Template version file", () => {
+	const upToDateFiles: ITreeItem[] = [
+		{ path: "package.json", sha: "pkg-sha", type: "blob" },
+		{ path: "src/site/new.njk", sha: "new-sha", type: "blob" },
+	];
+
+	const customizedFiles: ITreeItem[] = [
+		{ path: "package.json", sha: "customized-sha", type: "blob" },
+		{ path: "src/site/new.njk", sha: "new-sha", type: "blob" },
+	];
+
+	const check = async (files: ITreeItem[], installedVersion?: string) => {
+		const tree = installedVersion
+			? [
+					...files,
+					{
+						path: TEMPLATE_VERSION_FILE,
+						sha: "version-sha",
+						type: "blob",
+					},
+			  ]
+			: files;
+
+		const userGardenConnection = {
+			contentBaseDir: "",
+			getContent: async () => ({ tree }),
+			getBlob: async (sha: string) =>
+				sha === "version-sha"
+					? Base64.encode(`${installedVersion}\n`)
+					: undefined,
+		} as unknown as RepositoryConnection;
+
+		return new TemplateUpdateChecker({
+			baseGardenConnection: makeBaseConnection(),
+			userGardenConnection,
+		}).checkForUpdates();
+	};
+
+	it("treats customized files on the latest version as up to date", async () => {
+		const updater = await check(customizedFiles, "1.93.0");
+
+		expect(hasUpdates(updater)).toBe(false);
+		// ...but they can still be re-applied.
+		expect(canApplyTemplate(updater)).toBe(true);
+		expect((updater as TemplateUpdater).changedFileCount).toBe(1);
+		expect(updater.installedVersion).toBe("1.93.0");
+	});
+
+	it("reports an update for a newer release even when files match", async () => {
+		const updater = await check(upToDateFiles, "1.92.1");
+
+		expect(hasUpdates(updater)).toBe(true);
+		expect((updater as TemplateUpdater).changedFileCount).toBe(0);
+	});
+
+	it("has nothing to apply on the latest version with matching files", async () => {
+		const updater = await check(upToDateFiles, "1.93.0");
+
+		expect(hasUpdates(updater)).toBe(false);
+		expect(canApplyTemplate(updater)).toBe(false);
+	});
+
+	it.each([
+		{ files: customizedFiles, expected: true },
+		{ files: upToDateFiles, expected: false },
+	])(
+		"falls back to comparing files when the garden has no version file",
+		async ({ files, expected }) => {
+			const updater = await check(files);
+
+			expect(hasUpdates(updater)).toBe(expected);
+			expect(updater.installedVersion).toBeUndefined();
+		},
+	);
+
+	const makeCommitRecorder = () => {
+		const commits: {
+			additions: { path: string; content: string }[];
+			deletions?: string[];
+			message: string;
+		}[] = [];
+		const prs: { title: string }[] = [];
+
+		const connection = {
+			contentBaseDir: "Web/",
+			getWriteBranch: async () => "main",
+			getLatestCommit: async () => ({
+				sha: "commit-sha",
+				commit: { tree: { sha: "tree-sha" } },
+			}),
+			createCommit: async (commit: (typeof commits)[number]) => {
+				commits.push(commit);
+
+				return "new-commit-sha";
+			},
+			commitChanges: async (commit: (typeof commits)[number]) => {
+				commits.push(commit);
+			},
+			createBranch: async () => undefined,
+			getBasePayload: () => ({ owner: "user", repo: "repo" }),
+			octokit: {
+				request: async (_route: string, payload: { title: string }) => {
+					prs.push(payload);
+
+					return { data: { html_url: "pr-url" } };
+				},
+			},
+		} as unknown as RepositoryConnection;
+
+		return { connection, commits, prs };
+	};
+
+	const makeUpdater = (
+		connection: RepositoryConnection,
+		updateAvailable: boolean,
+	) =>
+		new TemplateUpdater({
+			baseGardenConnection: makeBaseConnection(),
+			userGardenConnection: connection,
+			newestTemplateVersion: "1.93.0",
+			updateAvailable,
+			filesToChange: {
+				filesToDelete: [],
+				filesToUpdate: [
+					{ path: "package.json", sha: "customized-sha" },
+				],
+				filesToAdd: [],
+			},
+		});
+
+	it("writes the version file in the same commit as the update", async () => {
+		const { connection, commits, prs } = makeCommitRecorder();
+
+		await makeUpdater(connection, true).updateTemplate();
+
+		expect(commits).toHaveLength(1);
+
+		expect(commits[0].additions).toContainEqual({
+			path: `Web/${TEMPLATE_VERSION_FILE}`,
+			content: Base64.encode("1.93.0\n"),
+		});
+		expect(prs[0].title).toBe("Update template to version 1.93.0");
+	});
+
+	it("titles a re-apply PR as such", async () => {
+		const { connection, prs } = makeCommitRecorder();
+
+		await makeUpdater(connection, false).updateTemplate();
+
+		expect(prs[0].title).toBe("Re-apply template version 1.93.0");
+	});
+
+	it("marks as up to date by committing only the version file", async () => {
+		const { connection, commits } = makeCommitRecorder();
+
+		await makeUpdater(connection, true).markAsUpToDate();
+
+		expect(commits).toEqual([
+			{
+				additions: [
+					{
+						path: `Web/${TEMPLATE_VERSION_FILE}`,
+						content: Base64.encode("1.93.0\n"),
+					},
+				],
+				message: "Mark template as version 1.93.0",
+			},
+		]);
 	});
 });
