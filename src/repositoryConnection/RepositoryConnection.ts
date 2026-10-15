@@ -741,6 +741,40 @@ export class RepositoryConnection {
 			throw new Error("Could not get latest commit");
 		}
 
+		const commitSha = await this.createCommit({
+			additions,
+			deletions,
+			message,
+			parent: latestCommit,
+		});
+
+		await this.octokit.request(
+			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+			{
+				...this.getBasePayload(),
+				branch,
+				sha: commitSha,
+			},
+		);
+	}
+
+	/**
+	 * Create one commit on top of `parent` holding the given additions and
+	 * deletions (blobs → tree → commit) without moving any ref, and return
+	 * its sha. Until a ref points at it the commit is invisible, so a failure
+	 * part way leaves the repository untouched. Throws on failure.
+	 */
+	async createCommit({
+		additions = [],
+		deletions = [],
+		message,
+		parent,
+	}: {
+		additions?: { path: string; content: string }[];
+		deletions?: string[];
+		message: string;
+		parent: { sha: string; commit: { tree: { sha: string } } };
+	}): Promise<string> {
 		const additionEntries = await Promise.all(
 			additions.map(async (file) => {
 				const blob = await this.octokit.request(
@@ -772,7 +806,7 @@ export class RepositoryConnection {
 			"POST /repos/{owner}/{repo}/git/trees",
 			{
 				...this.getBasePayload(),
-				base_tree: latestCommit.commit.tree.sha,
+				base_tree: parent.commit.tree.sha,
 				tree: [...additionEntries, ...deletionEntries],
 			},
 		);
@@ -783,18 +817,11 @@ export class RepositoryConnection {
 				...this.getBasePayload(),
 				message,
 				tree: newTree.data.sha,
-				parents: [latestCommit.sha],
+				parents: [parent.sha],
 			},
 		);
 
-		await this.octokit.request(
-			"PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
-			{
-				...this.getBasePayload(),
-				branch,
-				sha: newCommit.data.sha,
-			},
-		);
+		return newCommit.data.sha;
 	}
 
 	async getRepositoryInfo() {
