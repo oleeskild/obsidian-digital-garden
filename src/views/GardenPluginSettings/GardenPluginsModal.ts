@@ -9,7 +9,7 @@ export class GardenPluginsModal {
 	private view: ReturnType<typeof mount> | undefined;
 
 	constructor(
-		app: App,
+		private app: App,
 		private manager: GardenPluginManager,
 		private settings: DigitalGardenSettings,
 		private saveSettings: () => Promise<void>,
@@ -30,11 +30,12 @@ export class GardenPluginsModal {
 		this.modal.onOpen = () => {
 			this.modal.contentEl.empty();
 			this.modal.contentEl.addClass("dg-garden-plugins-modal");
-			this.modal.modalEl.style.width = "min(760px, 92vw)";
+			this.modal.modalEl.style.width = "min(1000px, 94vw)";
 
 			this.view = mount(GardenPluginsView, {
 				target: this.modal.contentEl,
 				props: {
+					app: this.app,
 					manager: this.manager,
 					settings: this.settings,
 					saveSettings: this.saveSettings,

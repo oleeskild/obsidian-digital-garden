@@ -458,7 +458,11 @@ export default class DigitalGarden extends Plugin {
 			id: "install-garden-plugin",
 			name: "Install garden plugin from URL",
 			callback: async () => {
-				const modal = new InstallPluginModal(this.app, this.settings);
+				const modal = new InstallPluginModal(
+					this.app,
+					this.settings,
+					() => this.saveSettings(),
+				);
 				await modal.open();
 			},
 		});

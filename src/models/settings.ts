@@ -102,6 +102,12 @@ export default interface DigitalGardenSettings {
 	 */
 	publishBranch?: string;
 
+	/**
+	 * Community garden plugins can be browsed and installed only after the
+	 * user has turned them on once and accepted the third-party code warning.
+	 */
+	gardenCommunityPluginsEnabled?: boolean;
+
 	/** When true, the automatic startup check for site template updates (and its Notice) is skipped. Manually checking/updating in settings still works. */
 	disableTemplateUpdateNotice?: boolean;
 
