@@ -66,6 +66,13 @@ h4 {
 	margin-left: -9px;
 }
 
+.dg-advanced-settings > summary {
+	cursor: pointer;
+	padding: 0.75em 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
 /* Connection status styles */
 .connection-status {
 	display: inline-flex;
