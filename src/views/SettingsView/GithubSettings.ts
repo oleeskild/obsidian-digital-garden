@@ -28,8 +28,7 @@ export class GithubSettings {
 		this.initializeGitHubRepoSetting();
 		this.initializeGitHubUserNameSetting();
 		this.initializeGitHubTokenSetting();
-		this.initializeContentBaseDirSetting();
-		this.initializePublishBranchSetting();
+		this.initializeAdvancedSettings();
 		// Rendered last with prepend() so the nudge sits above the header.
 		this.initializeForestryUpgradeNotice();
 	}
@@ -379,11 +378,28 @@ export class GithubSettings {
 			);
 	}
 
-	private initializeContentBaseDirSetting() {
-		new Setting(this.settingsRootElement)
-			.setName("Content base directory (advanced)")
+	/**
+	 * Collapsed by default so most users never see these. Opens on its own
+	 * once either is set, so a non-default value is never hidden.
+	 */
+	private initializeAdvancedSettings() {
+		const { contentBaseDir, publishBranch } = this.settings.settings;
+
+		const details = this.settingsRootElement.createEl("details", {
+			cls: "dg-advanced-settings",
+		});
+		details.open = !!(contentBaseDir || publishBranch);
+		details.createEl("summary", { text: "Advanced" });
+
+		this.initializeContentBaseDirSetting(details);
+		this.initializePublishBranchSetting(details);
+	}
+
+	private initializeContentBaseDirSetting(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Content base directory")
 			.setDesc(
-				"Subdirectory inside your repository where the digital garden template lives (e.g. Web). Leave empty if the template is at the repo root. Affects GitHub publishing, remote settings, and local export.",
+				"Subfolder of the repository that holds the garden template, e.g. Web. Leave empty if it is at the root.",
 			)
 			.addText((text) =>
 				text
@@ -413,31 +429,12 @@ export class GithubSettings {
 		}
 	}
 
-	private initializePublishBranchSetting() {
-		const desc = document.createDocumentFragment();
-
-		desc.createDiv({
-			text: "The branch the plugin publishes to and reads from. Leave it as your repository's default branch unless you want to review changes and merge them yourself.",
-		});
-
-		desc.createDiv({ text: "If you use another branch:" });
-
-		const risks = desc.createEl("ul");
-
-		for (const risk of [
-			"Nothing goes live until you merge this branch into the default branch. The plugin never merges or opens pull requests for you.",
-			"Everything goes to this branch: notes, site settings, favicon and logo, navigation order, garden plugins, and template update pull requests.",
-			"The Publication Center and settings show what is on this branch, not what is on your live site.",
-			"Changes made directly to the default branch are not on this branch until you merge them into it.",
-			"If you squash or rebase when merging the publish branch into the default branch, delete the publish branch and re-create it from the default branch afterwards. Otherwise the next merge into the default branch can conflict.",
-			"The plugin never creates the branch. If it does not exist, for example because it was deleted after a merge, publishing fails until you create it on GitHub or change this setting.",
-		]) {
-			risks.createEl("li", { text: risk });
-		}
-
-		new Setting(this.settingsRootElement)
-			.setName("Publish branch (advanced)")
-			.setDesc(desc)
+	private initializePublishBranchSetting(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Publish branch")
+			.setDesc(
+				"Publish to another branch to review changes before they go live. Nothing goes live until you merge it into the default branch yourself, and the branch must already exist.",
+			)
 			.addText((text) => {
 				this.publishBranchInput = text;
 				text.setPlaceholder("main");
