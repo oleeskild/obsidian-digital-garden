@@ -45,7 +45,8 @@ import {
 	SiteUpdateTracker,
 	type SiteUpdatePhase,
 } from "src/forestry/SiteUpdateTracker";
-import { ForestryApiError } from "src/forestry/ForestryApi";
+import { connectWithCode } from "src/forestry/connectWithCode";
+import { confirmConnect } from "src/views/ConnectConfirmModal";
 import { findHomePageFiles } from "src/publishFile/homePage";
 import { HomePagePickerModal } from "src/views/HomePage/HomePagePickerModal";
 import { promptForHomePage } from "src/views/HomePage/HomePagePromptModal";
@@ -1087,8 +1088,9 @@ export default class DigitalGarden extends Plugin {
 	}
 
 	/**
-	 * Called right after a garden is connected to Forestry.md (from the
-	 * settings tab or a deep link). The new garden has no home page yet
+	 * Called right after a garden is connected to Forestry.md from the
+	 * settings tab (Garden Key). Deep link connects do not call this, so they
+	 * never lead straight into publishing. The new garden has no home page yet
 	 * whatever the vault holds, so always offer to pick one. A note that is
 	 * already flagged dg-home (from an earlier garden) is listed first;
 	 * choosing it just publishes it to the new garden.
@@ -1100,8 +1102,8 @@ export default class DigitalGarden extends Plugin {
 	/**
 	 * `obsidian://digital-garden?...` deep links, used by the Forestry.md
 	 * dashboard:
-	 * - `connect=<code>`: one-click connect; the code is exchanged for the
-	 *   garden key server-side.
+	 * - `connect=<code>`: connect; the code is exchanged for the garden key
+	 *   server-side, then the user confirms this vault before settings change.
 	 * - `open=home-picker`: open the home page picker.
 	 * - `open=plugins[&plugin=<id>]`: open Garden Plugins on Browse & install,
 	 *   with that community plugin selected. Used by the forestry.md gallery.
@@ -1110,7 +1112,7 @@ export default class DigitalGarden extends Plugin {
 	private registerDeepLinks() {
 		this.registerObsidianProtocolHandler("digital-garden", (params) => {
 			if (typeof params.connect === "string" && params.connect) {
-				void this.connectWithCode(params.connect);
+				void this.handleConnectDeepLink(params.connect);
 
 				return;
 			}
@@ -1194,42 +1196,28 @@ export default class DigitalGarden extends Plugin {
 		}
 	}
 
-	private async connectWithCode(code: string) {
-		new Notice("Connecting to Forestry.md…");
+	/**
+	 * Deep link connect. Whichever vault is open receives the link, so the
+	 * user confirms this vault before any setting changes, and connecting
+	 * never publishes or opens the home page picker.
+	 */
+	private async handleConnectDeepLink(code: string) {
+		new Notice("Checking connect link from Forestry.md…");
 
-		try {
-			const connection = await ForestryApi.exchangeConnectCode(code);
-
-			this.settings.publishPlatform = PublishPlatform.ForestryMd;
-			this.settings.forestrySettings.apiKey = connection.apiKey;
-
-			this.settings.forestrySettings.forestryPageName =
-				connection.pageName;
-			this.settings.forestrySettings.baseUrl = connection.baseUrl;
+		await connectWithCode(code, {
+			vaultName: this.app.vault.getName(),
+			settings: this.settings,
+			exchange: (c) => ForestryApi.exchangeConnectCode(c),
+			confirm: (details) => confirmConnect(this.app, details),
 			// saveSettings also (re)creates the site update tracker for the new key.
-			await this.saveSettings();
-
-			new Notice(
-				`Connected to Forestry.md garden ${connection.pageName} 🌱`,
-			);
-			this.afterForestryConnected();
-		} catch (e) {
-			Logger.error("Connect via deep link failed", e);
-
-			if (e instanceof ForestryApiError && e.kind === "unauthorized") {
-				new Notice(
-					"This connect link is invalid or has expired. Open your garden in the Forestry.md dashboard and click Connect again.",
-					10000,
-				);
-
-				return;
-			}
-
-			new Notice(
-				"Couldn't reach Forestry.md to finish connecting. Check your connection and click Connect in the dashboard again.",
-				10000,
-			);
-		}
+			saveSettings: () => this.saveSettings(),
+			reportVault: (apiKey, vaultName) =>
+				new ForestryApi(apiKey).confirmConnectedVault(vaultName),
+			notify: (message, timeout) => {
+				new Notice(message, timeout);
+			},
+			logError: (message, error) => Logger.error(message, error),
+		});
 	}
 
 	private showLimitNotice(error: LimitReachedError) {
