@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { App, Notice } from "obsidian";
 	import type { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 	import type {
@@ -24,6 +24,9 @@
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
 	export let applyNoteSettingsToSite: () => Promise<void>;
+	export let initialTab: "installed" | "browse" = "installed";
+	/** Community plugin to select once the directory loads. */
+	export let initialPluginId: string | undefined = undefined;
 
 	let loading = true;
 	let loadError: string | null = null;
@@ -41,13 +44,25 @@
 	let selected: CommunityGardenPlugin | null = null;
 	let expandedSettingsId: string | null = null;
 	let settingsDraft: Record<string, string | number | boolean> = {};
-	let activeTab: "installed" | "browse" = "installed";
+	let activeTab: "installed" | "browse" = initialTab;
 
 	onMount(async () => {
 		await refresh();
 		community = await manager.fetchCommunityPlugins();
-		selected = community[0] ?? null;
+
+		selected =
+			community.find((entry) => entry.id === initialPluginId) ??
+			community[0] ??
+			null;
 		communityLoading = false;
+
+		if (initialPluginId && selected?.id === initialPluginId) {
+			await tick();
+
+			document
+				.querySelector(".dg-plugin-item.is-selected")
+				?.scrollIntoView({ block: "nearest" });
+		}
 	});
 
 	async function refresh() {

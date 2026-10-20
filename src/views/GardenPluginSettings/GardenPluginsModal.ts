@@ -4,6 +4,13 @@ import GardenPluginsView from "./GardenPluginsView.svelte";
 import { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 import DigitalGardenSettings from "../../models/settings";
 
+export interface GardenPluginsModalOptions {
+	/** Tab to open on. Defaults to the installed plugins. */
+	tab?: "installed" | "browse";
+	/** Community plugin to select in Browse & install, e.g. from a gallery deep link. */
+	pluginId?: string;
+}
+
 export class GardenPluginsModal {
 	modal: Modal;
 	private view: ReturnType<typeof mount> | undefined;
@@ -14,6 +21,7 @@ export class GardenPluginsModal {
 		private settings: DigitalGardenSettings,
 		private saveSettings: () => Promise<void>,
 		private applyNoteSettingsToSite: () => Promise<void>,
+		private options: GardenPluginsModalOptions = {},
 	) {
 		this.modal = new Modal(app);
 		this.modal.titleEl.innerText = "Garden Plugins";
@@ -40,6 +48,8 @@ export class GardenPluginsModal {
 					settings: this.settings,
 					saveSettings: this.saveSettings,
 					applyNoteSettingsToSite: this.applyNoteSettingsToSite,
+					initialTab: this.options.tab ?? "installed",
+					initialPluginId: this.options.pluginId,
 				},
 			});
 		};
