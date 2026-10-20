@@ -16,6 +16,7 @@ import {
 	ToggleComponent,
 } from "obsidian";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
+import { saveSiteSettingsAndUpdateEnv } from "./saveSiteSettingsAndUpdateEnv";
 import { Base64 } from "js-base64";
 
 import DigitalGardenSettings from "../../models/settings";
@@ -1992,32 +1993,12 @@ export default class SettingView {
 		saveSettings: () => Promise<void>,
 		touchedEnvKeys?: Set<string>,
 	) {
-		new Notice("Updating settings...");
-		let updateFailed = false;
-
-		try {
-			const gardenManager = new DigitalGardenSiteManager(
-				metadataCache,
-				settings,
-			);
-			await gardenManager.updateEnv(touchedEnvKeys);
-		} catch (error) {
-			if (error instanceof PublishBranchMissingError) {
-				notifyPublishBranchMissing(error);
-			} else {
-				new Notice(
-					"Failed to update settings. Make sure you have an internet connection.",
-				);
-			}
-			updateFailed = true;
-		}
-
-		if (!updateFailed) {
-			new Notice("Settings successfully updated!");
-			await saveSettings();
-		}
-
-		return !updateFailed;
+		return saveSiteSettingsAndUpdateEnv(
+			metadataCache,
+			settings,
+			saveSettings,
+			touchedEnvKeys,
+		);
 	}
 
 	private parseEnvSettings(envContent: string): Record<string, string> {

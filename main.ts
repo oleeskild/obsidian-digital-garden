@@ -19,6 +19,9 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { InstallPluginModal } from "./src/views/GardenPluginSettings/InstallPluginModal";
+import { GardenPluginsModal } from "./src/views/GardenPluginSettings/GardenPluginsModal";
+import { GardenPluginManager } from "src/gardenPlugins/GardenPluginManager";
+import { saveSiteSettingsAndUpdateEnv } from "src/views/SettingsView/saveSiteSettingsAndUpdateEnv";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
@@ -1100,6 +1103,8 @@ export default class DigitalGarden extends Plugin {
 	 * - `connect=<code>`: one-click connect; the code is exchanged for the
 	 *   garden key server-side.
 	 * - `open=home-picker`: open the home page picker.
+	 * - `open=plugins[&plugin=<id>]`: open Garden Plugins on Browse & install,
+	 *   with that community plugin selected. Used by the forestry.md gallery.
 	 * Unknown parameters (e.g. the legacy `code`/`state` pair) are ignored.
 	 */
 	private registerDeepLinks() {
@@ -1118,8 +1123,75 @@ export default class DigitalGarden extends Plugin {
 				return;
 			}
 
+			if (params.open === "plugins") {
+				void this.openGardenPlugins(
+					typeof params.plugin === "string" && params.plugin
+						? params.plugin
+						: undefined,
+				);
+
+				return;
+			}
+
 			Logger.info("Ignoring digital-garden deep link", params);
 		});
+	}
+
+	private isGardenConnected(): boolean {
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			return !!this.settings.forestrySettings.apiKey;
+		}
+
+		return (
+			!!this.settings.githubRepo &&
+			!!this.settings.githubUserName &&
+			!!this.settings.githubToken
+		);
+	}
+
+	/** Garden Plugins on Browse & install, optionally with one plugin selected. */
+	private async openGardenPlugins(pluginId?: string) {
+		if (!this.isGardenConnected()) {
+			new Notice(
+				"Connect a garden first: open Settings → Digital Garden and connect it to Forestry.md or your GitHub repo. Then try the plugin link again.",
+				10000,
+			);
+
+			return;
+		}
+
+		try {
+			const connection =
+				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
+					this.settings,
+				);
+
+			const manager = new GardenPluginManager(
+				new RepositoryConnection(connection),
+				this.settings,
+			);
+
+			new GardenPluginsModal(
+				this.app,
+				manager,
+				this.settings,
+				() => this.saveSettings(),
+				async () => {
+					await saveSiteSettingsAndUpdateEnv(
+						this.app.metadataCache,
+						this.settings,
+						() => this.saveSettings(),
+					);
+				},
+				{ tab: "browse", pluginId },
+			).open();
+		} catch (e) {
+			Logger.error("Opening garden plugins from deep link failed", e);
+
+			new Notice(
+				"Couldn't open Garden Plugins. Try again from Settings → Digital Garden.",
+			);
+		}
 	}
 
 	private async connectWithCode(code: string) {
