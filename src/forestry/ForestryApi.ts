@@ -128,6 +128,14 @@ export default class ForestryApi {
 	}
 
 	/**
+	 * Tell Forestry.md which vault the user just confirmed connecting with
+	 * this key, so the dashboard can name it. Display only on their side.
+	 */
+	async confirmConnectedVault(vaultName: string): Promise<void> {
+		await this.client.post("connect/confirm", { vaultName });
+	}
+
+	/**
 	 * Like {@link getPageInfo}, but says why it failed instead of returning
 	 * null, so connect UIs can distinguish a wrong key from being offline.
 	 */

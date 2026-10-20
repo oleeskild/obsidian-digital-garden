@@ -1211,6 +1211,8 @@ export default class DigitalGarden extends Plugin {
 			confirm: (details) => confirmConnect(this.app, details),
 			// saveSettings also (re)creates the site update tracker for the new key.
 			saveSettings: () => this.saveSettings(),
+			reportVault: (apiKey, vaultName) =>
+				new ForestryApi(apiKey).confirmConnectedVault(vaultName),
 			notify: (message, timeout) => {
 				new Notice(message, timeout);
 			},

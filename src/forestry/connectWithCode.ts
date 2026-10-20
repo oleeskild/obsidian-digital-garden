@@ -26,6 +26,11 @@ export interface ConnectWithCodeDeps {
 	/** Resolves true only when the user explicitly chose to connect. */
 	confirm: (details: ConnectConfirmDetails) => Promise<boolean>;
 	saveSettings: () => Promise<void>;
+	/**
+	 * Tells Forestry.md which vault was connected, using the new key. Only
+	 * called after the user confirmed; a failure never undoes the connect.
+	 */
+	reportVault: (apiKey: string, vaultName: string) => Promise<void>;
 	notify: (message: string, timeout?: number) => void;
 	logError: (message: string, error: unknown) => void;
 }
@@ -136,6 +141,13 @@ export async function connectWithCode(
 	settings.forestrySettings.forestryPageName = connection.pageName;
 	settings.forestrySettings.baseUrl = connection.baseUrl;
 	await deps.saveSettings();
+
+	try {
+		await deps.reportVault(connection.apiKey, deps.vaultName);
+	} catch (e) {
+		// The dashboard just won't name the vault; the connection itself stands.
+		deps.logError("Reporting the connected vault failed", e);
+	}
 
 	deps.notify(
 		`Connected to ${label}. Mark a note with dg-publish and publish it when you're ready.`,

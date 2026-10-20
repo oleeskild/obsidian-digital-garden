@@ -35,6 +35,7 @@ function makeDeps(
 ): ConnectWithCodeDeps & {
 	confirm: jest.Mock;
 	saveSettings: jest.Mock;
+	reportVault: jest.Mock;
 	notify: jest.Mock;
 	exchange: jest.Mock;
 	logError: jest.Mock;
@@ -45,6 +46,7 @@ function makeDeps(
 		exchange: jest.fn().mockResolvedValue(newGarden),
 		confirm: jest.fn().mockResolvedValue(confirmed),
 		saveSettings: jest.fn().mockResolvedValue(undefined),
+		reportVault: jest.fn().mockResolvedValue(undefined),
 		notify: jest.fn(),
 		logError: jest.fn(),
 	};
@@ -175,5 +177,29 @@ describe("connectWithCode", () => {
 		expect(deps.confirm.mock.calls[0][0].currentTarget).toBe(
 			"This vault is already connected to this garden. Connecting again keeps it connected.",
 		);
+	});
+
+	it("reports the vault name with the new key only after the user confirms", async () => {
+		const cancelled = makeDeps(makeSettings(), false);
+		await connectWithCode("abc", cancelled);
+		expect(cancelled.reportVault).not.toHaveBeenCalled();
+
+		const confirmed = makeDeps(makeSettings(), true);
+		await connectWithCode("abc", confirmed);
+
+		expect(confirmed.reportVault).toHaveBeenCalledWith(
+			"new-key",
+			"Personal",
+		);
+	});
+
+	it("stays connected when reporting the vault name fails", async () => {
+		const settings = makeSettings();
+		const deps = makeDeps(settings, true);
+		deps.reportVault.mockRejectedValue(new Error("offline"));
+
+		await expect(connectWithCode("abc", deps)).resolves.toBe("connected");
+		expect(settings.forestrySettings.apiKey).toBe("new-key");
+		expect(deps.logError).toHaveBeenCalled();
 	});
 });
