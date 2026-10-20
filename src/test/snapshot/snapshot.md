@@ -605,15 +605,15 @@ E Embeds/E09 HTML.md
 
 A self-contained HTML file embedded as a sandboxed iframe:
 
-<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="500" title="counter" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" loading="lazy" style="border:1px solid #ccc;"></iframe>
+<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="500" onload="const f=this,d=f.contentDocument;if(d){const fit=()=>{f.style.height='0';f.style.height=d.documentElement.scrollHeight+'px'};fit();new ResizeObserver(fit).observe(d.documentElement)}" title="counter" loading="lazy" style="border:1px solid #ccc;"></iframe>
 
 With a custom title and height:
 
-<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="200" title="Click counter" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" loading="lazy" style="border:1px solid #ccc;"></iframe>
+<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="200" title="Click counter" loading="lazy" style="border:1px solid #ccc;"></iframe>
 
 As a markdown link:
 
-<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="500" title="Counter" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" loading="lazy" style="border:1px solid #ccc;"></iframe>
+<iframe class="html-embed" src="/img/user/A%20Assets/counter.html" width="100%" height="500" onload="const f=this,d=f.contentDocument;if(d){const fit=()=>{f.style.height='0';f.style.height=d.documentElement.scrollHeight+'px'};fit();new ResizeObserver(fit).observe(d.documentElement)}" title="Counter" loading="lazy" style="border:1px solid #ccc;"></iframe>
 
 /img/user/A Assets/travolta.png
 ,/img/user/A Assets/travolta.webp

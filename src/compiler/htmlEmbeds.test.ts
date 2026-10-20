@@ -50,16 +50,16 @@ describe("HTML embeds", () => {
 	});
 
 	describe("convertEmbeddedAssets", () => {
-		it("embeds ![[page.html]] as a sandboxed iframe and uploads the file", async () => {
+		it("embeds ![[page.html]] as an auto-height iframe and uploads the file", async () => {
 			const [text, assets] = await getCompiler().convertEmbeddedAssets(
 				publishFile,
 			)("![[My Chart.html]]\n");
 
 			expect(text).toContain('<iframe class="html-embed"');
 			expect(text).toContain('src="/img/user/Embeds/My%20Chart.html"');
-			expect(text).toContain('sandbox="allow-scripts');
-			expect(text).not.toContain("allow-same-origin");
-			expect(text).toContain('height="500"');
+			expect(text).not.toContain("sandbox");
+			expect(text).toContain('height="500" onload="');
+			expect(text).toContain("new ResizeObserver(fit)");
 			expect(text).toContain('title="My Chart"');
 
 			expect(assets).toEqual([
@@ -83,6 +83,7 @@ describe("HTML embeds", () => {
 			)("![[page.html|800]]\n");
 
 			expect(text).toContain('height="800"');
+			expect(text).not.toContain("onload");
 		});
 
 		it("uses non-numeric metadata as the iframe title", async () => {
@@ -142,7 +143,9 @@ describe("HTML embeds", () => {
 			)("![Demo](https://example.com/demo.html)\n");
 
 			expect(text).toContain('src="https://example.com/demo.html"');
-			expect(text).toContain("allow-same-origin");
+			expect(text).toContain('sandbox="allow-scripts allow-same-origin');
+			expect(text).toContain('height="500"');
+			expect(text).not.toContain("onload");
 			expect(assets).toEqual([]);
 		});
 	});

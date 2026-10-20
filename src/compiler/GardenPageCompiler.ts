@@ -45,14 +45,21 @@ const HTML_IFRAME_DEFAULT_HEIGHT = "500";
 const HTML_IFRAME_STYLE = "border:1px solid #ccc;";
 
 /**
- * Vault HTML is served from the garden's own origin, so it is sandboxed
- * without allow-same-origin: scripts run, but in an opaque origin that
- * cannot read the garden's storage or reach into the parent page.
+ * Vault HTML is the garden owner's own content, served from the garden's
+ * origin, so it is not sandboxed. Being same-origin lets the iframe grow to
+ * fit its content: collapse it, measure the document, and repeat whenever
+ * the document resizes. Kept to single quotes and no top-level return so it
+ * survives the template's inline JS minifier inside an attribute.
  */
-const HTML_IFRAME_SANDBOX =
-	"allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals";
-/** External pages already live on another origin, so they keep their own. */
-const EXTERNAL_HTML_IFRAME_SANDBOX = `${HTML_IFRAME_SANDBOX} allow-same-origin`;
+const HTML_IFRAME_AUTO_HEIGHT_ONLOAD =
+	"const f=this,d=f.contentDocument;if(d){const fit=()=>{f.style.height='0';f.style.height=d.documentElement.scrollHeight+'px'};fit();new ResizeObserver(fit).observe(d.documentElement)}";
+
+/**
+ * External pages cannot be measured across origins, and the sandbox stops
+ * them from navigating the visitor away from the garden.
+ */
+const EXTERNAL_HTML_IFRAME_SANDBOX =
+	"allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals";
 import { PublishFile } from "../publishFile/PublishFile";
 import { replaceBlockIDs } from "./replaceBlockIDs";
 import { getFrontmatterImageLinkpath } from "./frontmatterImageLinks";
@@ -1114,17 +1121,24 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				)}" width="100%" height="${PDF_IFRAME_HEIGHT}" title="${title}" style="${PDF_IFRAME_STYLE}"></iframe>`;
 			};
 
+			// Without a height, a same-origin iframe grows to fit its content
+			// and the default height only applies until it has loaded.
 			const generateHtmlIframe = (
 				src: string,
 				title: string,
-				height: string,
-				sandbox: string,
+				{ height, sandbox }: { height?: string; sandbox?: string },
 			): string => {
+				const sizing = height
+					? `height="${height}"`
+					: `height="${HTML_IFRAME_DEFAULT_HEIGHT}" onload="${HTML_IFRAME_AUTO_HEIGHT_ONLOAD}"`;
+
+				const sandboxAttribute = sandbox ? ` sandbox="${sandbox}"` : "";
+
 				return `<iframe class="html-embed" src="${encodeURI(
 					src,
-				)}" width="100%" height="${height}" title="${escapeHtmlAttribute(
+				)}" width="100%" ${sizing} title="${escapeHtmlAttribute(
 					title,
-				)}" sandbox="${sandbox}" loading="lazy" style="${HTML_IFRAME_STYLE}"></iframe>`;
+				)}"${sandboxAttribute} loading="lazy" style="${HTML_IFRAME_STYLE}"></iframe>`;
 			};
 
 			// Shared by the wikilink and markdown link forms of a vault HTML
@@ -1132,7 +1146,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 			const embedVaultHtmlFile = async (
 				linkedFile: TFile,
 				title: string,
-				height: string,
+				height?: string,
 			): Promise<string | undefined> => {
 				if (linkedFile.stat.size > HTML_MAX_SIZE_BYTES) {
 					new Notice(
@@ -1161,12 +1175,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 				const cmsHtmlPath = await readAsset(linkedFile);
 
-				return generateHtmlIframe(
-					cmsHtmlPath,
-					title,
-					height,
-					HTML_IFRAME_SANDBOX,
-				);
+				return generateHtmlIframe(cmsHtmlPath, title, { height });
 			};
 
 			// Helper function to build wikilink fallback
@@ -1316,7 +1325,7 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 					const height = lastPartIsHeight
 						? lastPart.trim()
-						: HTML_IFRAME_DEFAULT_HEIGHT;
+						: undefined;
 
 					const titleParts = lastPartIsHeight
 						? metadataParts.slice(0, -1)
@@ -1365,8 +1374,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						return generateHtmlIframe(
 							htmlPath,
 							node.label || "External page",
-							HTML_IFRAME_DEFAULT_HEIGHT,
-							EXTERNAL_HTML_IFRAME_SANDBOX,
+							{
+								height: HTML_IFRAME_DEFAULT_HEIGHT,
+								sandbox: EXTERNAL_HTML_IFRAME_SANDBOX,
+							},
 						);
 					}
 
@@ -1389,7 +1400,6 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						(await embedVaultHtmlFile(
 							linkedFile,
 							node.label || linkedFile.basename,
-							HTML_IFRAME_DEFAULT_HEIGHT,
 						)) ??
 						`[${
 							node.label || linkedFile.name
