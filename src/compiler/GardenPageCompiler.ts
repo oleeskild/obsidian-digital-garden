@@ -38,6 +38,28 @@ import {
 const PDF_MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
 const PDF_IFRAME_HEIGHT = "900px";
 const PDF_IFRAME_STYLE = "border:1px solid #ccc;";
+
+// HTML embedding constants
+const HTML_MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
+const HTML_IFRAME_DEFAULT_HEIGHT = "500";
+const HTML_IFRAME_STYLE = "border:1px solid #ccc;";
+
+/**
+ * Vault HTML is the garden owner's own content, served from the garden's
+ * origin, so it is not sandboxed. Being same-origin lets the iframe grow to
+ * fit its content: collapse it, measure the document, and repeat whenever
+ * the document resizes. Kept to single quotes and no top-level return so it
+ * survives the template's inline JS minifier inside an attribute.
+ */
+const HTML_IFRAME_AUTO_HEIGHT_ONLOAD =
+	"const f=this,d=f.contentDocument;if(d){const fit=()=>{f.style.height='0';f.style.height=d.documentElement.scrollHeight+'px'};fit();new ResizeObserver(fit).observe(d.documentElement)}";
+
+/**
+ * External pages cannot be measured across origins, and the sandbox stops
+ * them from navigating the visitor away from the garden.
+ */
+const EXTERNAL_HTML_IFRAME_SANDBOX =
+	"allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals";
 import { PublishFile } from "../publishFile/PublishFile";
 import { replaceBlockIDs } from "./replaceBlockIDs";
 import { getFrontmatterImageLinkpath } from "./frontmatterImageLinks";
@@ -47,6 +69,9 @@ export { getFrontmatterImageLinkpath };
 
 /** Extensions treated as embeddable images in the note body */
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
+/** Extensions embedded as sandboxed iframes in the note body */
+const HTML_EXTENSIONS = [".html", ".htm"];
 
 /** Extensions rewritten to asset links when wiki-linked (not embedded) */
 const LINKED_ASSET_EXTENSIONS = [...IMAGE_EXTENSIONS, ".svg", ".pdf"];
@@ -60,6 +85,29 @@ const YOUTUBE_URL_REGEX =
 
 const hasExtension = (target: string, extensions: string[]): boolean =>
 	extensions.some((extension) => target.endsWith(extension));
+
+const escapeHtmlAttribute = (value: string): string =>
+	value
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+
+const HTML_RESOURCE_ATTRIBUTE_REGEX = /\b(?:src|href)\s*=\s*(["'])(.*?)\1/gi;
+const NON_RELATIVE_REFERENCE_REGEX = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
+
+/**
+ * Relative src/href references in an HTML file. Only the file itself is
+ * published, so these will not resolve on the garden.
+ */
+export const findRelativeHtmlResources = (html: string): string[] =>
+	[...html.matchAll(HTML_RESOURCE_ATTRIBUTE_REGEX)]
+		.map((match) => match[2].trim())
+		.filter(
+			(reference) =>
+				reference !== "" &&
+				!NON_RELATIVE_REFERENCE_REGEX.test(reference),
+		);
 
 export interface Asset {
 	path: string;
@@ -969,13 +1017,14 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 		for (const node of parseMarkdown(text)) {
 			try {
-				// ![[image.png]] or ![[file.pdf]]
+				// ![[image.png]], ![[file.pdf]] or ![[page.html]]
 				if (
 					node.type === "wikilink" &&
 					node.embed &&
 					hasExtension(node.targetWithRef, [
 						...IMAGE_EXTENSIONS,
 						".pdf",
+						...HTML_EXTENSIONS,
 					])
 				) {
 					const linkedFile = this.resolveLinkedFile(
@@ -989,13 +1038,14 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 					continue;
 				}
 
-				// ![](image.png) or ![](file.pdf)
+				// ![](image.png), ![](file.pdf) or ![](page.html)
 				if (
 					node.type === "mdlink" &&
 					node.embed &&
 					hasExtension(node.destination, [
 						...IMAGE_EXTENSIONS,
 						".pdf",
+						...HTML_EXTENSIONS,
 					]) &&
 					!node.destination.startsWith("http")
 				) {
@@ -1069,6 +1119,63 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 				return `<iframe src="${encodeURI(
 					src,
 				)}" width="100%" height="${PDF_IFRAME_HEIGHT}" title="${title}" style="${PDF_IFRAME_STYLE}"></iframe>`;
+			};
+
+			// Without a height, a same-origin iframe grows to fit its content
+			// and the default height only applies until it has loaded.
+			const generateHtmlIframe = (
+				src: string,
+				title: string,
+				{ height, sandbox }: { height?: string; sandbox?: string },
+			): string => {
+				const sizing = height
+					? `height="${height}"`
+					: `height="${HTML_IFRAME_DEFAULT_HEIGHT}" onload="${HTML_IFRAME_AUTO_HEIGHT_ONLOAD}"`;
+
+				const sandboxAttribute = sandbox ? ` sandbox="${sandbox}"` : "";
+
+				return `<iframe class="html-embed" src="${encodeURI(
+					src,
+				)}" width="100%" ${sizing} title="${escapeHtmlAttribute(
+					title,
+				)}"${sandboxAttribute} loading="lazy" style="${HTML_IFRAME_STYLE}"></iframe>`;
+			};
+
+			// Shared by the wikilink and markdown link forms of a vault HTML
+			// embed. Returns undefined when the file is too large to embed.
+			const embedVaultHtmlFile = async (
+				linkedFile: TFile,
+				title: string,
+				height?: string,
+			): Promise<string | undefined> => {
+				if (linkedFile.stat.size > HTML_MAX_SIZE_BYTES) {
+					new Notice(
+						`HTML file ${linkedFile.name} is larger than 20MB and will not be published as an embed. A link will be used.`,
+					);
+
+					return;
+				}
+
+				const relativeResources = findRelativeHtmlResources(
+					await this.vault.cachedRead(linkedFile),
+				);
+
+				if (relativeResources.length > 0) {
+					new Notice(
+						`${
+							linkedFile.name
+						} references files that are not published with it (${relativeResources
+							.slice(0, 3)
+							.join(
+								", ",
+							)}). Only self-contained HTML files display fully on the garden.`,
+						10000,
+					);
+				}
+
+				const cmsHtmlPath = await readAsset(linkedFile);
+
+				return generateHtmlIframe(cmsHtmlPath, title, { height });
 			};
 
 			// Helper function to build wikilink fallback
@@ -1201,6 +1308,107 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 						pdfNameFromFile,
 						metadataParts,
 					);
+				}
+			};
+
+			// ![[page.html]], ![[page.html|600]] or ![[page.html|title|600]]
+			const convertEmbeddedHtmlWikilink = async (
+				node: WikilinkNode,
+			): Promise<string | undefined> => {
+				const [htmlName, ...metadataParts] = node.parts;
+
+				try {
+					const lastPart = metadataParts[metadataParts.length - 1];
+
+					const lastPartIsHeight =
+						lastPart !== undefined && /^\d+$/.test(lastPart.trim());
+
+					const height = lastPartIsHeight
+						? lastPart.trim()
+						: undefined;
+
+					const titleParts = lastPartIsHeight
+						? metadataParts.slice(0, -1)
+						: metadataParts;
+
+					const linkedFile = this.resolveLinkedFile(
+						getLinkpath(htmlName),
+						filePath,
+					);
+
+					if (
+						!linkedFile ||
+						!hasExtension(
+							`.${linkedFile.extension}`,
+							HTML_EXTENSIONS,
+						)
+					) {
+						return buildWikilinkFallback(htmlName, metadataParts);
+					}
+
+					const title = titleParts.join("|") || linkedFile.basename;
+
+					return (
+						(await embedVaultHtmlFile(linkedFile, title, height)) ??
+						buildWikilinkFallback(
+							htmlName,
+							metadataParts,
+							"HTML too large to embed",
+						)
+					);
+				} catch (e) {
+					Logger.warn("Error processing embedded HTML link:", e);
+
+					return buildWikilinkFallback(htmlName, metadataParts);
+				}
+			};
+
+			// ![](page.html) or ![](https://example.com/page.html)
+			const convertEmbeddedHtmlMarkdownLink = async (
+				node: MarkdownLinkNode,
+			): Promise<string | undefined> => {
+				const htmlPath = node.destination;
+
+				try {
+					if (htmlPath.startsWith("http")) {
+						return generateHtmlIframe(
+							htmlPath,
+							node.label || "External page",
+							{
+								height: HTML_IFRAME_DEFAULT_HEIGHT,
+								sandbox: EXTERNAL_HTML_IFRAME_SANDBOX,
+							},
+						);
+					}
+
+					const linkedFile = this.resolveLinkedFile(
+						decodeURI(htmlPath),
+						filePath,
+					);
+
+					if (
+						!linkedFile ||
+						!hasExtension(
+							`.${linkedFile.extension}`,
+							HTML_EXTENSIONS,
+						)
+					) {
+						return;
+					}
+
+					return (
+						(await embedVaultHtmlFile(
+							linkedFile,
+							node.label || linkedFile.basename,
+						)) ??
+						`[${
+							node.label || linkedFile.name
+						} (HTML too large to embed)](${encodeURI(htmlPath)})`
+					);
+				} catch (e) {
+					Logger.warn("Error processing HTML link:", e);
+
+					return;
 				}
 			};
 
@@ -1352,6 +1560,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 							return convertEmbeddedPdfWikilink(node);
 						}
 
+						if (hasExtension(node.targetWithRef, HTML_EXTENSIONS)) {
+							return convertEmbeddedHtmlWikilink(node);
+						}
+
 						return;
 					}
 
@@ -1372,6 +1584,10 @@ export class GardenPageCompiler implements ITextNodeProcessor {
 
 						if (node.destination.endsWith(".pdf")) {
 							return convertEmbeddedPdfMarkdownLink(node);
+						}
+
+						if (hasExtension(node.destination, HTML_EXTENSIONS)) {
+							return convertEmbeddedHtmlMarkdownLink(node);
 						}
 
 						return;

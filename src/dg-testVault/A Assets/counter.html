@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<style>
+			body { font-family: sans-serif; padding: 1rem; }
+			button { font-size: 1rem; }
+		</style>
+	</head>
+	<body>
+		<p>Self-contained HTML embed. Clicked <span id="count">0</span> times.</p>
+		<button id="increment">Click me</button>
+		<script>
+			let count = 0;
+			document.getElementById("increment").addEventListener("click", () => {
+				count += 1;
+				document.getElementById("count").textContent = count;
+			});
+		</script>
+	</body>
+</html>
