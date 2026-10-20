@@ -6,4 +6,5 @@ I'm a list of all files in this folder:
 ```dataview
 list 
 from "P Plugins"
+sort file.path asc
 ```
