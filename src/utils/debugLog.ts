@@ -61,7 +61,7 @@ export function describeError(error: unknown): string {
 	return describeValue(error);
 }
 
-function extractStatus(error: object): number | null {
+export function extractStatus(error: object): number | null {
 	const withStatus = error as { status?: unknown; response?: unknown };
 
 	if (typeof withStatus.status === "number") {

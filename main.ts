@@ -4,6 +4,7 @@ import {
 	Plugin,
 	Workspace,
 	addIcon,
+	setIcon,
 	TFile,
 	Modal,
 	App,
@@ -19,9 +20,6 @@ import Logger from "js-logger";
 import { PublishFile } from "./src/publishFile/PublishFile";
 import { FRONTMATTER_KEYS } from "./src/publishFile/FileMetaDataManager";
 import { InstallPluginModal } from "./src/views/GardenPluginSettings/InstallPluginModal";
-import { GardenPluginsModal } from "./src/views/GardenPluginSettings/GardenPluginsModal";
-import { GardenPluginManager } from "src/gardenPlugins/GardenPluginManager";
-import { saveSiteSettingsAndUpdateEnv } from "src/views/SettingsView/saveSiteSettingsAndUpdateEnv";
 import { PublishPlatform } from "src/models/PublishPlatform";
 import { hasUpdates } from "./src/repositoryConnection/TemplateManager";
 import { LimitReachedError } from "src/forestry/LimitReachedError";
@@ -29,11 +27,11 @@ import { notifyLimitReached } from "src/forestry/limitNotice";
 import { PublishBranchMissingError } from "src/repositoryConnection/PublishBranchMissingError";
 import { notifyPublishBranchMissing } from "src/repositoryConnection/publishBranchNotice";
 import { LocalExporter } from "./src/localExport/LocalExporter";
-import { NavigationOrderModal } from "src/views/NavigationOrder/NavigationOrderModal";
-import { RepositoryConnection } from "src/repositoryConnection/RepositoryConnection";
-import PublishPlatformConnectionFactory from "src/repositoryConnection/PublishPlatformConnectionFactory";
 import { PublicationCenterView } from "src/views/PublicationCenterView/PublicationCenterView";
 import { VIEW_TYPE } from "src/views/PublicationCenterView/constants";
+import { pullFromSite } from "src/views/PublicationCenterView/site/siteSync";
+import type { CenterTarget } from "src/views/PublicationCenterView/site/target";
+import { siteStatus } from "src/forestry/buildStatus";
 import { WorkspaceLeaf } from "obsidian";
 import ForestryApi from "src/forestry/ForestryApi";
 import {
@@ -41,10 +39,7 @@ import {
 	getDebugLog,
 	setDebugLogContext,
 } from "src/utils/debugLog";
-import {
-	SiteUpdateTracker,
-	type SiteUpdatePhase,
-} from "src/forestry/SiteUpdateTracker";
+import { SiteUpdateTracker } from "src/forestry/SiteUpdateTracker";
 import { connectWithCode } from "src/forestry/connectWithCode";
 import { confirmConnect } from "src/views/ConnectConfirmModal";
 import { findHomePageFiles } from "src/publishFile/homePage";
@@ -220,6 +215,7 @@ export default class DigitalGarden extends Plugin {
 		this.registerDeepLinks();
 
 		this.refreshForestryPageInfo();
+		this.pullSiteSettings();
 		this.checkForTemplateUpdates();
 		this.registerDevAutoExport();
 	}
@@ -320,31 +316,47 @@ export default class DigitalGarden extends Plugin {
 
 		this.siteUpdateTracker.onChooseHomePage = () =>
 			this.openHomePagePicker();
+
+		this.siteUpdateTracker.siteUrl = () =>
+			this.settings.forestrySettings.baseUrl || null;
+
+		this.siteUpdateTracker.onOpenPublishes = () =>
+			void this.openPublishes();
 		this.siteTrackerApiKey = apiKey;
 
 		const statusBarItem = this.addStatusBarItem();
-		statusBarItem.addClass("dg-site-status");
-
-		statusBarItem.setAttribute(
-			"aria-label",
-			"Forestry site — click for publish status",
-		);
+		statusBarItem.addClass("dg-site-status", "mod-clickable");
+		statusBarItem.setAttribute("role", "button");
+		statusBarItem.setAttribute("tabindex", "0");
 		statusBarItem.setAttribute("data-tooltip-position", "top");
 
-		statusBarItem.onClickEvent(() => {
-			this.activatePublicationCenter();
-		});
+		const iconEl = statusBarItem.createSpan({ cls: "dg-site-status-icon" });
+		setIcon(iconEl, "sprout");
+		const textEl = statusBarItem.createSpan();
 
-		const phaseLabels: Record<SiteUpdatePhase, string> = {
-			idle: "",
-			queued: " Queued…",
-			updating: " Publishing…",
-			live: " Live",
-			failed: " Publish failed",
-		};
+		const open = () => void this.openPublishes();
+		statusBarItem.onClickEvent(open);
+
+		statusBarItem.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				open();
+			}
+		});
 
 		this.siteStatusUnsubscribe = this.siteUpdateTracker.store.subscribe(
 			(state) => {
+				// Quiet when idle; otherwise the dashboard header's words.
+				const status =
+					state.phase === "idle" ? null : siteStatus(state.builds);
+
+				const label =
+					state.phase === "queued"
+						? "Queued"
+						: state.phase === "updating"
+						? "Building"
+						: status?.label ?? "";
+
 				statusBarItem.toggleClass(
 					"dg-site-status-updating",
 					state.phase === "queued" || state.phase === "updating",
@@ -352,12 +364,55 @@ export default class DigitalGarden extends Plugin {
 
 				statusBarItem.toggleClass(
 					"dg-site-status-failed",
-					state.phase === "failed",
+					status?.tone === "destructive",
 				);
-				statusBarItem.setText(`🌱${phaseLabels[state.phase]}`);
+
+				statusBarItem.toggleClass(
+					"dg-site-status-warning",
+					status?.tone === "warning",
+				);
+				textEl.setText(label);
+
+				statusBarItem.setAttribute(
+					"aria-label",
+					`Forestry.md site${
+						label ? `: ${label}` : ""
+					}. Open publishes in the Publication Center.`,
+				);
 			},
 		);
 		this.siteStatusBarItem = statusBarItem;
+	}
+
+	/**
+	 * The site is the source of truth for its settings, which can also be
+	 * changed from another device, the dashboard or GitHub. Pull them in on
+	 * startup. Fire-and-forget; failures leave the local values untouched.
+	 */
+	private async pullSiteSettings() {
+		const connected =
+			this.settings.publishPlatform === PublishPlatform.ForestryMd
+				? !!this.settings.forestrySettings.apiKey
+				: !!(
+						this.settings.githubRepo &&
+						this.settings.githubUserName &&
+						this.settings.githubToken
+				  );
+
+		if (!connected) return;
+
+		try {
+			const siteManager = new DigitalGardenSiteManager(
+				this.app.metadataCache,
+				this.settings,
+			);
+
+			if (await pullFromSite(siteManager, this.settings)) {
+				await this.saveSettings();
+			}
+		} catch (e) {
+			Logger.warn("Couldn't read site settings on startup", e);
+		}
 	}
 
 	private async checkForTemplateUpdates() {
@@ -466,6 +521,7 @@ export default class DigitalGarden extends Plugin {
 					this.app,
 					this.settings,
 					() => this.saveSettings(),
+					() => this.siteUpdateTracker?.notifyPublished(),
 				);
 				await modal.open();
 			},
@@ -716,11 +772,21 @@ export default class DigitalGarden extends Plugin {
 			},
 		});
 
+		// Phones have no status bar, so publishes need a command of their own.
+		this.addCommand({
+			id: "open-publishes",
+			name: "Open publishes",
+			callback: () => void this.openPublishes(),
+		});
+
 		this.addCommand({
 			id: "dg-reorder-navigation",
 			name: "Reorder navigation",
 			callback: async () => {
-				this.openNavigationOrderModal();
+				await this.activatePublicationCenter({
+					tab: "site",
+					section: "navigation",
+				});
 			},
 		});
 
@@ -1151,49 +1217,25 @@ export default class DigitalGarden extends Plugin {
 		);
 	}
 
-	/** Garden Plugins on Browse & install, optionally with one plugin selected. */
-	private async openGardenPlugins(pluginId?: string) {
+	/**
+	 * Garden Plugins, on the Publication Center's Site tab. From a plugin
+	 * link it opens on Browse & install with that plugin selected.
+	 */
+	async openGardenPlugins(pluginId?: string) {
 		if (!this.isGardenConnected()) {
 			new Notice(
-				"Connect a garden first: open Settings → Digital Garden and connect it to Forestry.md or your GitHub repo. Then try the plugin link again.",
+				"Connect a garden first: open Settings → Digital Garden and connect it to Forestry.md or your GitHub repo. Then try again.",
 				10000,
 			);
 
 			return;
 		}
 
-		try {
-			const connection =
-				await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-					this.settings,
-				);
-
-			const manager = new GardenPluginManager(
-				new RepositoryConnection(connection),
-				this.settings,
-			);
-
-			new GardenPluginsModal(
-				this.app,
-				manager,
-				this.settings,
-				() => this.saveSettings(),
-				async () => {
-					await saveSiteSettingsAndUpdateEnv(
-						this.app.metadataCache,
-						this.settings,
-						() => this.saveSettings(),
-					);
-				},
-				{ tab: "browse", pluginId },
-			).open();
-		} catch (e) {
-			Logger.error("Opening garden plugins from deep link failed", e);
-
-			new Notice(
-				"Couldn't open Garden Plugins. Try again from Settings → Digital Garden.",
-			);
-		}
+		await this.activatePublicationCenter({
+			tab: "site",
+			section: "plugins",
+			pluginId,
+		});
 	}
 
 	/**
@@ -1224,31 +1266,13 @@ export default class DigitalGarden extends Plugin {
 		notifyLimitReached(error);
 	}
 
-	async openNavigationOrderModal() {
-		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			);
-		const repositoryConnection = new RepositoryConnection(connection);
-
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
-
-		const modal = new NavigationOrderModal(
-			this.app,
-			repositoryConnection,
-			publisher,
-			this.settings,
-			() => this.saveSettings(),
-		);
-
-		modal.open();
+	/** The Publication Center with the publish history open. */
+	private async openPublishes() {
+		await this.activatePublicationCenter();
+		this.siteUpdateTracker?.requestHistory();
 	}
 
-	async activatePublicationCenter() {
+	async activatePublicationCenter(target?: CenterTarget) {
 		const { workspace } = this.app;
 
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];
@@ -1264,6 +1288,8 @@ export default class DigitalGarden extends Plugin {
 		// made since it was last viewed.
 		if (leaf.view instanceof PublicationCenterView) {
 			leaf.view.maybeRefresh();
+
+			if (target) leaf.view.show(target);
 		}
 	}
 }

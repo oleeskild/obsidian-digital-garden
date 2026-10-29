@@ -16,6 +16,8 @@
 	} from "../../gardenPlugins/installPlugin";
 	import CommunityPluginsGate from "./CommunityPluginsGate.svelte";
 	import PluginReadme from "./PluginReadme.svelte";
+	import Icon from "../../ui/Icon.svelte";
+	import { toggle } from "../PublicationCenterView/site/obsidianControls";
 	import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
 	import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
 
@@ -23,7 +25,7 @@
 	export let manager: GardenPluginManager;
 	export let settings: DigitalGardenSettings;
 	export let saveSettings: () => Promise<void>;
-	export let applyNoteSettingsToSite: () => Promise<void>;
+	export let applyNoteSettingsToSite: (keys: string[]) => Promise<void>;
 	export let initialTab: "installed" | "browse" = "installed";
 	/** Community plugin to select once the directory loads. */
 	export let initialPluginId: string | undefined = undefined;
@@ -203,7 +205,7 @@
 		>;
 		noteSettings[key] = !noteSettings[key];
 		await saveSettings();
-		await applyNoteSettingsToSite();
+		await applyNoteSettingsToSite([key]);
 		installed = installed;
 	}
 
@@ -450,22 +452,32 @@
 						<div class="dg-plugin-row-actions">
 							{#if installed.length > 1}
 								<button
-									aria-label="Render earlier"
+									class="clickable-icon"
+									aria-label="Render {plugin.manifest
+										.name} earlier"
 									title="Render earlier"
 									disabled={busy || index === 0}
-									on:click={() => move(plugin, -1)}>↑</button
+									on:click={() => move(plugin, -1)}
+									><Icon name="arrow-up" /></button
 								>
 								<button
-									aria-label="Render later"
+									class="clickable-icon"
+									aria-label="Render {plugin.manifest
+										.name} later"
 									title="Render later"
 									disabled={busy ||
 										index === installed.length - 1}
-									on:click={() => move(plugin, 1)}>↓</button
+									on:click={() => move(plugin, 1)}
+									><Icon name="arrow-down" /></button
 								>
 							{/if}
 
 							{#if (plugin.manifest.settings ?? []).length > 0 || noteSettingKeysFor(plugin).length > 0}
 								<button
+									aria-label="Settings for {plugin.manifest
+										.name}"
+									aria-expanded={expandedSettingsId ===
+										plugin.manifest.id}
 									disabled={busy}
 									on:click={() => openSettings(plugin)}
 									>Settings</button
@@ -474,6 +486,7 @@
 
 							{#if !plugin.isFirstParty}
 								<button
+									aria-label="Update {plugin.manifest.name}"
 									disabled={busy}
 									on:click={() => updatePlugin(plugin)}
 									>{installingRepo &&
@@ -485,13 +498,23 @@
 
 								{#if confirmUninstallId === plugin.manifest.id}
 									<button
+										disabled={busy}
+										on:click={() =>
+											(confirmUninstallId = null)}
+										>Cancel</button
+									>
+									<button
 										class="mod-warning"
+										aria-label="Remove {plugin.manifest
+											.name} from your site"
 										disabled={busy}
 										on:click={() => uninstall(plugin)}
-										>Confirm removal</button
+										>Remove from site</button
 									>
 								{:else}
 									<button
+										aria-label="Uninstall {plugin.manifest
+											.name}"
 										disabled={busy}
 										on:click={() =>
 											(confirmUninstallId =
@@ -501,15 +524,14 @@
 								{/if}
 							{/if}
 
-							<label class="dg-plugin-toggle">
-								<input
-									type="checkbox"
-									checked={plugin.enabled}
-									disabled={busy}
-									on:change={() => toggleEnabled(plugin)}
-								/>
-								{plugin.enabled ? "Enabled" : "Disabled"}
-							</label>
+							<div
+								use:toggle={{
+									value: plugin.enabled,
+									label: `Enable ${plugin.manifest.name}`,
+									disabled: busy,
+									onChange: () => toggleEnabled(plugin),
+								}}
+							></div>
 						</div>
 					</div>
 
@@ -826,7 +848,7 @@
 
 	.dg-skeleton-row {
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 8px;
+		border-radius: var(--radius-m);
 		padding: 10px 12px;
 		display: flex;
 		justify-content: space-between;
@@ -843,7 +865,7 @@
 
 	.dg-skeleton-card {
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 8px;
+		border-radius: var(--radius-m);
 		padding: 12px;
 		display: flex;
 		flex-direction: column;
@@ -852,8 +874,8 @@
 
 	.dg-skeleton {
 		display: block;
-		border-radius: 4px;
-		background: var(--background-modifier-hover, rgba(128, 128, 128, 0.15));
+		border-radius: var(--radius-s);
+		background: var(--background-modifier-hover);
 		animation: dg-skeleton-pulse 1.4s ease-in-out infinite;
 		animation-delay: var(--dg-skeleton-delay, 0s);
 	}
@@ -922,7 +944,7 @@
 
 	.dg-plugin-row {
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 8px;
+		border-radius: var(--radius-m);
 		padding: 10px 12px;
 	}
 
@@ -959,7 +981,7 @@
 
 	.dg-plugin-badge {
 		background: var(--background-modifier-border);
-		border-radius: 4px;
+		border-radius: var(--radius-s);
 		font-size: 0.75em;
 		font-weight: 500;
 		padding: 1px 6px;
@@ -968,7 +990,7 @@
 
 	.dg-plugin-badge.is-region {
 		background: var(--interactive-accent);
-		color: var(--text-on-accent, #fff);
+		color: var(--text-on-accent);
 	}
 
 	.dg-plugin-region-notice {
@@ -992,13 +1014,6 @@
 		margin: 0 0 8px;
 		color: var(--text-muted);
 		font-size: var(--font-ui-smaller);
-	}
-
-	.dg-plugin-toggle {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 0.9em;
 	}
 
 	.dg-plugin-settings {
@@ -1084,7 +1099,7 @@
 		white-space: normal;
 		background: none;
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 8px;
+		border-radius: var(--radius-m);
 		box-shadow: none;
 		cursor: pointer;
 	}
@@ -1150,7 +1165,8 @@
 		box-shadow: none;
 		padding: 0;
 		height: auto;
-		color: var(--text-accent);
+		/* Accent pulled toward the text color: readable in light themes too. */
+		color: color-mix(in srgb, var(--text-accent) 75%, var(--text-normal));
 		text-decoration: underline;
 		cursor: pointer;
 		font-size: inherit;

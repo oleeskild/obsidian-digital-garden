@@ -19,6 +19,8 @@ export class InstallPluginModal {
 		private app: App,
 		private settings: DigitalGardenSettings,
 		private saveSettings: () => Promise<void>,
+		/** Called after the install writes to the site. */
+		private onSiteChanged: () => void = () => {},
 	) {
 		this.modal = new Modal(app);
 		this.modal.titleEl.innerText = "Install Garden Plugin";
@@ -34,6 +36,7 @@ export class InstallPluginModal {
 			new RepositoryConnection(connection),
 			this.settings,
 		);
+		manager.onSiteChanged = this.onSiteChanged;
 
 		this.modal.onClose = () => {
 			if (this.view) {

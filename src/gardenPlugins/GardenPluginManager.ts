@@ -53,6 +53,12 @@ type PathSettings = Pick<
  * only copies files.
  */
 export class GardenPluginManager {
+	/**
+	 * Called after each write to the garden repo, so the site update
+	 * tracker can follow the build it starts.
+	 */
+	onSiteChanged: (() => void) | null = null;
+
 	constructor(
 		private userGardenConnection: RepositoryConnection,
 		private settings: PathSettings,
@@ -133,6 +139,7 @@ export class GardenPluginManager {
 		if (!response) {
 			throw new Error("Could not update the plugin registry");
 		}
+		this.onSiteChanged?.();
 	}
 
 	/**
@@ -493,6 +500,7 @@ export class GardenPluginManager {
 			deletions,
 			message: `${action} garden plugin ${remote.manifest.id} (${remote.manifest.version})`,
 		});
+		this.onSiteChanged?.();
 	}
 
 	/**
@@ -530,5 +538,6 @@ export class GardenPluginManager {
 			deletions: files,
 			message: `Uninstall garden plugin ${id}`,
 		});
+		this.onSiteChanged?.();
 	}
 }

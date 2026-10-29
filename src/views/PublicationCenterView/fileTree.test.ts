@@ -1,4 +1,4 @@
-import { buildFileTree, collectFilePaths, filterTree } from "./fileTree";
+import { buildFileTree, collectSelectablePaths, filterTree } from "./fileTree";
 import { AnnotatedFile } from "./annotate";
 
 const files: AnnotatedFile[] = [
@@ -32,16 +32,22 @@ describe("buildFileTree", () => {
 	});
 });
 
-describe("collectFilePaths", () => {
+describe("collectSelectablePaths", () => {
 	it("returns all leaf paths under a folder", () => {
 		const tree = buildFileTree(files);
 		const notes = tree.children!.find((c) => c.name === "notes")!;
 
-		expect(collectFilePaths(notes).sort()).toEqual([
+		expect(collectSelectablePaths(notes).sort()).toEqual([
 			"notes/a.md",
 			"notes/b.md",
 			"notes/sub/c.md",
 		]);
+	});
+
+	it("skips published notes, which have nothing to tick", () => {
+		expect(collectSelectablePaths(buildFileTree(files))).not.toContain(
+			"root.md",
+		);
 	});
 });
 
@@ -49,7 +55,7 @@ describe("filterTree", () => {
 	it("keeps only files whose status is active, pruning empty folders", () => {
 		const tree = buildFileTree(files);
 		const filtered = filterTree(tree, new Set(["new"]))!;
-		const leafPaths = collectFilePaths(filtered);
+		const leafPaths = collectSelectablePaths(filtered);
 		expect(leafPaths).toEqual(["notes/a.md"]);
 	});
 

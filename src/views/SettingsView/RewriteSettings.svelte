@@ -10,6 +10,7 @@
 
 	export let publisher: Publisher;
 	export let settings: DigitalGardenSettings;
+	export let saveSettings: () => Promise<void>;
 	export let closeModal: () => void;
 
 	let newPathRewriteRules: string;
@@ -94,8 +95,9 @@
 		</code>
 	</div>
 	<button
-		on:click={() => {
+		on:click={async () => {
 			settings.pathRewriteRules = newPathRewriteRules;
+			await saveSettings();
 			closeModal();
 		}}
 		disabled={saveDisabled}>Save</button

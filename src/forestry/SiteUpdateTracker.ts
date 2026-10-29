@@ -1,8 +1,17 @@
 import { Notice } from "obsidian";
 import { writable, type Writable } from "svelte/store";
 import type ForestryApi from "./ForestryApi";
+import type { ForestryFailureKind } from "./ForestryApi";
 import type { IDeployInfo } from "./DeployInfo";
 import type { IUserLimitsResponse } from "./UserLimitsResponse";
+import {
+	BUILD_HISTORY_LIMIT,
+	deriveBuildStatus,
+	displayHost,
+	isRunning,
+	secondsSince,
+	siteHref,
+} from "./buildStatus";
 
 export type SiteUpdatePhase =
 	| "idle"
@@ -16,16 +25,53 @@ export interface SiteUpdateState {
 	limits: IUserLimitsResponse | null;
 	loaded: boolean;
 	loadFailed: boolean;
+	/** Why the builds couldn't be read: a bad Garden Key, or no answer. */
+	loadFailedKind: ForestryFailureKind | null;
 	phase: SiteUpdatePhase;
 	/** True while waiting for the update from a fresh publish to appear. */
 	awaitingNewBuild: boolean;
 	/** Bumped on each tracked failure; the UI reacts to changes. */
 	failureCount: number;
+	/** The build a publish started, once it shows up. */
+	watchedRunId: string | null;
+	/** When the publish being waited on was made (ms), for the timer. */
+	awaitingSince: number | null;
+	/** Tracking gave up while a build was still unfinished. */
+	timedOut: boolean;
+	/** ...and Forestry.md never started a build for the publish. */
+	timedOutBeforeStart: boolean;
+	/** Bumped when something asks to show the publish history. */
+	historyRequests: number;
+	/** When the stalled publish was made (ms), so the wait keeps counting. */
+	stalledSince: number | null;
+	/** When the builds were last read (ms). */
+	loadedAt: number | null;
+	/** The last read failed, so the builds shown may be out of date. */
+	refreshFailed: boolean;
 }
 
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * A notice that does something when clicked; also reachable by keyboard
+ * (Enter or Space), since Obsidian's notices aren't focusable.
+ */
+function makeClickable(el: HTMLElement) {
+	el.addClass("dg-notice-clickable");
+	el.setAttribute("role", "button");
+	el.setAttribute("tabindex", "0");
+
+	el.addEventListener("keydown", (e) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			el.click();
+		}
+	});
+}
+
 const LIVE_PHASE_MS = 2 * 60 * 1000;
+const FAILURE_PIN_SECONDS = 24 * 60 * 60;
 
 /**
  * Plugin-wide tracker for the garden's site updates (Forestry builds).
@@ -46,6 +92,12 @@ export class SiteUpdateTracker {
 	 */
 	onChooseHomePage: (() => void) | null = null;
 
+	/** Set by the plugin: the site's address, for the "live" notice. */
+	siteUrl: (() => string | null) | null = null;
+
+	/** Set by the plugin: opens the publish history (failure notice). */
+	onOpenPublishes: (() => void) | null = null;
+
 	private api: ForestryApi;
 	private builds: IDeployInfo[] = [];
 	private knownRunIds = new Set<string>();
@@ -54,6 +106,10 @@ export class SiteUpdateTracker {
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
 	private pollDeadline = 0;
 	private liveTimer: ReturnType<typeof setTimeout> | null = null;
+	private timedOut = false;
+	private dismissedRunId: string | null = null;
+	private awaitingSince: number | null = null;
+	private failedReads = 0;
 
 	constructor(api: ForestryApi) {
 		this.api = api;
@@ -63,9 +119,18 @@ export class SiteUpdateTracker {
 			limits: null,
 			loaded: false,
 			loadFailed: false,
+			loadFailedKind: null,
 			phase: "idle",
 			awaitingNewBuild: false,
 			failureCount: 0,
+			watchedRunId: null,
+			awaitingSince: null,
+			timedOut: false,
+			timedOutBeforeStart: false,
+			historyRequests: 0,
+			stalledSince: null,
+			loadedAt: null,
+			refreshFailed: false,
 		});
 
 		void this.init();
@@ -79,15 +144,64 @@ export class SiteUpdateTracker {
 		}
 		this.knownRunIds = new Set(this.builds.map((b) => b.runId));
 		this.watchedRunId = null;
+		this.timedOut = false;
+		this.dismissedRunId = null;
 		this.awaitingNewBuild = true;
-		this.patch({ awaitingNewBuild: true, phase: "queued" });
+		this.awaitingSince = Date.now();
+
+		this.patch({
+			awaitingNewBuild: true,
+			phase: "queued",
+			watchedRunId: null,
+			awaitingSince: this.awaitingSince,
+			timedOut: false,
+			timedOutBeforeStart: false,
+		});
 		this.startPolling();
 		void this.tick();
 	}
 
-	/** One-off refresh of the update list (e.g. when a view regains focus). */
-	refresh() {
-		void this.fetchBuilds();
+	/**
+	 * Refresh the update list (e.g. when a view regains focus). An update
+	 * still running, maybe started from elsewhere, is followed until it
+	 * settles.
+	 */
+	refresh(): Promise<void> {
+		return this.refreshAndFollow();
+	}
+
+	private async refreshAndFollow() {
+		if (!(await this.fetchBuilds())) return;
+
+		const latest = this.builds[0];
+
+		if (this.pollTimer === null && latest && !this.isSettled(latest)) {
+			this.patch({ phase: this.runningPhase(latest) });
+			this.startPolling();
+		}
+	}
+
+	/** Ask the views to open the publish history (e.g. from the status bar). */
+	requestHistory() {
+		this.store.update((s) => ({
+			...s,
+			historyRequests: s.historyRequests + 1,
+		}));
+	}
+
+	/**
+	 * Put away a failure or a "taking longer" the user has seen; the build
+	 * stays in the history.
+	 */
+	dismiss() {
+		if (this.timedOut) {
+			this.timedOut = false;
+			this.patch({ timedOut: false, timedOutBeforeStart: false });
+
+			return;
+		}
+		this.dismissedRunId = this.builds[0]?.runId ?? null;
+		this.patch({ phase: "idle" });
 	}
 
 	dispose() {
@@ -102,12 +216,64 @@ export class SiteUpdateTracker {
 		this.store.update((s) => ({ ...s, ...partial }));
 	}
 
+	// One classifier for the tracker and the views (buildStatus.ts).
 	private isSettled(build: IDeployInfo): boolean {
+		return !isRunning(build);
+	}
+
+	private runningPhase(build: IDeployInfo): SiteUpdatePhase {
+		return deriveBuildStatus(build).label === "Building"
+			? "updating"
+			: "queued";
+	}
+
+	/**
+	 * A failure worth pinning: the newest build, not dismissed, and from
+	 * the last day. Older ones read as history, not news.
+	 */
+	private isStandingFailure(build: IDeployInfo | undefined): boolean {
 		return (
-			build.status === "completed" ||
-			build.status === "failed" ||
-			build.status === "cancelled"
+			!!build &&
+			deriveBuildStatus(build).label === "Failed" &&
+			build.runId !== this.dismissedRunId &&
+			secondsSince(build.createdAt) < FAILURE_PIN_SECONDS
 		);
+	}
+
+	/**
+	 * After tracking timed out, the next fetch that shows the build settled
+	 * (or running again) replaces "still building" with what happened.
+	 */
+	private resolveTimeout() {
+		if (!this.timedOut) return;
+
+		const latest = this.builds[0];
+
+		// Only a build from after the publish says how it went.
+		if (!latest || this.knownRunIds.has(latest.runId)) return;
+
+		this.timedOut = false;
+
+		if (!this.isSettled(latest)) {
+			this.patch({
+				timedOut: false,
+				timedOutBeforeStart: false,
+				phase: this.runningPhase(latest),
+			});
+			this.startPolling();
+
+			return;
+		}
+
+		this.patch({ timedOut: false, timedOutBeforeStart: false });
+
+		if (deriveBuildStatus(latest).label === "Published") {
+			this.showLive();
+		} else {
+			this.patch({
+				phase: this.isStandingFailure(latest) ? "failed" : "idle",
+			});
+		}
 	}
 
 	private async init() {
@@ -119,11 +285,9 @@ export class SiteUpdateTracker {
 		const latest = this.builds[0];
 
 		if (latest && !this.isSettled(latest)) {
-			this.patch({
-				phase: latest.status === "inprogress" ? "updating" : "queued",
-			});
+			this.patch({ phase: this.runningPhase(latest) });
 			this.startPolling();
-		} else if (latest?.status === "failed") {
+		} else if (this.isStandingFailure(latest)) {
 			this.patch({ phase: "failed" });
 		}
 
@@ -132,20 +296,40 @@ export class SiteUpdateTracker {
 	}
 
 	private async fetchBuilds(): Promise<boolean> {
-		const result = await this.api.getDeploys("active", 10);
+		const result = await this.api.getDeploysResult(
+			"active",
+			BUILD_HISTORY_LIMIT,
+		);
 
-		if (result) {
-			this.builds = result;
-			this.patch({ builds: result, loaded: true, loadFailed: false });
+		if (result.ok) {
+			this.builds = result.value;
+			this.failedReads = 0;
+
+			this.patch({
+				builds: result.value,
+				loaded: true,
+				loadFailed: false,
+				loadFailedKind: null,
+				loadedAt: Date.now(),
+				refreshFailed: false,
+			});
+			this.resolveTimeout();
 		} else {
+			this.failedReads++;
+			// While following a publish, one missed poll is retried in 5s;
+			// say so only when it keeps failing.
+			const say = this.pollTimer === null || this.failedReads >= 2;
+
 			this.store.update((s) => ({
 				...s,
 				loadFailed: s.loaded ? s.loadFailed : true,
+				loadFailedKind: result.kind,
+				refreshFailed: s.loadedAt !== null && say,
 				loaded: true,
 			}));
 		}
 
-		return result !== null;
+		return result.ok;
 	}
 
 	private startPolling() {
@@ -163,13 +347,26 @@ export class SiteUpdateTracker {
 		}
 		this.awaitingNewBuild = false;
 		this.watchedRunId = null;
-		this.patch({ awaitingNewBuild: false });
+		this.patch({ awaitingNewBuild: false, awaitingSince: null });
 	}
 
 	private async tick() {
 		if (Date.now() > this.pollDeadline) {
+			// Still unfinished after the timeout: say so instead of going
+			// quiet, so the user knows to check the dashboard.
+			const stalled = this.awaitingNewBuild || this.watchedRunId !== null;
+			const beforeStart = this.awaitingNewBuild;
+			const since = this.awaitingSince;
 			this.stopPolling();
-			this.patch({ phase: "idle" });
+			this.timedOut = stalled;
+
+			this.patch({
+				phase: "idle",
+				watchedRunId: null,
+				timedOut: stalled,
+				timedOutBeforeStart: stalled && beforeStart,
+				stalledSince: stalled ? since : null,
+			});
 
 			return;
 		}
@@ -184,7 +381,11 @@ export class SiteUpdateTracker {
 			if (fresh) {
 				this.awaitingNewBuild = false;
 				this.watchedRunId = fresh.runId;
-				this.patch({ awaitingNewBuild: false });
+
+				this.patch({
+					awaitingNewBuild: false,
+					watchedRunId: fresh.runId,
+				});
 			}
 		}
 
@@ -195,19 +396,19 @@ export class SiteUpdateTracker {
 
 			if (watched) {
 				if (!this.isSettled(watched)) {
-					this.patch({
-						phase:
-							watched.status === "inprogress"
-								? "updating"
-								: "queued",
-					});
-				} else if (watched.status === "cancelled") {
+					this.patch({ phase: this.runningPhase(watched) });
+				} else if (deriveBuildStatus(watched).label === "Cancelled") {
 					// Superseded by a newer update (e.g. a second publish);
 					// go back to waiting for the replacement.
 					this.knownRunIds.add(watched.runId);
 					this.watchedRunId = null;
 					this.awaitingNewBuild = true;
-					this.patch({ awaitingNewBuild: true, phase: "queued" });
+
+					this.patch({
+						awaitingNewBuild: true,
+						phase: "queued",
+						watchedRunId: null,
+					});
 				} else {
 					this.announceResult(watched);
 					this.stopPolling();
@@ -223,22 +424,19 @@ export class SiteUpdateTracker {
 			const latest = this.builds[0];
 
 			if (latest && !this.isSettled(latest)) {
-				this.patch({
-					phase:
-						latest.status === "inprogress" ? "updating" : "queued",
-				});
+				this.patch({ phase: this.runningPhase(latest) });
 			} else {
 				this.stopPolling();
 
 				this.patch({
-					phase: latest?.status === "failed" ? "failed" : "idle",
+					phase: this.isStandingFailure(latest) ? "failed" : "idle",
 				});
 			}
 		}
 	}
 
 	private announceResult(build: IDeployInfo) {
-		if (build.status === "completed") {
+		if (deriveBuildStatus(build).label === "Published") {
 			if (build.hasHomePage === false && this.onChooseHomePage) {
 				const chooseHomePage = this.onChooseHomePage;
 
@@ -246,28 +444,31 @@ export class SiteUpdateTracker {
 					"Your site is live, but has no home page yet. Click to choose one.",
 					15000,
 				);
-				notice.noticeEl.addClass("dg-notice-clickable");
+				makeClickable(notice.noticeEl);
 
 				notice.noticeEl.addEventListener("click", () => {
 					notice.hide();
 					chooseHomePage();
 				});
 			} else {
-				new Notice("Your site is live 🌱");
+				this.announceLive();
 			}
-			this.patch({ phase: "live" });
-
-			this.liveTimer = setTimeout(() => {
-				this.liveTimer = null;
-				this.patch({ phase: "idle" });
-			}, LIVE_PHASE_MS);
+			this.showLive();
 		} else {
-			new Notice(
-				build.friendlyError?.message
-					? `Publish failed: ${build.friendlyError.message}`
-					: "Publish failed. See Publish status for details.",
-				8000,
+			const notice = new Notice(
+				`${
+					build.friendlyError?.message
+						? `Publish failed: ${build.friendlyError.message}`
+						: "Publish failed."
+				} Your site still shows the previous publish. Click for details.`,
+				10000,
 			);
+			makeClickable(notice.noticeEl);
+
+			notice.noticeEl.addEventListener("click", () => {
+				notice.hide();
+				this.onOpenPublishes?.();
+			});
 
 			this.store.update((s) => ({
 				...s,
@@ -275,5 +476,39 @@ export class SiteUpdateTracker {
 				failureCount: s.failureCount + 1,
 			}));
 		}
+	}
+
+	/** The "live" phase, which folds back to idle after a while. */
+	private showLive() {
+		if (this.liveTimer !== null) clearTimeout(this.liveTimer);
+		this.patch({ phase: "live" });
+
+		this.liveTimer = setTimeout(() => {
+			this.liveTimer = null;
+			this.patch({ phase: "idle" });
+		}, LIVE_PHASE_MS);
+	}
+
+	/** "Your site is live", with the address; clicking opens the site. */
+	private announceLive() {
+		const url = this.siteUrl?.() ?? null;
+
+		if (!url) {
+			new Notice("Your site is live.");
+
+			return;
+		}
+
+		const message = createFragment((f) => {
+			f.createDiv({ text: "Your site is live." });
+			f.createDiv({ cls: "dg-notice-address", text: displayHost(url) });
+		});
+		const notice = new Notice(message, 10000);
+		makeClickable(notice.noticeEl);
+
+		notice.noticeEl.addEventListener("click", () => {
+			notice.hide();
+			window.open(siteHref(url));
+		});
 	}
 }

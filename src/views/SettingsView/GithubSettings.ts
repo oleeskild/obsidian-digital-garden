@@ -5,7 +5,7 @@ import { PublishPlatform } from "src/models/PublishPlatform";
 
 export class GithubSettings {
 	settings: SettingView;
-	connectionStatus: "loading" | "connected" | "error";
+	connectionStatus: "idle" | "loading" | "connected" | "error";
 	connectionStatusMessage: string = "";
 	private settingsRootElement: HTMLElement;
 	connectionStatusElement: HTMLElement;
@@ -20,13 +20,16 @@ export class GithubSettings {
 		this.settingsRootElement.classList.add("settings-tab-content");
 		this.connectionStatus = "loading";
 
-		this.connectionStatusElement = this.settingsRootElement.createEl(
-			"span",
-			{ cls: "connection-status" },
-		);
 		this.initializeHeader();
-		this.initializeGitHubRepoSetting();
+
+		// Announced when it changes, outside the heading so the heading's
+		// name stays stable.
+		this.connectionStatusElement = this.settingsRootElement.createDiv({
+			cls: "connection-status",
+			attr: { role: "status", "aria-live": "polite" },
+		});
 		this.initializeGitHubUserNameSetting();
+		this.initializeGitHubRepoSetting();
 		this.initializeGitHubTokenSetting();
 		this.initializeAdvancedSettings();
 		// Rendered last with prepend() so the nudge sits above the header.
@@ -75,16 +78,16 @@ export class GithubSettings {
 
 		notice.createEl("p", {
 			cls: "dg-forestry-upgrade-text",
-			text: "Forestry.md hosts your digital garden for you. No GitHub account, personal access tokens, or repository config required. Connect once with a Garden Key and publish straight from Obsidian. There's a free tier to get started.",
+			text: "Forestry.md hosts your garden for you, so you don't need a GitHub account, token or repository. Connect once with a Garden Key and publish from Obsidian. There's a free plan.",
 		});
 
 		const actions = notice.createEl("div", {
 			cls: "dg-forestry-upgrade-actions",
 		});
 
+		// A plain button: the accent belongs to this track's own next step.
 		const switchButton = actions.createEl("button", {
 			text: "Switch to Forestry.md",
-			cls: "mod-cta",
 		});
 
 		switchButton.addEventListener("click", async () => {
@@ -94,7 +97,7 @@ export class GithubSettings {
 		});
 
 		actions.createEl("a", {
-			text: "Learn more",
+			text: "Learn about Forestry.md",
 			cls: "dg-forestry-upgrade-link",
 			href: "https://forestry.md",
 			attr: { target: "_blank", rel: "noopener" },
@@ -104,15 +107,12 @@ export class GithubSettings {
 	};
 
 	initializeHeader = () => {
+		new Setting(this.settingsRootElement)
+			.setName("GitHub connection")
+			.setHeading();
+
+		// Runs after the status element exists (debounced).
 		this.checkConnectionAndSaveSettings();
-
-		const githubSettingsHeader = createEl("h3", {
-			text: "GitHub Authentication (required)",
-		});
-		githubSettingsHeader.append(this.connectionStatusElement);
-		githubSettingsHeader.prepend(this.settings.getIcon("github"));
-
-		this.settingsRootElement.prepend(githubSettingsHeader);
 	};
 
 	checkConnectionAndSaveSettings = async () => {
@@ -125,7 +125,12 @@ export class GithubSettings {
 			this.settings.settings;
 
 		if (!githubToken || !githubUserName || !githubRepo) {
-			this.setConnectionError("Please fill in all required fields");
+			this.connectionStatus = "idle";
+
+			this.connectionStatusMessage =
+				"Fill in your GitHub username, repository and access token to connect.";
+			this.updateConnectionStatusIndicator();
+			this.settings.onConnectionChanged(false);
 
 			return;
 		}
@@ -188,7 +193,13 @@ export class GithubSettings {
 		}
 
 		this.updateConnectionStatusIndicator();
+		// Read through a method: TS narrows the field to "loading" above.
+		this.settings.onConnectionChanged(this.isConnected());
 	};
+
+	private isConnected(): boolean {
+		return this.connectionStatus === "connected";
+	}
 
 	private checkWritePermissions(
 		permissions: { admin?: boolean; push?: boolean } | undefined,
@@ -235,7 +246,7 @@ export class GithubSettings {
 			this.setConnectionSuccess("Connected");
 		} catch {
 			this.setConnectionError(
-				"Token lacks content permissions. For fine-grained PATs, ensure 'Contents' has read and write access.",
+				"The token can't read the repository's contents. Give it read and write access to Contents.",
 			);
 		}
 	}
@@ -246,7 +257,9 @@ export class GithubSettings {
 		repo: string,
 	): void {
 		if (!(error instanceof Error) || !("status" in error)) {
-			this.setConnectionError("Connection failed. Check your settings.");
+			this.setConnectionError(
+				"Couldn't reach GitHub. Check your internet connection and the settings below.",
+			);
 
 			return;
 		}
@@ -254,13 +267,14 @@ export class GithubSettings {
 		const status = (error as { status: number }).status;
 
 		const errorMessages: Record<number, string> = {
-			401: "Invalid token. Please check your GitHub token.",
-			403: "Access forbidden. Token may lack required permissions or rate limit exceeded.",
-			404: `Repository '${userName}/${repo}' not found. Check username and repo name, or ensure token has repository access.`,
+			401: "GitHub didn't accept the access token. It may have expired; create a new one.",
+			403: "GitHub refused access. The token may lack permissions, or GitHub's rate limit was hit; wait a minute and try again.",
+			404: `Couldn't find ${userName}/${repo}. Check the username and repository, and that the token can access that repository.`,
 		};
 
 		this.setConnectionError(
-			errorMessages[status] || `Connection failed (${status})`,
+			errorMessages[status] ||
+				`Couldn't connect to GitHub (error ${status}).`,
 		);
 	}
 
@@ -288,9 +302,13 @@ export class GithubSettings {
 		let statusText: string;
 		let statusClass: string;
 
-		if (this.connectionStatus === "loading") {
+		if (this.connectionStatus === "idle") {
+			iconName = "plug";
+			statusText = this.connectionStatusMessage;
+			statusClass = "connection-status-idle";
+		} else if (this.connectionStatus === "loading") {
 			iconName = "loader";
-			statusText = "Checking connection...";
+			statusText = "Checking the connection…";
 			statusClass = "connection-status-loading";
 		} else if (this.connectionStatus === "connected") {
 			iconName = "check";
@@ -298,7 +316,9 @@ export class GithubSettings {
 			statusClass = "connection-status-connected";
 		} else {
 			iconName = "x";
-			statusText = this.connectionStatusMessage || "Connection error";
+
+			statusText =
+				this.connectionStatusMessage || "Couldn't connect to GitHub.";
 			statusClass = "connection-status-error";
 		}
 
@@ -322,8 +342,8 @@ export class GithubSettings {
 
 	private initializeGitHubRepoSetting() {
 		new Setting(this.settingsRootElement)
-			.setName("GitHub repo name")
-			.setDesc("The name of the GitHub repository")
+			.setName("Repository")
+			.setDesc("The name of your garden's repository on GitHub.")
 			.addText((text) =>
 				text
 					.setPlaceholder("mydigitalgarden")
@@ -337,8 +357,8 @@ export class GithubSettings {
 
 	private initializeGitHubUserNameSetting() {
 		new Setting(this.settingsRootElement)
-			.setName("GitHub Username")
-			.setDesc("Your GitHub Username")
+			.setName("GitHub username")
+			.setDesc("The account or organization that owns the repository.")
 			.addText((text) =>
 				text
 					.setPlaceholder("myusername")
@@ -353,29 +373,50 @@ export class GithubSettings {
 	private initializeGitHubTokenSetting() {
 		const desc = document.createDocumentFragment();
 
-		desc.createEl("span", undefined, (span) => {
-			span.innerText =
-				"A GitHub token with contents permissions. You can see how to generate it ";
+		desc.appendText(
+			"A fine-grained token with read and write access to Contents and Pull requests. ",
+		);
 
-			span.createEl("a", undefined, (link) => {
-				link.href =
-					"https://docs.forestry.md/advanced/fine-grained-access-token/";
-				link.innerText = "here!";
-			});
+		desc.createEl("a", {
+			text: "How to create a token",
+			href: "https://docs.forestry.md/advanced/fine-grained-access-token/",
 		});
 
+		let tokenInput: TextComponent | null = null;
+
 		new Setting(this.settingsRootElement)
-			.setName("GitHub token")
+			.setName("Access token")
 			.setDesc(desc)
-			.addText((text) =>
-				text
-					.setPlaceholder("Secret Token")
-					.setValue(this.settings.settings.githubToken)
-					.onChange(async (value) => {
+			.addText((text) => {
+				tokenInput = text;
+				// Hidden like a password, so it isn't exposed when sharing a screen.
+				text.inputEl.type = "password";
+				text.inputEl.autocomplete = "off";
+				text.inputEl.setAttribute("aria-label", "Access token");
+
+				text.setValue(this.settings.settings.githubToken).onChange(
+					async (value) => {
 						this.settings.settings.githubToken = value;
 						await this.checkConnectionAndSaveSettings();
-					}),
-			);
+					},
+				);
+			})
+			.addExtraButton((button) => {
+				button.setIcon("eye").setTooltip("Show token");
+
+				button.onClick(() => {
+					const input = tokenInput?.inputEl;
+
+					if (!input) return;
+
+					const hidden = input.type === "password";
+					input.type = hidden ? "text" : "password";
+
+					button
+						.setIcon(hidden ? "eye-off" : "eye")
+						.setTooltip(hidden ? "Hide token" : "Show token");
+				});
+			});
 	}
 
 	/**

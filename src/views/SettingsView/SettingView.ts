@@ -1,33 +1,18 @@
-import { Octokit } from "@octokit/core";
-import axios from "axios";
 import { mount, unmount } from "svelte";
 import {
 	App,
 	ButtonComponent,
-	debounce,
-	DropdownComponent,
 	getIcon,
-	MetadataCache,
 	Modal,
 	Notice,
+	Platform,
 	Setting,
-	TextComponent,
-	TFile,
-	ToggleComponent,
 } from "obsidian";
 import DigitalGardenSiteManager from "src/repositoryConnection/DigitalGardenSiteManager";
-import { saveSiteSettingsAndUpdateEnv } from "./saveSiteSettingsAndUpdateEnv";
-import { Base64 } from "js-base64";
 
 import DigitalGardenSettings from "../../models/settings";
 import Publisher from "../../publisher/Publisher";
-import { envPath, sitePath } from "../../publisher/paths";
-import { arrayBufferToBase64 } from "../../utils/utils";
 import { getDebugLog } from "../../utils/debugLog";
-import {
-	ImageFileSuggest,
-	SvgFileSuggest,
-} from "../../ui/suggest/file-suggest";
 import { addFilterInput } from "./addFilterInput";
 import { GithubSettings } from "./GithubSettings";
 import RewriteSettings from "./RewriteSettings.svelte";
@@ -40,41 +25,31 @@ import {
 import Logger from "js-logger";
 import ForestrySettings from "./ForestrySettings.svelte";
 import { PublishPlatform } from "src/models/PublishPlatform";
-import PublishPlatformConnectionFactory from "../../repositoryConnection/PublishPlatformConnectionFactory";
-import { NavigationOrderModal } from "../NavigationOrder/NavigationOrderModal";
-import { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
-import { PublishBranchMissingError } from "../../repositoryConnection/PublishBranchMissingError";
-import { notifyPublishBranchMissing } from "../../repositoryConnection/publishBranchNotice";
-import { GardenPluginsModal } from "../GardenPluginSettings/GardenPluginsModal";
-import { GardenPluginManager } from "../../gardenPlugins/GardenPluginManager";
 
-interface IObsidianTheme {
-	name: string;
-	author: string;
-	screenshot: string;
-	modes: string[];
-	repo: string;
-	legacy: boolean;
-	// @deprecated
-	branch?: string;
-}
-
-const OBSIDIAN_THEME_URL =
-	"https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/community-css-themes.json";
+type FrontmatterKey =
+	| "createdTimestampKey"
+	| "updatedTimestampKey"
+	| "contentClassesKey"
+	| "noteIconKey";
 
 export default class SettingView {
 	private app: App;
-	private prModal: Modal | undefined;
 	settings: DigitalGardenSettings;
 	saveSettings: () => Promise<void>;
 	private settingsRootElement: HTMLElement;
 	private afterForestryConnect: (() => void) | null;
+	private openSiteSettings: () => void;
 
-	debouncedSaveAndUpdate = debounce(
-		this.saveSiteSettingsAndUpdateEnv,
-		500,
-		true,
-	);
+	/** Holds everything below the connection; filled once connected. */
+	private restEl: HTMLElement | null = null;
+	private restRendered = false;
+	private updateSectionAnchor: HTMLElement | null = null;
+
+	/**
+	 * Renders the self-hosted site template section into
+	 * updateSectionAnchor. Set by the settings tab before initialize().
+	 */
+	renderTemplateSection: (() => Promise<void>) | null = null;
 
 	constructor(
 		app: App,
@@ -82,6 +57,7 @@ export default class SettingView {
 		settings: DigitalGardenSettings,
 		saveSettings: () => Promise<void>,
 		afterForestryConnect: (() => void) | null = null,
+		openSiteSettings: () => void = () => {},
 	) {
 		this.app = app;
 		this.settingsRootElement = settingsRootElement;
@@ -89,6 +65,7 @@ export default class SettingView {
 		this.settings = settings;
 		this.saveSettings = saveSettings;
 		this.afterForestryConnect = afterForestryConnect;
+		this.openSiteSettings = openSiteSettings;
 	}
 
 	getIcon(name: string): Node {
@@ -96,15 +73,13 @@ export default class SettingView {
 	}
 
 	private reInitializeSettings() {
-		if (this.prModal) {
-			this.initialize(this.prModal);
-		}
+		this.initialize();
 	}
 
 	/**
 	 * Switch the active publish platform and re-render the settings tab so the
 	 * platform dropdown and its panel reflect the new choice. Used by the
-	 * self-hosted setup nudge to move users onto Forestry.md in one click.
+	 * dropdown and by the self-hosted setup nudge.
 	 */
 	async switchPublishPlatform(platform: PublishPlatform) {
 		this.settings.publishPlatform = platform;
@@ -112,183 +87,73 @@ export default class SettingView {
 		this.reInitializeSettings();
 	}
 
-	private updateSectionAnchor: HTMLElement | null = null;
+	private isConnected(): boolean {
+		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
+			return !!this.settings.forestrySettings.apiKey;
+		}
 
-	async initialize(prModal: Modal) {
-		this.prModal = prModal;
-		this.settingsRootElement.empty();
+		const { githubRepo, githubUserName, githubToken } = this.settings;
 
-		this.settingsRootElement.createEl("h1", {
-			text: "Digital Garden Settings",
-		});
+		return !!(githubRepo && githubUserName && githubToken);
+	}
 
-		const linkDiv = this.settingsRootElement.createEl("div", {
-			attr: { style: "margin-bottom: 10px;" },
-		});
+	/** Called by the GitHub panel after each connection check. */
+	onConnectionChanged(connected: boolean) {
+		if (connected && !this.restRendered) this.renderRest();
+	}
 
-		// Placeholder for the template update section (rendered async, inserted at top)
-		this.updateSectionAnchor = this.settingsRootElement.createDiv();
+	async initialize() {
+		const root = this.settingsRootElement;
+		root.empty();
+		this.restRendered = false;
+		this.updateSectionAnchor = null;
 
-		linkDiv.createEl("span", {
-			text: "Remember to read the setup guide if you haven't already. It can be found ",
-		});
+		const intro = root.createEl("p", { cls: "dg-settings-intro" });
+		intro.appendText("New here? Follow the ");
 
-		linkDiv.createEl("a", {
-			text: "here.",
+		intro.createEl("a", {
+			text: "setup guide",
 			href: "https://docs.forestry.md/getting-started/01-getting-started/",
 		});
+		intro.appendText(" to get your garden online.");
 
-		new Setting(this.settingsRootElement)
-			.setName("Publish Platform")
+		if (
+			this.isConnected() &&
+			!this.settings.siteSettingsMovedNoticeDismissed
+		) {
+			this.renderSiteSettingsMovedNotice(root);
+		}
+
+		new Setting(root)
+			.setName("Publish to")
+			.setDesc("Where your garden is hosted.")
 			.addDropdown((dd) => {
-				dd.addOption(PublishPlatform.SelfHosted, "GitHub/Self Hosted");
 				dd.addOption(PublishPlatform.ForestryMd, "Forestry.md");
 
-				if (
-					this.settings.publishPlatform === PublishPlatform.SelfHosted
-				) {
-					dd.setValue(PublishPlatform.SelfHosted);
-				} else {
-					dd.setValue(PublishPlatform.ForestryMd);
-				}
+				dd.addOption(
+					PublishPlatform.SelfHosted,
+					"GitHub (self-hosted)",
+				);
+				dd.setValue(this.settings.publishPlatform);
 
 				dd.onChange(async (val) => {
-					switch (val) {
-						case PublishPlatform.SelfHosted:
-							this.settings.publishPlatform =
-								PublishPlatform.SelfHosted;
-							break;
-						case PublishPlatform.ForestryMd:
-							this.settings.publishPlatform =
-								PublishPlatform.ForestryMd;
-							break;
-					}
-					await this.saveSettings();
-
-					this.initializePublishPlatformSettings(
-						publishPlatformSettings,
-					);
+					await this.switchPublishPlatform(val as PublishPlatform);
 				});
 			});
 
-		const publishPlatformSettings = this.settingsRootElement.createEl(
-			"div",
-			{
-				cls: "publish-platform-settings",
-			},
-		);
+		const platformEl = root.createDiv({ cls: "publish-platform-settings" });
+		this.restEl = root.createDiv();
 
-		this.initializePublishPlatformSettings(publishPlatformSettings);
+		this.initializePublishPlatformSettings(platformEl);
 
-		this.settingsRootElement
-			.createEl("h3", { text: "URL" })
-			.prepend(this.getIcon("link"));
-		this.initializeGitHubBaseURLSetting();
-		this.initializeSlugifySetting();
-		this.initializeExcalidrawSetting();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Plugins" })
-			.prepend(this.getIcon("blocks"));
-		this.initializeGardenPluginSettings();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Display" })
-			.prepend(this.getIcon("star"));
-		this.initializeDefaultNoteSettings();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Appearance" })
-			.prepend(this.getIcon("brush"));
-		this.initializeThemesSettings();
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Localization" })
-			.prepend(this.getIcon("languages"));
-		this.initializeUIStringsSettings();
-
-		new Setting(this.settingsRootElement)
-			.setName("Navigation Order")
-			.setDesc(
-				"Customize the order of files and folders in your site's navigation.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Reorder Navigation");
-
-				cb.onClick(async () => {
-					await this.openNavigationOrderModal();
-				});
+		if (this.isConnected()) {
+			this.renderRest();
+		} else {
+			this.restEl.createEl("p", {
+				cls: "dg-settings-next",
+				text: "Connect your garden to see the rest of the settings.",
 			});
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Advanced" })
-			.prepend(this.getIcon("cog"));
-
-		new Setting(this.settingsRootElement)
-			.setName("Path Rewrite Rules")
-			.setDesc(
-				"Define rules to rewrite note folder structure in the garden. See the modal for more information.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage Rewrite Rules");
-
-				cb.onClick(() => {
-					this.openPathRewriteRulesModal();
-				});
-			});
-		this.initializeCustomFilterSettings();
-
-		new Setting(this.settingsRootElement)
-			.setName("Enable debug logging")
-			.setDesc(
-				"Show detailed logs in the developer console. Useful for troubleshooting.",
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.settings.logLevel === Logger.DEBUG)
-					.onChange(async (value) => {
-						this.settings.logLevel = value
-							? Logger.DEBUG
-							: undefined;
-						Logger.setLevel(value ? Logger.DEBUG : Logger.WARN);
-						await this.saveSettings();
-					});
-			});
-
-		new Setting(this.settingsRootElement)
-			.setName("Copy debug log")
-			.setDesc(
-				"Copy the plugin's recent log to the clipboard — paste it in the Discord when asking for help with a failed publish.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Copy debug log");
-
-				cb.onClick(async () => {
-					await navigator.clipboard.writeText(getDebugLog());
-					new Notice("Debug log copied to clipboard.");
-				});
-			});
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Local Export" })
-			.prepend(this.getIcon("folder-output"));
-
-		new Setting(this.settingsRootElement)
-			.setName("Local garden folder path")
-			.setDesc(
-				"Absolute path to your local digital garden folder. Used by the 'Export Garden to Local Folder' command.",
-			)
-			.addText((text) => {
-				text.setPlaceholder("/path/to/your/digitalgarden")
-					.setValue(this.settings.localExportPath ?? "")
-					.onChange(async (value) => {
-						this.settings.localExportPath = value;
-						await this.saveSettings();
-					});
-				text.inputEl.style.width = "300px";
-			});
-
-		prModal.titleEl.createEl("h1", "Site template settings");
+		}
 	}
 
 	private initializePublishPlatformSettings(target: HTMLElement) {
@@ -311,1979 +176,176 @@ export default class SettingView {
 		}
 	}
 
-	private async initializeDefaultNoteSettings() {
-		const noteSettingsModal = new Modal(this.app);
-		let hasUnsavedChanges = false;
+	/** Points existing users to where the site settings went. */
+	private renderSiteSettingsMovedNotice(root: HTMLElement) {
+		const notice = root.createDiv({
+			cls: "dg-settings-moved",
+			attr: { role: "note" },
+		});
+		const heading = notice.createDiv({ cls: "dg-settings-moved-heading" });
+		const icon = getIcon("info");
 
-		// Store toggle references for updating after fetch
-		const toggles: Record<string, ToggleComponent> = {};
+		if (icon) heading.appendChild(icon);
+		heading.createSpan({ text: "Site settings have moved" });
 
-		// Env keys the user has actually changed in this modal session —
-		// only these are written on apply, so settings changed elsewhere
-		// (e.g. from another device) aren't overwritten.
-		const touchedEnvKeys = new Set<string>();
-
-		noteSettingsModal.titleEl.createEl("h1", {
-			text: "Default Note Settings",
+		notice.createEl("p", {
+			cls: "dg-settings-moved-text",
+			text: "Theme, appearance, note display, interface text, navigation and garden plugins are now on the Site tab of the Publication Center. Changes there are published together with your notes.",
 		});
 
-		const linkDiv = noteSettingsModal.contentEl.createEl("div", {
-			attr: { style: "margin-bottom: 20px; margin-top: -30px;" },
-		});
-		linkDiv.createEl("span", { text: "Note Setting Docs is available " });
+		const actions = notice.createDiv({ cls: "dg-settings-moved-actions" });
 
-		linkDiv.createEl("a", {
-			text: "here.",
-			href: "https://docs.forestry.md/getting-started/03-note-settings/",
-		});
-
-		new Setting(this.settingsRootElement)
-			.setName("Global Note Settings")
-			.setDesc(
-				`Default settings for each published note. These can be overwritten per note via frontmatter.`,
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage note settings");
-
-				cb.onClick(async () => {
-					hasUnsavedChanges = false;
-					updateApplyButton();
-					noteSettingsModal.open();
-
-					// Load remote settings when modal opens
-					await loadRemoteSettings();
-				});
+		new ButtonComponent(actions)
+			.setButtonText("Open site settings")
+			.setCta()
+			.onClick(() => {
+				this.closeSettings();
+				this.openSiteSettings();
 			});
 
-		// Helper to mark settings as changed
-		const markAsChanged = (envKey: string) => {
-			touchedEnvKeys.add(envKey);
-			hasUnsavedChanges = true;
-			updateApplyButton();
-		};
+		new ButtonComponent(actions)
+			.setButtonText("Got it")
+			.onClick(async () => {
+				this.settings.siteSettingsMovedNoticeDismissed = true;
+				await this.saveSettings();
+				notice.remove();
 
-		// Apply button container - styled to stand out
-		const applyContainer = noteSettingsModal.contentEl.createDiv({
-			cls: "dg-apply-settings-container",
-		});
-
-		// Status indicator for unsaved changes
-		const statusEl = applyContainer.createDiv({
-			cls: "dg-apply-settings-status",
-		});
-
-		const applyButton = applyContainer.createEl("button", {
-			text: "Apply changes to site",
-			cls: "mod-cta dg-apply-settings-button",
-		});
-
-		applyButton.addEventListener("click", async () => {
-			if (!hasUnsavedChanges) return;
-
-			const applied = await this.saveSiteSettingsAndUpdateEnv(
-				this.app.metadataCache,
-				this.settings,
-				this.saveSettings,
-				touchedEnvKeys,
-			);
-
-			if (applied) {
-				touchedEnvKeys.clear();
-				hasUnsavedChanges = false;
-				updateApplyButton();
-			}
-		});
-
-		const updateApplyButton = () => {
-			if (hasUnsavedChanges) {
-				statusEl.setText("You have unsaved changes");
-				statusEl.style.color = "var(--text-warning)";
-				applyContainer.classList.add("has-changes");
-				applyButton.disabled = false;
-			} else {
-				statusEl.setText("Change a setting to apply");
-				statusEl.style.color = "var(--text-muted)";
-				applyContainer.classList.remove("has-changes");
-				applyButton.disabled = true;
-			}
-		};
-
-		// Load settings from remote .env file
-		const loadRemoteSettings = async () => {
-			statusEl.setText("Loading settings from site...");
-			applyContainer.classList.remove("has-changes");
-
-			try {
-				const gardenManager = new DigitalGardenSiteManager(
-					this.app.metadataCache,
-					this.settings,
-				);
-
-				const connection =
-					await gardenManager.getUserGardenConnection();
-
-				const envFile = await connection.getFile(
-					envPath(this.settings),
-				);
-
-				if (envFile?.content) {
-					const envContent = Base64.decode(envFile.content);
-					const remoteSettings = this.parseEnvSettings(envContent);
-
-					// Update toggles with remote values
-					for (const [key, toggle] of Object.entries(toggles)) {
-						if (key in remoteSettings) {
-							const remoteValue = remoteSettings[key] === "true";
-							toggle.setValue(remoteValue);
-
-							// Also update local settings to match
-							(
-								this.settings.defaultNoteSettings as Record<
-									string,
-									boolean
-								>
-							)[key] = remoteValue;
-						}
-					}
-				}
-
-				// Setting toggle values above may fire their onChange
-				// handlers — remote-loaded values are not user edits.
-				touchedEnvKeys.clear();
-				hasUnsavedChanges = false;
-				updateApplyButton();
-			} catch (error) {
-				console.error("Failed to load remote settings:", error);
-				statusEl.setText("Could not load remote settings");
-				statusEl.style.color = "var(--text-error)";
-
-				setTimeout(() => {
-					statusEl.style.color = "";
-					hasUnsavedChanges = false;
-					updateApplyButton();
-				}, 3000);
-			}
-		};
-
-		updateApplyButton();
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show home link (dg-home-link)")
-			.setDesc(
-				"Determines whether to show a link back to the homepage or not.",
-			)
-			.addToggle((t) => {
-				toggles["dgHomeLink"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgHomeLink);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgHomeLink = val;
-					markAsChanged("dgHomeLink");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show local graph for notes (dg-show-local-graph)")
-			.setDesc(
-				"When turned on, notes will show its local graph in a sidebar on desktop and at the bottom of the page on mobile.",
-			)
-			.addToggle((t) => {
-				toggles["dgShowLocalGraph"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowLocalGraph);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowLocalGraph = val;
-					markAsChanged("dgShowLocalGraph");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show Graph Depth Control (dg-show-graph-depth-control)")
-			.setDesc("When turned on, graph will show a depth slider.")
-			.addToggle((t) => {
-				toggles["dgShowGraphDepthControl"] = t;
-
-				t.setValue(
-					this.settings.defaultNoteSettings.dgShowGraphDepthControl,
-				);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowGraphDepthControl =
-						val;
-					markAsChanged("dgShowGraphDepthControl");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show backlinks for notes (dg-show-backlinks)")
-			.setDesc(
-				"When turned on, notes will show backlinks in a sidebar on desktop and at the bottom of the page on mobile.",
-			)
-			.addToggle((t) => {
-				toggles["dgShowBacklinks"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowBacklinks);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowBacklinks = val;
-					markAsChanged("dgShowBacklinks");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show a table of content for notes (dg-show-toc)")
-			.setDesc(
-				"When turned on, notes will show all headers as a table of content in a sidebar on desktop. It will not be shown on mobile devices.",
-			)
-			.addToggle((t) => {
-				toggles["dgShowToc"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowToc);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowToc = val;
-					markAsChanged("dgShowToc");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show inline title (dg-show-inline-title)")
-			.setDesc(
-				"When turned on, the title of the note will show on top of the page.",
-			)
-			.addToggle((t) => {
-				toggles["dgShowInlineTitle"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowInlineTitle);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowInlineTitle = val;
-					markAsChanged("dgShowInlineTitle");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show filetree sidebar (dg-show-file-tree)")
-			.setDesc("When turned on, a filetree will be shown on your site.")
-			.addToggle((t) => {
-				toggles["dgShowFileTree"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowFileTree);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowFileTree = val;
-					markAsChanged("dgShowFileTree");
-				});
-			});
-
-		// Search and link preview are garden plugins now — their toggles
-		// live in the Plugins section, next to the plugin they belong to.
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Show Tags (dg-show-tags)")
-			.setDesc(
-				"When turned on, tags in your frontmatter will be displayed on each note. If search is enabled, clicking on a tag will bring up a search for all notes containing that tag.",
-			)
-			.addToggle((t) => {
-				toggles["dgShowTags"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgShowTags);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgShowTags = val;
-					markAsChanged("dgShowTags");
-				});
-			});
-
-		new Setting(noteSettingsModal.contentEl)
-			.setName("Let all frontmatter through (dg-pass-frontmatter)")
-			.setDesc(
-				"THIS WILL BREAK YOUR SITE IF YOU DON'T KNOW WHAT YOU ARE DOING! (But disabling will fix it). Determines whether to let all frontmatter data through to the site template. Be aware that this could break your site if you have data in a format not recognized by the template engine, 11ty.",
-			)
-			.addToggle((t) => {
-				toggles["dgPassFrontmatter"] = t;
-				t.setValue(this.settings.defaultNoteSettings.dgPassFrontmatter);
-
-				t.onChange((val) => {
-					this.settings.defaultNoteSettings.dgPassFrontmatter = val;
-					markAsChanged("dgPassFrontmatter");
-				});
+				// The "Your site" row stands in for the notice from now on.
+				if (this.restRendered) this.renderRest();
 			});
 	}
 
-	private async initializeUIStringsSettings() {
-		const uiStringsModal = new Modal(this.app);
-		uiStringsModal.containerEl.addClass("dg-settings");
-		let hasUnsavedChanges = false;
+	/** Everything that needs a connected garden. */
+	private renderRest() {
+		const el = this.restEl;
 
-		// Store text control references for updating after fetch
-		const textControls: Record<string, TextComponent> = {};
+		if (!el) return;
 
-		// Env keys the user has actually changed in this modal session —
-		// only these are written on apply, so settings changed elsewhere
-		// (e.g. from another device) aren't overwritten.
-		const touchedEnvKeys = new Set<string>();
+		el.empty();
+		this.restRendered = true;
 
-		uiStringsModal.titleEl.createEl("h1", {
-			text: "UI Text Settings",
-		});
+		// While the "moved" notice shows, it already offers this.
+		if (this.settings.siteSettingsMovedNoticeDismissed) {
+			new Setting(el).setName("Your site").setHeading();
 
-		const descDiv = uiStringsModal.contentEl.createEl("div", {
-			attr: { style: "margin-bottom: 20px;" },
-		});
-
-		descDiv.createEl("span", {
-			text: "Customize text displayed on your garden. Leave empty to use defaults.",
-		});
-
-		new Setting(this.settingsRootElement)
-			.setName("UI Text / Localization")
-			.setDesc(
-				"Customize labels and messages shown on your garden (Search, Backlinks, etc.)",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage UI text");
-
-				cb.onClick(async () => {
-					hasUnsavedChanges = false;
-					updateApplyButton();
-					uiStringsModal.open();
-					await loadRemoteSettings();
-				});
-			});
-
-		// Helper to mark settings as changed
-		const markAsChanged = (envKey: string) => {
-			touchedEnvKeys.add(envKey);
-			hasUnsavedChanges = true;
-			updateApplyButton();
-		};
-
-		// Apply button container
-		const applyContainer = uiStringsModal.contentEl.createDiv({
-			cls: "dg-apply-settings-container",
-		});
-
-		const statusEl = applyContainer.createDiv({
-			cls: "dg-apply-settings-status",
-		});
-
-		const applyButton = applyContainer.createEl("button", {
-			text: "Apply changes to site",
-			cls: "mod-cta dg-apply-settings-button",
-		});
-
-		applyButton.addEventListener("click", async () => {
-			if (!hasUnsavedChanges) return;
-
-			const applied = await this.saveSiteSettingsAndUpdateEnv(
-				this.app.metadataCache,
-				this.settings,
-				this.saveSettings,
-				touchedEnvKeys,
-			);
-
-			if (applied) {
-				touchedEnvKeys.clear();
-				hasUnsavedChanges = false;
-				updateApplyButton();
-			}
-		});
-
-		const updateApplyButton = () => {
-			if (hasUnsavedChanges) {
-				statusEl.setText("You have unsaved changes");
-				statusEl.style.color = "var(--text-warning)";
-				applyContainer.classList.add("has-changes");
-				applyButton.disabled = false;
-			} else {
-				statusEl.setText("Change a setting to apply");
-				statusEl.style.color = "var(--text-muted)";
-				applyContainer.classList.remove("has-changes");
-				applyButton.disabled = true;
-			}
-		};
-
-		// Mapping of env keys to control keys and settings keys
-		const uiStringsMap: Array<{
-			envKey: string;
-			controlKey: string;
-			settingsKey: keyof DigitalGardenSettings["uiStrings"];
-		}> = [
-			{
-				envKey: "UI_BACKLINK_HEADER",
-				controlKey: "backlinkHeader",
-				settingsKey: "backlinkHeader",
-			},
-			{
-				envKey: "UI_NO_BACKLINKS_MESSAGE",
-				controlKey: "noBacklinksMessage",
-				settingsKey: "noBacklinksMessage",
-			},
-			{
-				envKey: "UI_SEARCH_BUTTON_TEXT",
-				controlKey: "searchButtonText",
-				settingsKey: "searchButtonText",
-			},
-			{
-				envKey: "UI_SEARCH_PLACEHOLDER",
-				controlKey: "searchPlaceholder",
-				settingsKey: "searchPlaceholder",
-			},
-			{
-				envKey: "UI_SEARCH_ENTER_HINT",
-				controlKey: "searchEnterHint",
-				settingsKey: "searchEnterHint",
-			},
-			{
-				envKey: "UI_SEARCH_NAVIGATE_HINT",
-				controlKey: "searchNavigateHint",
-				settingsKey: "searchNavigateHint",
-			},
-			{
-				envKey: "UI_SEARCH_CLOSE_HINT",
-				controlKey: "searchCloseHint",
-				settingsKey: "searchCloseHint",
-			},
-			{
-				envKey: "UI_SEARCH_NO_RESULTS",
-				controlKey: "searchNoResults",
-				settingsKey: "searchNoResults",
-			},
-			{
-				envKey: "UI_SEARCH_PREVIEW_PLACEHOLDER",
-				controlKey: "searchPreviewPlaceholder",
-				settingsKey: "searchPreviewPlaceholder",
-			},
-			{
-				envKey: "UI_SEARCH_NOT_STARTED_TEXT",
-				controlKey: "searchNotStarted",
-				settingsKey: "searchNotStarted",
-			},
-			{
-				envKey: "UI_SEARCH_ENTER_HOTKEY",
-				controlKey: "searchEnterHotkey",
-				settingsKey: "searchEnterHotkey",
-			},
-			{
-				envKey: "UI_SEARCH_NAVIGATE_HOTKEY",
-				controlKey: "searchNavigateHotkey",
-				settingsKey: "searchNavigateHotkey",
-			},
-			{
-				envKey: "UI_SEARCH_CLOSE_HOTKEY",
-				controlKey: "searchCloseHotkey",
-				settingsKey: "searchCloseHotkey",
-			},
-			{
-				envKey: "UI_CANVAS_DRAG_HINT",
-				controlKey: "canvasDragHint",
-				settingsKey: "canvasDragHint",
-			},
-			{
-				envKey: "UI_CANVAS_ZOOM_HINT",
-				controlKey: "canvasZoomHint",
-				settingsKey: "canvasZoomHint",
-			},
-			{
-				envKey: "UI_CANVAS_RESET_HINT",
-				controlKey: "canvasResetHint",
-				settingsKey: "canvasResetHint",
-			},
-		];
-
-		// Load settings from remote .env file
-		const loadRemoteSettings = async () => {
-			statusEl.setText("Loading settings from site...");
-			applyContainer.classList.remove("has-changes");
-
-			try {
-				const gardenManager = new DigitalGardenSiteManager(
-					this.app.metadataCache,
-					this.settings,
+			new Setting(el)
+				.setName("Site settings")
+				.setDesc(
+					"Theme, note display, interface text, site address, navigation and garden plugins are edited on the Site tab of the Publication Center and published with your notes.",
+				)
+				.addButton((cb) =>
+					cb.setButtonText("Open site settings").onClick(() => {
+						this.closeSettings();
+						this.openSiteSettings();
+					}),
 				);
-
-				const connection =
-					await gardenManager.getUserGardenConnection();
-
-				const envFile = await connection.getFile(
-					envPath(this.settings),
-				);
-
-				if (envFile?.content) {
-					const envContent = Base64.decode(envFile.content);
-					const remoteSettings = this.parseEnvSettings(envContent);
-
-					// Update controls with remote values
-					for (const mapping of uiStringsMap) {
-						const control = textControls[mapping.controlKey];
-
-						if (mapping.envKey in remoteSettings && control) {
-							const value = remoteSettings[mapping.envKey];
-							control.setValue(value);
-
-							this.settings.uiStrings[mapping.settingsKey] =
-								value;
-						}
-					}
-				}
-
-				// Setting control values above may fire their onChange
-				// handlers — remote-loaded values are not user edits.
-				touchedEnvKeys.clear();
-				hasUnsavedChanges = false;
-				updateApplyButton();
-			} catch (error) {
-				console.error("Failed to load remote UI strings:", error);
-				statusEl.setText("Could not load remote settings");
-				statusEl.style.color = "var(--text-error)";
-
-				setTimeout(() => {
-					statusEl.style.color = "";
-					hasUnsavedChanges = false;
-					updateApplyButton();
-				}, 3000);
-			}
-		};
-
-		updateApplyButton();
-
-		// Backlinks Section
-		uiStringsModal.contentEl
-			.createEl("h3", { text: "Backlinks" })
-			.prepend(this.getIcon("link"));
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Backlink header")
-			.setDesc('Default: "Pages mentioning this page"')
-			.addText((text) => {
-				textControls["backlinkHeader"] = text;
-
-				text.setPlaceholder("Pages mentioning this page")
-					.setValue(this.settings.uiStrings?.backlinkHeader ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.backlinkHeader = val;
-						markAsChanged("UI_BACKLINK_HEADER");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("No backlinks message")
-			.setDesc('Default: "No other pages mentions this page"')
-			.addText((text) => {
-				textControls["noBacklinksMessage"] = text;
-
-				text.setPlaceholder("No other pages mentions this page")
-					.setValue(this.settings.uiStrings?.noBacklinksMessage ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.noBacklinksMessage = val;
-						markAsChanged("UI_NO_BACKLINKS_MESSAGE");
-					});
-			});
-
-		// Search Section
-		uiStringsModal.contentEl
-			.createEl("h3", { text: "Search" })
-			.prepend(this.getIcon("search"));
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Search button text")
-			.setDesc('Default: "Search"')
-			.addText((text) => {
-				textControls["searchButtonText"] = text;
-
-				text.setPlaceholder("Search")
-					.setValue(this.settings.uiStrings?.searchButtonText ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchButtonText = val;
-						markAsChanged("UI_SEARCH_BUTTON_TEXT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Search placeholder")
-			.setDesc('Default: "Start typing..."')
-			.addText((text) => {
-				textControls["searchPlaceholder"] = text;
-
-				text.setPlaceholder("Start typing...")
-					.setValue(this.settings.uiStrings?.searchPlaceholder ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchPlaceholder = val;
-						markAsChanged("UI_SEARCH_PLACEHOLDER");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Enter to select hint")
-			.setDesc('Default: "Enter to select"')
-			.addText((text) => {
-				textControls["searchEnterHint"] = text;
-
-				text.setPlaceholder("Enter to select")
-					.setValue(this.settings.uiStrings?.searchEnterHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchEnterHint = val;
-						markAsChanged("UI_SEARCH_ENTER_HINT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Navigate hint")
-			.setDesc('Default: "to navigate"')
-			.addText((text) => {
-				textControls["searchNavigateHint"] = text;
-
-				text.setPlaceholder("to navigate")
-					.setValue(this.settings.uiStrings?.searchNavigateHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchNavigateHint = val;
-						markAsChanged("UI_SEARCH_NAVIGATE_HINT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Close hint")
-			.setDesc('Default: "ESC to close"')
-			.addText((text) => {
-				textControls["searchCloseHint"] = text;
-
-				text.setPlaceholder("ESC to close")
-					.setValue(this.settings.uiStrings?.searchCloseHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchCloseHint = val;
-						markAsChanged("UI_SEARCH_CLOSE_HINT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("No results message")
-			.setDesc('Default: "No results for"')
-			.addText((text) => {
-				textControls["searchNoResults"] = text;
-
-				text.setPlaceholder("No results for")
-					.setValue(this.settings.uiStrings?.searchNoResults ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchNoResults = val;
-						markAsChanged("UI_SEARCH_NO_RESULTS");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Preview placeholder text")
-			.setDesc('Default: "Select a result to preview"')
-			.addText((text) => {
-				textControls["searchPreviewPlaceholder"] = text;
-
-				text.setPlaceholder("Select a result to preview")
-					.setValue(
-						this.settings.uiStrings?.searchPreviewPlaceholder ?? "",
-					)
-					.onChange((val) => {
-						this.settings.uiStrings.searchPreviewPlaceholder = val;
-						markAsChanged("UI_SEARCH_PREVIEW_PLACEHOLDER");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Search not started text")
-			.setDesc('Default: "Enter your search text in the box above"')
-			.addText((text) => {
-				textControls["searchNotStarted"] = text;
-
-				text.setPlaceholder("Enter your search text in the box above")
-					.setValue(this.settings.uiStrings?.searchNotStarted ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchNotStarted = val;
-						markAsChanged("UI_SEARCH_NOT_STARTED_TEXT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Enter hotkey label")
-			.setDesc('Default: "Enter"')
-			.addText((text) => {
-				textControls["searchEnterHotkey"] = text;
-
-				text.setPlaceholder("Enter")
-					.setValue(this.settings.uiStrings?.searchEnterHotkey ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchEnterHotkey = val;
-						markAsChanged("UI_SEARCH_ENTER_HOTKEY");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Navigate hotkey label")
-			.setDesc('Default: "⇅"')
-			.addText((text) => {
-				textControls["searchNavigateHotkey"] = text;
-
-				text.setPlaceholder("⇅")
-					.setValue(
-						this.settings.uiStrings?.searchNavigateHotkey ?? "",
-					)
-					.onChange((val) => {
-						this.settings.uiStrings.searchNavigateHotkey = val;
-						markAsChanged("UI_SEARCH_NAVIGATE_HOTKEY");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Close hotkey label")
-			.setDesc('Default: "ESC"')
-			.addText((text) => {
-				textControls["searchCloseHotkey"] = text;
-
-				text.setPlaceholder("ESC")
-					.setValue(this.settings.uiStrings?.searchCloseHotkey ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.searchCloseHotkey = val;
-						markAsChanged("UI_SEARCH_CLOSE_HOTKEY");
-					});
-			});
-
-		// Canvas section
-		uiStringsModal.contentEl
-			.createEl("h3", { text: "Canvas" })
-			.addClass("dg-ui-strings-section-header");
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Drag hint")
-			.setDesc('Default: "Drag to pan"')
-			.addText((text) => {
-				textControls["canvasDragHint"] = text;
-
-				text.setPlaceholder("Drag to pan")
-					.setValue(this.settings.uiStrings?.canvasDragHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.canvasDragHint = val;
-						markAsChanged("UI_CANVAS_DRAG_HINT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Zoom hint")
-			.setDesc('Default: "Scroll to zoom"')
-			.addText((text) => {
-				textControls["canvasZoomHint"] = text;
-
-				text.setPlaceholder("Scroll to zoom")
-					.setValue(this.settings.uiStrings?.canvasZoomHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.canvasZoomHint = val;
-						markAsChanged("UI_CANVAS_ZOOM_HINT");
-					});
-			});
-
-		new Setting(uiStringsModal.contentEl)
-			.setName("Reset hint")
-			.setDesc('Default: "Double-click to reset"')
-			.addText((text) => {
-				textControls["canvasResetHint"] = text;
-
-				text.setPlaceholder("Double-click to reset")
-					.setValue(this.settings.uiStrings?.canvasResetHint ?? "")
-					.onChange((val) => {
-						this.settings.uiStrings.canvasResetHint = val;
-						markAsChanged("UI_CANVAS_RESET_HINT");
-					});
-			});
-	}
-
-	private async initializeThemesSettings() {
-		const themeModal = new Modal(this.app);
-		themeModal.containerEl.addClass("dg-settings");
-		themeModal.titleEl.createEl("h1", { text: "Appearance Settings" });
-
-		// Store control references for updating after fetch
-		const controls: {
-			baseTheme: DropdownComponent | null;
-			siteName: TextComponent | null;
-			mainLanguage: TextComponent | null;
-			useFullResolutionImages: ToggleComponent | null;
-			logoHeight: TextComponent | null;
-			timestampFormat: TextComponent | null;
-			showCreatedTimestamp: ToggleComponent | null;
-			showUpdatedTimestamp: ToggleComponent | null;
-			defaultNoteIcon: TextComponent | null;
-			showNoteIconOnTitle: ToggleComponent | null;
-			showNoteIconInFileTree: ToggleComponent | null;
-			showNoteIconOnInternalLink: ToggleComponent | null;
-			showNoteIconOnBackLink: ToggleComponent | null;
-		} = {
-			baseTheme: null,
-			siteName: null,
-			mainLanguage: null,
-			useFullResolutionImages: null,
-			logoHeight: null,
-			timestampFormat: null,
-			showCreatedTimestamp: null,
-			showUpdatedTimestamp: null,
-			defaultNoteIcon: null,
-			showNoteIconOnTitle: null,
-			showNoteIconInFileTree: null,
-			showNoteIconOnInternalLink: null,
-			showNoteIconOnBackLink: null,
-		};
-
-		// Env keys the user has actually changed in this modal session.
-		// Only these keys are written to the site's .env on apply, so
-		// settings the user didn't touch are never overwritten with
-		// stale local values.
-		const touchedEnvKeys = new Set<string>();
-
-		// Status indicator for loading remote settings
-		const statusEl = themeModal.contentEl.createDiv({
-			cls: "dg-appearance-status",
-		});
-
-		// Mapping of env keys to control keys and settings keys
-		const settingsMap: Array<{
-			envKey: string;
-			controlKey: keyof typeof controls;
-			settingsKey: keyof DigitalGardenSettings;
-			isBoolean: boolean;
-		}> = [
-			{
-				envKey: "BASE_THEME",
-				controlKey: "baseTheme",
-				settingsKey: "baseTheme",
-				isBoolean: false,
-			},
-			{
-				envKey: "SITE_NAME_HEADER",
-				controlKey: "siteName",
-				settingsKey: "siteName",
-				isBoolean: false,
-			},
-			{
-				envKey: "SITE_MAIN_LANGUAGE",
-				controlKey: "mainLanguage",
-				settingsKey: "mainLanguage",
-				isBoolean: false,
-			},
-			{
-				envKey: "USE_FULL_RESOLUTION_IMAGES",
-				controlKey: "useFullResolutionImages",
-				settingsKey: "useFullResolutionImages",
-				isBoolean: true,
-			},
-			{
-				envKey: "LOGO_HEIGHT",
-				controlKey: "logoHeight",
-				settingsKey: "logoHeight",
-				isBoolean: false,
-			},
-			{
-				envKey: "TIMESTAMP_FORMAT",
-				controlKey: "timestampFormat",
-				settingsKey: "timestampFormat",
-				isBoolean: false,
-			},
-			{
-				envKey: "SHOW_CREATED_TIMESTAMP",
-				controlKey: "showCreatedTimestamp",
-				settingsKey: "showCreatedTimestamp",
-				isBoolean: true,
-			},
-			{
-				envKey: "SHOW_UPDATED_TIMESTAMP",
-				controlKey: "showUpdatedTimestamp",
-				settingsKey: "showUpdatedTimestamp",
-				isBoolean: true,
-			},
-			{
-				envKey: "NOTE_ICON_DEFAULT",
-				controlKey: "defaultNoteIcon",
-				settingsKey: "defaultNoteIcon",
-				isBoolean: false,
-			},
-			{
-				envKey: "NOTE_ICON_TITLE",
-				controlKey: "showNoteIconOnTitle",
-				settingsKey: "showNoteIconOnTitle",
-				isBoolean: true,
-			},
-			{
-				envKey: "NOTE_ICON_FILETREE",
-				controlKey: "showNoteIconInFileTree",
-				settingsKey: "showNoteIconInFileTree",
-				isBoolean: true,
-			},
-			{
-				envKey: "NOTE_ICON_INTERNAL_LINKS",
-				controlKey: "showNoteIconOnInternalLink",
-				settingsKey: "showNoteIconOnInternalLink",
-				isBoolean: true,
-			},
-			{
-				envKey: "NOTE_ICON_BACK_LINKS",
-				controlKey: "showNoteIconOnBackLink",
-				settingsKey: "showNoteIconOnBackLink",
-				isBoolean: true,
-			},
-		];
-
-		// Load settings from remote .env file
-		const loadRemoteSettings = async () => {
-			statusEl.setText("Loading settings from site...");
-
-			try {
-				const gardenManager = new DigitalGardenSiteManager(
-					this.app.metadataCache,
-					this.settings,
-				);
-
-				const connection =
-					await gardenManager.getUserGardenConnection();
-
-				const envFile = await connection.getFile(
-					envPath(this.settings),
-				);
-
-				if (envFile?.content) {
-					const envContent = Base64.decode(envFile.content);
-					const remoteSettings = this.parseEnvSettings(envContent);
-
-					// Update controls with remote values using the mapping
-					for (const mapping of settingsMap) {
-						const control = controls[mapping.controlKey];
-
-						if (mapping.envKey in remoteSettings && control) {
-							const rawValue = remoteSettings[mapping.envKey];
-
-							const value = mapping.isBoolean
-								? rawValue === "true"
-								: rawValue;
-							control.setValue(value as never);
-
-							(
-								this.settings as unknown as Record<
-									string,
-									unknown
-								>
-							)[mapping.settingsKey as string] = value;
-						}
-					}
-
-					// Setting control values above may fire their onChange
-					// handlers — remote-loaded values are not user edits.
-					touchedEnvKeys.clear();
-
-					statusEl.setText("Settings loaded from site");
-
-					setTimeout(() => {
-						statusEl.setText("");
-					}, 2000);
-				}
-			} catch (error) {
-				console.error(
-					"Failed to load remote appearance settings:",
-					error,
-				);
-				statusEl.setText("Could not load settings from site");
-				statusEl.addClass("is-error");
-
-				setTimeout(() => {
-					statusEl.setText("");
-					statusEl.removeClass("is-error");
-				}, 3000);
-			}
-		};
-
-		const handleSaveSettingsButton = (cb: ButtonComponent) => {
-			cb.setButtonText("Apply settings to site");
-			cb.setCta();
-
-			cb.onClick(async (_ev) => {
-				new Notice("Applying settings to site...");
-
-				let applied: boolean;
-
-				try {
-					applied =
-						await this.saveSettingsAndUpdateEnv(touchedEnvKeys);
-				} catch (error) {
-					// Favicon and logo would fail the same way; stop here.
-					if (error instanceof PublishBranchMissingError) {
-						notifyPublishBranchMissing(error);
-
-						return;
-					}
-
-					throw error;
-				}
-
-				if (applied) {
-					touchedEnvKeys.clear();
-				}
-
-				const connection =
-					await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-						this.settings,
-					);
-				const octokit = connection.octoKit;
-				const owner = connection.userName;
-				const repo = connection.pageName;
-
-				let branch: string | undefined;
-
-				try {
-					branch = await new RepositoryConnection(
-						connection,
-					).getPublishBranch();
-				} catch (error) {
-					if (error instanceof PublishBranchMissingError) {
-						notifyPublishBranchMissing(error);
-
-						return;
-					}
-					Logger.error("Failed to resolve the publish branch", error);
-
-					new Notice(
-						"Failed to update favicon and logo: could not access the publish branch. Check the developer console for details.",
-					);
-
-					return;
-				}
-
-				try {
-					await this.addFavicon(octokit, owner, repo, branch);
-				} catch (error) {
-					Logger.error("Failed to update favicon", error);
-
-					new Notice(
-						"Failed to update favicon. Check the developer console for details.",
-					);
-				}
-
-				try {
-					await this.addLogo(octokit, owner, repo, branch);
-				} catch (error) {
-					Logger.error("Failed to update logo", error);
-
-					new Notice(
-						"Failed to update logo. Check the developer console for details.",
-					);
-				}
-
-				new Notice("Settings applied to site!");
-			});
-		};
-
-		new Setting(this.settingsRootElement)
-			.setName("Appearance")
-			.setDesc("Manage themes, sitename and styling on your site")
-			.addButton((cb) => {
-				cb.setButtonText("Manage appearance");
-
-				cb.onClick(async () => {
-					themeModal.open();
-					await loadRemoteSettings();
-				});
-			});
-
-		//this.app.plugins is not defined, so we need to use a try catch in case the internal api is changed
-		try {
-			if (
-				// @ts-expect-error https://gist.github.com/aidenlx/6067c943fbec8ead230f2b163bfd3bc8 for typing example
-				this.app.plugins &&
-				// @ts-expect-error see above
-				this.app.plugins.plugins["obsidian-style-settings"]._loaded
-			) {
-				// Style Settings Plugin Section
-				const styleSettingsSection = themeModal.contentEl.createDiv({
-					cls: "dg-settings-section",
-				});
-
-				styleSettingsSection
-					.createEl("h3", { text: "Style Settings Plugin" })
-					.prepend(this.getIcon("paintbrush"));
-
-				new Setting(styleSettingsSection)
-					.setName("Apply current style settings to site")
-					.setDesc(
-						"Click the apply button to use the current style settings from the Style Settings Plugin on your site. (The plugin looks at the currently APPLIED settings. Meaning you need to have the theme you are using in the garden selected in Obsidian before applying)",
-					)
-					.addButton((btn) => {
-						btn.setButtonText("Apply Style Settings");
-						btn.setCta();
-
-						btn.onClick(async (_ev) => {
-							new Notice("Applying Style Settings...");
-
-							const styleSettingsNode = document.querySelector(
-								"#css-settings-manager",
-							);
-
-							const bodyClasses =
-								document.querySelector("body")?.className;
-
-							if (!styleSettingsNode && !bodyClasses) {
-								new Notice("No Style Settings found");
-
-								return;
-							}
-
-							if (styleSettingsNode?.innerHTML) {
-								this.settings.styleSettingsCss =
-									styleSettingsNode?.innerHTML;
-							}
-
-							if (bodyClasses) {
-								this.settings.styleSettingsBodyClasses = `${bodyClasses}`;
-							}
-
-							if (
-								!this.settings.styleSettingsCss &&
-								!this.settings.styleSettingsBodyClasses
-							) {
-								new Notice("No Style Settings found");
-
-								return;
-							}
-
-							await this.saveSiteSettingsAndUpdateEnv(
-								this.app.metadataCache,
-								this.settings,
-								this.saveSettings,
-								new Set([
-									"STYLE_SETTINGS_CSS",
-									"STYLE_SETTINGS_BODY_CLASSES",
-								]),
-							);
-							new Notice("Style Settings applied to site");
-						});
-					})
-					.addButton((btn) => {
-						btn.setButtonText("Clear");
-
-						btn.onClick(async (_ev) => {
-							this.settings.styleSettingsCss = "";
-							this.settings.styleSettingsBodyClasses = "";
-
-							await this.saveSiteSettingsAndUpdateEnv(
-								this.app.metadataCache,
-								this.settings,
-								this.saveSettings,
-								new Set([
-									"STYLE_SETTINGS_CSS",
-									"STYLE_SETTINGS_BODY_CLASSES",
-								]),
-							);
-							new Notice("Style Settings removed from site");
-						});
-					});
-			}
-		} catch {
-			console.error("Error loading style settings plugin");
 		}
 
-		// Theme Settings Section
-		const themeSection = themeModal.contentEl.createDiv({
-			cls: "dg-settings-section",
-		});
+		new Setting(el)
+			.setName("Publishing")
+			.setDesc(
+				"How notes are prepared when you publish them. Changes apply the next time a note is published.",
+			)
+			.setHeading();
+		this.initializeSlugifySetting(el);
+		this.initializeExcalidrawSetting(el);
 
-		themeSection
-			.createEl("h3", { text: "Theme Settings" })
-			.prepend(this.getIcon("palette"));
+		new Setting(el)
+			.setName("Path rewrites")
+			.setDesc(
+				"Publish notes from one folder as if they were in another, e.g. drop a top-level folder from your site's URLs.",
+			)
+			.addButton((cb) =>
+				cb
+					.setButtonText("Edit rewrites")
+					.onClick(() => this.openPathRewriteRulesModal()),
+			);
 
-		const themesListResponse =
-			await axios.get<IObsidianTheme[]>(OBSIDIAN_THEME_URL);
+		this.initializeCustomFilterSettings(el);
+		this.initializeFrontmatterKeys(el);
 
-		const sortedThemes = themesListResponse.data.sort(
-			(a: { name: string }, b: { name: string }) =>
-				a.name.localeCompare(b.name),
-		);
+		if (this.settings.publishPlatform === PublishPlatform.SelfHosted) {
+			new Setting(el).setName("Site template").setHeading();
+			this.updateSectionAnchor = el.createDiv();
+			this.renderTemplateSection?.();
 
-		// Theme picker container
-		const themePickerContainer = themeSection.createDiv({
-			cls: "dg-theme-picker-container",
-		});
+			// The export command needs a local file system.
+			if (Platform.isDesktopApp) {
+				new Setting(el).setName("Local export").setHeading();
 
-		// Current theme display
-		const currentThemeDisplay = themePickerContainer.createDiv({
-			cls: "dg-current-theme",
-		});
+				new Setting(el)
+					.setName("Local garden folder")
+					.setDesc(
+						"Full path to a local copy of the garden template. Used by the Export garden to local folder command.",
+					)
+					.addText((text) => {
+						text.inputEl.addClass("dg-settings-wide-input");
 
-		const updateCurrentThemeDisplay = () => {
-			const currentTheme = JSON.parse(this.settings.theme);
-			currentThemeDisplay.empty();
-			currentThemeDisplay.createEl("span", { text: "Current theme: " });
-			currentThemeDisplay.createEl("strong", { text: currentTheme.name });
-		};
-		updateCurrentThemeDisplay();
-
-		// Search input
-		const searchInput = themePickerContainer.createEl("input", {
-			type: "text",
-			placeholder: "Search themes...",
-			cls: "dg-theme-search",
-		});
-
-		// Theme grid
-		const themeGrid = themePickerContainer.createDiv({
-			cls: "dg-theme-grid",
-		});
-
-		const createThemeCard = (
-			theme: IObsidianTheme & { cssUrl?: string },
-			isDefault = false,
-		) => {
-			const themeValue = isDefault
-				? '{"name": "default", "modes": ["dark"]}'
-				: JSON.stringify({
-						...theme,
-						cssUrl: `https://raw.githubusercontent.com/${
-							theme.repo
-						}/${theme.branch || "HEAD"}/${
-							theme.legacy ? "obsidian.css" : "theme.css"
-						}`,
-				  });
-
-			const isSelected = this.settings.theme === themeValue;
-
-			const card = themeGrid.createDiv({
-				cls: `dg-theme-card${isSelected ? " is-selected" : ""}`,
-			});
-
-			// Screenshot container
-			const imgContainer = card.createDiv({ cls: "dg-theme-card-image" });
-
-			if (isDefault) {
-				imgContainer.createDiv({
-					cls: "dg-theme-card-placeholder",
-					text: "Default",
-				});
-			} else {
-				const img = imgContainer.createEl("img", {
-					attr: {
-						src: `https://raw.githubusercontent.com/${theme.repo}/${
-							theme.branch || "HEAD"
-						}/${theme.screenshot}`,
-						loading: "lazy",
-					},
-				});
-
-				img.onerror = () => {
-					img.style.display = "none";
-
-					imgContainer.createDiv({
-						cls: "dg-theme-card-placeholder",
-						text: "No preview",
+						text.setPlaceholder("/path/to/your/digitalgarden")
+							.setValue(this.settings.localExportPath ?? "")
+							.onChange(async (value) => {
+								this.settings.localExportPath = value;
+								await this.saveSettings();
+							});
 					});
-				};
 			}
+		}
 
-			// Theme name
-			card.createDiv({
-				cls: "dg-theme-card-name",
-				text: isDefault ? "Default" : theme.name,
-			});
+		new Setting(el).setName("Troubleshooting").setHeading();
 
-			card.addEventListener("click", async () => {
-				this.settings.theme = themeValue;
-				touchedEnvKeys.add("THEME");
-				touchedEnvKeys.add("BASE_THEME");
-				await this.saveSettings();
-				updateCurrentThemeDisplay();
-
-				// Update selection state on all cards
-				themeGrid
-					.querySelectorAll(".dg-theme-card")
-					.forEach((c) => c.removeClass("is-selected"));
-				card.addClass("is-selected");
-			});
-
-			return card;
-		};
-
-		// Render theme cards
-		const renderThemes = (filter = "") => {
-			themeGrid.empty();
-
-			// Add default theme first
-			const defaultTheme = {
-				name: "Default",
-				author: "",
-				screenshot: "",
-				modes: ["dark"],
-				repo: "",
-				legacy: false,
-			};
-
-			if ("default".includes(filter.toLowerCase())) {
-				createThemeCard(defaultTheme, true);
-			}
-
-			// Add filtered themes
-			sortedThemes
-				.filter((t) =>
-					t.name.toLowerCase().includes(filter.toLowerCase()),
-				)
-				.forEach((theme) => createThemeCard(theme));
-		};
-
-		renderThemes();
-
-		// Search functionality
-		searchInput.addEventListener("input", (e) => {
-			const target = e.target as HTMLInputElement;
-			renderThemes(target.value);
-		});
-
-		new Setting(themeSection).setName("Base theme").addDropdown((dd) => {
-			controls.baseTheme = dd;
-			dd.addOption("dark", "Dark");
-			dd.addOption("light", "Light");
-			dd.setValue(this.settings.baseTheme);
-
-			dd.onChange(async (val: string) => {
-				this.settings.baseTheme = val;
-				touchedEnvKeys.add("BASE_THEME");
-				await this.saveSettings();
-			});
-		});
-
-		new Setting(themeSection)
-			.setName("Sitename")
+		new Setting(el)
+			.setName("Detailed logging")
 			.setDesc(
-				"The name of your site. This will be displayed as the site header.",
-			)
-			.addText((text) => {
-				controls.siteName = text;
-
-				text.setValue(this.settings.siteName).onChange(
-					async (value) => {
-						this.settings.siteName = value;
-						touchedEnvKeys.add("SITE_NAME_HEADER");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(themeSection)
-			.setName("Logo")
-			.setDesc(
-				"Path to an image in your vault to use as a logo instead of the sitename. Leave blank to show sitename text.",
-			)
-			.addText((tc) => {
-				tc.setPlaceholder("mylogo.png");
-				tc.setValue(this.settings.logoPath);
-
-				tc.onChange(async (val) => {
-					this.settings.logoPath = val;
-					await this.saveSettings();
-				});
-				new ImageFileSuggest(this.app, tc.inputEl);
-			});
-
-		new Setting(themeSection)
-			.setName("Logo size")
-			.setDesc(
-				"Height of the logo on your site. A number is treated as pixels (e.g. 40), or use any CSS size like 3rem. Leave blank for the default size.",
-			)
-			.addText((tc) => {
-				controls.logoHeight = tc;
-				tc.setPlaceholder("40");
-				tc.setValue(this.settings.logoHeight);
-
-				tc.onChange(async (val) => {
-					this.settings.logoHeight = val.trim();
-					touchedEnvKeys.add("LOGO_HEIGHT");
-					await this.saveSettings();
-				});
-			});
-
-		new Setting(themeSection)
-			.setName("Main language")
-			.setDesc(
-				"Language code (ISO 639-1) for the main language of your site. This is used to set the correct language on your site to assist search engines and browsers.",
-			)
-			.addText((text) => {
-				controls.mainLanguage = text;
-
-				text.setValue(this.settings.mainLanguage).onChange(
-					async (value) => {
-						this.settings.mainLanguage = value;
-						touchedEnvKeys.add("SITE_MAIN_LANGUAGE");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(themeSection)
-			.setName("Favicon")
-			.setDesc(
-				"Path to an svg in your vault you wish to use as a favicon. Leave blank to use default. Must be square! (eg. 16x16)",
-			)
-			.addText((tc) => {
-				tc.setPlaceholder("myfavicon.svg");
-				tc.setValue(this.settings.faviconPath);
-
-				tc.onChange(async (val) => {
-					this.settings.faviconPath = val;
-					await this.saveSettings();
-				});
-				new SvgFileSuggest(this.app, tc.inputEl);
-			});
-
-		new Setting(themeSection)
-			.setName("Use full resolution images")
-			.setDesc(
-				"By default, the images on your site are compressed to make your site load faster. If you instead want to use the full resolution images, enable this setting.",
+				"Record more detail about what the plugin does, to include when you ask for help.",
 			)
 			.addToggle((toggle) => {
-				controls.useFullResolutionImages = toggle;
-				toggle.setValue(this.settings.useFullResolutionImages);
-
-				toggle.onChange(async (val) => {
-					this.settings.useFullResolutionImages = val;
-					touchedEnvKeys.add("USE_FULL_RESOLUTION_IMAGES");
-					await this.saveSettings();
-				});
+				toggle
+					.setValue(this.settings.logLevel === Logger.DEBUG)
+					.onChange(async (value) => {
+						this.settings.logLevel = value
+							? Logger.DEBUG
+							: undefined;
+						Logger.setLevel(value ? Logger.DEBUG : Logger.WARN);
+						await this.saveSettings();
+					});
 			});
 
-		new Setting(themeSection)
-			.setClass("dg-apply-button-container")
-			.addButton(handleSaveSettingsButton);
-
-		// Timestamps Settings Section
-		const timestampsSection = themeModal.contentEl.createDiv({
-			cls: "dg-settings-section",
-		});
-
-		timestampsSection
-			.createEl("h3", { text: "Timestamps Settings" })
-			.prepend(this.getIcon("calendar-clock"));
-
-		new Setting(timestampsSection)
-			.setName("Timestamp format")
+		new Setting(el)
+			.setName("Copy the plugin log")
 			.setDesc(
-				"The format string to render timestamp on the garden. Must be luxon compatible",
+				"Copies the plugin's recent log, to paste in the Discord when you ask for help with a failed publish.",
 			)
-			.addText((text) => {
-				controls.timestampFormat = text;
+			.addButton((cb) =>
+				cb.setButtonText("Copy log").onClick(async () => {
+					await navigator.clipboard.writeText(getDebugLog());
+					new Notice("Plugin log copied to the clipboard.");
+				}),
+			);
 
-				text.setValue(this.settings.timestampFormat).onChange(
-					async (value) => {
-						this.settings.timestampFormat = value;
-						touchedEnvKeys.add("TIMESTAMP_FORMAT");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(timestampsSection)
-			.setName("Show created timestamp")
-			.addToggle((t) => {
-				controls.showCreatedTimestamp = t;
-
-				t.setValue(this.settings.showCreatedTimestamp).onChange(
-					async (value) => {
-						this.settings.showCreatedTimestamp = value;
-						touchedEnvKeys.add("SHOW_CREATED_TIMESTAMP");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(timestampsSection)
-			.setName("Created timestamp Frontmatter Key")
+		new Setting(el)
+			.setName("Support development")
 			.setDesc(
-				"Key to get the created timestamp from the frontmatter. Leave blank to get the value from file creation time. The value can be any value that luxon Datetime.fromISO can parse.",
+				"Digital Garden is free and open source. If it's useful to you, you can buy the developer a coffee.",
 			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.createdTimestampKey)
-					.onChange(async (value) => {
-						this.settings.createdTimestampKey = value;
-						await this.saveSettings();
-					}),
+			.addButton((cb) =>
+				cb.setButtonText("Support on Ko-fi").onClick(() => {
+					window.open("https://ko-fi.com/oleeskild");
+				}),
 			);
+	}
 
-		new Setting(timestampsSection)
-			.setName("Show updated timestamp")
-			.addToggle((t) => {
-				controls.showUpdatedTimestamp = t;
+	// Obsidian has no public API for this; the setting modal is internal.
+	private closeSettings() {
+		(
+			this.app as unknown as { setting?: { close(): void } }
+		).setting?.close();
+	}
 
-				t.setValue(this.settings.showUpdatedTimestamp).onChange(
-					async (value) => {
-						this.settings.showUpdatedTimestamp = value;
-						touchedEnvKeys.add("SHOW_UPDATED_TIMESTAMP");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(timestampsSection)
-			.setName("Updated timestamp Frontmatter Key")
+	private initializeSlugifySetting(el: HTMLElement) {
+		new Setting(el)
+			.setName("Simple note URLs")
 			.setDesc(
-				"Key to get the updated timestamp from the frontmatter. Leave blank to get the value from file update time. The value can be any value that luxon Datetime.fromISO can parse.",
-			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.updatedTimestampKey)
-					.onChange(async (value) => {
-						this.settings.updatedTimestampKey = value;
-						await this.saveSettings();
-					}),
-			);
-
-		new Setting(timestampsSection)
-			.setClass("dg-apply-button-container")
-			.addButton(handleSaveSettingsButton);
-
-		// CSS Settings Section
-		const cssSection = themeModal.contentEl.createDiv({
-			cls: "dg-settings-section",
-		});
-
-		cssSection
-			.createEl("h3", { text: "CSS settings" })
-			.prepend(this.getIcon("code"));
-
-		new Setting(cssSection)
-			.setName("Body Classes Key")
-			.setDesc(
-				"Key for setting css-classes to the note body from the frontmatter.",
-			)
-			.addText((text) =>
-				text
-					.setValue(this.settings.contentClassesKey)
-					.onChange(async (value) => {
-						this.settings.contentClassesKey = value;
-						await this.saveSettings();
-					}),
-			);
-
-		new Setting(cssSection)
-			.setClass("dg-apply-button-container")
-			.addButton(handleSaveSettingsButton);
-
-		// Note Icons Settings Section
-		const noteIconsSection = themeModal.contentEl.createDiv({
-			cls: "dg-settings-section",
-		});
-
-		noteIconsSection
-			.createEl("h3", { text: "Note icons Settings" })
-			.prepend(this.getIcon("image"));
-
-		noteIconsSection
-			.createEl("div", { cls: "dg-docs-link" })
-			.createEl("a", {
-				text: "Documentation on note icons",
-				href: "https://docs.forestry.md/advanced/note-specific-settings/#note-icons",
-			});
-
-		new Setting(noteIconsSection)
-			.setName("Note icon Frontmatter Key")
-			.setDesc("Key to get the note icon value from the frontmatter")
-			.addText((text) =>
-				text
-					.setValue(this.settings.noteIconKey)
-					.onChange(async (value) => {
-						this.settings.noteIconKey = value;
-						await this.saveSettings();
-					}),
-			);
-
-		new Setting(noteIconsSection)
-			.setName("Default note icon Value")
-			.setDesc("The default value for note icon if not specified")
-			.addText((text) => {
-				controls.defaultNoteIcon = text;
-
-				text.setValue(this.settings.defaultNoteIcon).onChange(
-					async (value) => {
-						this.settings.defaultNoteIcon = value;
-						touchedEnvKeys.add("NOTE_ICON_DEFAULT");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(noteIconsSection)
-			.setName("Show note icon on Title")
-			.addToggle((t) => {
-				controls.showNoteIconOnTitle = t;
-
-				t.setValue(this.settings.showNoteIconOnTitle).onChange(
-					async (value) => {
-						this.settings.showNoteIconOnTitle = value;
-						touchedEnvKeys.add("NOTE_ICON_TITLE");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(noteIconsSection)
-			.setName("Show note icon in FileTree")
-			.addToggle((t) => {
-				controls.showNoteIconInFileTree = t;
-
-				t.setValue(this.settings.showNoteIconInFileTree).onChange(
-					async (value) => {
-						this.settings.showNoteIconInFileTree = value;
-						touchedEnvKeys.add("NOTE_ICON_FILETREE");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(noteIconsSection)
-			.setName("Show note icon on Internal Links")
-			.addToggle((t) => {
-				controls.showNoteIconOnInternalLink = t;
-
-				t.setValue(this.settings.showNoteIconOnInternalLink).onChange(
-					async (value) => {
-						this.settings.showNoteIconOnInternalLink = value;
-						touchedEnvKeys.add("NOTE_ICON_INTERNAL_LINKS");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(noteIconsSection)
-			.setName("Show note icon on Backlinks")
-			.addToggle((t) => {
-				controls.showNoteIconOnBackLink = t;
-
-				t.setValue(this.settings.showNoteIconOnBackLink).onChange(
-					async (value) => {
-						this.settings.showNoteIconOnBackLink = value;
-						touchedEnvKeys.add("NOTE_ICON_BACK_LINKS");
-						await this.saveSettings();
-					},
-				);
-			});
-
-		new Setting(noteIconsSection)
-			.setClass("dg-apply-button-container")
-			.addButton(handleSaveSettingsButton);
-	}
-
-	private async saveSettingsAndUpdateEnv(
-		touchedEnvKeys?: Set<string>,
-	): Promise<boolean> {
-		const theme = JSON.parse(this.settings.theme);
-		const baseTheme = this.settings.baseTheme;
-
-		if (theme.modes.indexOf(baseTheme) < 0) {
-			new Notice(
-				`The ${theme.name} theme doesn't support ${baseTheme} mode.`,
-			);
-
-			return false;
-		}
-
-		const gardenManager = new DigitalGardenSiteManager(
-			this.app.metadataCache,
-			this.settings,
-		);
-		await gardenManager.updateEnv(touchedEnvKeys);
-
-		new Notice("Successfully applied settings");
-
-		return true;
-	}
-
-	private async saveSiteSettingsAndUpdateEnv(
-		metadataCache: MetadataCache,
-		settings: DigitalGardenSettings,
-		saveSettings: () => Promise<void>,
-		touchedEnvKeys?: Set<string>,
-	) {
-		return saveSiteSettingsAndUpdateEnv(
-			metadataCache,
-			settings,
-			saveSettings,
-			touchedEnvKeys,
-		);
-	}
-
-	private parseEnvSettings(envContent: string): Record<string, string> {
-		const settings: Record<string, string> = {};
-
-		for (const line of envContent.split("\n")) {
-			const trimmedLine = line.trim();
-
-			if (!trimmedLine || trimmedLine.startsWith("#")) continue;
-
-			const [key, ...valueParts] = trimmedLine.split("=");
-
-			if (key) {
-				settings[key.trim()] = valueParts.join("=").trim();
-			}
-		}
-
-		return settings;
-	}
-
-	private async addFavicon(
-		octokit: Octokit,
-		owner: string,
-		repo: string,
-		branch: string | undefined,
-	) {
-		let base64SettingsFaviconContent = "";
-
-		if (this.settings.faviconPath) {
-			const faviconFile = this.app.vault.getAbstractFileByPath(
-				this.settings.faviconPath,
-			);
-
-			if (!(faviconFile instanceof TFile)) {
-				new Notice(`${this.settings.faviconPath} is not a valid file.`);
-
-				return;
-			}
-			const faviconContent = await this.app.vault.readBinary(faviconFile);
-			base64SettingsFaviconContent = arrayBufferToBase64(faviconContent);
-		} else {
-			const baseConnection =
-				PublishPlatformConnectionFactory.createBaseGardenConnection(
-					PublishPlatformConnectionFactory.githubTokenFor(
-						this.settings,
-					),
-				);
-
-			const defaultFavicon = await baseConnection.octoKit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner: baseConnection.userName,
-					repo: baseConnection.pageName,
-					path: "src/site/favicon.svg",
-				},
-			);
-			// @ts-expect-error TODO: abstract octokit response
-			base64SettingsFaviconContent = defaultFavicon.data.content;
-		}
-
-		let faviconExists = true;
-		let faviconsAreIdentical = false;
-		let currentFaviconOnSite = null;
-
-		try {
-			currentFaviconOnSite = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner,
-					repo,
-					path: sitePath(this.settings, "/favicon.svg"),
-					ref: branch,
-				},
-			);
-
-			// GitHub API returns base64 with newlines, strip them for comparison
-			faviconsAreIdentical =
-				// @ts-expect-error TODO: abstract octokit response
-				currentFaviconOnSite.data.content.replace(/\n/g, "") ===
-				base64SettingsFaviconContent;
-
-			if (faviconsAreIdentical) {
-				Logger.info("Favicons are identical, skipping update");
-
-				return;
-			}
-		} catch (error) {
-			faviconExists = false;
-		}
-
-		if (!faviconExists || !faviconsAreIdentical) {
-			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner,
-				repo,
-				path: sitePath(this.settings, "/favicon.svg"),
-				branch,
-				message: `Update favicon.svg`,
-				content: base64SettingsFaviconContent,
-				// @ts-expect-error TODO: abstract octokit response
-				sha: faviconExists ? currentFaviconOnSite.data.sha : null,
-			});
-		}
-	}
-
-	private async addLogo(
-		octokit: Octokit,
-		owner: string,
-		repo: string,
-		branch: string | undefined,
-	) {
-		Logger.info(
-			`addLogo called, logoPath setting: "${this.settings.logoPath}", owner: "${owner}", repo: "${repo}"`,
-		);
-		const logoBasePath = sitePath(this.settings, "/logo");
-
-		// First, try to delete any existing logo files
-		const logoExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
-
-		for (const ext of logoExtensions) {
-			try {
-				const existingLogo = await octokit.request(
-					"GET /repos/{owner}/{repo}/contents/{path}",
-					{
-						owner,
-						repo,
-						path: `${logoBasePath}.${ext}`,
-						ref: branch,
-					},
-				);
-
-				// Delete the existing logo if we're either clearing it or uploading a different format
-				if (existingLogo.data) {
-					const currentPath = this.settings.logoPath;
-
-					const currentExt = currentPath
-						? currentPath.split(".").pop()?.toLowerCase()
-						: null;
-
-					// Delete if no logo path set, or if the extension is different
-					if (!currentPath || currentExt !== ext) {
-						await octokit.request(
-							"DELETE /repos/{owner}/{repo}/contents/{path}",
-							{
-								owner,
-								repo,
-								path: `${logoBasePath}.${ext}`,
-								branch,
-								message: `Remove logo.${ext}`,
-								// @ts-expect-error TODO: abstract octokit response
-								sha: existingLogo.data.sha,
-							},
-						);
-					}
-				}
-			} catch {
-				// File doesn't exist, continue
-			}
-		}
-
-		// If no logo path is set, we're done (logo removed)
-		if (!this.settings.logoPath) {
-			return;
-		}
-
-		const logoFile = this.app.vault.getAbstractFileByPath(
-			this.settings.logoPath,
-		);
-
-		if (!(logoFile instanceof TFile)) {
-			new Notice(`${this.settings.logoPath} is not a valid file.`);
-
-			return;
-		}
-
-		const logoContent = await this.app.vault.readBinary(logoFile);
-		const base64LogoContent = arrayBufferToBase64(logoContent);
-		const logoExtension = logoFile.extension.toLowerCase();
-		const logoPath = `${logoBasePath}.${logoExtension}`;
-
-		Logger.info(
-			`Uploading logo from ${this.settings.logoPath} to ${logoPath}`,
-		);
-
-		let logoExists = true;
-		let logosAreIdentical = false;
-		let currentLogoOnSite = null;
-
-		try {
-			currentLogoOnSite = await octokit.request(
-				"GET /repos/{owner}/{repo}/contents/{path}",
-				{
-					owner,
-					repo,
-					path: logoPath,
-					ref: branch,
-				},
-			);
-
-			// GitHub API returns base64 with newlines, strip them for comparison
-			logosAreIdentical =
-				// @ts-expect-error TODO: abstract octokit response
-				currentLogoOnSite.data.content.replace(/\n/g, "") ===
-				base64LogoContent;
-
-			if (logosAreIdentical) {
-				Logger.info("Logos are identical, skipping update");
-
-				return;
-			}
-		} catch {
-			logoExists = false;
-		}
-
-		if (!logoExists || !logosAreIdentical) {
-			try {
-				const requestPayload = {
-					owner,
-					repo,
-					path: logoPath,
-					branch,
-					message: `Update logo.${logoExtension}`,
-					content: base64LogoContent,
-					// @ts-expect-error TODO: abstract octokit response
-					...(logoExists ? { sha: currentLogoOnSite.data.sha } : {}),
-				};
-
-				await octokit.request(
-					"PUT /repos/{owner}/{repo}/contents/{path}",
-					requestPayload,
-				);
-			} catch (error) {
-				Logger.error("Failed to upload logo", error);
-
-				new Notice(
-					"Failed to upload logo. Check the developer console for details.",
-				);
-			}
-		}
-	}
-
-	private initializeGitHubBaseURLSetting() {
-		const siteBaseUrl = new Setting(this.settingsRootElement)
-			.setName("Base URL")
-			.setDesc(
-				`This is optional, but recommended. It is used for the "Copy Garden URL" command, generating a sitemap.xml for better SEO and an RSS feed located at /feed.xml. `,
-			);
-
-		if (this.settings.publishPlatform === PublishPlatform.ForestryMd) {
-			siteBaseUrl.addText((text) =>
-				text
-					.setPlaceholder("https://my-garden.forestry.md")
-					.setValue(this.settings.forestrySettings.baseUrl)
-					.onChange(async (value) => {
-						this.settings.forestrySettings.baseUrl = value;
-
-						this.debouncedSaveAndUpdate(
-							this.app.metadataCache,
-							this.settings,
-							this.saveSettings,
-						);
-					}),
-			);
-		} else {
-			siteBaseUrl.addText((text) =>
-				text
-					.setPlaceholder("https://my-garden.vercel.app")
-					.setValue(this.settings.gardenBaseUrl)
-					.onChange(async (value) => {
-						this.settings.gardenBaseUrl = value;
-
-						this.debouncedSaveAndUpdate(
-							this.app.metadataCache,
-							this.settings,
-							this.saveSettings,
-						);
-					}),
-			);
-		}
-	}
-
-	private initializeSlugifySetting() {
-		new Setting(this.settingsRootElement)
-			.setName("Slugify Note URL")
-			.setDesc(
-				'Transform the URL from "/My Folder/My Note/" to "/my-folder/my-note". If your note titles contains non-English characters, this should be disabled.',
+				'Turn "/My Folder/My Note/" into "/my-folder/my-note". Turn this off if your note names use non-Latin characters.',
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -2295,11 +357,11 @@ export default class SettingView {
 			);
 	}
 
-	private initializeExcalidrawSetting() {
-		new Setting(this.settingsRootElement)
+	private initializeExcalidrawSetting(el: HTMLElement) {
+		new Setting(el)
 			.setName("Publish Excalidraw drawings as SVG")
 			.setDesc(
-				"Export drawings as static SVG images at publish time, with embedded images, notes and fonts included. Requires the Excalidraw plugin. When disabled, drawings are published as an interactive viewer loaded from a CDN, which cannot display embedded files.",
+				"Export drawings as images when you publish, including their embedded images, notes and fonts. Needs the Excalidraw plugin. When off, drawings use an interactive viewer that can't show embedded files.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -2311,67 +373,51 @@ export default class SettingView {
 			);
 	}
 
-	private initializeGardenPluginSettings() {
-		new Setting(this.settingsRootElement)
-			.setName("Garden Plugins")
-			.setDesc(
-				"Install, configure and manage the plugins that power your garden's features. Read from your garden repository.",
-			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage plugins");
+	/** Read from each note when it's published; local only. */
+	private initializeFrontmatterKeys(el: HTMLElement) {
+		new Setting(el).setName("Frontmatter keys").setHeading();
 
-				cb.onClick(async () => {
-					const connection =
-						await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-							this.settings,
-						);
+		el.createEl("p", {
+			cls: "dg-settings-note",
+			text: "Properties the plugin reads from each note. Changes apply to notes the next time you publish them.",
+		});
 
-					const manager = new GardenPluginManager(
-						new RepositoryConnection(connection),
-						this.settings,
-					);
+		const keys: { key: FrontmatterKey; name: string; desc: string }[] = [
+			{
+				key: "createdTimestampKey",
+				name: "Created date",
+				desc: "Leave empty to use the file's creation time.",
+			},
+			{
+				key: "updatedTimestampKey",
+				name: "Updated date",
+				desc: "Leave empty to use the file's modified time.",
+			},
+			{
+				key: "contentClassesKey",
+				name: "CSS classes",
+				desc: "Classes added to the note's body on the site.",
+			},
+			{
+				key: "noteIconKey",
+				name: "Note icon",
+				desc: "The note's icon, when note icons are on.",
+			},
+		];
 
-					const modal = new GardenPluginsModal(
-						this.app,
-						manager,
-						this.settings,
-						this.saveSettings,
-						async () => {
-							await this.saveSiteSettingsAndUpdateEnv(
-								this.app.metadataCache,
-								this.settings,
-								this.saveSettings,
-							);
-						},
-					);
-
-					modal.open();
-				});
-			});
-	}
-
-	private async openNavigationOrderModal() {
-		const connection =
-			await PublishPlatformConnectionFactory.createPublishPlatformConnection(
-				this.settings,
-			);
-		const repositoryConnection = new RepositoryConnection(connection);
-
-		const publisher = new Publisher(
-			this.app.vault,
-			this.app.metadataCache,
-			this.settings,
-		);
-
-		const modal = new NavigationOrderModal(
-			this.app,
-			repositoryConnection,
-			publisher,
-			this.settings,
-			this.saveSettings,
-		);
-
-		modal.open();
+		for (const { key, name, desc } of keys) {
+			new Setting(el)
+				.setName(name)
+				.setDesc(desc)
+				.addText((text) =>
+					text
+						.setValue(this.settings[key])
+						.onChange(async (value) => {
+							this.settings[key] = value;
+							await this.saveSettings();
+						}),
+				);
+		}
 	}
 
 	private openPathRewriteRulesModal() {
@@ -2381,6 +427,7 @@ export default class SettingView {
 			this.settings,
 		);
 		const rewriteRulesModal = new Modal(this.app);
+		rewriteRulesModal.titleEl.setText("Path rewrites");
 		rewriteRulesModal.open();
 
 		const modalContent = mount(RewriteSettings, {
@@ -2388,6 +435,7 @@ export default class SettingView {
 			props: {
 				publisher,
 				settings: this.settings,
+				saveSettings: this.saveSettings,
 				closeModal: () => rewriteRulesModal.close(),
 			},
 		});
@@ -2397,80 +445,72 @@ export default class SettingView {
 		};
 	}
 
-	private initializeCustomFilterSettings() {
+	private initializeCustomFilterSettings(el: HTMLElement) {
 		const customFilterModal = new Modal(this.app);
-		customFilterModal.titleEl.createEl("h1", { text: "Custom Filters" });
-		customFilterModal.modalEl.style.width = "fit-content";
+		customFilterModal.titleEl.setText("Text filters");
+		customFilterModal.modalEl.addClass("dg-filters-modal");
 
-		new Setting(this.settingsRootElement)
-			.setName("Custom Filters")
+		new Setting(el)
+			.setName("Text filters")
 			.setDesc(
-				"Define custom rules to replace parts of the note before publishing.",
+				"Find and replace text in notes when you publish them, using regular expressions.",
 			)
-			.addButton((cb) => {
-				cb.setButtonText("Manage Custom Filters");
+			.addButton((cb) =>
+				cb
+					.setButtonText("Edit filters")
+					.onClick(() => customFilterModal.open()),
+			);
 
-				cb.onClick(() => {
-					customFilterModal.open();
-				});
-			});
+		const content = customFilterModal.contentEl;
 
-		const rewriteSettingsContainer = customFilterModal.contentEl.createEl(
-			"div",
-			{
-				attr: {
-					class: "",
-					style: "align-items:flex-start; flex-direction: column; margin: 5px;",
-				},
-			},
+		const intro = content.createEl("p", { cls: "dg-settings-note" });
+
+		intro.appendText(
+			"Each filter has a regular expression, the text to put in its place, and ",
 		);
 
-		rewriteSettingsContainer.createEl(
-			"div",
-		).innerHTML = `Define regex filters to replace note content before publishing.`;
+		intro.createEl("a", {
+			text: "flags",
+			href: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions#advanced_searching_with_flags",
+		});
+		intro.appendText(". For example, ");
+		intro.createEl("code", { text: ":smile:" });
+		intro.appendText(" → ");
+		intro.createEl("code", { text: "😀" });
+		intro.appendText(" with flag ");
+		intro.createEl("code", { text: "g" });
+		intro.appendText(" replaces every :smile:.");
 
-		rewriteSettingsContainer.createEl("div", {
-			attr: { class: "setting-item-description" },
-		}).innerHTML = `Format: [<code>regex pattern</code>, <code>replacement</code>, <code>regex flags</code>]`;
+		const filterList = content.createDiv({ cls: "dg-filter-list" });
 
-		rewriteSettingsContainer.createEl("div", {
-			attr: {
-				class: "setting-item-description",
-				style: "margin-bottom: 15px",
-			},
-		}).innerHTML = `Example: filter [<code>:smile:</code>, <code>😀</code>, <code>g</code>] will replace text with real emojis`;
+		const renderFilters = () => {
+			filterList.empty();
 
-		const customFilters = this.settings.customFilters;
-
-		new Setting(rewriteSettingsContainer)
-			.setName("Filters")
-			.addButton((button) => {
-				button.setButtonText("Add");
-				button.setTooltip("Add a filter");
-				button.setIcon("plus");
-
-				button.onClick(async () => {
-					const customFilters = this.settings.customFilters;
-
-					customFilters.push({
-						pattern: "",
-						flags: "g",
-						replace: "",
-					});
-					filterList.empty();
-
-					for (let i = 0; i < customFilters.length; i++) {
-						addFilterInput(customFilters[i], filterList, i, this);
-					}
+			if (this.settings.customFilters.length === 0) {
+				filterList.createEl("p", {
+					cls: "dg-settings-note",
+					text: "No filters yet.",
 				});
-			});
+			}
 
-		const filterList =
-			rewriteSettingsContainer.createDiv("custom-filter-list");
+			this.settings.customFilters.forEach((filter, i) =>
+				addFilterInput(filter, filterList, i, this, renderFilters),
+			);
+		};
 
-		for (let i = 0; i < customFilters.length; i++) {
-			addFilterInput(customFilters[i], filterList, i, this);
-		}
+		new Setting(content).addButton((button) =>
+			button.setButtonText("Add filter").onClick(async () => {
+				this.settings.customFilters.push({
+					pattern: "",
+					flags: "g",
+					replace: "",
+				});
+				await this.saveSettings();
+				renderFilters();
+			}),
+		);
+
+		renderFilters();
 	}
 
 	async renderCreatePr(
@@ -2481,16 +521,15 @@ export default class SettingView {
 		) => Promise<void>,
 		siteManager: DigitalGardenSiteManager,
 	) {
-		const target = this.updateSectionAnchor ?? this.settingsRootElement;
+		const target = this.updateSectionAnchor;
 
-		target
-			.createEl("h3", { text: "Update site template" })
-			.prepend(getIcon("sync") ?? "");
+		// Rendered only once the garden is connected (see renderRest).
+		if (!target) return;
 
 		new Setting(target)
 			.setName("Check for template updates on startup")
 			.setDesc(
-				"Show a notice on launch when a new site template version is available. Disable this if your template has diverged from the default and won't ever match. You can still check for updates manually below.",
+				"Show a notice when Obsidian starts if a new template version is out. Turn this off if your template is customized so much it will never match; you can still check below.",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -2501,199 +540,217 @@ export default class SettingView {
 					});
 			});
 
-		// Show loading indicator while checking for updates
-		const loadingContainer = target.createDiv({
-			cls: "dg-update-loading",
+		const statusContainer = target.createDiv({
+			cls: "dg-template-status",
 		});
 
-		new Setting(loadingContainer)
-			.setName("Site Template")
-			.setDesc("Checking for updates...")
-			.addButton((button) => {
-				button.setButtonText("Checking...");
-				button.setDisabled(true);
-			});
+		const runCheck = async (): Promise<
+			TemplateUpdater | TemplateUpdateChecker | null
+		> => {
+			statusContainer.empty();
 
-		Logger.time("checkForUpdate");
-
-		let updater: TemplateUpdater | TemplateUpdateChecker;
-
-		try {
-			updater = await (
-				await siteManager.getTemplateUpdater()
-			).checkForUpdates();
-		} catch (error) {
-			Logger.warn("Failed to check for template updates", error);
-			loadingContainer.empty();
-
-			new Setting(loadingContainer)
-				.setName("Site Template")
-				.setDesc(
-					"Unable to check for updates. Please check your connection and credentials.",
-				)
+			new Setting(statusContainer)
+				.setName("Site template")
+				.setDesc("Checking for updates…")
 				.addButton((button) => {
-					button.setButtonText("Check failed");
+					button.setButtonText("Checking…");
 					button.setDisabled(true);
 				});
 
-			return;
-		}
+			Logger.time("checkForUpdate");
 
-		Logger.timeEnd("checkForUpdate");
+			try {
+				return await (
+					await siteManager.getTemplateUpdater()
+				).checkForUpdates();
+			} catch (error) {
+				Logger.warn("Failed to check for template updates", error);
+				statusContainer.empty();
 
-		// Replace loading indicator with actual state
-		loadingContainer.empty();
+				new Setting(statusContainer)
+					.setName("Site template")
+					.setDesc(
+						"Couldn't check for template updates. Check your connection and GitHub settings above, then try again.",
+					)
+					.addButton((button) => {
+						button.setButtonText("Try again");
 
-		const updateAvailable = hasUpdates(updater);
-		const applier = canApplyTemplate(updater) ? updater : null;
-		const latestVersion = updater.newestTemplateVersion ?? "latest";
+						button.onClick(async () => {
+							const result = await runCheck();
 
-		const fileCountText = (count: number) =>
-			`${count} template file${count === 1 ? "" : "s"}`;
+							if (result) renderResult(result);
+						});
+					});
 
-		let description: string;
+				return null;
+			} finally {
+				Logger.timeEnd("checkForUpdate");
+			}
+		};
 
-		if (updateAvailable) {
-			description = `${
-				updater.installedVersion
-					? `Version ${latestVersion} is available (you have ${updater.installedVersion}). `
-					: ""
-			}Manage updates to the base template. You should try updating the template when you update the plugin to make sure your garden support all features.`;
-		} else if (applier) {
-			description = `Your site template is up to date (${latestVersion}). ${fileCountText(
-				applier.changedFileCount,
-			)} differ from the default template, likely your own customizations. Re-applying creates a pull request that overwrites them.`;
-		} else {
-			description = `Your site template is up to date! (${latestVersion})`;
-		}
+		// Modal content is built once, the first time a check succeeds.
+		let modalBuilt = false;
 
-		new Setting(loadingContainer)
-			.setName("Site Template")
-			.setDesc(description)
-			.addButton(async (button) => {
-				if (updateAvailable) {
-					button.setButtonText(`Update to ${latestVersion}`);
-					button.setCta();
-				} else if (applier) {
-					button.setButtonText("Re-apply template");
-				} else {
-					button.setButtonText("Already up to date!");
-					button.setDisabled(true);
-				}
+		const renderResult = (
+			updater: TemplateUpdater | TemplateUpdateChecker,
+		) => {
+			statusContainer.empty();
 
-				button.onClick(() => {
-					modal.open();
-				});
-			});
+			const updateAvailable = hasUpdates(updater);
+			const applier = canApplyTemplate(updater) ? updater : null;
+			const latestVersion = updater.newestTemplateVersion ?? "latest";
 
-		// Gardens from before the template version file can't tell an update
-		// from their own customizations; let the user record the version.
-		if (updateAvailable && applier && !applier.installedVersion) {
-			new Setting(loadingContainer)
-				.setName("Already up to date?")
-				.setDesc(
-					`If you have already updated your template and the differing files are your own customizations, record ${latestVersion} as your template version. Future update notices will then only appear for new template releases.`,
-				)
+			const fileCountText = (count: number) =>
+				`${count} template file${count === 1 ? "" : "s"}`;
+
+			let description: string;
+
+			if (updateAvailable) {
+				description = `${
+					updater.installedVersion
+						? `Version ${latestVersion} is available (you have ${updater.installedVersion}). `
+						: ""
+				}Update when you update the plugin, so your site supports all its features.`;
+			} else if (applier) {
+				description = `Your site template is up to date (${latestVersion}). ${fileCountText(
+					applier.changedFileCount,
+				)} differ from the default template, likely your own customizations. Re-applying creates a pull request that overwrites them.`;
+			} else {
+				description = `Your site template is up to date (${latestVersion}).`;
+			}
+
+			new Setting(statusContainer)
+				.setName("Site template")
+				.setDesc(description)
 				.addButton((button) => {
-					button.setButtonText("Mark as up to date");
-
-					button.onClick(async () => {
+					if (updateAvailable) {
+						button.setButtonText(`Update to ${latestVersion}`);
+						button.setCta();
+					} else if (applier) {
+						button.setButtonText("Re-apply template");
+					} else {
+						button.setButtonText("Up to date");
 						button.setDisabled(true);
-						button.setButtonText("Saving...");
+					}
 
-						try {
-							await applier.markAsUpToDate();
-
-							new Notice(
-								`Site template marked as version ${latestVersion}.`,
-							);
-							button.setButtonText("Marked as up to date");
-						} catch (error) {
-							Logger.error(
-								"Failed to mark template as up to date",
-								error,
-							);
-
-							new Notice(
-								"Could not save the template version. Please try again.",
-							);
-							button.setButtonText("Mark as up to date");
-							button.setDisabled(false);
-						}
+					button.onClick(() => {
+						modal.open();
 					});
 				});
-		}
 
-		// Modal title
-		modal.titleEl.empty();
+			// Gardens from before the template version file can't tell an
+			// update from their own customizations; let the user record the
+			// version.
+			if (updateAvailable && applier && !applier.installedVersion) {
+				new Setting(statusContainer)
+					.setName("Already up to date?")
+					.setDesc(
+						`If you have already updated your template and the differing files are your own customizations, record ${latestVersion} as your template version. Future update notices will then only appear for new template releases.`,
+					)
+					.addButton((button) => {
+						button.setButtonText("Mark as up to date");
 
-		const titleContainer = modal.titleEl.createDiv({
-			cls: "dg-modal-title",
-		});
-		const syncIcon = getIcon("refresh-cw");
+						button.onClick(async () => {
+							button.setDisabled(true);
+							button.setButtonText("Saving…");
 
-		if (syncIcon) {
-			titleContainer.appendChild(syncIcon);
-		}
-		titleContainer.createSpan({ text: "Update Site Template" });
+							try {
+								await applier.markAsUpToDate();
 
-		// Modal content
-		const updateSection = modal.contentEl.createDiv({
-			cls: "dg-update-section",
-		});
+								new Notice(
+									`Site template marked as version ${latestVersion}.`,
+								);
+								button.setButtonText("Marked as up to date");
+							} catch (error) {
+								Logger.error(
+									"Failed to mark template as up to date",
+									error,
+								);
 
-		const infoContainer = updateSection.createDiv({
-			cls: "dg-update-info",
-		});
+								new Notice(
+									"Couldn't save the template version. Try again.",
+								);
+								button.setButtonText("Mark as up to date");
+								button.setDisabled(false);
+							}
+						});
+					});
+			}
 
-		const infoIcon = getIcon("info");
+			if (!modalBuilt) {
+				modalBuilt = true;
+				buildModal(updater, !updateAvailable && applier !== null);
+			}
+		};
 
-		if (infoIcon) {
-			infoContainer.appendChild(infoIcon);
-		}
+		const buildModal = (
+			updater: TemplateUpdater | TemplateUpdateChecker,
+			isReapply: boolean,
+		) => {
+			// Modal title
+			modal.titleEl.empty();
 
-		infoContainer.createDiv({
-			cls: "dg-update-info-text",
-			text: "This will create a pull request with the latest template changes. Your site won't be updated until you approve the PR.",
-		});
-
-		const buttonContainer = updateSection.createDiv({
-			cls: "dg-update-button-container",
-		});
-
-		const createPrButton = buttonContainer.createEl("button", {
-			text: "Create Pull Request",
-			cls: "mod-cta",
-		});
-
-		createPrButton.addEventListener("click", () => {
-			handlePR(
-				{
-					setDisabled: (d: boolean) => (createPrButton.disabled = d),
-				} as unknown as ButtonComponent,
-				updater as TemplateUpdater,
-			);
-		});
-
-		this.settingsRootElement
-			.createEl("h3", { text: "Support" })
-			.prepend(this.getIcon("heart"));
-
-		this.settingsRootElement
-			.createDiv({
-				attr: {
-					style: "display:flex; align-items:center; justify-content:center; margin-top: 20px;",
-				},
-			})
-			.createEl("a", {
-				attr: { href: "https://ko-fi.com/oleeskild", target: "_blank" },
-			})
-			.createEl("img", {
-				attr: {
-					src: "https://cdn.ko-fi.com/cdn/kofi3.png?v=3",
-					width: "200",
-				},
+			const titleContainer = modal.titleEl.createDiv({
+				cls: "dg-modal-title",
 			});
+			const syncIcon = getIcon("refresh-cw");
+
+			if (syncIcon) {
+				titleContainer.appendChild(syncIcon);
+			}
+
+			titleContainer.createSpan({
+				text: isReapply
+					? "Re-apply site template"
+					: "Update site template",
+			});
+
+			// Modal content
+			const updateSection = modal.contentEl.createDiv({
+				cls: "dg-update-section",
+			});
+
+			const infoContainer = updateSection.createDiv({
+				cls: "dg-update-info",
+			});
+
+			const infoIcon = getIcon("info");
+
+			if (infoIcon) {
+				infoContainer.appendChild(infoIcon);
+			}
+
+			infoContainer.createDiv({
+				cls: "dg-update-info-text",
+				text: isReapply
+					? "This creates a pull request that resets your template files to the default template. Any customizations you made to those files are overwritten. Your site doesn't change until you merge the pull request."
+					: "This creates a pull request with the latest template changes. Your site doesn't change until you merge the pull request.",
+			});
+
+			const buttonContainer = updateSection.createDiv({
+				cls: "dg-update-button-container",
+			});
+
+			const createPrButton = buttonContainer.createEl("button", {
+				text: "Create pull request",
+				cls: isReapply ? "mod-warning" : "mod-cta",
+			});
+
+			createPrButton.addEventListener("click", () => {
+				handlePR(
+					{
+						setDisabled: (d: boolean) =>
+							(createPrButton.disabled = d),
+					} as unknown as ButtonComponent,
+					updater as TemplateUpdater,
+				);
+			});
+		};
+
+		const updater = await runCheck();
+
+		if (!updater) return;
+		renderResult(updater);
 	}
 
 	renderPullRequestHistory(modal: Modal, previousPrUrls: string[]) {
@@ -2701,59 +758,20 @@ export default class SettingView {
 			return;
 		}
 
-		const historySection = modal.contentEl.createDiv({
+		const history = modal.contentEl.createEl("details", {
 			cls: "dg-pr-history",
 		});
+		history.createEl("summary", { text: "Recent pull requests" });
 
-		const header = historySection.createDiv({
-			cls: "dg-pr-history-header",
-		});
+		const list = history.createEl("ul", { cls: "dg-pr-history-list" });
 
-		const chevronIcon = getIcon("chevron-right");
-
-		if (chevronIcon) {
-			header.appendChild(chevronIcon);
-		}
-
-		header.createSpan({ text: "Recent Pull Requests" });
-
-		const prsContainer = historySection.createDiv({
-			cls: "dg-pr-history-list",
-		});
-		prsContainer.hide();
-
-		header.addEventListener("click", () => {
-			const chevron = header.querySelector(".svg-icon");
-
-			if (prsContainer.isShown()) {
-				prsContainer.hide();
-				chevron?.removeClass("is-expanded");
-			} else {
-				prsContainer.show();
-				chevron?.addClass("is-expanded");
-			}
-		});
-
-		previousPrUrls.forEach((prUrl) => {
-			const prItem = prsContainer.createDiv({
-				cls: "dg-pr-history-item",
-			});
-
-			const gitPrIcon = getIcon("git-pull-request");
-
-			if (gitPrIcon) {
-				prItem.appendChild(gitPrIcon);
-			}
-
-			// Extract PR number from URL for display
+		for (const prUrl of previousPrUrls) {
 			const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
-			const displayText = prNumber ? `Pull Request #${prNumber}` : prUrl;
 
-			prItem.createEl("a", {
-				text: displayText,
+			list.createEl("li").createEl("a", {
+				text: prNumber ? `Pull request #${prNumber}` : prUrl,
 				href: prUrl,
-				cls: "dg-pr-history-link",
 			});
-		});
+		}
 	}
 }

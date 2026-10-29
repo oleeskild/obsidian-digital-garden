@@ -70,13 +70,14 @@ function sortTree(node: FileTreeNode): void {
 	for (const c of node.children) sortTree(c);
 }
 
-export function collectFilePaths(node: FileTreeNode): string[] {
-	if (!node.isFolder) return [node.path];
+/** The files a tick can act on: published notes have nothing to publish. */
+export function collectSelectablePaths(node: FileTreeNode): string[] {
+	if (!node.isFolder) return node.status === "published" ? [] : [node.path];
 
 	const out: string[] = [];
 
 	for (const c of node.children ?? []) {
-		out.push(...collectFilePaths(c));
+		out.push(...collectSelectablePaths(c));
 	}
 
 	return out;
