@@ -90,6 +90,18 @@ export default interface DigitalGardenSettings {
 
 	navigationOrder?: Record<string, string[]>;
 
+	/**
+	 * The site's .env values as of the last time this vault read or wrote
+	 * them. Local values that differ from it are edits not yet published.
+	 */
+	siteSettingsBaseline?: Record<string, string>;
+
+	/** The site's navigation order (JSON, "" for none) as last read or written. */
+	siteNavigationBaseline?: string;
+
+	/** Logo and favicon paths as last uploaded to the site. */
+	siteAssetBaseline?: { logoPath: string; faviconPath: string };
+
 	/** When true, publishing a note never asks whether to make it the home page. */
 	dontAskAboutHomePage?: boolean;
 
@@ -107,6 +119,9 @@ export default interface DigitalGardenSettings {
 	 * user has turned them on once and accepted the third-party code warning.
 	 */
 	gardenCommunityPluginsEnabled?: boolean;
+
+	/** Set once the user has dismissed the "Site settings have moved" notice. */
+	siteSettingsMovedNoticeDismissed?: boolean;
 
 	/** When true, the automatic startup check for site template updates (and its Notice) is skipped. Manually checking/updating in settings still works. */
 	disableTemplateUpdateNotice?: boolean;

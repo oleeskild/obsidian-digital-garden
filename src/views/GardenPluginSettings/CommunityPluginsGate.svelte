@@ -38,9 +38,10 @@
 
 <style>
 	.dg-community-gate {
-		border: 1px solid var(--background-modifier-border);
-		border-left: 3px solid var(--text-warning, var(--interactive-accent));
-		border-radius: 8px;
+		border: 1px solid
+			color-mix(in srgb, var(--text-warning) 45%, transparent);
+		border-radius: var(--radius-m);
+		background: color-mix(in srgb, var(--text-warning) 10%, transparent);
 		padding: 12px 16px;
 		margin-top: 8px;
 	}

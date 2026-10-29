@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { Notice } from "obsidian";
-	import { Base64 } from "js-base64";
-	import type { RepositoryConnection } from "../../repositoryConnection/RepositoryConnection";
 	import type Publisher from "../../publisher/Publisher";
 	import type DigitalGardenSettings from "../../models/settings";
 	import { getGardenPathForNote, getRewriteRules } from "../../utils/utils";
-	import { sitePath } from "../../publisher/paths";
 	import SortableTree from "./SortableTree.svelte";
 
-	export let repositoryConnection: RepositoryConnection;
 	export let publisher: Publisher;
 	export let settings: DigitalGardenSettings;
-	export let saveSettings: () => Promise<void>;
-	export let close: () => void;
+	/**
+	 * Called with the new order after each change (undefined = the default
+	 * order). Saving it locally is the caller's job; it is published with
+	 * the site settings.
+	 */
+	export let onChange: (
+		order: NavigationOrder | undefined,
+	) => void | Promise<void>;
 
 	type NavigationOrder = Record<string, string[]>;
 
@@ -24,35 +25,35 @@
 	}
 
 	let loading = true;
-	let saving = false;
 	let error: string | null = null;
 	let tree: TreeItem[] = [];
-	let remoteSha: string | null = null;
+	// The order as loaded, and the setting it came from: dragging back to
+	// it restores that setting instead of leaving an equivalent edit.
+	let loadedOrdering = "";
+	let loadedOrder: NavigationOrder | undefined;
+	let lastEmitted = "";
+	// Whether a custom order is set, so "Use default order" has something to do.
+	let custom = false;
 
-	const NAV_ORDER_PATH = sitePath(settings, "/_data/navigationOrder.json");
+	$: if (!loading) treeChanged(tree);
+
+	function treeChanged(items: TreeItem[]) {
+		const current = JSON.stringify(extractOrdering(items, "/"));
+
+		if (current === lastEmitted) return;
+		lastEmitted = current;
+
+		const order =
+			current === loadedOrdering
+				? loadedOrder
+				: extractOrdering(items, "/");
+		custom = order !== undefined;
+		onChange(order);
+	}
 
 	onMount(async () => {
 		await loadTree();
 	});
-
-	async function fetchRemoteOrdering(): Promise<{
-		order: NavigationOrder;
-		sha: string | null;
-	}> {
-		try {
-			const file = await repositoryConnection.getFile(NAV_ORDER_PATH);
-
-			if (file && file.content) {
-				const content = Base64.decode(file.content);
-
-				return { order: JSON.parse(content), sha: file.sha };
-			}
-		} catch {
-			// File doesn't exist yet — that's fine
-		}
-
-		return { order: {}, sha: null };
-	}
 
 	async function buildPublishedTree(): Promise<TreeItem[]> {
 		const { notes } = await publisher.getFilesMarkedForPublishing();
@@ -182,20 +183,14 @@
 		error = null;
 
 		try {
-			const [{ order, sha }, publishedTree] = await Promise.all([
-				fetchRemoteOrdering(),
-				buildPublishedTree(),
-			]);
-
-			remoteSha = sha;
-			tree = applyOrdering(publishedTree, order, "/");
-
-			// Sync local settings with what's on GitHub
-			settings.navigationOrder =
-				Object.keys(order).length > 0 ? order : undefined;
-			await saveSettings();
+			const publishedTree = await buildPublishedTree();
+			loadedOrder = settings.navigationOrder;
+			tree = applyOrdering(publishedTree, loadedOrder ?? {}, "/");
+			loadedOrdering = JSON.stringify(extractOrdering(tree, "/"));
+			lastEmitted = loadedOrdering;
+			custom = loadedOrder !== undefined;
 		} catch (e) {
-			error = `Failed to load navigation data: ${e.message}`;
+			error = `Couldn't read your published notes: ${e.message}`;
 		} finally {
 			loading = false;
 		}
@@ -217,93 +212,31 @@
 		return ordering;
 	}
 
-	async function handleSave() {
-		saving = true;
-
-		try {
-			const ordering = extractOrdering(tree, "/");
-			const content = JSON.stringify(ordering, null, 2);
-			const encoded = Base64.encode(content);
-
-			await repositoryConnection.updateFile({
-				path: NAV_ORDER_PATH,
-				content: encoded,
-				message: "Update navigation ordering",
-				sha: remoteSha ?? undefined,
-			});
-
-			settings.navigationOrder = ordering;
-			await saveSettings();
-
-			new Notice("Navigation ordering saved!");
-			close();
-		} catch (e) {
-			error = `Failed to save: ${e.message}`;
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function handleReset() {
-		if (!remoteSha) {
-			new Notice("No custom ordering to reset.");
-
-			return;
-		}
-
-		saving = true;
-
-		try {
-			await repositoryConnection.deleteFile(NAV_ORDER_PATH, {
-				sha: remoteSha,
-			});
-
-			settings.navigationOrder = undefined;
-			await saveSettings();
-
-			new Notice("Navigation ordering reset to default.");
-			close();
-		} catch (e) {
-			error = `Failed to reset: ${e.message}`;
-		} finally {
-			saving = false;
-		}
+	async function resetToDefault() {
+		await onChange(undefined);
+		await loadTree();
 	}
 </script>
 
 <div class="navigation-order-container">
 	{#if loading}
-		<div class="loading-container">
-			<div class="loading-text">Loading navigation...</div>
+		<div class="loading-container" role="status">
+			<div class="loading-text">Reading your published notes…</div>
 		</div>
 	{:else if error}
-		<div class="error-container">
+		<div class="error-container" role="alert">
 			<p class="error-text">{error}</p>
-			<button on:click={loadTree}>Retry</button>
+			<button on:click={loadTree}>Try again</button>
 		</div>
 	{:else}
-		<p class="description">
-			Drag and drop to reorder the navigation items on your site.
-		</p>
-
 		<div class="tree-container">
 			<SortableTree bind:items={tree} />
 		</div>
 
 		<div class="button-container">
-			<button
-				on:click={handleReset}
-				disabled={saving}
-				class="reset-button"
-			>
-				Reset to default
+			<button on:click={resetToDefault} disabled={!custom}>
+				Use default order
 			</button>
-			<div class="right-buttons">
-				<button on:click={close} disabled={saving}>Cancel</button>
-				<button on:click={handleSave} disabled={saving} class="mod-cta">
-					{saving ? "Saving..." : "Save"}
-				</button>
-			</div>
 		</div>
 	{/if}
 </div>
@@ -312,8 +245,9 @@
 	.navigation-order-container {
 		display: flex;
 		flex-direction: column;
-		min-height: 300px;
-		max-height: 60vh;
+		width: 100%;
+		/* Setting-row controls align right; a tree reads from the left. */
+		text-align: start;
 	}
 
 	.loading-container {
@@ -331,19 +265,10 @@
 		color: var(--text-error);
 	}
 
-	.description {
-		margin-bottom: 0.5rem;
-		color: var(--text-muted);
-		font-size: var(--font-ui-small);
-	}
-
+	/* It sits inside a setting row already; no second box. */
 	.tree-container {
 		flex: 1;
-		overflow-y: auto;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: var(--radius-s);
-		padding: 0.5rem;
-		margin-bottom: 1rem;
+		margin: 4px 0 12px;
 	}
 
 	.button-container {
@@ -351,26 +276,5 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.right-buttons {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	.reset-button {
-		color: var(--text-error);
-	}
-
-	:global(.dg-navigation-order-modal) {
-		width: 500px;
-		max-width: 90vw;
-	}
-
-	:global(.dg-navigation-order-modal .modal-content) {
-		max-height: 70vh;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
 	}
 </style>

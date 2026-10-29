@@ -8,9 +8,12 @@ import type { SiteUpdateTracker } from "../../forestry/SiteUpdateTracker";
 import { VIEW_TYPE, VIEW_DISPLAY_TEXT, VIEW_ICON } from "./constants";
 import { findHomePageFiles } from "../../publishFile/homePage";
 import PublicationCenter from "./PublicationCenter.svelte";
+import type { CenterTarget } from "./site/target";
 
 interface PublicationCenterViewPlugin {
 	app: App;
+	manifest: { id: string };
+	saveSettings: () => Promise<void>;
 	settings: DigitalGardenSettings;
 	siteUpdateTracker: SiteUpdateTracker | null;
 	openHomePagePicker: () => void;
@@ -19,7 +22,12 @@ interface PublicationCenterViewPlugin {
 export class PublicationCenterView extends ItemView {
 	private plugin: PublicationCenterViewPlugin;
 	private component?: ReturnType<typeof mount>;
-	private refreshApi?: { maybeRefresh: () => void };
+	private refreshApi?: {
+		maybeRefresh: () => void;
+		show: (target: CenterTarget) => void;
+	};
+	// Where to open, if asked before the component registered its API.
+	private pendingTarget: CenterTarget | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: PublicationCenterViewPlugin) {
 		super(leaf);
@@ -90,9 +98,15 @@ export class PublicationCenterView extends ItemView {
 					? () => findHomePageFiles(app).length === 0
 					: null,
 				onChooseHomePage: () => this.plugin.openHomePagePicker(),
+				onOpenSettings: () => this.openSettings(),
+				app,
+				settings,
+				saveSettings: () => this.plugin.saveSettings(),
+				initialTarget: this.pendingTarget ?? { tab: "notes" },
 				openFile: (path: string) => this.openFile(path),
-				registerApi: (api: { maybeRefresh: () => void }) => {
+				registerApi: (api: NonNullable<typeof this.refreshApi>) => {
 					this.refreshApi = api;
+					this.pendingTarget = null;
 				},
 			},
 		});
@@ -106,9 +120,27 @@ export class PublicationCenterView extends ItemView {
 		this.refreshApi = undefined;
 	}
 
+	/** Switch to a tab, and optionally a section of the Site tab. */
+	show(target: CenterTarget): void {
+		if (this.refreshApi) this.refreshApi.show(target);
+		else this.pendingTarget = target;
+	}
+
 	/** Trigger a debounced background refresh (e.g. on reactivation). */
 	maybeRefresh(): void {
 		this.refreshApi?.maybeRefresh();
+	}
+
+	// Obsidian has no public API for this; the setting modal is internal.
+	private openSettings(): void {
+		const setting = (
+			this.app as unknown as {
+				setting?: { open(): void; openTabById(id: string): void };
+			}
+		).setting;
+
+		setting?.open();
+		setting?.openTabById(this.plugin.manifest.id);
 	}
 
 	private async openFile(path: string): Promise<void> {

@@ -15,6 +15,10 @@ export class UpdateGardenRepositoryModal extends Modal {
 	}
 
 	renderLoading() {
+		// Each attempt replaces the previous result.
+		this.progressViewTop.empty();
+		clearInterval(this.loadingInterval);
+
 		this.loading = this.progressViewTop.createDiv({
 			cls: "dg-update-loading",
 		});
@@ -32,7 +36,7 @@ export class UpdateGardenRepositoryModal extends Modal {
 
 		const loadingText = this.loading.createEl("p", {
 			cls: "dg-update-loading-text",
-			text: "Creating pull request...",
+			text: "Creating pull request…",
 		});
 
 		this.loading.createEl("p", {
@@ -107,8 +111,11 @@ export class UpdateGardenRepositoryModal extends Modal {
 		}
 	}
 
-	/** Show the failure; `message` replaces the default troubleshooting hint. */
-	renderError(message?: string) {
+	/**
+	 * Show the failure; `message` replaces the default troubleshooting hint
+	 * and `detail` (the raw error) goes in a collapsed disclosure.
+	 */
+	renderError(message?: string, detail?: string) {
 		this.loading?.remove();
 		clearInterval(this.loadingInterval);
 
@@ -127,15 +134,23 @@ export class UpdateGardenRepositoryModal extends Modal {
 		}
 
 		errorContainer.createEl("h3", {
-			text: "Something went wrong",
+			text: "Couldn't create the pull request",
 			cls: "dg-update-title",
 		});
 
 		errorContainer.createEl("p", {
 			text:
 				message ??
-				'Try deleting the "update-template" branch in your GitHub repository and try again.',
+				'Try again. If it keeps failing, an old "update-template" branch in your repository may be in the way: delete it on GitHub, then try again.',
 			cls: "dg-update-message",
 		});
+
+		if (detail) {
+			const details = errorContainer.createEl("details", {
+				cls: "dg-update-details",
+			});
+			details.createEl("summary", { text: "Technical details" });
+			details.createEl("pre", { text: detail });
+		}
 	}
 }

@@ -1,85 +1,97 @@
-import { ButtonComponent, TextComponent } from "obsidian";
+import { Setting, TextComponent } from "obsidian";
 import SettingView from "./SettingView";
+
+/** Why a pattern and its flags don't form a valid regular expression. */
+export function regexError(pattern: string, flags: string): string | null {
+	if (!pattern) return null;
+
+	try {
+		new RegExp(pattern, flags);
+
+		return null;
+	} catch (error) {
+		return error instanceof Error ? error.message : String(error);
+	}
+}
 
 function addFilterInput(
 	filter: { pattern: string; flags: string; replace: string },
 	el: HTMLElement,
 	idx: number,
-	plugin: SettingView,
+	view: SettingView,
+	rerender: () => void,
 ) {
-	const item = el.createEl("li", {
-		attr: {
-			style: "list-style-type: none; position: relative; margin: 5px 0; padding-right: 45px",
-		},
-	});
-	const patternField = new TextComponent(el);
+	const row = new Setting(el).setClass("dg-filter-row");
+	row.setName(`Filter ${idx + 1}`);
 
-	patternField
-		.setPlaceholder("regex pattern")
-		.setValue(filter.pattern)
-		.onChange(async (value) => {
-			if (!value) {
-				return;
-			}
-			plugin.settings.customFilters[idx].pattern = value;
-			await plugin.saveSettings();
+	const showValidity = () => {
+		const error = regexError(filter.pattern, filter.flags);
+		row.setDesc(error ? `Not a valid regular expression: ${error}` : "");
+		row.settingEl.toggleClass("dg-filter-invalid", !!error);
+	};
+
+	const field = (
+		placeholder: string,
+		label: string,
+		value: string,
+		apply: (value: string) => void,
+		cls: string,
+	) =>
+		row.addText((text: TextComponent) => {
+			text.inputEl.addClass(cls);
+
+			text.inputEl.setAttribute(
+				"aria-label",
+				`${label}, filter ${idx + 1}`,
+			);
+
+			text.setPlaceholder(placeholder)
+				.setValue(value)
+				.onChange(async (next) => {
+					// Empty is a real value: it removes the match, or clears
+					// the pattern.
+					apply(next);
+					showValidity();
+					await view.saveSettings();
+				});
 		});
-	const patternEl = patternField.inputEl;
-	patternEl.style.width = "250px";
-	item.appendChild(patternEl);
 
-	const replaceField = new TextComponent(el);
+	field(
+		"Pattern",
+		"Pattern",
+		filter.pattern,
+		(v) => (view.settings.customFilters[idx].pattern = v),
+		"dg-filter-pattern",
+	);
 
-	replaceField
-		.setPlaceholder("replacement")
-		.setValue(filter.replace)
-		.onChange(async (value) => {
-			if (!value) {
-				return;
-			}
-			plugin.settings.customFilters[idx].replace = value;
-			await plugin.saveSettings();
-		});
-	const replaceEl = replaceField.inputEl;
-	replaceEl.style.width = "250px";
-	replaceEl.style.marginLeft = "5px";
-	item.appendChild(replaceEl);
+	field(
+		"Replace with",
+		"Replace with",
+		filter.replace,
+		(v) => (view.settings.customFilters[idx].replace = v),
+		"dg-filter-replace",
+	);
 
-	const flagField = new TextComponent(el);
+	field(
+		"Flags",
+		"Flags",
+		filter.flags,
+		(v) => (view.settings.customFilters[idx].flags = v),
+		"dg-filter-flags",
+	);
 
-	flagField
-		.setPlaceholder("flags")
-		.setValue(filter.flags)
-		.onChange(async (value) => {
-			if (!value) {
-				return;
-			}
-			plugin.settings.customFilters[idx].flags = value;
-			await plugin.saveSettings();
-		});
-	const flagEl = flagField.inputEl;
-	flagEl.style.width = "50px";
-	flagEl.style.marginLeft = "5px";
-	item.appendChild(flagEl);
+	row.addExtraButton((button) =>
+		button
+			.setIcon("trash-2")
+			.setTooltip(`Remove filter ${idx + 1}`)
+			.onClick(async () => {
+				view.settings.customFilters.splice(idx, 1);
+				await view.saveSettings();
+				rerender();
+			}),
+	);
 
-	const removeButton = new ButtonComponent(el);
-	removeButton.setIcon("minus");
-	removeButton.setTooltip("Remove filter");
-
-	removeButton.onClick(async () => {
-		plugin.settings.customFilters.splice(idx, 1);
-		el.empty();
-
-		for (let i = 0; i < plugin.settings.customFilters.length; i++) {
-			addFilterInput(plugin.settings.customFilters[i], el, i, plugin);
-		}
-		await plugin.saveSettings();
-	});
-	const removeButtonEl = removeButton.buttonEl;
-	removeButtonEl.style.marginLeft = "5px";
-	removeButtonEl.style.position = "absolute";
-	removeButtonEl.style.right = "0";
-	item.appendChild(removeButtonEl);
+	showValidity();
 }
 
 export { addFilterInput };

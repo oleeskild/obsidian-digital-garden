@@ -8,9 +8,9 @@
 		<div>
 			{#each diff as part}
 				{#if part.added}
-					<span class="added">{part.value}</span>
+					<span class="added dg-diff-add">{part.value}</span>
 				{:else if part.removed}
-					<span class="removed">{part.value}</span>
+					<span class="removed dg-diff-del">{part.value}</span>
 				{/if}
 			{/each}
 		</div>
@@ -24,14 +24,12 @@
 	}
 
 	.added {
-		background-color: rgba(170, 255, 170, 0.5);
-		color: var(--text-on-accent);
+		color: var(--text-normal);
 		text-decoration: overline;
 	}
 
 	.removed {
-		background-color: rgba(255, 170, 170, 0.5);
-		color: var(--text-on-accent);
+		color: var(--text-normal);
 		text-decoration: line-through;
 	}
 </style>

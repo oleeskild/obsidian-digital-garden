@@ -5,8 +5,8 @@ import SettingView from "./SettingsView/SettingView";
 import { UpdateGardenRepositoryModal } from "./UpdateGardenRepositoryModal";
 import Logger from "js-logger";
 import { TemplateUpdater } from "../repositoryConnection/TemplateManager";
-import { PublishPlatform } from "src/models/PublishPlatform";
 import { PublishBranchMissingError } from "src/repositoryConnection/PublishBranchMissingError";
+import { describeError } from "../utils/debugLog";
 
 export class DigitalGardenSettingTab extends PluginSettingTab {
 	plugin: DigitalGarden;
@@ -34,67 +34,73 @@ export class DigitalGardenSettingTab extends PluginSettingTab {
 	async display(): Promise<void> {
 		const { containerEl } = this;
 
-		const siteManager = new DigitalGardenSiteManager(
-			this.plugin.app.metadataCache,
-			this.plugin.settings,
-		);
-
 		const settingView = new SettingView(
 			this.app,
 			containerEl,
 			this.plugin.settings,
 			async () => await this.plugin.saveSettings(),
 			() => this.plugin.afterForestryConnected(),
+			() => this.plugin.activatePublicationCenter({ tab: "site" }),
 		);
-		const prModal = new UpdateGardenRepositoryModal(this.app);
 
-		const handlePR = async (
-			button: ButtonComponent,
-			updater: TemplateUpdater,
-		) => {
-			prModal.renderLoading();
-			button.setDisabled(true);
+		// Self-hosted only; rendered once the garden is connected. A fresh
+		// modal per render, so re-rendering never duplicates its content.
+		settingView.renderTemplateSection = async () => {
+			const siteManager = new DigitalGardenSiteManager(
+				this.plugin.app.metadataCache,
+				this.plugin.settings,
+			);
+			const prModal = new UpdateGardenRepositoryModal(this.app);
 
-			if (!updater) {
-				prModal.renderSuccess("");
-				button.setDisabled(false);
+			const handlePR = async (
+				button: ButtonComponent,
+				updater: TemplateUpdater,
+			) => {
+				prModal.renderLoading();
+				button.setDisabled(true);
 
-				return;
-			}
+				if (!updater) {
+					prModal.renderSuccess("");
+					button.setDisabled(false);
 
-			try {
-				Logger.time("update");
-
-				const prUrl = await updater.updateTemplate();
-				Logger.timeEnd("update");
-
-				if (prUrl) {
-					this.plugin.settings.prHistory.push(prUrl);
-					await this.plugin.saveSettings();
+					return;
 				}
-				prModal.renderSuccess(prUrl);
-				button.setDisabled(false);
-			} catch (error) {
-				prModal.renderError(
-					error instanceof PublishBranchMissingError
-						? error.message
-						: undefined,
-				);
-			}
-		};
 
-		await settingView.initialize(prModal);
+				try {
+					Logger.time("update");
 
-		// Show template update section at the top for self-hosted (GitHub) platform
-		if (
-			this.plugin.settings.publishPlatform === PublishPlatform.SelfHosted
-		) {
-			settingView.renderCreatePr(prModal, handlePR, siteManager);
+					const prUrl = await updater.updateTemplate();
+					Logger.timeEnd("update");
+
+					if (prUrl) {
+						this.plugin.settings.prHistory.push(prUrl);
+						await this.plugin.saveSettings();
+					}
+					prModal.renderSuccess(prUrl);
+					button.setDisabled(false);
+				} catch (error) {
+					Logger.error("Template update failed", error);
+
+					prModal.renderError(
+						error instanceof PublishBranchMissingError
+							? error.message
+							: undefined,
+						describeError(error),
+					);
+					// Let the user try again.
+					button.setDisabled(false);
+				}
+			};
+
+			// Awaited so the history lands below the modal's info and button.
+			await settingView.renderCreatePr(prModal, handlePR, siteManager);
 
 			settingView.renderPullRequestHistory(
 				prModal,
-				this.plugin.settings.prHistory.reverse().slice(0, 10),
+				[...this.plugin.settings.prHistory].reverse().slice(0, 10),
 			);
-		}
+		};
+
+		await settingView.initialize();
 	}
 }

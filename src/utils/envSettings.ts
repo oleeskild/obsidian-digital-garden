@@ -114,3 +114,31 @@ export function serializeEnvValues(
 		.map(([key, value]) => `${key}=${value}`)
 		.join("\n");
 }
+
+/** Parses a .env file into key-value pairs, skipping blanks and comments. */
+export function parseEnvValues(content: string): Record<string, string> {
+	const values: Record<string, string> = {};
+
+	for (const line of content.split("\n")) {
+		const trimmedLine = line.trim();
+
+		if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+
+		const [key, ...valueParts] = trimmedLine.split("=");
+
+		if (key) {
+			values[key.trim()] = valueParts.join("=").trim();
+		}
+	}
+
+	return values;
+}
+
+/** Env values as the strings they are written as ("true", "false", …). */
+export function stringifyEnvValues(
+	values: Record<string, string | boolean>,
+): Record<string, string> {
+	return Object.fromEntries(
+		Object.entries(values).map(([key, value]) => [key, String(value)]),
+	);
+}

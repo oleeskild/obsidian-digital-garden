@@ -3,6 +3,13 @@ import { CompiledPublishFile } from "../../publishFile/PublishFile";
 
 export type FileStatus = "changed" | "new" | "deleted" | "published";
 
+export const STATUS_LABEL: Record<FileStatus, string> = {
+	changed: "Changed",
+	new: "New",
+	deleted: "Removing",
+	published: "Published",
+};
+
 export interface AnnotatedFile {
 	path: string;
 	status: FileStatus;

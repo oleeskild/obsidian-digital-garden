@@ -168,25 +168,40 @@ export default class ForestryApi {
 		return result.ok ? result.value : null;
 	}
 
-	async getDeploys(
+	/** The garden's builds, or why they couldn't be read. */
+	async getDeploysResult(
 		branch: "active" | "main" = "active",
 		limit = 10,
-	): Promise<IDeployInfo[] | null> {
+	): Promise<ForestryResult<IDeployInfo[]>> {
 		try {
 			const response = (await this.client.get("pages/deploys", {
 				params: { branch, limit },
 			})) as AxiosResponse<IDeploysResponse>;
 
-			if (response.status !== 200) {
-				return null;
+			if (response.status !== 200 || !response.data?.value) {
+				return {
+					ok: false,
+					kind: "unreachable",
+					message: `Unexpected response (${response.status})`,
+				};
 			}
 
-			return response.data.value;
+			return { ok: true, value: response.data.value };
 		} catch (e) {
 			Logger.error(e);
+			const error = classifyError(e);
 
-			return null;
+			return { ok: false, kind: error.kind, message: error.message };
 		}
+	}
+
+	async getDeploys(
+		branch: "active" | "main" = "active",
+		limit = 10,
+	): Promise<IDeployInfo[] | null> {
+		const result = await this.getDeploysResult(branch, limit);
+
+		return result.ok ? result.value : null;
 	}
 
 	async getUserLimits(): Promise<IUserLimitsResponse | null> {

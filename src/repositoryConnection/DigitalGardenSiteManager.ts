@@ -16,7 +16,12 @@ import { TemplateUpdateChecker } from "./TemplateManager";
 import { envPath, imagePathBase, notePathBase } from "../publisher/paths";
 import PublishPlatformConnectionFactory from "./PublishPlatformConnectionFactory";
 import { PublishPlatform } from "src/models/PublishPlatform";
-import { generateEnvValues, serializeEnvValues } from "../utils/envSettings";
+import {
+	generateEnvValues,
+	parseEnvValues,
+	serializeEnvValues,
+	stringifyEnvValues,
+} from "../utils/envSettings";
 
 const logger = Logger.get("digital-garden-site-manager");
 export interface PathRewriteRule {
@@ -111,19 +116,7 @@ export default class DigitalGardenSiteManager {
 
 		// Parse existing remote settings and use as base to avoid
 		// overwriting settings that haven't been loaded into memory yet
-		const existingSettings: Record<string, string> = {};
-
-		for (const line of decodedCurrentFile.split("\n")) {
-			const trimmedLine = line.trim();
-
-			if (!trimmedLine || trimmedLine.startsWith("#")) continue;
-
-			const [key, ...valueParts] = trimmedLine.split("=");
-
-			if (key) {
-				existingSettings[key.trim()] = valueParts.join("=").trim();
-			}
-		}
+		const existingSettings = parseEnvValues(decodedCurrentFile);
 
 		const mergedSettings: Record<string, string | boolean> = {
 			...existingSettings,
@@ -145,22 +138,29 @@ export default class DigitalGardenSiteManager {
 
 		const base64Settings = Base64.encode(envSettings);
 
-		if (decodedCurrentFile === envSettings) {
+		if (decodedCurrentFile !== envSettings) {
+			await (
+				await this.getUserGardenConnection()
+			).updateFile({
+				path: envPath(this.settings),
+				content: base64Settings,
+				message: "Update settings",
+				sha: currentFile?.sha,
+			});
+		} else {
 			logger.info("No changes to .env file");
-
-			new Notice("Settings already up to date!");
-
-			return;
 		}
 
-		await (
-			await this.getUserGardenConnection()
-		).updateFile({
-			path: envPath(this.settings),
-			content: base64Settings,
-			message: "Update settings",
-			sha: currentFile?.sha,
-		});
+		// The written keys now match the site; record them as synced so the
+		// Publication Center stops listing them as pending. The caller saves.
+		const written = touched ?? new Set(Object.keys(generatedValues));
+		const merged = stringifyEnvValues(mergedSettings);
+		const baseline = { ...(this.settings.siteSettingsBaseline ?? {}) };
+
+		for (const key of written) {
+			baseline[key] = merged[key] ?? "";
+		}
+		this.settings.siteSettingsBaseline = baseline;
 	}
 
 	getNoteUrl(file: TFile): string {

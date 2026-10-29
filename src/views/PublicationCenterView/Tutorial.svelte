@@ -1,25 +1,36 @@
+<!-- src/views/PublicationCenterView/Tutorial.svelte -->
+<script lang="ts" context="module">
+	const TUTORIAL_KEY = "dg-pc-tutorial-dismissed";
+
+	/** Whether the tutorial still shows; lets other banners wait their turn. */
+	export function isTutorialPending(): boolean {
+		// eslint-disable-next-line no-undef
+		return !localStorage.getItem(TUTORIAL_KEY);
+	}
+</script>
+
 <script lang="ts">
 	import Icon from "../../ui/Icon.svelte";
+	import StatusDot from "./StatusDot.svelte";
 
-	const TUTORIAL_KEY = "dg-pc-tutorial-dismissed";
-	// eslint-disable-next-line no-undef
-	let show = !localStorage.getItem(TUTORIAL_KEY);
+	// Bound by the parent so other first-run banners wait their turn.
+	export let visible = isTutorialPending();
 
 	function dismiss() {
-		show = false;
+		visible = false;
 		// eslint-disable-next-line no-undef
 		localStorage.setItem(TUTORIAL_KEY, "true");
 	}
 </script>
 
-{#if show}
-	<div class="dg-pc-tutorial">
+{#if visible}
+	<section class="dg-pc-tutorial" aria-labelledby="dg-pc-tutorial-title">
 		<div class="dg-pc-tutorial-header">
-			<div class="dg-pc-tutorial-title">
-				👋 Welcome to the Publication Center
-			</div>
+			<h2 id="dg-pc-tutorial-title" class="dg-pc-tutorial-title">
+				Welcome to the Publication Center
+			</h2>
 			<button
-				class="dg-pc-tutorial-close"
+				class="dg-pc-tutorial-close clickable-icon"
 				on:click={dismiss}
 				aria-label="Dismiss tutorial"
 			>
@@ -28,64 +39,58 @@
 		</div>
 		<ul class="dg-pc-tutorial-list">
 			<li>
-				The left column lists your notes, each with a status dot:
-				<span class="dg-pc-tut-dot dg-pc-dot-new"></span> new,
-				<span class="dg-pc-tut-dot dg-pc-dot-changed"></span> changed,
-				<span class="dg-pc-tut-dot dg-pc-dot-deleted"></span> deleted,
-				<span class="dg-pc-tut-dot dg-pc-dot-published"></span> published.
+				Each note shows its status:
+				<span class="dg-pc-legend"><StatusDot status="new" /> New</span
+				>,
+				<span class="dg-pc-legend"
+					><StatusDot status="changed" /> Changed</span
+				>,
+				<span class="dg-pc-legend"
+					><StatusDot status="deleted" /> Removing</span
+				>
+				(unpublished, or gone from your vault) and
+				<span class="dg-pc-legend"
+					><StatusDot status="published" /> Published</span
+				>.
 			</li>
 			<li>
-				Use the filter chips at the top to focus on the statuses you
-				care about.
+				The filter chips show or hide each status. Publishing only
+				includes the notes you can see.
 			</li>
+			<li>Select a note to see what changed since you last published.</li>
 			<li>
-				Click a file to see its changes, and switch between
-				<strong>Split</strong> and <strong>Unified</strong> diff views.
-			</li>
-			<li>
-				Tick the files you want, then press
-				<strong>Publish selected</strong>.
+				Everything that needs publishing starts ticked. Untick what
+				should wait, then press <strong>Publish</strong>. You'll be
+				asked to confirm before anything is removed from your site.
 			</li>
 		</ul>
 		<div class="dg-pc-tutorial-actions">
-			<button class="dg-pc-tutorial-got" on:click={dismiss}>Got it</button
-			>
+			<button on:click={dismiss}>Got it</button>
 		</div>
-	</div>
+	</section>
 {/if}
 
 <style>
 	.dg-pc-tutorial {
-		border: 1px solid var(--interactive-accent);
-		border-radius: 6px;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: var(--radius-m);
 		padding: 12px;
 		margin-bottom: 10px;
 		background: var(--background-secondary);
+		font-size: var(--font-ui-small);
 	}
 
 	.dg-pc-tutorial-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 8px;
 	}
 
 	.dg-pc-tutorial-title {
-		font-weight: bold;
-		font-size: 1.05rem;
-	}
-
-	.dg-pc-tutorial-close {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: var(--text-muted);
-		padding: 2px;
-		display: flex;
-		align-items: center;
-	}
-
-	.dg-pc-tutorial-close:hover {
-		color: var(--text-normal);
+		margin: 0;
+		font-size: var(--font-ui-medium);
+		font-weight: var(--font-semibold);
 	}
 
 	.dg-pc-tutorial-list {
@@ -96,39 +101,15 @@
 		gap: 4px;
 	}
 
-	.dg-pc-tut-dot {
-		display: inline-block;
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		vertical-align: middle;
-	}
-
-	.dg-pc-dot-new {
-		background: var(--text-success, green);
-	}
-
-	.dg-pc-dot-changed {
-		background: var(--text-warning, orange);
-	}
-
-	.dg-pc-dot-deleted {
-		background: var(--text-error, red);
-	}
-
-	.dg-pc-dot-published {
-		background: var(--text-muted);
+	.dg-pc-legend {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		white-space: nowrap;
 	}
 
 	.dg-pc-tutorial-actions {
 		display: flex;
 		justify-content: flex-end;
-	}
-
-	.dg-pc-tutorial-got {
-		background: var(--interactive-accent);
-		color: var(--text-on-accent);
-		cursor: pointer;
-		font-weight: bold;
 	}
 </style>

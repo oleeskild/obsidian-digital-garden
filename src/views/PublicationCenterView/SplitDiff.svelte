@@ -2,23 +2,41 @@
 <script lang="ts">
 	import * as Diff from "diff";
 	import { computeSplitRows } from "./diffRows";
+	import type { SplitCell } from "./diffRows";
 
 	export let changes: Diff.Change[];
 
 	$: rows = computeSplitRows(changes);
+
+	const SIGN = { add: "+", del: "−", context: "" } as const;
+	const SPOKEN = { add: "Added: ", del: "Removed: ", context: "" } as const;
+
+	const cellClass = (cell?: SplitCell) =>
+		!cell
+			? "dg-pc-empty"
+			: cell.type === "add"
+			? "dg-diff-add"
+			: cell.type === "del"
+			? "dg-diff-del"
+			: "";
 </script>
 
 <div class="dg-pc-split">
 	{#each rows as row}
 		<div class="dg-pc-srow">
-			<div class="dg-pc-scell dg-pc-{row.left?.type ?? 'empty'}">
-				<span class="dg-pc-ln">{row.left?.lineNo ?? ""}</span>
-				<span class="dg-pc-text">{row.left?.text ?? ""}</span>
-			</div>
-			<div class="dg-pc-scell dg-pc-{row.right?.type ?? 'empty'}">
-				<span class="dg-pc-ln">{row.right?.lineNo ?? ""}</span>
-				<span class="dg-pc-text">{row.right?.text ?? ""}</span>
-			</div>
+			{#each [row.left, row.right] as cell}
+				<div class="dg-pc-scell {cellClass(cell)}">
+					<span class="dg-pc-ln">{cell?.lineNo ?? ""}</span>
+					<span class="dg-pc-sign" aria-hidden="true"
+						>{cell ? SIGN[cell.type] : ""}</span
+					>
+					<span class="dg-pc-text"
+						>{#if cell && SPOKEN[cell.type]}<span class="dg-sr-only"
+								>{SPOKEN[cell.type]}</span
+							>{/if}{cell?.text ?? ""}</span
+					>
+				</div>
+			{/each}
 		</div>
 	{/each}
 </div>
@@ -26,7 +44,7 @@
 <style>
 	.dg-pc-split {
 		font-family: var(--font-monospace);
-		font-size: var(--font-smaller, 0.85rem);
+		font-size: var(--font-smaller);
 	}
 
 	.dg-pc-srow {
@@ -37,27 +55,19 @@
 
 	.dg-pc-scell {
 		display: grid;
-		grid-template-columns: 3.5em 1fr;
+		grid-template-columns: 3em 1ch 1fr;
 		gap: 4px;
 		white-space: pre-wrap;
 		word-break: break-word;
-		border-left: 2px solid transparent;
-	}
-
-	.dg-pc-add {
-		background: var(--background-modifier-success);
-	}
-
-	.dg-pc-del {
-		background: var(--background-modifier-error);
 	}
 
 	.dg-pc-empty {
 		background: var(--background-secondary);
 	}
 
-	.dg-pc-ln {
-		color: var(--text-faint);
+	.dg-pc-ln,
+	.dg-pc-sign {
+		color: var(--text-muted);
 		text-align: right;
 		user-select: none;
 	}
@@ -68,7 +78,7 @@
 		}
 
 		.dg-pc-scell {
-			grid-template-columns: 2.5em 1fr;
+			grid-template-columns: 2.5em 1ch 1fr;
 		}
 	}
 </style>
